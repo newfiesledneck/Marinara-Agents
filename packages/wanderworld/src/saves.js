@@ -349,6 +349,8 @@ export function checkWorld(raw) {
     classes: isRecord(raw.classes) ? raw.classes : {},
     // What each number key does: { "1": "spell:<a sheet line's id>" | "use:<an item's name>" | "equip:<an item's name>" }.
     hotkeys: isRecord(raw.hotkeys) ? raw.hotkeys : {},
+    // Spell slots spent since the last sleep: { "1": n, "2": n, "3": n } (fights by turns, with slots on).
+    slotsUsed: isRecord(raw.slotsUsed) ? raw.slotsUsed : {},
     // The player's own recipes (craft.js checks them when they're read).
     recipes: Array.isArray(raw.recipes) ? raw.recipes : [],
     // Each vendor: { [zone id]: { kinds (once set by hand), stock, period, stocked } } (vendor.js).

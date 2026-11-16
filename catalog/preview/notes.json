@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.91",
+          "date": "2026-11-15",
+          "notes": "- A fourth way to fight: By turns (Settings → Inventory → Combat). A fight stops the clock for those in it, everyone rolls initiative, and they act in that order.\n- On your turn you may move nine metres, take one action (Attack, Cast, Dodge, or use something by its hotkey) and one bonus action, then end your turn with T or the button. A bar along the top shows the order and what you have left.\n- Companions and creatures take their turns by the same rules.\n- \"Fights by turns use spell slots\": a spell takes a spell slot of its level or higher, as the 5e SRD has it, and mana is left alone. A sleep gives the slots back. Off, a spell costs its level in mana, as in real time.",
+          "highlight": false
+        },
+        {
           "version": "0.6.90",
           "date": "2026-11-15",
           "notes": "- Fights move. A companion who strikes closes with a creature and works round it; one who casts keeps a few paces off and moves along the edge.\n- Creatures go for your companions as well as for you, choosing again every few seconds.\n- Companions have HP from their class. At 0 one is out of the fight for a while, then gets up. They are whole again once a fight is well over.",
@@ -307,12 +313,6 @@
           "version": "0.6.72",
           "date": "2026-11-15",
           "notes": "- A hanging sign on a building with an overhang no longer pokes through its roof. It hangs from one of the overhang's posts, just under the eave, a little smaller. This goes for the painted signs and the boards with a name.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.71",
-          "date": "2026-11-15",
-          "notes": "- Market stalls are dressed for their trade, with models from the Fantasy Props MegaKit's Pro tier: a smith's stall with tools and weapons, a potion seller's, and a greengrocer's with a cart of vegetables. Other trades keep the plain stall.\n- Shops hang a painted sign by the door for their trade: an anvil for a smith, a potion for an apothecary, a tankard for a tavern, a loaf for a greengrocer. Trades without one keep the board with their name.\n- A stall takes its look when the world loads. If you change a stall's trade, it shows after you open the world again.",
           "highlight": false
         }
       ]

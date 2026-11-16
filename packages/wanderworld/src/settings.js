@@ -156,7 +156,9 @@ export const SETTINGS = {
   /** Chopping, mining and fishing each need their tool carried (off: bare hands will do). */
   gatherTools: { value: true },
   // Fighting (combat.js): off, or in real time; and where the player comes to when their HP runs out.
-  fights: { value: "off", options: ["off", "realtime", "moment", "scene"] },
+  fights: { value: "off", options: ["off", "realtime", "turns", "moment", "scene"] },
+  // Fights by turns: spells are cast with the SRD's spell slots, not mana.
+  srdSlots: { value: false },
   // What a defeat costs: nothing, a quarter of the purse, or the experience gathered toward the next level.
   defeatCost: { value: "none", options: ["none", "coins", "xp"] },
   // Days before something beaten is about again (0: when the world is next opened).

@@ -290,6 +290,45 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   );
 }
 
+// Fights by turns: initiative, and the SRD's spell slots.
+{
+  const { initiativeOrder, slotFor, slotsAt, spellIn, spellRule, TURN_MOVE } =
+    await import("../packages/wanderworld/src/combat.js");
+  const { SRD_SLOTS, SRD_SPELLS } = await import("../packages/wanderworld/src/srd.js");
+  assert.equal(TURN_MOVE, 9);
+  const order = initiativeOrder(
+    [
+      { id: "zoey", bonus: 2 },
+      { id: "wolf", bonus: 2 },
+      { id: "mira", bonus: 1 },
+    ],
+    dice([10, 20], [15, 20], [11, 20]),
+  );
+  assert.deepEqual(order, [
+    { id: "wolf", roll: 15, total: 17 },
+    { id: "zoey", roll: 10, total: 12 }, // (a tie with Mira's 11 + 1: the higher bonus goes first)
+    { id: "mira", roll: 11, total: 12 },
+  ]);
+  assert.deepEqual(slotsAt(1, SRD_SLOTS), { 1: 2, 2: 0, 3: 0 });
+  assert.deepEqual(slotsAt(3, SRD_SLOTS), { 1: 4, 2: 2, 3: 0 });
+  assert.deepEqual(slotsAt(5, SRD_SLOTS), { 1: 4, 2: 3, 3: 2 });
+  const slots = slotsAt(3, SRD_SLOTS);
+  assert.equal(slotFor(0, slots, {}), -1, "a cantrip needs no slot");
+  assert.equal(slotFor(1, slots, {}), 1);
+  assert.equal(slotFor(1, slots, { 1: 4 }), 2, "a higher slot when its own are spent");
+  assert.equal(slotFor(2, slots, { 2: 2 }), 0, "none left");
+  assert.equal(slotFor(3, slots, {}), 0, "none of that level yet");
+  const word = SRD_SPELLS.find((spell) => spell.name === "Healing Word");
+  assert.equal(spellRule(word), "Level 1. 1 mana. +1d4 HP. Bonus action.");
+  assert.deepEqual([spellIn({ about: spellRule(word) }).bonus, spellIn({ about: spellRule(word) }).level], [true, 1]);
+  assert.equal(spellIn({ about: "Cantrip. 1d10 fire damage." }).level, 0);
+  assert.equal(
+    spellIn({ about: "2 mana. 1d10 fire damage." }).level,
+    -1,
+    "one of the player's own with no level: mana only",
+  );
+}
+
 // A herd's creature takes blows: HP kept, roused by a miss, down at 0, and out of the reckoning after.
 {
   const { createHerd } = await import("../packages/wanderworld/src/herd.js");

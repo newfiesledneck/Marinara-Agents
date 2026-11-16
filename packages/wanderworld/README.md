@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.90)
+## What it does now (0.6.91)
 
 ### The world
 
@@ -531,7 +531,7 @@ world's newest 60 pictures.
 ### Fighting
 
 Off to begin with: Settings → Inventory → Combat. It needs the character sheet, and nothing else.
-Combat can be played three ways.
+Combat can be played four ways.
 
 - **Real time.** F swings wherever you face, standing or on the move, and whatever is in front of
   you and in reach when the blow lands takes it. Q blocks for about a second: an attack on you
@@ -539,11 +539,17 @@ Combat can be played three ways.
   lands on you mid-roll. X draws your weapon or puts it away; drawn, the view stays behind you and
   you step sideways and back without turning. Z casts the spell that's ready. On a touch screen a
   Combat button swaps Run, Sit and Jump for Attack, Block, Dodge and Cast.
+- **By turns.** A fight stops the clock for those in it. Everyone rolls initiative and acts in that
+  order. On your turn you may move nine metres, take one action (Attack, Cast, Dodge, or use
+  something by its hotkey) and one bonus action, then end your turn (T). Companions and creatures
+  take turns by the same rules, and a bar along the top shows the order. With "Fights by turns use
+  spell slots" on, a spell takes a spell slot of its level or higher, as the SRD has it, and mana
+  is left alone; a sleep gives the slots back.
 - **A narrated moment.** When a creature gets to you, or you press Attack with one in reach, the
   game rolls one exchange of blows at once and the AI tells it as rolled.
 - **A scene.** The same meeting opens a scene chat with your stats, and the creatures let you be.
 
-The rules are the same in all three, and the game rolls them (`src/combat.js`). An attack is a d20
+The rules are the same in all four, and the game rolls them (`src/combat.js`). An attack is a d20
 plus a bonus against the target's AC: under it misses, at or over it hits, a 20 on the die is a
 critical hit that rolls the damage dice twice, and a 1 always misses. Your bonus is your Strength
 modifier and what your weapon and anything worn add. A weapon is any item whose description gives

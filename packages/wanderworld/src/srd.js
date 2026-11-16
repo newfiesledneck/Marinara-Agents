@@ -5,8 +5,8 @@
 // LLC, available at https://dnd.wizards.com/resources/systems-reference-document and licensed under the
 // Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/legalcode),
 // in the machine-readable form of the Open5e API project (https://github.com/open5e/open5e-api, srd-2014).
-// The material has been adapted: only names, levels, classes, dice, damage types, saving throws and ranges
-// are kept, ranges are in metres, and what a spell costs in mana is Wanderworld's own. Not affiliated with
+// The material has been adapted: only names, levels, classes, dice, damage types, saving throws, casting times,
+// ranges and the spell slot table are kept, ranges are in metres, and what a spell costs in mana is Wanderworld's own. Not affiliated with
 // or endorsed by Wizards of the Coast.
 
 /** The credit this material needs, shown in Help → Credits. */
@@ -87,7 +87,7 @@ export const SRD_SPELLS = [
     effect: "restrained",
   },
   { name: "Guiding Bolt", level: 1, classes: ["cleric"], range: 24, damage: "4d6", type: "radiant" },
-  { name: "Healing Word", level: 1, classes: ["bard", "cleric", "druid"], range: 18, heal: "1d4" },
+  { name: "Healing Word", level: 1, classes: ["bard", "cleric", "druid"], range: 18, bonus: true, heal: "1d4" },
   {
     name: "Hellish Rebuke",
     level: 1,
@@ -178,7 +178,7 @@ export const SRD_SPELLS = [
     type: "thunder",
     save: { attribute: "Constitution", onSave: "half" },
   },
-  { name: "Spiritual Weapon", level: 2, classes: ["cleric"], range: 18, damage: "1d8", type: "force" },
+  { name: "Spiritual Weapon", level: 2, classes: ["cleric"], range: 18, bonus: true, damage: "1d8", type: "force" },
   {
     name: "Web",
     level: 2,
@@ -239,7 +239,7 @@ export const SRD_SPELLS = [
     type: "lightning",
     save: { attribute: "Dexterity", onSave: "half" },
   },
-  { name: "Mass Healing Word", level: 3, classes: ["cleric"], range: 18, heal: "1d4" },
+  { name: "Mass Healing Word", level: 3, classes: ["cleric"], range: 18, bonus: true, heal: "1d4" },
   {
     name: "Spirit Guardians",
     level: 3,
@@ -260,6 +260,26 @@ export const SRD_SPELLS = [
     save: { attribute: "Strength", onSave: "half" },
   },
 ];
+
+/** Spell slots of levels 1 to 3 by caster level: { [slot level]: [[from this caster level, this many], …] }. */
+export const SRD_SLOTS = {
+  1: [
+    [0, 0],
+    [1, 2],
+    [2, 3],
+    [3, 4],
+  ],
+  2: [
+    [0, 0],
+    [3, 2],
+    [4, 3],
+  ],
+  3: [
+    [0, 0],
+    [5, 2],
+    [6, 3],
+  ],
+};
 
 /** The SRD's classes: { [id]: { name, hitDie, weapon: { name, damage } } }. */
 export const SRD_CLASSES = {

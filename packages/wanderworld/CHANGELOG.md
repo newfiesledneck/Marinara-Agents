@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.6.91 — 2026-11-15
+
+- A fourth way to fight: By turns (Settings → Inventory → Combat). A fight stops the clock for those in it, everyone rolls initiative, and they act in that order.
+- On your turn you may move nine metres, take one action (Attack, Cast, Dodge, or use something by its hotkey) and one bonus action, then end your turn with T or the button. A bar along the top shows the order and what you have left.
+- Companions and creatures take their turns by the same rules.
+- "Fights by turns use spell slots": a spell takes a spell slot of its level or higher, as the 5e SRD has it, and mana is left alone. A sleep gives the slots back. Off, a spell costs its level in mana, as in real time.
+
 ## 0.6.90 — 2026-11-15
 
 - Fights move. A companion who strikes closes with a creature and works round it; one who casts keeps a few paces off and moves along the edge.
