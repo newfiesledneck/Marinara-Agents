@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.91)
+## What it does now (0.6.92)
 
 ### The world
 
@@ -465,7 +465,7 @@ only walk about.
   [docs/PERFORMANCE.md](docs/PERFORMANCE.md)), trees and rocks, shadows, a frame rate limit (and slower drawing while a picture is painted), detail on or off, walk and run speed,
   camera speed and direction, time of day and time speed, how often places are told (the wait between
   them and the visits before a place is told again), sound, confrontations, people coming up to you,
-  what the HUD shows, explanations under every option, and Regenerate this world.
+  what the HUD shows, an (i) beside every option that explains it, and Regenerate this world.
 - A place you're beside counts with the one you're in (Settings → World → Places): on a river's bank,
   by a pond's shore, at the foot of the mountains, at a cave's mouth, beside a road or near a place out
   in the country, its lore is active too and prompts say so ("in Whisperwood, near the bank of the

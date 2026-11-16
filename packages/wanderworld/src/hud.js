@@ -740,7 +740,7 @@ export function createHud(root, handlers) {
     element.textContent = text;
     add(element);
   };
-  // What each setting does, in a line or two under it (hidden with Show explanations off): what it does,
+  // What each setting does, in a line or two under it (behind its [i] with Show explanations off): what it does,
   // an example where there are numbers, what it costs or needs. One that's a function states what
   // other settings are set to, and is written again when they change.
   const sentNow = (count) =>
@@ -920,7 +920,8 @@ export function createHud(root, handlers) {
     clock: "The time of day, at the top.",
     place: "The place you are in and the lore active there, at the top.",
     stats: "Frames per second and other numbers at the top.",
-    explanations: "These lines under settings, and the ones in the Journal and on New world.",
+    explanations:
+      "On: every setting has its line under it, and the Journal and New world have theirs. Off: a setting's (i) shows its line while you point at it, and a tap keeps it open.",
     aiTalk:
       "On: when you talk to someone, your model writes their replies from their character card, your persona and the world. Off: they use short set lines.",
     aiMoments:
@@ -954,6 +955,35 @@ export function createHud(root, handlers) {
     imageStyle:
       "The look of pictures, from the Engine's style profiles. The style's own words are put in the prompt ({style} in Illustrate's template, or at the end if the template leaves it out) and what it keeps out is sent with it. Engine default is your default profile in the Engine. Auto and No style add no words.",
   };
+  /**
+   * An [i] beside a label, there while Show explanations is off: `explain` shows while the pointer is
+   * over it, and a tap or click keeps it open until the next one.
+   */
+  const info = (explain) => {
+    const node = document.createElement("button");
+    node.type = "button";
+    node.textContent = "i";
+    node.setAttribute("data-wanderworld-info", "");
+    node.setAttribute("aria-label", "What this does");
+    node.setAttribute("aria-expanded", "false");
+    node.style.cssText =
+      "flex:none;align-items:center;justify-content:center;width:22px;height:22px;margin-left:6px;padding:0;border-radius:50%;border:1px solid currentColor;background:none;color:inherit;opacity:0.6;font:italic 700 12px Georgia,serif;cursor:pointer;vertical-align:middle;";
+    let kept = false;
+    const show = (on) => {
+      explain.toggleAttribute("data-open", on);
+      node.setAttribute("aria-expanded", String(on));
+      node.style.opacity = on ? "1" : "0.6";
+    };
+    node.addEventListener("click", (event) => {
+      event.preventDefault(); // it sits in the setting's label: a tap mustn't flip the setting
+      event.stopPropagation();
+      kept = !kept;
+      show(kept);
+    });
+    node.addEventListener("pointerenter", (event) => event.pointerType === "mouse" && show(true));
+    node.addEventListener("pointerleave", (event) => event.pointerType === "mouse" && show(kept));
+    return node;
+  };
   const explainers = []; // descriptions that state what other settings are set to
   const dependents = []; // rows that only matter while another setting is on: [{ nodes, under }]
   const row = (label, control, name = null, under = "") => {
@@ -973,6 +1003,7 @@ export function createHud(root, handlers) {
       const write = (settings) => (explain.textContent = typeof about === "function" ? about(settings) : about);
       write(Object.fromEntries(Object.entries(SETTINGS).map(([key, setting]) => [key, setting.value])));
       if (typeof about === "function") explainers.push(write);
+      text.append(info(explain));
       add(explain);
       nodes.push(explain);
     }
@@ -1122,6 +1153,7 @@ export function createHud(root, handlers) {
     about.style.cssText = "font-size:11px;opacity:0.75;line-height:1.35;margin:-2px 0 2px;";
     about.textContent =
       "Press an action's button, then the key you want for it. A key another action has is swapped with it. Esc cancels. The arrow keys (look round), + and - (zoom), Esc, Enter and Tab can't be given away. These are kept for this device.";
+    head.append(info(about));
     const list = document.createElement("div");
     list.style.cssText = "display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;font-size:12px;";
     let listening = null; // the listener while a button waits for its key
@@ -1384,6 +1416,7 @@ export function createHud(root, handlers) {
     about.setAttribute("data-wanderworld-explain", "");
     about.style.cssText = "font-size:11px;opacity:0.75;line-height:1.35;margin:-2px 0 2px;";
     about.textContent = note;
+    head.append(info(about));
     add(head, about);
   };
   /** A row of small switches side by side (one for each kind), kept like any other setting. */
@@ -3568,7 +3601,8 @@ export function createHud(root, handlers) {
   });
 
   const explainRule = document.createElement("style");
-  explainRule.textContent = ".wanderworld-no-explain [data-wanderworld-explain]{display:none!important}";
+  explainRule.textContent =
+    ".wanderworld-no-explain [data-wanderworld-explain]:not([data-open]){display:none!important}[data-wanderworld-info]{display:none}.wanderworld-no-explain [data-wanderworld-info]{display:inline-flex}";
   layer.append(explainRule);
   pages.append(
     board,

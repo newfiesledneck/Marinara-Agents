@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.6.92 — 2026-11-15
+
+- Settings are shorter to read. Each setting has an (i) beside its name: point at it to see what the setting does, or tap it to keep the line open.
+- Show explanations (Settings → Display → On screen) now starts off. Turn it on to have every line on show at once, as before, in Settings, the Journal and New world. It is turned off once on a device that already had it on.
+
 ## 0.6.91 — 2026-11-15
 
 - A fourth way to fight: By turns (Settings → Inventory → Combat). A fight stops the clock for those in it, everyone rolls initiative, and they act in that order.

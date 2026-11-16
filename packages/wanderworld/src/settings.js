@@ -64,8 +64,8 @@ export const SETTINGS = {
   chatMoves: { value: true },
   // Whose name is over their head: everyone's, only people the player knows (a stranger is "Stranger"), or nobody's.
   names: { value: "known", options: ["all", "known", "none"] },
-  /** Short explanations under settings, in the Journal and on New world. */
-  explanations: { value: true },
+  /** Short explanations always shown under settings, in the Journal and on New world. Off: a setting's [i] shows its own. */
+  explanations: { value: false },
   hint: { value: true },
   stats: { value: false },
   /** The clock and the line saying where you are, at the top. */
@@ -366,6 +366,9 @@ export function loadSettings(shared = null) {
   } catch {
     saved = {}; // blocked storage or a damaged copy: start from the defaults
   }
+  // Explanations began on, and every save holds every setting: a copy from before settings had their
+  // [i] (0.6.92) says "on" whether or not anyone chose it, so it takes the new default once.
+  if (!saved.infoButtons) delete saved.explanations;
   let common = {};
   try {
     common = (typeof shared === "string" ? JSON.parse(shared) : shared) ?? {};
@@ -378,7 +381,7 @@ export function loadSettings(shared = null) {
 
 export function saveSettings(settings) {
   try {
-    globalThis.localStorage?.setItem(KEY, JSON.stringify(settings));
+    globalThis.localStorage?.setItem(KEY, JSON.stringify({ ...settings, infoButtons: 1 }));
   } catch {
     // remembering settings is a convenience only
   }
