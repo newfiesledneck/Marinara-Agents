@@ -1918,6 +1918,19 @@ export function createHud(root, handlers) {
     debugState,
   );
   add(debugBar);
+  // A way out of being stuck (down with no Respawn button, or anything else): home, on your feet.
+  const unstick = inkSmall("Respawn", () => {
+    handlers.onRespawnNow?.();
+    unstickState.textContent = "Done: you're at home, on your feet.";
+  });
+  const unstickState = document.createElement("span");
+  unstickState.style.cssText = `font-size:11px;color:${INK_SOFT};`;
+  unstickState.textContent =
+    "Stuck? This puts you at your door, on your feet. If you were beaten it counts as getting up; otherwise it costs nothing.";
+  const unstickBar = document.createElement("div");
+  unstickBar.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;align-items:center;";
+  unstickBar.append(unstick, unstickState);
+  add(unstickBar);
   const debugPart = (sub) => {
     at("Debug", sub);
     const node = document.createElement("div");

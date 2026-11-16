@@ -9748,6 +9748,8 @@ function foeAttacks(event, what, with_ = null) {
 function defeated() {
   if (core.downed) return;
   core.downed = true;
+  core.stayDown = false;
+  core.downAt = performance.now();
   core.gesture = "fall";
   core.walkTo = null;
   core.herd.calm();
@@ -9762,17 +9764,28 @@ function defeated() {
       const { x, z } = core.player.position;
       core.seat = { x, z, angle: core.player.rotation.y, approach: { x, z }, ground: "lie", taken: "player" };
       core.mode = "sit";
-      core.hud?.setRespawn(true);
+      core.stayDown = true; // (the Respawn button is shown from this, every frame: needsRespawn)
       return;
     }
     comeTo(core.settings.defeat === "home");
   });
 }
 
-/** Up again after a defeat: at home (or by the market) with half their HP, or where they fell with 1. */
-function comeTo(home) {
+/**
+ * Whether the Respawn button should be up: beaten and staying down, or beaten and, well after they should
+ * have come to, still down (the world was changed under them, say). Asked every frame, so the button can't
+ * be lost to the screen being built again or to something else changing what the player is doing.
+ */
+const needsRespawn = () => !!core.downed && (!!core.stayDown || performance.now() - (core.downAt ?? 0) > 6000);
+
+/**
+ * Up again after a defeat: at home (or by the market) with half their HP, or where they fell with 1.
+ * `free`: they weren't beaten (Settings → Debug → Respawn): it costs nothing and takes no HP from them.
+ */
+function comeTo(home, free = false) {
   core.downed = false;
-  core.hud?.setRespawn(false);
+  core.stayDown = false;
+  core.gesture = null;
   if (core.mode === "sit" && core.seat?.ground) {
     core.seat = null;
     core.mode = "walk";
@@ -9781,7 +9794,8 @@ function comeTo(home) {
   const sheet = sheetNow();
   const most = entryOf(sheet, "hp")?.max ?? 1;
   const moved = home && !core.interior && core.mode === "walk";
-  setSheet(applyChanges(sheet, [{ stat: "hp", to: moved ? Math.max(1, Math.floor(most / 2)) : 1 }]).sheet);
+  const hp = moved ? Math.max(1, Math.floor(most / 2)) : 1;
+  setSheet(applyChanges(sheet, [{ stat: "hp", to: free ? Math.max(hp, valueOf(sheet, "hp")) : hp }]).sheet);
   let line = PACK.fight.here;
   if (moved) {
     const door = playerHomeDoor() !== null ? core.world.doors[playerHomeDoor()] : null;
@@ -9792,7 +9806,7 @@ function comeTo(home) {
     line = door ? PACK.fight.home : PACK.fight.square;
   }
   narrate(null, line.replace("{who}", who));
-  void defeatCost(who);
+  if (!free) void defeatCost(who);
   core.hud?.refreshInventory?.();
 }
 
@@ -9819,9 +9833,17 @@ async function defeatCost(who) {
   core.hud?.refreshInventory?.();
 }
 
-/** The Respawn button: up from staying down, at home. */
-function respawn() {
-  if (core.downed && core.mode === "sit") comeTo(true);
+/**
+ * The Respawn button: up from staying down, at home. Whatever else they've ended up doing while down (a
+ * talk begun with them, a seat taken from under them) is ended first, so it always works. `force`
+ * (Settings → Debug → Respawn): beaten or not, for when something has left them stuck.
+ */
+function respawn(force = false) {
+  if (!core.save || !core.world || !(force || core.downed)) return;
+  const beaten = !!core.downed;
+  if (core.battle) battleEnd("");
+  resetMode();
+  comeTo(true, !beaten);
 }
 
 // ── Gathering (gather.js) and the purse ─────────────────────────────────────────────────────────────────
@@ -11002,6 +11024,7 @@ function step(dt) {
 
   // The use prompt over whatever is in reach.
   core.target = core.mode === "walk" && !core.walkTo ? pickTarget() : null;
+  core.hud?.setRespawn(needsRespawn());
   const label = core.downed
     ? null // (down: the Respawn button is how they get up)
     : core.mode === "sit"
@@ -11356,7 +11379,8 @@ function attach(element) {
       if (spell)
         setSheet(changeSheet(sheetNow(), { add: { kind: "spell", name: spell.name, about: spellRule(spell) } }));
     },
-    onRespawn: respawn,
+    onRespawn: () => respawn(),
+    onRespawnNow: () => respawn(true),
     onClearBodies: () => {
       const cleared = core.herd.clearBodies();
       core.hud?.setNotice(cleared ? `Cleared: ${cleared}.` : "There was nothing lying about.");
