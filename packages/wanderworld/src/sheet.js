@@ -334,12 +334,16 @@ export function rollDice(dice, random = Math.random) {
  * One attack: a d20 plus `bonus` against `ac`, then `damage` (dice) plus `damageBonus`. A natural 20 always
  * hits and rolls the damage dice twice; a natural 1 always misses. { roll, total, hit, crit, damage }.
  */
-export function attackRoll({ bonus = 0, ac = 10, damage = "1d4", damageBonus = 0 }, random = Math.random) {
+export function attackRoll(
+  { bonus = 0, ac = 10, damage = "1d4", damageBonus = 0, critFrom = 20, more = [] },
+  random = Math.random,
+) {
   const roll = 1 + Math.floor(random() * 20);
-  const crit = roll === 20;
+  // (`critFrom`: the lowest roll of the die that's a critical hit, for one who has that. `more`: dice that
+  // come with a hit besides the weapon's own, a Sneak Attack's say, doubled on a critical hit like the rest.)
+  const crit = roll >= Math.max(2, critFrom);
   const hit = crit || (roll !== 1 && roll + bonus >= ac);
-  const dealt = hit
-    ? Math.max(1, rollDice(damage, random).total + (crit ? rollDice(damage, random).total : 0) + damageBonus)
-    : 0;
+  const rolled = () => [damage, ...more].reduce((sum, dice) => sum + rollDice(dice, random).total, 0);
+  const dealt = hit ? Math.max(1, rolled() + (crit ? rolled() : 0) + damageBonus) : 0;
   return { roll, total: roll + bonus, hit, crit, damage: dealt };
 }

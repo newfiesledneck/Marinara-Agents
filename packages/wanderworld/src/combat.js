@@ -179,8 +179,14 @@ export function armourIn(item) {
  * Class is worked out the SRD's way: armourOf). `byDescription`: an equipped thing's description is its
  * stats, and only one that states none goes by its name; off, the other way round.
  */
-export function gearWorn(sheet, items, { byDescription = true, rules = true } = {}) {
-  const total = {};
+export function gearWorn(
+  sheet,
+  items,
+  { byDescription = true, rules = true, add = {}, unarmored = "", defense = 0 } = {},
+) {
+  // (`add`: what their race adds to the abilities. `unarmored`: the ability their class adds to AC with no
+  // armour on. `defense`: the Defense fighting style's +1 in armour.)
+  const total = { ...add };
   let armour = null;
   let shield = 0;
   for (const item of Array.isArray(items) ? items : []) {
@@ -197,6 +203,8 @@ export function gearWorn(sheet, items, { byDescription = true, rules = true } = 
   if (armour) total.armour = armour;
   if (shield) total.shield = shield;
   if (rules) total.rules = true;
+  if (unarmored) total.unarmored = unarmored;
+  if (defense) total.defense = defense;
   if (rules) total.acTotal = armourOf(sheet, total); // (the AC all of it comes to, for showing)
   return total;
 }
@@ -290,7 +298,7 @@ export function foeOf(kind, foes, scale = 1) {
  * the roll; the weapon's dice, Strength's modifier and worn "damage" on a hit. `worn`: sheet.js wornBonuses.
  * { roll, total, hit, crit, damage, ac }.
  */
-export function playerStrike({ sheet, worn = {}, weapon = UNARMED, foe, prof = 0 }, random = Math.random) {
+export function playerStrike({ sheet, worn = {}, weapon = UNARMED, foe, prof = 0, mods = {} }, random = Math.random) {
   // (A bow goes by Dexterity, as the SRD has it; anything swung by Strength; a finesse weapon by the better.)
   const of = (attribute) => modifier(valueOf(sheet, attribute) + (worn[attribute] ?? 0));
   const strength = weapon.range
@@ -300,10 +308,13 @@ export function playerStrike({ sheet, worn = {}, weapon = UNARMED, foe, prof = 0
       : of("strength");
   const result = attackRoll(
     {
-      bonus: strength + prof + weapon.attack + (worn.attack ?? 0),
+      // (`mods`: what their class, fighting style and what they've called on add: build.js, main.js strikeMods.)
+      bonus: strength + prof + weapon.attack + (worn.attack ?? 0) + (mods.attack ?? 0),
       ac: foe.ac,
       damage: weapon.damage,
-      damageBonus: strength + (weapon.plus ?? 0) + (worn.damage ?? 0),
+      damageBonus: strength + (weapon.plus ?? 0) + (worn.damage ?? 0) + (mods.damage ?? 0),
+      critFrom: mods.critFrom ?? 20,
+      more: mods.more ?? [],
     },
     random,
   );
@@ -323,7 +334,13 @@ export function armourOf(sheet, worn = {}) {
   if (!worn.rules) return own;
   const dex = modifier(valueOf(sheet, "dexterity") + (worn.dexterity ?? 0));
   const armour = worn.armour;
-  return own - 10 + (armour ? armour.ac + armour.plus + Math.min(dex, armour.dex) : 10 + dex) + (worn.shield ?? 0);
+  // (No armour on: a barbarian adds Constitution, a monk Wisdom, and a monk only with no shield either.)
+  const bare =
+    worn.unarmored && !armour && !(worn.unarmored === "wisdom" && worn.shield)
+      ? Math.max(0, modifier(valueOf(sheet, worn.unarmored) + (worn[worn.unarmored] ?? 0)))
+      : 0;
+  const body = armour ? armour.ac + armour.plus + Math.min(dex, armour.dex) + (worn.defense ?? 0) : 10 + dex + bare;
+  return own - 10 + body + (worn.shield ?? 0);
 }
 
 /**
@@ -425,11 +442,14 @@ export function personWords({ name, who, weapon, result, left, max, shot = false
  * Only the damage is played: a spell's effect doesn't take hold of the player.
  * { hit, saved, crit, sure, roll, total, against, damage }.
  */
-export function spellAtPlayer({ wit = 0, spell, sheet, worn = {}, prof = 2 }, random = Math.random) {
+export function spellAtPlayer({ wit = 0, spell, sheet, worn = {}, prof = 2, saveBonus = 0 }, random = Math.random) {
   if (spell.save) {
     const dc = 8 + prof + wit;
     const score = valueOf(sheet, spell.save.attribute.toLowerCase()) || 10;
-    const thrown = savingThrow({ score, dc, damage: spell.damage ?? 0, onSave: spell.save.onSave }, random);
+    const thrown = savingThrow(
+      { score, bonus: saveBonus, dc, damage: spell.damage ?? 0, onSave: spell.save.onSave },
+      random,
+    );
     return {
       hit: thrown.damage > 0,
       saved: thrown.saved,
@@ -724,7 +744,8 @@ export function spellGrown(spell, { slot = 0, level = 1 } = {}) {
 }
 
 /** The player's casting modifier: Intelligence's, with what they wear. */
-export const witOf = (sheet, worn = {}) => modifier(valueOf(sheet, "intelligence") + (worn.intelligence ?? 0));
+export const witOf = (sheet, worn = {}, attribute = "intelligence") =>
+  modifier(valueOf(sheet, attribute) + (typeof worn[attribute] === "number" ? worn[attribute] : 0));
 
 /**
  * A spell cast at something, told: "Zoey casts Frost burst at the wolf (its dexterity save: 13 against DC
@@ -805,7 +826,7 @@ export function slotFor(level, slots, used = {}) {
  * Fast Movement and Unarmored Movement give a barbarian (from 5) and a monk (from 2) three metres more.
  * `set`: the player's own numbers ({ actions, bonus, attacks, move }; 0 or nothing leaves that one to the rules).
  */
-export function turnBudget(classId = "", level = 1, set = {}) {
+export function turnBudget(classId = "", level = 1, set = {}, speed = TURN_MOVE) {
   const extra = ["barbarian", "fighter", "monk", "paladin", "ranger"].includes(classId) && level >= 5;
   const attacks = classId === "fighter" && level >= 20 ? 4 : classId === "fighter" && level >= 11 ? 3 : extra ? 2 : 1;
   const fast = (classId === "barbarian" && level >= 5) || (classId === "monk" && level >= 2);
@@ -814,6 +835,6 @@ export function turnBudget(classId = "", level = 1, set = {}) {
     actions: or(set.actions, 1),
     bonus: or(set.bonus, 1),
     attacks: or(set.attacks, attacks),
-    move: or(set.move, TURN_MOVE + (fast ? 3 : 0)),
+    move: or(set.move, speed + (fast ? 3 : 0)),
   };
 }

@@ -194,6 +194,18 @@ import {
 } from "./combat.js";
 import { createSpellFx, spellColour, spellLook } from "./spellfx.js";
 import {
+  abilities,
+  checkBuild,
+  hitDiceOf,
+  passives,
+  raceBonuses,
+  rested,
+  skillChoices,
+  skillNamed,
+  skillsOf,
+  stylesFor,
+} from "./build.js";
+import {
   CONDITIONS,
   afflict,
   conditionChips,
@@ -204,7 +216,7 @@ import {
   lift,
   tickConditions,
 } from "./conditions.js";
-import { SRD_CLASSES, SRD_CREATURES, SRD_SLOTS, SRD_SPELLS } from "./srd.js";
+import { SRD_BACKGROUNDS, SRD_CLASSES, SRD_CREATURES, SRD_RACES, SRD_SLOTS, SRD_SPELLS, SRD_STYLES } from "./srd.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
   applyChanges,
@@ -1865,7 +1877,11 @@ function sleepIn(camp, length) {
       );
       // (A sleep restores HP and mana in full, where resting restores at all.)
       if (core.save && Object.keys(core.save.slotsUsed ?? {}).length) {
-        core.save = { ...core.save, slotsUsed: {} }; // (spell slots come back with a sleep)
+        // (A long rest: spell slots, what the class can call on, and half the hit dice.)
+        core.save = {
+          ...core.save,
+          slotsUsed: rested(core.save.slotsUsed, "long", playerClass(), valueOf(sheetNow(), "level")),
+        };
         core.saves.write(core.save);
       }
       if (core.settings.sheet && core.settings.restRestores) {
@@ -7978,7 +7994,7 @@ function setSheet(sheet) {
 function sheetTold() {
   if (!core.save || !core.settings.sheet || !core.settings.sheetTold) return "";
   const sheet = sheetNow();
-  return sheetWords(sheet, wornNow(sheet));
+  return [sheetWords(sheet, wornNow(sheet)), buildWords()].filter(Boolean).join(" ");
 }
 /** Quartermaster's items for the sheet being played, read again (kept in `core.items` for the bonuses). */
 async function readItems() {
@@ -8068,14 +8084,384 @@ function afflictPlayer(name, seconds = 0) {
 function playerSave(attribute, dc) {
   const sheet = sheetNow();
   const worn = wornNow(sheet);
-  const roll = 1 + Math.floor(Math.random() * 20);
+  const die = () => 1 + Math.floor(Math.random() * 20);
+  // (A barbarian's Danger Sense: the better of two on a Dexterity save.)
+  const roll = attribute === "dexterity" && kitNow().danger ? Math.max(die(), die()) : die();
   const total = roll + modifier(valueOf(sheet, attribute) + (worn[attribute] ?? 0)) + saveBonus(attribute);
   const name = `${attribute[0].toUpperCase()}${attribute.slice(1)}`;
   return { roll, total, saved: total >= dc, words: `${name} save ${total} against DC ${dc}` };
 }
-/** What the player's class adds to a saving throw in `attribute` (nothing, without the SRD's modifiers). */
-function saveBonus(_attribute) {
-  return 0;
+/**
+ * What the player's class adds to a saving throw in `attribute`: their proficiency bonus where the class is
+ * trained in it, and a paladin's Charisma modifier to all of them from level 6.
+ */
+function saveBonus(attribute) {
+  const kit = kitNow();
+  const aura = kit.aura ? Math.max(1, modifier(valueOf(sheetNow(), "charisma"))) : 0;
+  return (kit.saves.includes(attribute) ? profNow() : 0) + aura;
+}
+
+// ── The build (build.js): race, class, style, background, skills; what the class can call on; rests ──
+
+/** The player's build as kept with the world, checked against their class. */
+const buildNow = () => checkBuild(core.save?.build, playerClass());
+/** What their class has always on at their level, with their fighting style (build.js passives). */
+const kitNow = () => passives(playerClass(), valueOf(sheetNow(), "level"), buildNow().style);
+/** The ability their class casts with (Intelligence with no class, or one that doesn't cast). */
+const castingNow = () => SRD_CLASSES[playerClass()]?.casting ?? "intelligence";
+/** What they add to a check with a skill: its ability's modifier, and their proficiency bonus if they're trained in it. */
+function skillAdd(id) {
+  const skill = skillNamed(id);
+  if (!skill) return 0;
+  const sheet = sheetNow();
+  const worn = wornNow(sheet);
+  const trained = skillsOf(buildNow(), playerClass()).includes(id);
+  return modifier(valueOf(sheet, skill.ability) + (worn[skill.ability] ?? 0)) + (trained ? profNow() || 2 : 0);
+}
+
+/** What they've called on that lasts a while ({ [name]: seconds left }, run down like the conditions). */
+const buffed = (name) => (core.buffs?.[name] ?? 0) > 0;
+const buff = (name, seconds) => void (core.buffs = { ...core.buffs, [name]: seconds });
+const BUFF_WORDS = {
+  raging: "Raging",
+  reckless: "Reckless",
+  surging: "Action Surge",
+  inspired: "Inspired",
+  smiting: "Smite ready",
+  stunning: "Stunning Strike ready",
+  hidden: "Hidden",
+  helped: "Helped",
+};
+
+/** What the player fights with, as their build makes it: a monk's bare hands, a versatile weapon in both hands with no shield. */
+function weaponNow() {
+  let weapon = weaponOf(core.items ?? [], byDesc());
+  const kit = kitNow();
+  if (!weapon.name && kit.martial) weapon = { ...weapon, damage: kit.martial, finesse: true };
+  if (weapon.versatile && core.settings.srdModifiers && !wornNow().shield)
+    weapon = { ...weapon, damage: weapon.versatile, twoHanded: true };
+  return weapon;
+}
+
+/** What their class can call on now: build.js abilities, each with how much is left (null: as often as they like). */
+function abilitiesNow() {
+  if (!core.save) return [];
+  const sheet = sheetNow();
+  return abilities(playerClass(), valueOf(sheet, "level"), {
+    charisma: modifier(valueOf(sheet, "charisma")),
+    wisdom: modifier(valueOf(sheet, "wisdom")),
+  }).map((ability) => ({ ...ability, left: ability.max ? Math.max(0, ability.max - usedOf(ability.pool)) : null }));
+}
+
+/**
+ * What the build adds to a blow with `weapon` at `foe`: { attack, damage, critFrom, more (dice that come with
+ * a hit), advantage, and what was counted on (sneak, smite, inspired) for strikeSpent to settle }.
+ * `keen`: the blow already has advantage (the target is marked).
+ */
+function strikeMods(weapon, foe, keen = false) {
+  const kit = kitNow();
+  const melee = !weapon.range;
+  const mods = { attack: 0, damage: 0, critFrom: kit.critFrom, more: [], advantage: melee && buffed("reckless") };
+  if (buffed("hidden") || buffed("helped")) mods.advantage = true;
+  if (!melee) mods.attack += kit.archery;
+  if (melee && weapon.name && !weapon.two && !weapon.twoHanded) mods.damage += kit.dueling;
+  // ponytail: Great Weapon Fighting rerolls 1s and 2s on the damage dice; here it's +1 for each die, which is
+  // about what that comes to. Reroll the dice in sheet.js attackRoll if it should be exact.
+  if (melee && kit.greatWeapon && (weapon.two || weapon.twoHanded))
+    mods.damage += Number(/^(\d*)d/u.exec(weapon.damage)?.[1] || 1);
+  if (melee && buffed("raging")) mods.damage += kit.rage || 2;
+  if (buffed("inspired")) {
+    const level = valueOf(sheetNow(), "level");
+    mods.inspired = 1 + Math.floor(Math.random() * (level >= 15 ? 12 : level >= 10 ? 10 : level >= 5 ? 8 : 6));
+    mods.attack += mods.inspired;
+  }
+  if (kit.sneak && foe && !foe.person && (weapon.finesse || weapon.range) && !afflicted().attackDis) {
+    const fresh = core.battle ? !core.battle.sneaked : core.clock >= (core.sneakAt ?? 0);
+    const flanked = fightingAllies().some((ally) => Math.hypot(ally.position.x - foe.x, ally.position.z - foe.z) < 2.5);
+    if (fresh && (keen || mods.advantage || flanked)) {
+      mods.more.push(kit.sneak);
+      mods.sneak = true;
+    }
+  }
+  if (melee && buffed("smiting")) {
+    const slotted = byTurns() && core.settings.srdSlots;
+    const slot = slotted ? slotFor(1, slotsNow(), core.save.slotsUsed) : valueOf(sheetNow(), "mana") >= 1 ? 1 : 0;
+    if (slot > 0) {
+      const kin = foe && !foe.person ? foeOf(foe.kind, foeTable(), foe.scale).kin : "";
+      mods.more.push(`${Math.min(5, 1 + slot) + (kin === "undead" || kin === "fiend" ? 1 : 0)}d8`);
+      mods.smite = slot;
+    }
+  }
+  return mods;
+}
+
+/** A blow has been rolled with `mods`: what it counted on is spent, and what it did besides its damage is told. */
+function strikeSpent(mods, result, foe) {
+  if (mods.inspired) core.buffs = lift(core.buffs, "inspired");
+  if (buffed("hidden")) core.buffs = lift(core.buffs, "hidden"); // (an attack gives them away)
+  if (buffed("helped")) core.buffs = lift(core.buffs, "helped");
+  if (!result.hit) return;
+  const notes = [];
+  if (mods.sneak) {
+    core.sneakAt = core.clock + 6;
+    if (core.battle) core.battle.sneaked = true;
+    notes.push(`Sneak Attack (${kitNow().sneak} of that)`);
+  }
+  if (mods.smite) {
+    if (byTurns() && core.settings.srdSlots) useOne(mods.smite);
+    else setSheet(applyChanges(sheetNow(), [{ stat: "mana", by: -mods.smite }]).sheet);
+    core.buffs = lift(core.buffs, "smiting");
+    notes.push("Divine Smite");
+  }
+  if (buffed("stunning") && foe && !foe.person) {
+    core.buffs = lift(core.buffs, "stunning");
+    const dc = 8 + (profNow() || 2) + Math.max(0, modifier(valueOf(sheetNow(), "wisdom")));
+    const total =
+      1 + Math.floor(Math.random() * 20) + (foeOf(foe.kind, foeTable(), foe.scale).saves?.constitution ?? 0);
+    if (total < dc) core.herd.stun(foe.id, 6);
+    notes.push(
+      total < dc
+        ? `it's stunned (its Constitution save ${total} against DC ${dc})`
+        : `it shakes off the Stunning Strike (${total} against DC ${dc})`,
+    );
+  }
+  if (notes.length) narrate(null, `${notes.join("; ")}.`);
+}
+
+/**
+ * Something their class can call on is used (`id`: build.js abilities): from the bar in a fight by turns
+ * (where it takes its action or bonus action), a number key, or the Sheet tab.
+ */
+function useAbility(id) {
+  const ability = abilitiesNow().find((entry) => entry.id === id);
+  if (!ability || !core.save || core.downed) return;
+  const who = personaName();
+  const notice = (words) => void core.hud?.setNotice(words);
+  if (afflicted().helpless) return notice("You can't act: it has to wear off first.");
+  if (ability.turns && !core.battle) return notice(`${ability.name} is for a fight by turns.`);
+  const spend = Math.max(1, ability.spend);
+  if (ability.left !== null && ability.left < spend)
+    return notice(`No ${ability.name} left: a ${ability.per} rest brings it back.`);
+  const sheet = sheetNow();
+  const hp = entryOf(sheet, "hp");
+  const level = valueOf(sheet, "level");
+  if ((id === "wind" || id === "lay") && hp && hp.value >= hp.max) return notice("You're not hurt.");
+  if (core.battle) {
+    if (!battleMine()) return notice("It isn't your turn yet.");
+    if (ability.cost !== "free" && !battleSpend(ability.cost)) return;
+  } else {
+    if (core.clock < (core.abilityAt ?? 0)) return;
+    core.abilityAt = core.clock + 0.8;
+  }
+  const mend = (amount, words) => {
+    setSheet(applyChanges(sheetNow(), [{ stat: "hp", by: amount }]).sheet);
+    const now = entryOf(sheetNow(), "hp");
+    core.hud?.refreshInventory?.();
+    spellFx().motes(core.space.scene, chest(core.player.position.x, core.player.position.z, 0), spellColour("heal"));
+    narrate(null, `${words}: +${amount} HP (${now?.value ?? 0} of ${now?.max ?? 0}).`);
+  };
+  if (id === "wind") {
+    useOne("wind");
+    return void mend(rollDice("1d10").total + level, `${who} takes a Second Wind`);
+  }
+  if (id === "surge") {
+    useOne("surge");
+    if (core.battle) core.battle.action += 1;
+    else buff("surging", 6);
+    return void narrate(
+      null,
+      core.battle ? `${who} surges: one more action this turn.` : `${who} surges: twice as fast for a moment.`,
+    );
+  }
+  if (id === "rage") {
+    useOne("rage");
+    buff("raging", 60);
+    return void narrate(
+      null,
+      `${who} rages: +${kitNow().rage || 2} damage with what they swing, and half from weapons, teeth and claws, for a minute.`,
+    );
+  }
+  if (id === "reckless") {
+    buff("reckless", 6);
+    return void narrate(null, `${who} attacks recklessly: advantage on their blows, and on blows at them.`);
+  }
+  if (id === "flurry") {
+    useOne("ki");
+    core.gesture = "punch";
+    const target = blowTarget();
+    if (!target || target.person) return void narrate(null, `${who} lashes out twice, at nothing.`);
+    narrate(null, `${who} strikes in a flurry.`);
+    if (!landOn(target, weaponNow())) {
+      const still = core.herd.foes(core.player.position, 6).find((entry) => entry.id === target.id);
+      if (still) landOn(still, weaponNow());
+    }
+    return;
+  }
+  if (id === "patient") {
+    useOne("ki");
+    if (core.battle) core.battle.dodging = true;
+    else core.blockUntil = core.clock + 6;
+    return void narrate(
+      null,
+      `${who} takes the Dodge action with ki: attacks on them are rolled twice, the worse counting.`,
+    );
+  }
+  if (id === "stun") {
+    useOne("ki");
+    buff("stunning", 30);
+    return void narrate(null, `${who} readies a Stunning Strike for the next blow that lands.`);
+  }
+  if (id === "lay") {
+    const amount = Math.min(ability.left, (hp?.max ?? 0) - (hp?.value ?? 0));
+    useOne("lay", amount);
+    return void mend(amount, `${who} lays on hands`);
+  }
+  if (id === "smite") {
+    buff("smiting", 30);
+    return void narrate(null, `${who} readies a Divine Smite for the next blow that lands.`);
+  }
+  if (id === "inspire") {
+    useOne("inspire");
+    buff("inspired", 600);
+    return void narrate(null, `${who} takes heart: a die more on the next attack roll.`);
+  }
+  if (id === "turn") {
+    useOne("turn");
+    const dc = 8 + (profNow() || 2) + Math.max(0, modifier(valueOf(sheet, "wisdom")));
+    const at = core.player.position;
+    spellFx().wave(core.space.scene, chest(at.x, at.z, 0.15), spellColour("radiant"), 9);
+    const turned = [];
+    for (const foe of core.interior ? [] : core.herd.foes(at, 9)) {
+      const stats = foeOf(foe.kind, foeTable(), foe.scale);
+      if (stats.kin !== "undead") continue;
+      const total = 1 + Math.floor(Math.random() * 20) + (stats.saves?.wisdom ?? 0);
+      if (total < dc && core.herd.strike(foe.id, 0, stats.hp, "flee")) turned.push(foe.kind);
+    }
+    return void narrate(
+      null,
+      turned.length
+        ? `${who} presents their holy symbol (Wisdom saves against DC ${dc}): ${turned.length} of the undead turn and flee.`
+        : `${who} presents their holy symbol: nothing undead is near enough, or none of them falters.`,
+    );
+  }
+  if (id === "font") {
+    useOne("sorcery", 2);
+    if (byTurns() && core.settings.srdSlots && (core.save.slotsUsed?.[1] ?? 0) > 0) {
+      core.save = { ...core.save, slotsUsed: { ...core.save.slotsUsed, 1: core.save.slotsUsed[1] - 1 } };
+      core.saves.write(core.save);
+    } else setSheet(applyChanges(sheetNow(), [{ stat: "mana", by: 1 }]).sheet);
+    core.hud?.refreshInventory?.();
+    return void narrate(null, `${who} turns sorcery points into magic: a first-level slot's worth back.`);
+  }
+}
+
+/**
+ * A short rest (the Sheet tab's button): hit dice are spent to heal, each a roll of the class's die plus the
+ * Constitution modifier, until they're whole or the dice are gone; what comes back on a short rest does; a
+ * wizard's Arcane Recovery gives back half their level in mana or slot levels, once between sleeps.
+ */
+function shortRest() {
+  if (!core.save || core.downed) return;
+  const notice = (words) => void core.hud?.setNotice(words);
+  if (core.battle) return notice("Not in a fight.");
+  const at = core.player.position;
+  if (!core.interior && core.herd.foes(at, 24).some((foe) => foe.hostile && !foe.fled))
+    return notice("Not with enemies near.");
+  if (core.clock < (core.restAt ?? 0)) return notice("You've only just rested.");
+  core.restAt = core.clock + 120;
+  const who = personaName();
+  const classId = playerClass();
+  let sheet = sheetNow();
+  const level = valueOf(sheet, "level");
+  const dice = hitDiceOf(classId, level);
+  const con = modifier(valueOf(sheet, "constitution") + (wornNow(sheet).constitution ?? 0));
+  let spent = 0;
+  let healed = 0;
+  let hp = entryOf(sheet, "hp");
+  while (hp && hp.on !== false && hp.value < hp.max && usedOf("hitDice") + spent < dice.max) {
+    const gain = Math.max(1, rollDice(`1d${dice.die}`).total + con);
+    sheet = applyChanges(sheet, [{ stat: "hp", by: gain }]).sheet;
+    hp = entryOf(sheet, "hp");
+    healed += gain;
+    spent += 1;
+  }
+  const used = { ...core.save.slotsUsed, ...(spent ? { hitDice: usedOf("hitDice") + spent } : {}) };
+  let back = "";
+  if (classId === "wizard" && !used.recovery) {
+    let budget = Math.ceil(level / 2);
+    if (core.settings.srdSlots) {
+      for (let slot = 1; slot <= 5 && budget >= slot; slot++)
+        while ((used[slot] ?? 0) > 0 && budget >= slot) {
+          used[slot] -= 1;
+          budget -= slot;
+        }
+    } else sheet = applyChanges(sheet, [{ stat: "mana", by: budget }]).sheet;
+    used.recovery = 1;
+    back = " Arcane Recovery brings some magic back.";
+  }
+  core.save = { ...core.save, slotsUsed: rested(used, "short", classId, level) };
+  core.saves.write(core.save);
+  setSheet(sheet);
+  core.hud?.refreshInventory?.();
+  narrate(
+    null,
+    `${who} takes a short rest${spent ? `: ${spent} hit ${spent === 1 ? "die" : "dice"} for +${healed} HP (${hp?.value ?? 0} of ${hp?.max ?? 0})` : ""}. What a short rest restores is back.${back}`,
+  );
+}
+
+/** The build for the Sheet tab: what's chosen, what can be, what the class can call on, and the hit dice. */
+function buildInfo() {
+  if (!core.save) return null;
+  const classId = playerClass();
+  const level = valueOf(sheetNow(), "level");
+  const build = buildNow();
+  const choices = skillChoices(classId, build.background, build.race);
+  const dice = hitDiceOf(classId, level);
+  const short = (ability) => ability.slice(0, 3);
+  return {
+    ...build,
+    races: Object.entries(SRD_RACES).map(([id, race]) => ({
+      id,
+      label: `${race.name} (${Object.entries(race.add)
+        .map(([ability, amount]) => `+${amount} ${short(ability)}`)
+        .join(", ")})`,
+    })),
+    styles: stylesFor(classId, level).map((id) => ({ id, label: SRD_STYLES[id].name })),
+    backgrounds: Object.entries(SRD_BACKGROUNDS).map(([id, entry]) => ({ id, label: entry.name })),
+    skillCount: choices.count,
+    skillList: choices.from.map((id) => ({ id, label: skillNamed(id)?.name ?? id })),
+    given: choices.given.map((id) => skillNamed(id)?.name ?? id),
+    abilities: abilitiesNow(),
+    hitDice: { die: dice.die, max: dice.max, left: Math.max(0, dice.max - usedOf("hitDice")) },
+    prof: profNow() || 2,
+  };
+}
+
+/** One part of the build is changed in the Sheet tab (`field`: race | style | background | skills). */
+function setBuild(field, value) {
+  if (!core.save || !["race", "style", "background", "skills"].includes(field)) return;
+  core.save = { ...core.save, build: checkBuild({ ...buildNow(), [field]: value }, playerClass()) };
+  core.saves.write(core.save);
+  core.hud?.refreshInventory?.();
+}
+
+/** The build in a line for the model: "A Hill Dwarf fighter (Defense). Background: Acolyte. Proficient in Athletics, Insight." */
+function buildWords() {
+  const build = buildNow();
+  const classId = playerClass();
+  const parts = [];
+  const race = SRD_RACES[build.race];
+  if (race || classId)
+    parts.push(
+      `${race ? race.name : "A"}${classId ? ` ${SRD_CLASSES[classId].name.toLowerCase()}` : ""}${build.style ? ` (${SRD_STYLES[build.style].name})` : ""}${race?.dark ? ", who sees in the dark" : ""}.`.replace(
+        /^A\./u,
+        "",
+      ),
+    );
+  if (build.background) parts.push(`Background: ${SRD_BACKGROUNDS[build.background].name}.`);
+  const skills = skillsOf(build, classId).map((id) => skillNamed(id)?.name ?? id);
+  if (skills.length) parts.push(`Proficient in ${skills.join(", ")}.`);
+  return parts.filter(Boolean).join(" ");
 }
 
 /** Grappled, they strain against the hold: Strength or Dexterity, the better, against its DC. */
@@ -8083,7 +8469,7 @@ function tryEscape() {
   const sheet = sheetNow();
   const worn = wornNow(sheet);
   const of = (attribute) => modifier(valueOf(sheet, attribute) + (worn[attribute] ?? 0));
-  const total = 1 + Math.floor(Math.random() * 20) + Math.max(of("strength"), of("dexterity"));
+  const total = 1 + Math.floor(Math.random() * 20) + Math.max(skillAdd("athletics"), skillAdd("acrobatics"));
   const dc = core.grappleDc ?? 11;
   if (total >= dc) {
     core.afflicted = lift(core.afflicted, "grappled");
@@ -8093,7 +8479,13 @@ function tryEscape() {
 
 /** What else shows beside the conditions: a spell being concentrated on, and dying. */
 function statusChips() {
-  const chips = [];
+  const chips = Object.entries(core.buffs ?? {}).map(([name, left]) => ({
+    id: name,
+    label: BUFF_WORDS[name] ?? name,
+    about: "",
+    seconds: Math.ceil(left),
+    good: true,
+  }));
   if (core.conc?.until && core.conc.until <= core.clock) core.conc = null;
   if (core.conc?.until)
     chips.push({
@@ -8239,6 +8631,7 @@ function foeTarget(foe, targets) {
 
 /** The conditions run down (outside a fight by turns, where a turn counts them), hold the player, and are shown. */
 function conditionsTick(dt) {
+  if (core.buffs && Object.keys(core.buffs).length && !core.battle) core.buffs = tickConditions(core.buffs, dt);
   const others = statusChips();
   const has = core.afflicted && Object.keys(core.afflicted).length > 0;
   if (!has) {
@@ -8266,6 +8659,7 @@ function conditionsTick(dt) {
  * each, a hold is strained against, and one who's prone gets up. { stood, mods }.
  */
 function turnConditions() {
+  if (core.buffs) core.buffs = tickConditions(core.buffs, 6);
   if (!core.afflicted || !Object.keys(core.afflicted).length) return { stood: false, mods: afflicted() };
   const stood = core.afflicted.prone !== undefined;
   core.afflicted = lift(tickConditions(core.afflicted, 6), "prone");
@@ -8327,8 +8721,9 @@ function foeBreathes(event, what, stats) {
     return void narrate(null, `The ${what} breathes ${breath.type} at ${who}, who rolls clear.`);
   const thrown = playerSave(breath.save.attribute, breath.save.dc);
   const full = Math.max(1, rollDice(breath.damage).total);
-  const dealt = thrown.saved ? Math.floor(full / 2) : full;
-  const hp = playerStruck({ hit: true, damage: dealt }, event);
+  const evades = kitNow().evasion && breath.save.attribute === "dexterity";
+  const dealt = thrown.saved ? (evades ? 0 : Math.floor(full / 2)) : evades ? Math.floor(full / 2) : full;
+  const hp = playerStruck({ hit: dealt > 0, damage: dealt }, event);
   narrate(
     null,
     `The ${what} breathes ${breath.type} over ${who} (${thrown.words}, ${thrown.saved ? "made: half" : "failed"}): ${dealt}. ${who} has ${Math.max(0, hp?.value ?? 0)} of ${hp?.max ?? 0} HP.`,
@@ -8339,8 +8734,16 @@ function foeBreathes(event, what, stats) {
 /** Whether an item's description is its stats (else its name links it to the SRD's weapon or armour). */
 const byDesc = () => core.settings.gearByDescription !== false;
 /** What's worn adds up to, by the gear rules that are on (combat.js gearWorn). */
-const wornNow = (sheet = sheetNow()) =>
-  gearWorn(sheet, core.items ?? [], { byDescription: byDesc(), rules: !!core.settings.srdModifiers });
+const wornNow = (sheet = sheetNow()) => {
+  const kit = kitNow();
+  return gearWorn(sheet, core.items ?? [], {
+    byDescription: byDesc(),
+    rules: !!core.settings.srdModifiers,
+    add: raceBonuses(buildNow().race),
+    unarmored: kit.unarmored,
+    defense: kit.defense,
+  });
+};
 /** The player's proficiency bonus on an attack (none with the SRD's modifiers off), and in a spell's attack and DC. */
 const profNow = () => (core.settings.srdModifiers ? proficiency(valueOf(sheetNow(), "level")) : 0);
 const spellProf = () => profNow() || 2;
@@ -8366,7 +8769,7 @@ function swing() {
     core.itemsAt = core.clock;
     void readItems();
   }
-  const weapon = weaponOf(core.items ?? [], byDesc());
+  const weapon = weaponNow();
   // A bow, a crossbow or a sling they carry is shot when nothing is in reach of a swing: at whatever is
   // ahead within its range, or (with it equipped) at nothing at all.
   const bow = bowOf(core.items ?? [], byDesc());
@@ -8384,7 +8787,7 @@ function swing() {
   core.gesture = weapon.name ? "strike" : "punch";
   core.gestureHeld = weapon.held;
   const seconds = gestureSeconds(core.gesture) || 1;
-  core.strikeUntil = core.clock + seconds * 0.6;
+  core.strikeUntil = core.clock + seconds * (buffed("surging") ? 0.3 : 0.6);
   const saveId = core.save?.id;
   later(seconds * SWING_LANDS, () => {
     if (core.save?.id !== saveId || fightMode() !== mode || core.downed) return;
@@ -8536,7 +8939,7 @@ function cast(id = null) {
     const at = core.player.position;
     const scene = core.space.scene;
     const now = sheetNow();
-    const wit = witOf(now, wornNow(now));
+    const wit = witOf(now, wornNow(now), castingNow());
     core.hud?.refreshInventory?.();
     if (spell.heal && !spell.damage) {
       const mended = Math.max(1, rollDice(spell.heal).total + Math.max(0, wit));
@@ -8715,12 +9118,12 @@ function playerClass() {
 /** What each of the player's turns gives: by their class and level, or the numbers they've set (combat.js turnBudget). */
 function turnNow() {
   const s = core.settings;
-  return turnBudget(playerClass(), valueOf(sheetNow(), "level"), {
-    actions: s.turnActions,
-    bonus: s.turnBonus,
-    attacks: s.turnAttacks,
-    move: s.turnMove,
-  });
+  return turnBudget(
+    playerClass(),
+    valueOf(sheetNow(), "level"),
+    { actions: s.turnActions, bonus: s.turnBonus, attacks: s.turnAttacks, move: s.turnMove },
+    SRD_RACES[buildNow().race]?.speed ?? TURN_MOVE, // (a dwarf, a gnome or a halfling goes 7.5 m a turn)
+  );
 }
 
 /**
@@ -8761,8 +9164,8 @@ function battleAttack() {
 
 /** What's been used since the last sleep, of what a class gives so many times between rests (kept with the spell slots). */
 const usedOf = (what) => core.save?.slotsUsed?.[what] ?? 0;
-function useOne(what) {
-  core.save = { ...core.save, slotsUsed: { ...core.save.slotsUsed, [what]: usedOf(what) + 1 } };
+function useOne(what, amount = 1) {
+  core.save = { ...core.save, slotsUsed: { ...core.save.slotsUsed, [what]: usedOf(what) + amount } };
   core.saves.write(core.save);
 }
 
@@ -8781,8 +9184,6 @@ function drawReach() {
 function battleActs() {
   const battle = core.battle;
   if (!battle || !battleMine()) return [];
-  const mine = playerClass();
-  const level = valueOf(sheetNow(), "level");
   const action = battle.action > 0;
   const bonus = battle.bonus > 0;
   return [
@@ -8799,48 +9200,16 @@ function battleActs() {
       title: "An action: attacks on you are rolled twice, the worse counting, until your next turn",
       ready: action && !battle.dodging,
     },
-    ...(mine === "rogue" && level >= 2
-      ? [
-          { id: "bdash", label: "Dash (bonus)", title: "Cunning Action: Dash as a bonus action", ready: bonus },
-          {
-            id: "bdisengage",
-            label: "Disengage (bonus)",
-            title: "Cunning Action: Disengage as a bonus action",
-            ready: bonus && !battle.disengaged,
-          },
-        ]
-      : []),
-    ...(mine === "fighter"
-      ? [
-          {
-            id: "wind",
-            label: "Second Wind",
-            title: "A bonus action: +1d10 + your level HP, once between sleeps",
-            ready: bonus && usedOf("wind") < 1,
-          },
-          ...(level >= 2
-            ? [
-                {
-                  id: "surge",
-                  label: "Action Surge",
-                  title: "One more action this turn, once between sleeps",
-                  ready: usedOf("surge") < 1,
-                },
-              ]
-            : []),
-        ]
-      : []),
-    ...(mine === "barbarian"
-      ? [
-          {
-            id: "rage",
-            label: "Rage",
-            title:
-              "A bonus action, twice between sleeps: +2 damage with what you swing and half damage from weapons, teeth and claws, for the rest of the fight",
-            ready: bonus && !battle.raging && usedOf("rage") < 2,
-          },
-        ]
-      : []),
+    // What their class can call on (build.js abilities), each for what it takes of the turn.
+    ...abilitiesNow().map((ability) => ({
+      id: ability.id,
+      label: `${ability.name}${ability.left === null ? "" : ` (${ability.left})`}`,
+      title: `${ability.cost === "free" ? "" : ability.cost === "bonus" ? "A bonus action. " : "An action. "}${ability.about}`,
+      ready:
+        (ability.cost === "free" || (ability.cost === "bonus" ? bonus : action)) &&
+        (ability.left === null || ability.left >= Math.max(1, ability.spend)) &&
+        !(ability.id === "bdisengage" && battle.disengaged),
+    })),
   ];
 }
 
@@ -8862,26 +9231,7 @@ function battleAct(id) {
     battle.disengaged = true;
     return void narrate(null, `${who} takes the Disengage action: moving away draws no attacks this turn.`);
   }
-  if (id === "wind") {
-    if (!battleSpend("bonus")) return;
-    useOne("wind");
-    const mended = rollDice("1d10").total + valueOf(sheetNow(), "level");
-    setSheet(applyChanges(sheetNow(), [{ stat: "hp", by: mended }]).sheet);
-    const hp = entryOf(sheetNow(), "hp");
-    core.hud?.refreshInventory?.();
-    return void narrate(null, `${who} takes a Second Wind: +${mended} HP (${hp?.value ?? 0} of ${hp?.max ?? 0}).`);
-  }
-  if (id === "surge") {
-    useOne("surge");
-    battle.action += 1;
-    return void narrate(null, `${who} surges: one more action this turn.`);
-  }
-  if (id === "rage") {
-    if (!battleSpend("bonus")) return;
-    useOne("rage");
-    battle.raging = true;
-    return void narrate(null, `${who} rages: +2 damage with what they swing, and half from weapons, teeth and claws.`);
-  }
+  useAbility(id);
 }
 
 /** The creatures that would be in a fight begun at the creature `id`: it, and every hostile one near the player. */
@@ -8955,7 +9305,7 @@ function spotted(event) {
   const who = personaName();
   const what = (PACK.animals[event.kind] ?? "the creature").replace(/^the /u, "");
   const a = /^[aeiou]/iu.test(what) ? "An" : "A";
-  const passive = 10 + modifier(valueOf(sheetNow(), "wisdom"));
+  const passive = 10 + skillAdd("perception");
   const stealth = 1 + Math.floor(Math.random() * 20) + (foeTable()[event.kind]?.dex ?? 0);
   const surprised = core.settings.surprise && stealth > passive;
   const rolled = `its Stealth ${stealth} against ${who}'s passive Perception ${passive}`;
@@ -9090,6 +9440,7 @@ function battleTick(dt, moved) {
         battle.reacted = new Set();
         battle.disengaged = false;
         battle.dodging = false;
+        battle.sneaked = false;
         drawReach();
       }
       battle.wait = 0.5;
@@ -9203,6 +9554,11 @@ function hotkeyOptions() {
       label: `${entry.name}${entry.spell.cost ? ` (${entry.spell.cost} mana)` : " (cantrip)"}`,
       group: "Cast a spell",
     })),
+    ...abilitiesNow().map((ability) => ({
+      value: `ability:${ability.id}`,
+      label: ability.name,
+      group: "Use what your class can call on",
+    })),
     ...names
       .filter((name) => slotted.has(name))
       .map((name) => ({ value: `equip:${name}`, label: name, group: "Put on or take off" })),
@@ -9216,6 +9572,7 @@ function hotkeyOptions() {
 function hotkeyLabel(value) {
   const [kind, ...rest] = String(value).split(":");
   const what = rest.join(":");
+  if (kind === "ability") return abilitiesNow().find((ability) => ability.id === what)?.name ?? "Ability";
   if (kind !== "spell") return what;
   return sheetNow().entries.find((entry) => entry.id === what)?.name ?? "Spell";
 }
@@ -9235,6 +9592,7 @@ async function hotkey(key) {
       return void core.hud?.setNotice("Spells are cast in real-time combat: Settings → Inventory → Combat.");
     return void cast(what);
   }
+  if (kind === "ability") return void useAbility(what);
   if (!core.inventory.ready())
     return void core.hud?.setNotice("That needs your inventory, which the Quartermaster package keeps.");
   core.hotBusy = true;
@@ -9349,7 +9707,11 @@ function foeShoots(event, what) {
           spell: chosen.spell,
           sheet,
           worn: wornNow(sheet),
+          saveBonus: chosen.spell.save ? saveBonus(chosen.spell.save.attribute.toLowerCase()) : 0,
         });
+        // (Evasion: a Dexterity save made takes nothing, and one failed only half.)
+        if (kitNow().evasion && chosen.spell.save?.attribute.toLowerCase() === "dexterity")
+          result.damage = result.saved ? 0 : Math.floor(result.damage / 2);
         const hp = playerStruck(result, event);
         narrate(
           null,
@@ -9893,16 +10255,17 @@ function landOn(foe, weapon, cover = 0) {
   const sheet = sheetNow();
   const stats = foeOf(foe.kind, foeTable(), foe.scale);
   const behind = cover ? { ...stats, ac: stats.ac + cover } : stats;
+  const mods = strikeMods(weapon, foe, marked(foe.id));
   const swung = () => ({
-    ...playerStrike({ sheet, worn: wornNow(sheet), weapon, foe: behind, prof: profNow() }),
+    ...playerStrike({ sheet, worn: wornNow(sheet), weapon, foe: behind, prof: profNow(), mods }),
     ...(cover ? { cover } : {}),
   });
-  // (Marked by a spell: the better of two. Hampered by a condition: the worse. Both: one roll.)
-  const better = marked(foe.id);
+  // (Marked by a spell, or attacking recklessly: the better of two. Hampered by a condition: the worse. Both: one roll.)
+  const better = marked(foe.id) || mods.advantage;
   const worse = afflicted().attackDis;
   const result = better === worse ? swung() : rolledTwice(swung, better);
   if (worse && !better) result.hampered = true;
-  if (core.battle?.raging && result.hit && !weapon.range) result.damage += 2; // (a barbarian's Rage)
+  strikeSpent(mods, result, foe);
   const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
   const nerve = !foe.hostile
     ? "flee"
@@ -9937,7 +10300,7 @@ function encounter(foe, what, first) {
     );
   }
   core.encounterAt = core.clock + 6;
-  const weapon = weaponOf(core.items ?? [], byDesc());
+  const weapon = weaponNow();
   const target = core.herd.foes(core.player.position, 6).find((entry) => entry.id === foe.id);
   let down = false;
   if (first === "player" && target) down = landOn(target, weapon);
@@ -10077,7 +10440,7 @@ function block() {
   if (!fighting() || core.downed || core.mode !== "walk" || core.clock < (core.blockAgain ?? 0)) return;
   const seconds = gestureSeconds("block") || 1;
   core.gesture = "block";
-  core.gestureHeld = weaponOf(core.items ?? [], byDesc()).held;
+  core.gestureHeld = weaponNow().held;
   core.blockUntil = core.clock + seconds;
   core.blockAgain = core.clock + seconds + 0.3;
   core.strikeUntil = Math.max(core.strikeUntil ?? 0, core.clock + seconds * 0.7); // (no swing from behind a guard)
@@ -10145,10 +10508,15 @@ function foeAttacks(event, what, with_ = null) {
     worn: stats.cover ? { ...worn, ac: (worn.ac ?? 0) + stats.cover } : worn,
     guarded: core.clock < (core.blockUntil ?? 0) || !!core.battle?.dodging,
     hindered: hindered(event.id),
-    keen: pack || afflicted().defendAdv,
+    keen: pack || afflicted().defendAdv || buffed("reckless"),
   });
   if (stats.cover) result.cover = stats.cover;
-  if (core.battle?.raging && result.hit) result.damage = Math.floor(result.damage / 2); // (Rage: half from weapons)
+  if (buffed("raging") && result.hit) result.damage = Math.floor(result.damage / 2); // (Rage: half from weapons)
+  // (A rogue's Uncanny Dodge: half of one blow that lands, once every six seconds.)
+  if (result.hit && kitNow().uncanny && core.clock >= (core.uncannyAt ?? 0) && !afflicted().helpless) {
+    core.uncannyAt = core.clock + 6;
+    result.damage = Math.floor(result.damage / 2);
+  }
   const hp = playerStruck(result, event);
   narrate(null, foeWords({ who, what, verb: stats.verb, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
   if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) return void defeated();
@@ -10206,6 +10574,7 @@ function comeTo(home, free = false) {
   core.downed = false;
   core.stayDown = false;
   core.afflicted = {};
+  core.buffs = {};
   core.dying = null;
   breakConcentration("");
   core.gesture = null;
@@ -11279,7 +11648,7 @@ function step(dt) {
     act: core.mode === "ride" ? (stepping ? null : "ride") : astride ? "ride" : onGround,
     gesture: core.gesture,
     held: core.gestureHeld ?? null,
-    carry: weaponDrawn() ? weaponOf(core.items ?? [], byDesc()).held : null,
+    carry: weaponDrawn() ? weaponNow().held : null,
     // (Weapon drawn and on the move: which way they're stepping, from the way they face.)
     strafe:
       weaponDrawn() && (core.still ?? 1) === 0 && !core.glide ? (core.moveWay ?? 0) - core.player.rotation.y : null,
@@ -11799,6 +12168,10 @@ function attach(element) {
       core.saves.write(core.save);
     },
     playerClass,
+    build: buildInfo,
+    onBuild: setBuild,
+    onAbility: useAbility,
+    onShortRest: shortRest,
     onBattleAct: battleAct,
     onAddSpell: (name) => {
       const spell = SRD_SPELLS.find((entry) => entry.name === name);
