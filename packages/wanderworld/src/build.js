@@ -17,11 +17,86 @@ export function checkBuild(raw, classId = "") {
     .filter((id) => allowed.from.includes(id))
     .slice(0, allowed.count);
   const style = SRD_STYLES[raw?.style]?.classes.includes(classId) ? raw.style : "";
+  // (`extra`: skills had from somewhere else, a card's sheet: any of the SRD's, not counted against the class's number.)
+  const extra = [...new Set(Array.isArray(raw?.extra) ? raw.extra : [])].filter((id) => skillNamed(id));
   return {
     race: SRD_RACES[raw?.race] ? raw.race : "",
     style,
     background: SRD_BACKGROUNDS[raw?.background] ? raw.background : "",
     skills,
+    ...(extra.length ? { extra } : {}),
+  };
+}
+
+const SHORT = {
+  str: "strength",
+  dex: "dexterity",
+  con: "constitution",
+  int: "intelligence",
+  wis: "wisdom",
+  cha: "charisma",
+};
+
+/**
+ * A 5e sheet from a persona's or a character's card (the Engine's ruleset sheet for "5e-2014", as
+ * character.js hands it over: { v, build: { abilities, skills, fields, lists } }), read as what Wanderworld
+ * can use: { classId, level, race, background, style, abilities ({ strength: 15, … } as written, with the
+ * race's increases in them), skills (ids they're proficient in), spells (names), hpMax }. null when it
+ * isn't a sheet. Anything the SRD here doesn't have (a class, a race) comes out "".
+ */
+export function cardBuild(raw) {
+  const build = raw?.build && typeof raw.build === "object" ? raw.build : raw;
+  if (!build || typeof build !== "object" || (!build.fields && !build.abilities)) return null;
+  const fields = build.fields && typeof build.fields === "object" ? build.fields : {};
+  const text = (value) => String(value ?? "").toLowerCase();
+  const levels = Object.keys(SRD_CLASSES)
+    .map((id) => [id, Math.max(0, Math.round(Number(fields[`level_${id}`]) || 0))])
+    .sort((a, b) => b[1] - a[1]);
+  const named = text(fields.first_class) || text(fields.class);
+  const classId =
+    levels[0][1] > 0
+      ? levels[0][0]
+      : (Object.keys(SRD_CLASSES).find((id) => named.split(/[^a-z]+/u).includes(id)) ?? "");
+  const total =
+    levels.reduce((sum, [, level]) => sum + level, 0) + Math.max(0, Math.round(Number(fields.level_other) || 0));
+  const race = text(`${fields.subrace ?? ""} ${fields.race ?? ""}`);
+  const raceId =
+    Object.entries(SRD_RACES).find(([, entry]) => race.includes(entry.name.toLowerCase()))?.[0] ??
+    Object.keys(SRD_RACES)
+      .sort((a, b) => b.length - a.length)
+      .find((id) => race.includes(id.replace("-", " ")) || race.includes(id)) ??
+    "";
+  const abilities = {};
+  for (const [short, name] of Object.entries(SHORT)) {
+    const score = Number(build.abilities?.[short] ?? build.abilities?.[name]);
+    if (Number.isFinite(score)) abilities[name] = Math.max(1, Math.min(30, Math.round(score)));
+  }
+  const rows = (list) => (Array.isArray(build.lists?.[list]) ? build.lists[list] : []);
+  const features = rows("features").map((row) => text(row?.name));
+  return {
+    classId,
+    level: Math.max(1, Math.min(20, total || 1)),
+    race: raceId,
+    background:
+      Object.entries(SRD_BACKGROUNDS).find(([, entry]) =>
+        text(fields.background).includes(entry.name.toLowerCase()),
+      )?.[0] ?? "",
+    style:
+      Object.entries(SRD_STYLES).find(([, style]) =>
+        features.some((name) => name.includes(style.name.toLowerCase())),
+      )?.[0] ?? "",
+    abilities,
+    skills: Object.entries(build.skills && typeof build.skills === "object" ? build.skills : {})
+      .filter(([id, tier]) => (tier === "proficient" || tier === "expertise") && skillNamed(id))
+      .map(([id]) => id),
+    spells: [
+      ...new Set(
+        rows("spells")
+          .map((row) => String(row?.name ?? "").trim())
+          .filter(Boolean),
+      ),
+    ],
+    hpMax: Number(fields.hp_max) > 0 ? Math.round(Number(fields.hp_max)) : 0,
   };
 }
 
@@ -42,7 +117,13 @@ export function skillChoices(classId, background = "", race = "") {
 /** Every skill the build is proficient in: the picked, and the given. */
 export function skillsOf(build, classId = "") {
   const choices = skillChoices(classId, build?.background, build?.race);
-  return [...new Set([...(build?.skills ?? []).filter((id) => choices.from.includes(id)), ...choices.given])];
+  return [
+    ...new Set([
+      ...(build?.skills ?? []).filter((id) => choices.from.includes(id)),
+      ...choices.given,
+      ...(build?.extra ?? []),
+    ]),
+  ];
 }
 
 /** What a race adds to the abilities: { [ability]: amount } (nothing for none). */

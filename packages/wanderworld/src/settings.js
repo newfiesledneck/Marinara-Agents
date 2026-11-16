@@ -184,6 +184,8 @@ export const SETTINGS = {
   creatureExtras: { value: true },
   // Whether conditions (prone, poisoned, grappled, …) can land on the player (conditions.js).
   conditions: { value: true },
+  // Whether a 5e sheet on a persona's or a character's card (the Engine's ruleset sheet) sets their class, level, abilities and spells here.
+  cardSheets: { value: true },
   // At 0 HP: death saving throws (three successes and they hold on, three failures and they're beaten) before the defeat.
   deathSaves: { value: false },
   // Whether a spell marked Concentration ends when its caster is hurt and fails a Constitution save, or casts another.

@@ -162,4 +162,45 @@ assert.equal(turnBudget("fighter", 1, {}, 7.5).move, 7.5);
 assert.equal(turnBudget("monk", 2, {}, 7.5).move, 10.5);
 assert.equal(turnBudget("", 1).move, 9);
 
+// A 5e sheet from a card (the Engine's ruleset sheet), read as what's used here.
+{
+  const { cardBuild } = await import("../packages/wanderworld/src/build.js");
+  assert.equal(cardBuild(null), null);
+  assert.equal(cardBuild({ v: 1 }), null);
+  const mage = cardBuild({
+    v: 3,
+    build: {
+      abilities: { str: 9, dex: 14, con: 11, int: 17, wis: 12, cha: 11 },
+      skills: { arcana: "proficient", history: "expertise", stealth: "none", nonsense: "proficient" },
+      fields: { level_wizard: 9, class: "Wizard", race: "Elf", subrace: "High Elf", background: "Acolyte", hp_max: 40 },
+      lists: {
+        spells: [{ name: "Fire Bolt" }, { name: "Mage Hand" }, { name: "Fire Bolt" }, { name: "" }],
+        features: [{ name: "Fighting Style: Archery" }],
+      },
+    },
+  });
+  assert.deepEqual(mage, {
+    classId: "wizard",
+    level: 9,
+    race: "elf",
+    background: "acolyte",
+    style: "archery",
+    abilities: { strength: 9, dexterity: 14, constitution: 11, intelligence: 17, wisdom: 12, charisma: 11 },
+    skills: ["arcana", "history"],
+    spells: ["Fire Bolt", "Mage Hand"],
+    hpMax: 40,
+  });
+  // Two classes: the higher is theirs, and the level is both together. A bare build reads too.
+  const both = cardBuild({ fields: { level_fighter: 2, level_rogue: 5, race: "Half-Orc" }, abilities: {} });
+  assert.deepEqual([both.classId, both.level, both.race], ["rogue", 7, "half-orc"]);
+  assert.deepEqual(
+    [cardBuild({ fields: { class: "Fighter" } }).classId, cardBuild({ fields: { class: "Artificer" } }).classId],
+    ["fighter", ""],
+  );
+  // Skills from a card are kept beside the class's own picks.
+  const kept = checkBuild({ skills: ["athletics"], extra: ["arcana", "nonsense"] }, "fighter");
+  assert.deepEqual(kept.extra, ["arcana"]);
+  assert.deepEqual(skillsOf(kept, "fighter").sort(), ["arcana", "athletics"]);
+}
+
 console.log("ok: the build");
