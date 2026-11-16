@@ -188,6 +188,12 @@ export const SETTINGS = {
   cardSheets: { value: true },
   // Whether a beaten creature that carries money has the ruleset's pocket treasure on it (coin, a potion, seldom a magic thing).
   srdLoot: { value: true },
+  // Shove, Grapple, Help, Hide and an off-hand attack offered as things to do in a fight.
+  moves: { value: true },
+  // Whether Shield and Counterspell, where the player has them, cast themselves when they'd help.
+  reactions: { value: true },
+  // Whether how high the player jumps goes by their Strength (the SRD's high jump).
+  jumpByStrength: { value: false },
   // At 0 HP: death saving throws (three successes and they hold on, three failures and they're beaten) before the defeat.
   deathSaves: { value: false },
   // Whether a spell marked Concentration ends when its caster is hurt and fails a Constitution save, or casts another.

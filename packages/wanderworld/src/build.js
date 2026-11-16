@@ -25,8 +25,20 @@ export function checkBuild(raw, classId = "") {
     background: SRD_BACKGROUNDS[raw?.background] ? raw.background : "",
     skills,
     ...(extra.length ? { extra } : {}),
+    ...(Array.isArray(raw?.feats) && raw.feats.some((id) => SRD_FEATS[id])
+      ? { feats: [...new Set(raw.feats.filter((id) => SRD_FEATS[id]))] }
+      : {}),
   };
 }
+
+/** The SRD's feats (it has the one). `needs`: the least of an ability it asks. */
+export const SRD_FEATS = {
+  grappler: {
+    name: "Grappler",
+    about: "Advantage on your attacks against a creature you're grappling. Needs Strength 13.",
+    needs: { strength: 13 },
+  },
+};
 
 const SHORT = {
   str: "strength",

@@ -245,6 +245,7 @@ export const SRD_SPELLS = [
     type: "force",
     sure: true,
   },
+  { name: "Shield", level: 1, classes: ["sorcerer", "wizard"], range: 2.5, reaction: "shield" },
   {
     name: "Sleep",
     level: 1,
@@ -409,6 +410,7 @@ export const SRD_SPELLS = [
     shape: "burst",
     up: "1d10",
   },
+  { name: "Counterspell", level: 3, classes: ["sorcerer", "warlock", "wizard"], range: 18, reaction: "counter" },
   {
     name: "Fear",
     level: 3,

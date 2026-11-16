@@ -93,6 +93,13 @@ for (const entry of read("spells.json")) {
   };
   // (Cast as a bonus action, by its casting time: that matters where fights go by turns.)
   if (/Casting time: bonus action/iu.test(entry.rows?.[0]?.values?.notes ?? "")) spell.bonus = true;
+  // (The two that are cast in answer to something: they cast themselves when it happens.)
+  const answers = { shield: "shield", counterspell: "counter" }[entry.id];
+  if (answers) {
+    spell.reaction = answers;
+    spells.push(spell);
+    continue;
+  }
   if (mechanics.kind === "heal" && dice) spell.heal = dice;
   else if (mechanics.kind === "attack" && dice) {
     spell.damage = dice;

@@ -140,6 +140,7 @@ function weaponWritten(item) {
     // (Its kind of damage: as written, else that of the weapon its name is like, else a blunt knock.)
     type: damage[2]?.toLowerCase() ?? like?.type ?? "bludgeoning",
     ...(/\bfinesse\b/iu.test(text) ? { finesse: true } : {}),
+    ...(/\blight\b/iu.test(text) || like?.light ? { light: true } : {}),
   };
 }
 
@@ -359,6 +360,20 @@ export function weaponOf(items, byDescription = true) {
   return (best(worn) ?? best(weapons))?.weapon ?? UNARMED;
 }
 
+/**
+ * What's in the player's other hand, for an off-hand attack: with two light weapons equipped (daggers,
+ * shortswords, handaxes), the lesser of them, marked `offhand` (its damage has no ability modifier added,
+ * unless that's a penalty); null with fewer.
+ */
+export function offhandOf(items, byDescription = true) {
+  const light = (Array.isArray(items) ? items : [])
+    .filter((item) => String(item?.location ?? "").startsWith("equipped:"))
+    .map((item) => weaponIn(item, byDescription))
+    .filter((weapon) => weapon?.light && !weapon.range)
+    .sort((a, b) => mean(b.damage) - mean(a.damage));
+  return light.length >= 2 ? { ...light[1], offhand: true } : null;
+}
+
 /** What dice come to on average ("2d6+1" is 8). */
 export function mean(dice) {
   const match = /^(\d{0,2})d(\d{1,3})([+-]\d{1,3})?$/iu.exec(String(dice).replace(/\s+/gu, ""));
@@ -401,7 +416,12 @@ export function playerStrike({ sheet, worn = {}, weapon = UNARMED, foe, prof = 0
       bonus: strength + prof + weapon.attack + (worn.attack ?? 0) + (mods.attack ?? 0),
       ac: foe.ac,
       damage: weapon.damage,
-      damageBonus: strength + (weapon.plus ?? 0) + (worn.damage ?? 0) + (mods.damage ?? 0),
+      // (An off-hand blow adds no ability modifier to its damage, unless it's a penalty.)
+      damageBonus:
+        (weapon.offhand ? Math.min(0, strength) : strength) +
+        (weapon.plus ?? 0) +
+        (worn.damage ?? 0) +
+        (mods.damage ?? 0),
       critFrom: mods.critFrom ?? 20,
       more: mods.more ?? [],
     },
@@ -660,6 +680,8 @@ export const spellCost = (level) => Math.max(0, Math.round(level) || 0);
 export function spellRule(spell) {
   const parts = [spell.level > 0 ? `Level ${spell.level}` : "Cantrip"];
   if (spellCost(spell.level)) parts.push(`${spellCost(spell.level)} mana`);
+  if (spell.reaction === "shield") parts.push("Reaction: +5 AC against a blow that would land (it casts itself)");
+  if (spell.reaction === "counter") parts.push("Reaction: a spell cast at you comes to nothing (it casts itself)");
   if (spell.heal) parts.push(`+${spell.heal} HP`);
   if (spell.damage) parts.push(`${spell.damage}${spell.type ? ` ${spell.type}` : ""} damage`);
   if (spell.sure) parts.push("Always hits");
@@ -698,7 +720,13 @@ export function spellIn(entry) {
   const heal = SPELL_HEAL.exec(text);
   const effect = SPELL_EFFECT.exec(text);
   const push = Number(SPELL_PUSH.exec(text)?.[1] ?? 0);
-  if (!damage && !heal && !effect && !push) return null;
+  // (One cast in answer to something: main.js casts it when that happens.)
+  const answers = /\breaction:\s*\+5 ac\b/iu.test(text)
+    ? "shield"
+    : /\breaction:[^.]*\bspell\b/iu.test(text)
+      ? "counter"
+      : "";
+  if (!damage && !heal && !effect && !push && !answers) return null;
   const save = SPELL_SAVE.exec(text);
   const name = effect?.[1].toLowerCase();
   return {
@@ -716,6 +744,7 @@ export function spellIn(entry) {
     push,
     area: Number(SPELL_AREA.exec(text)?.[1] ?? 0),
     drain: /\bheals the caster\b/iu.test(text),
+    reaction: answers,
     // (Its shape, for how it looks; and how it grows: dice more for each slot level above its own, or with the caster's level.)
     shape: /\barea\s+[\d.]+\s*\((cone|line|cube|burst)\)/iu.exec(text)?.[1].toLowerCase() ?? "",
     up: /\bhigher:\s*\+(\d{0,2}d\d{1,3})/iu.exec(text)?.[1] ?? "",

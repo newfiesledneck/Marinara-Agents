@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.08)
+## What it does now (0.7.09)
 
 ### The world
 
@@ -615,6 +615,8 @@ every roll, and no AI call is made in a real-time fight.
   ruleset sets their class, level, abilities, HP and spells here (a setting).
 - **Magic items and loot**: worn magic from the SRD works by its name, potions heal by their dice,
   and beaten creatures that carry money have the ruleset's pocket treasure.
+- **More moves**: Shove, Grapple, Help, Hide and off-hand attacks; Shield and Counterspell as
+  reactions that cast themselves; the Grappler feat.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.

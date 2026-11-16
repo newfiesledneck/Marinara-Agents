@@ -894,6 +894,12 @@ export function createHud(root, handlers) {
       "On: a persona or a character whose card has a sheet for the Engine's 5e ruleset (made in the Engine's persona or character editor) brings it here. For you, once in each world: your class, level, race, background, abilities, most HP, the skills you're proficient in and the spells Wanderworld can play are set from it, and you can change any of it afterwards (Inventory → Sheet has a button to take it from the card again). For a companion: their class, most HP and spells come from their card unless you've chosen a class for them. Off: cards are left alone.",
     srdLoot:
       "On: a beaten creature that would carry money (a bandit, a puglin, a skeleton, a witch, a wizard, an imp, a dragon) has pocket treasure on it besides what you'd harvest: coin, now and then a Potion of Healing, and seldom from the greater ones a magic thing to wear. Off: only what the game's own lists give.",
+    moves:
+      "On: more to do in a fight, on the bar by turns and in Inventory → Sheet (each can go on a number key). Shove: your Athletics against the creature's, and it's pushed back and knocked down. Grapple: the same contest, and it's held where it is until it breaks free. Help: a companion's next attack has advantage. Hide: your Stealth against what the creatures near you notice; hidden, nothing comes for you and your next attack has advantage. Off-hand attack: with two light weapons equipped, a bonus action's blow with the other. Off: just Attack, Cast, Dash, Disengage and Dodge.",
+    reactions:
+      "On: if Shield is on your sheet, it casts itself when a blow would land and +5 AC would turn it; if Counterspell is, it casts itself when a creature casts at you. Each costs its mana or slot, and you have one such answer every six seconds. Off: they're never cast.",
+    jumpByStrength:
+      "On: how high you jump goes by your Strength, as the SRD's high jump does: about 0.9 metres at Strength 10, more for more. Off: everyone jumps the same.",
     rangedFoes:
       "On: a creature the SRD gives a bow, a crossbow or spells uses them when you're out of its reach, in real time and by turns. A bandit shoots a light crossbow, a puglin and a skeleton a shortbow; a wizard casts Fire Bolt and Magic Missile, a witch Sacred Flame and Spiritual Weapon. Each is rolled against your AC or your saving throw, or a companion's AC. Off: they all have to close with you.",
     turnActions:
@@ -1421,6 +1427,9 @@ export function createHud(root, handlers) {
   toggle("damageTypes", "Kinds of damage matter to creatures", "srdCreatures");
   toggle("creatureExtras", "Creatures use their special attacks", "srdCreatures");
   toggle("srdLoot", "Creatures carry pocket treasure", "srdCreatures");
+  toggle("moves", "Shove, Grapple, Help, Hide and off-hand attacks", "sheet");
+  toggle("reactions", "Shield and Counterspell cast themselves", "sheet");
+  toggle("jumpByStrength", "Jump height goes by Strength", "sheet");
   toggle("conditions", "Conditions can land on you", "sheet");
   toggle("deathSaves", "Death saving throws at 0 HP", "sheet");
   toggle("concentration", "Concentration", "sheet");
@@ -3267,6 +3276,21 @@ export function createHud(root, handlers) {
         body.append(wrap);
       }
       if (build.given.length) body.append(debugNote(`From your race and background: ${build.given.join(", ")}.`));
+      for (const feat of build.featList ?? []) {
+        const label = document.createElement("label");
+        label.style.cssText = "display:flex;align-items:center;gap:4px;font-size:12px;";
+        label.title = feat.about;
+        const tick = document.createElement("input");
+        tick.type = "checkbox";
+        tick.checked = feat.has;
+        tick.disabled = !feat.has && !feat.can;
+        tick.addEventListener("change", () => {
+          handlers.onBuild?.("feats", tick.checked ? [feat.id] : []);
+          void drawInventory();
+        });
+        label.append(tick, `Feat: ${feat.name}. ${feat.about}`);
+        body.append(label);
+      }
       if (build.abilities.length) {
         body.append(piece("margin-top:4px;font-weight:700;", "What your class can call on"));
         const wrap = piece("display:flex;flex-wrap:wrap;gap:5px;");

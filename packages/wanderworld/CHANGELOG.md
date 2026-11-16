@@ -1,5 +1,14 @@
 # Wanderworld release notes
 
+## 0.7.09 — 2026-11-16
+
+- More to do in a fight, on the bar by turns, in Inventory → Sheet and on number keys: Shove (pushed back and knocked down), Grapple (held where it is), Help (a companion's next attack has advantage), Hide (your Stealth against what they notice) and an Off-hand attack with two light weapons.
+- Shield and Counterspell can be added to your sheet. They cast themselves: Shield when +5 AC would turn a blow, Counterspell when a creature casts at you.
+- The SRD's one feat, Grappler, is in the Sheet tab.
+- Swimming, a swing is at a disadvantage unless it's a dagger, javelin, shortsword, spear or trident.
+- A setting has jump height go by Strength (off to begin with).
+- Each has a switch in Settings → Inventory → 5e rules.
+
 ## 0.7.08 — 2026-11-16
 
 - Worn magic from the 5e SRD works by its name, like weapons and armour: a Ring or Cloak of Protection, Bracers of Defense, an Amulet of Health, Gauntlets of Ogre Power, a Headband of Intellect and the rest that change Armor Class, saving throws, an ability or spellcasting.

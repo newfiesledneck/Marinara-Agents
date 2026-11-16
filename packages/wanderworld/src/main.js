@@ -172,6 +172,7 @@ import {
   gearWorn,
   initiativeOrder,
   lootOf,
+  offhandOf,
   personWords,
   playerStrike,
   potionIn,
@@ -196,6 +197,7 @@ import {
 } from "./combat.js";
 import { createSpellFx, spellColour, spellLook } from "./spellfx.js";
 import {
+  SRD_FEATS,
   abilities,
   cardBuild,
   checkBuild,
@@ -4308,6 +4310,13 @@ function rest() {
 /** A jump: straight up, or along with however the player is moving. */
 const JUMP_SPEED = 4.6; // metres a second, upward
 const GRAVITY = 13;
+/** How fast a jump leaves the ground: everyone's the same, or (a setting) by Strength, the SRD's high jump of 3 feet and the modifier. */
+function jumpSpeed() {
+  if (!core.settings.jumpByStrength || !core.save) return JUMP_SPEED;
+  const sheet = sheetNow();
+  const strength = modifier(valueOf(sheet, "strength") + (wornNow(sheet).strength ?? 0));
+  return Math.sqrt(2 * GRAVITY * Math.max(0.3, Math.min(3, (3 + strength) * 0.3)));
+}
 const MOUNT_LEAP = 1.25; // seconds a ridden animal's jump takes: its own leap, start to landing
 function jump() {
   // On a horse or a donkey, it jumps: its own leap, carrying on the way it's going, the rider with it.
@@ -4316,7 +4325,7 @@ function jump() {
     return;
   }
   if (core.mode !== "walk" || core.swimming || core.air || core.glide || core.clock < (core.stillUntil ?? 0)) return;
-  core.air = { height: 0, speed: JUMP_SPEED };
+  core.air = { height: 0, speed: jumpSpeed() };
 }
 
 function talkTo(person) {
@@ -8131,6 +8140,7 @@ const BUFF_WORDS = {
   surging: "Action Surge",
   inspired: "Inspired",
   smiting: "Smite ready",
+  helping: "Helping",
   stunning: "Stunning Strike ready",
   hidden: "Hidden",
   helped: "Helped",
@@ -8153,7 +8163,81 @@ function abilitiesNow() {
   return abilities(playerClass(), valueOf(sheet, "level"), {
     charisma: modifier(valueOf(sheet, "charisma")),
     wisdom: modifier(valueOf(sheet, "wisdom")),
-  }).map((ability) => ({ ...ability, left: ability.max ? Math.max(0, ability.max - usedOf(ability.pool)) : null }));
+  })
+    .map((ability) => ({ ...ability, left: ability.max ? Math.max(0, ability.max - usedOf(ability.pool)) : null }))
+    .concat(movesNow());
+}
+
+/** What anyone can do in a fight besides attacking (a setting): shove, grapple, help, hide, and an off-hand blow with two light weapons. */
+const MOVES = [
+  {
+    id: "shove",
+    name: "Shove",
+    about: "Your Athletics against the creature's: it's pushed back and knocked down.",
+    cost: "action",
+  },
+  {
+    id: "grapple",
+    name: "Grapple",
+    about: "Your Athletics against the creature's: it's held where it is until it breaks free.",
+    cost: "action",
+  },
+  { id: "help", name: "Help", about: "A companion's next attack has advantage.", cost: "action" },
+  {
+    id: "hide",
+    name: "Hide",
+    about:
+      "Your Stealth against what the creatures near you notice: hidden, nothing comes for you and your next attack has advantage.",
+    cost: "action",
+  },
+];
+function movesNow() {
+  if (!core.settings.moves || !fighting()) return [];
+  const plain = (move) => ({ ...move, pool: move.id, max: 0, per: "short", spend: 1, left: null });
+  const other = offhandOf(core.items ?? [], byDesc());
+  return [
+    ...MOVES.map(plain),
+    ...(other
+      ? [
+          plain({
+            id: "offhand",
+            name: "Off-hand attack",
+            about: `A blow with the ${other.name.toLowerCase()} in your other hand.`,
+            cost: "bonus",
+          }),
+        ]
+      : []),
+  ];
+}
+
+/** A contest of the player's Athletics against a creature's strength or nimbleness, whichever is better: { mine, theirs, won }. */
+function contest(foe) {
+  const stats = foeOf(foe.kind, foeTable(), foe.scale);
+  const die = () => 1 + Math.floor(Math.random() * 20);
+  const mine = die() + skillAdd("athletics");
+  const theirs = die() + Math.max(stats.saves?.strength ?? 0, stats.saves?.dexterity ?? 0);
+  return { mine, theirs, won: mine > theirs };
+}
+
+/**
+ * Shield or Counterspell (`kind`: "shield" | "counter"), where it's on the sheet and can be paid for: cast in
+ * answer, its mana or slot spent, and no other such answer for six seconds. Its name, or "" when it isn't cast.
+ */
+function reactionSpell(kind) {
+  if (!core.settings.reactions || core.clock < (core.reactAt ?? 0) || afflicted().helpless) return "";
+  const found = spellsNow().find((entry) => entry.spell.reaction === kind);
+  if (!found) return "";
+  const slotted = byTurns() && core.settings.srdSlots;
+  const slot = slotted ? slotFor(found.spell.level, slotsNow(), core.save.slotsUsed) : 0;
+  if (slotted ? slot <= 0 : valueOf(sheetNow(), "mana") < found.spell.cost) return "";
+  if (slotted) useOne(slot);
+  else setSheet(applyChanges(sheetNow(), [{ stat: "mana", by: -found.spell.cost }]).sheet);
+  core.reactAt = core.clock + 6;
+  core.gesture = "cast";
+  const at = core.player.position;
+  spellFx().ring(core.space.scene, chest(at.x, at.z, 0.9), spellColour("force"), 0.8, 0.9);
+  core.hud?.refreshInventory?.();
+  return found.name;
 }
 
 /**
@@ -8166,6 +8250,13 @@ function strikeMods(weapon, foe, keen = false) {
   const melee = !weapon.range;
   const mods = { attack: 0, damage: 0, critFrom: kit.critFrom, more: [], advantage: melee && buffed("reckless") };
   if (buffed("hidden") || buffed("helped")) mods.advantage = true;
+  if (
+    foe &&
+    core.grappling?.id === foe.id &&
+    core.grappling.until > core.clock &&
+    buildNow().feats?.includes("grappler")
+  )
+    mods.advantage = true; // (the Grappler feat)
   if (!melee) mods.attack += kit.archery;
   if (melee && weapon.name && !weapon.two && !weapon.twoHanded) mods.damage += kit.dueling;
   // ponytail: Great Weapon Fighting rerolls 1s and 2s on the damage dice; here it's +1 for each die, which is
@@ -8263,6 +8354,58 @@ function useAbility(id) {
     spellFx().motes(core.space.scene, chest(core.player.position.x, core.player.position.z, 0), spellColour("heal"));
     narrate(null, `${words}: +${amount} HP (${now?.value ?? 0} of ${now?.max ?? 0}).`);
   };
+  if (id === "shove" || id === "grapple") {
+    const target = blowTarget();
+    if (!target || target.person) return notice("There's nothing in reach.");
+    if ((target.scale ?? 1) > 2) return void narrate(null, `${who} can't get a hold on something that size.`);
+    core.gesture = "punch";
+    const what = (PACK.animals[target.kind] ?? "the creature").replace(/^the /u, "");
+    const rolled = contest(target);
+    const told = `Athletics ${rolled.mine} against its ${rolled.theirs}`;
+    if (!rolled.won) return void narrate(null, `${who} tries to ${id} the ${what} (${told}): it holds its ground.`);
+    const at = core.player.position;
+    if (id === "shove") {
+      core.herd.push(target.id, at.x, at.z, 1.5);
+      core.herd.stun(target.id, 3);
+      foeFx(target.id).mark = core.clock + 6;
+      spellFx().wave(core.space.scene, chest(target.x, target.z, 0.15), 0xd8c8a0, 2.5);
+      return void narrate(null, `${who} shoves the ${what} (${told}): it's knocked back and down.`);
+    }
+    core.herd.root(target.id, 30);
+    core.grappling = { id: target.id, until: core.clock + 30 };
+    return void narrate(null, `${who} grapples the ${what} (${told}): it's held where it is.`);
+  }
+  if (id === "help") {
+    if (!fightingAllies().length) return notice("There's nobody with you to help.");
+    buff("helping", 30);
+    return void narrate(null, `${who} makes an opening: a companion's next attack has advantage.`);
+  }
+  if (id === "hide") {
+    const near = core.interior
+      ? []
+      : core.herd.foes(core.player.position, 20).filter((foe) => foe.hostile && !foe.fled);
+    const notices = near.reduce((most, foe) => Math.max(most, 10 + (foeOf(foe.kind, foeTable()).perception ?? 0)), 10);
+    const die = () => 1 + Math.floor(Math.random() * 20);
+    // (Armour that hinders Stealth: the worse of two.)
+    const roll = wornNow().armour?.noisy ? Math.min(die(), die()) : die();
+    const total = roll + skillAdd("stealth");
+    if (total < notices)
+      return void narrate(null, `${who} tries to hide (Stealth ${total} against ${notices}): still in plain sight.`);
+    buff("hidden", 30);
+    if (!core.battle) core.herd.calm();
+    return void narrate(
+      null,
+      `${who} slips out of sight (Stealth ${total} against ${notices}): the next attack has advantage${core.battle ? "" : ", and nothing comes for them while they stay hidden"}.`,
+    );
+  }
+  if (id === "offhand") {
+    const other = offhandOf(core.items ?? [], byDesc());
+    const target = blowTarget();
+    if (!other || !target || target.person) return notice("There's nothing in reach.");
+    core.gesture = "strike";
+    core.gestureHeld = other.held;
+    return void landOn(target, other);
+  }
   if (id === "wind") {
     useOne("wind");
     return void mend(rollDice("1d10").total + level, `${who} takes a Second Wind`);
@@ -8437,6 +8580,13 @@ function buildInfo() {
     abilities: abilitiesNow(),
     hitDice: { die: dice.die, max: dice.max, left: Math.max(0, dice.max - usedOf("hitDice")) },
     prof: profNow() || 2,
+    featList: Object.entries(SRD_FEATS).map(([id, feat]) => ({
+      id,
+      name: feat.name,
+      about: feat.about,
+      has: !!build.feats?.includes(id),
+      can: Object.entries(feat.needs).every(([ability, least]) => valueOf(sheetNow(), ability) >= least),
+    })),
     card: ((card) => (card ? cardWords(card) : ""))(
       cardBuild(core.personas?.find((entry) => entry.id === core.personaId)?.sheet),
     ),
@@ -8445,7 +8595,7 @@ function buildInfo() {
 
 /** One part of the build is changed in the Sheet tab (`field`: race | style | background | skills). */
 function setBuild(field, value) {
-  if (!core.save || !["race", "style", "background", "skills"].includes(field)) return;
+  if (!core.save || !["race", "style", "background", "skills", "feats"].includes(field)) return;
   core.save = { ...core.save, build: checkBuild({ ...buildNow(), [field]: value }, playerClass()) };
   core.saves.write(core.save);
   core.hud?.refreshInventory?.();
@@ -8637,6 +8787,8 @@ function foeTarget(foe, targets) {
 /** The conditions run down (outside a fight by turns, where a turn counts them), hold the player, and are shown. */
 function conditionsTick(dt) {
   if (core.buffs && Object.keys(core.buffs).length && !core.battle) core.buffs = tickConditions(core.buffs, dt);
+  // (Hidden, outside a fight by turns: nothing comes for them.)
+  if (buffed("hidden") && !core.battle) core.truceUntil = Math.max(core.truceUntil ?? 0, core.clock + 0.4);
   const others = statusChips();
   const has = core.afflicted && Object.keys(core.afflicted).length > 0;
   if (!has) {
@@ -8905,6 +9057,8 @@ function cast(id = null) {
   core.readySpell = chosen.id;
   const { name } = chosen;
   let spell = chosen.spell;
+  if (spell.reaction)
+    return void core.hud?.setNotice(`${name} casts itself when it's needed (Settings → Inventory → 5e rules).`);
   const sheet = sheetNow();
   // Facing nothing, they turn to the nearest enemy the spell reaches, so it isn't cast at the empty air.
   if (!(spell.heal && !spell.damage)) faceEnemy(spell.range);
@@ -8932,6 +9086,7 @@ function cast(id = null) {
   } else if (!slotted && spell.cost > 0) setSheet(applyChanges(sheet, [{ stat: "mana", by: -spell.cost }]).sheet);
   core.gesture = "cast";
   core.castUntil = core.clock + 1.1;
+  if (buffed("hidden")) core.buffs = lift(core.buffs, "hidden"); // (a spell gives them away)
   if (spell.conc && core.settings.concentration) {
     breakConcentration(core.conc?.ids?.length ? `${personaName()} lets ${core.conc.name} go.` : "");
     core.conc = { name, ids: [], until: 0 };
@@ -9706,6 +9861,12 @@ function foeShoots(event, what) {
         if (core.downed) return;
         if (core.clock < (core.dodgeUntil ?? 0))
           return void narrate(null, `The ${what} casts ${chosen.name} at ${who}, who rolls clear.`);
+        const countered = chosen.level <= 3 ? reactionSpell("counter") : "";
+        if (countered)
+          return void narrate(
+            null,
+            `The ${what} casts ${chosen.name} at ${who}, who answers with ${countered}: it comes to nothing.`,
+          );
         const sheet = sheetNow();
         const result = spellAtPlayer({
           wit: stats.wit ?? 0,
@@ -10036,7 +10197,10 @@ function allyActs(person, foes, hurt) {
 function allyStrikes(person, foe, weapon) {
   const name = nameFor(person.id, person.name);
   const stats = foeOf(foe.kind, foeTable(), foe.scale);
-  const result = attackRoll({ bonus: ALLY_ATTACK, ac: stats.ac, damage: weapon.damage, damageBonus: 2 });
+  const roll = () => attackRoll({ bonus: ALLY_ATTACK, ac: stats.ac, damage: weapon.damage, damageBonus: 2 });
+  // (Helped by the player: the better of two, once.)
+  const result = buffed("helping") ? rolledTwice(roll, true) : roll();
+  if (buffed("helping")) core.buffs = lift(core.buffs, "helping");
   const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
   const struck = core.herd.strike(
     foe.id,
@@ -10346,7 +10510,13 @@ function landOn(foe, weapon, cover = 0) {
   });
   // (Marked by a spell, or attacking recklessly: the better of two. Hampered by a condition: the worse. Both: one roll.)
   const better = marked(foe.id) || mods.advantage;
-  const worse = afflicted().attackDis;
+  // (Swimming: a swing is hampered, but for a dagger, a javelin, a shortsword, a spear or a trident.)
+  const underwater =
+    !!core.swimming &&
+    !!core.settings.srdModifiers &&
+    !weapon.range &&
+    !["dagger", "javelin", "shortsword", "spear", "trident"].includes(weapon.srd);
+  const worse = afflicted().attackDis || underwater;
   const result = better === worse ? swung() : rolledTwice(swung, better);
   if (worse && !better) result.hampered = true;
   strikeSpent(mods, result, foe);
@@ -10601,6 +10771,13 @@ function foeAttacks(event, what, with_ = null) {
     keen: pack || afflicted().defendAdv || buffed("reckless"),
   });
   if (stats.cover) result.cover = stats.cover;
+  // (Shield, where they have it: cast in answer to a blow that +5 AC turns.)
+  let shielded = "";
+  if (result.hit && !result.crit && result.total < result.ac + 5 && (shielded = reactionSpell("shield"))) {
+    result.hit = false;
+    result.damage = 0;
+    result.ac += 5;
+  }
   if (buffed("raging") && result.hit) result.damage = Math.floor(result.damage / 2); // (Rage: half from weapons)
   // (A rogue's Uncanny Dodge: half of one blow that lands, once every six seconds.)
   if (result.hit && kitNow().uncanny && core.clock >= (core.uncannyAt ?? 0) && !afflicted().helpless) {
@@ -10609,6 +10786,7 @@ function foeAttacks(event, what, with_ = null) {
   }
   const hp = playerStruck(result, event);
   narrate(null, foeWords({ who, what, verb: stats.verb, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
+  if (shielded) narrate(null, `${who} casts ${shielded} in answer: +5 AC, and the blow is turned.`);
   if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) return void defeated();
   if (extras && result.hit) foeExtras(stats, what, event);
   // (Multiattack: its other blows, one after another.)

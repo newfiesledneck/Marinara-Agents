@@ -554,6 +554,7 @@ export function createHerd() {
     const dz = z - beast.z;
     const distance = Math.hypot(dx, dz);
     if (distance < 0.05) return (beast.speed = 0);
+    if ((beast.rootUntil ?? 0) > clock) return (beast.speed = 0); // (held where it is: grappled)
     // (Slowed by a spell: half its pace until it wears off.)
     const move = Math.min(distance, pace * ((beast.slowUntil ?? 0) > clock ? 0.5 : 1) * dt);
     const next = { x: beast.x + (dx / distance) * move, y: 0, z: beast.z + (dz / distance) * move };
@@ -1017,6 +1018,11 @@ export function createHerd() {
       beast.stunUntil = 0;
       beast.slowUntil = 0;
       beast.calmUntil = 0;
+    },
+    /** `id` can't move from where it is for `seconds` (0 lets it go), though it can still strike what's beside it. */
+    root(id, seconds) {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (beast && beast.down === undefined) beast.rootUntil = seconds > 0 ? clock + seconds : 0;
     },
     /** `id` leaves off fighting for `seconds`, or until it's hurt. */
     soothe(id, seconds) {
