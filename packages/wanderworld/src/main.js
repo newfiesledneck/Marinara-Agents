@@ -195,6 +195,7 @@ import {
 import { createSpellFx, spellColour, spellLook } from "./spellfx.js";
 import {
   abilities,
+  cardBuild,
   checkBuild,
   hitDiceOf,
   passives,
@@ -8434,6 +8435,9 @@ function buildInfo() {
     abilities: abilitiesNow(),
     hitDice: { die: dice.die, max: dice.max, left: Math.max(0, dice.max - usedOf("hitDice")) },
     prof: profNow() || 2,
+    card: ((card) => (card ? cardWords(card) : ""))(
+      cardBuild(core.personas?.find((entry) => entry.id === core.personaId)?.sheet),
+    ),
   };
 }
 
@@ -8622,9 +8626,8 @@ function foeTarget(foe, targets) {
   if (wants === "weakest") return inReach.reduce((best, entry) => (state(entry).max < state(best).max ? entry : best));
   if (wants === "casters")
     return (
-      inReach.find((entry) =>
-        entry.id ? spellsOfClass(classOf(entry.id)).attack.length > 0 : spellsNow().length > 0,
-      ) ?? nearest
+      inReach.find((entry) => (entry.id ? spellsOfPerson(entry.id).attack.length > 0 : spellsNow().length > 0)) ??
+      nearest
     );
   return nearest;
 }
@@ -9495,7 +9498,7 @@ function battleTick(dt, moved) {
       const foe = foes.reduce((best, entry) =>
         Math.hypot(entry.x - from.x, entry.z - from.z) < Math.hypot(best.x - from.x, best.z - from.z) ? entry : best,
       );
-      const caster = spellsOfClass(classOf(person.id)).attack.length > 0;
+      const caster = spellsOfPerson(person.id).attack.length > 0;
       const far = Math.hypot(foe.x - from.x, foe.z - from.z);
       const go = caster ? 0 : Math.max(0, Math.min(TURN_MOVE, far - (1.5 + foe.room)));
       if (go > 0.3)
@@ -9748,9 +9751,87 @@ function foeTable() {
 function classOf(id) {
   const chosen = core.save?.classes?.[id];
   if (chosen && SRD_CLASSES[chosen]) return chosen;
+  const carded = cardOf(id)?.classId; // (the class on their card's 5e sheet, where they have one)
+  if (carded) return carded;
   const all = Object.keys(SRD_CLASSES);
   return all[hashString(`class:${id}`) % all.length];
 }
+
+/** A character's 5e sheet from their card, read (build.js cardBuild); null when they have none or cards aren't used. */
+const cards = new Map();
+function cardOf(id) {
+  if (!core.settings.cardSheets) return null;
+  if (!cards.has(id)) cards.set(id, cardBuild(core.engineCharacters?.find((entry) => entry.id === id)?.sheet));
+  return cards.get(id);
+}
+
+/** What someone casts in a fight: the spells on their card's 5e sheet that a fight here can play, else their class's. */
+const personSpells = new Map();
+function spellsOfPerson(id) {
+  const card = core.save?.classes?.[id] ? null : cardOf(id);
+  if (!card?.spells.length) return spellsOfClass(classOf(id));
+  if (!personSpells.has(id)) {
+    const mine = card.spells
+      .map((name) => SRD_SPELLS.find((spell) => spell.name.toLowerCase() === name.toLowerCase()))
+      .filter((spell) => spell && spell.level <= Math.max(1, Math.ceil(card.level / 2)))
+      .map((spell) => ({ name: spell.name, level: spell.level, spell: spellIn({ about: spellRule(spell) }) }));
+    personSpells.set(id, {
+      attack: mine.filter((entry) => entry.spell.damage || entry.spell.effect),
+      heal: mine.filter((entry) => entry.spell.heal && !entry.spell.damage),
+    });
+  }
+  const found = personSpells.get(id);
+  return found.attack.length || found.heal.length ? found : spellsOfClass(classOf(id));
+}
+
+/**
+ * The player's persona card's 5e sheet is taken into this world: class, level, race, background, style,
+ * abilities (the race's increases taken back out, since the race adds them here), most HP, skills, and the
+ * spells a fight here can play. Once for each persona in each world, unless `force` (the Sheet tab's button).
+ */
+function applyCard(force = false) {
+  if (!core.save || !core.personaId) return false;
+  const card = cardBuild(core.personas?.find((entry) => entry.id === core.personaId)?.sheet);
+  if (!card) return false;
+  if (!force && (!core.settings.cardSheets || core.save.cardApplied?.[sheetKey()])) return false;
+  let sheet = sheetNow();
+  const set = (id, field, value) => (sheet = changeSheet(sheet, { set: id, field, value }));
+  const grown = raceBonuses(card.race);
+  for (const [ability, score] of Object.entries(card.abilities)) set(ability, "value", score - (grown[ability] ?? 0));
+  set("level", "value", card.level);
+  if (card.hpMax) {
+    set("hp", "max", card.hpMax);
+    set("hp", "value", card.hpMax);
+  }
+  let learned = 0;
+  for (const name of card.spells) {
+    const spell = SRD_SPELLS.find((entry) => entry.name.toLowerCase() === name.toLowerCase());
+    if (!spell || entryNamed(sheet, spell.name)) continue;
+    sheet = changeSheet(sheet, { add: { kind: "spell", name: spell.name, about: spellRule(spell) } });
+    learned += 1;
+  }
+  const classId = card.classId || playerClass();
+  core.save = {
+    ...core.save,
+    classes: { ...core.save.classes, ...(card.classId ? { player: card.classId } : {}) },
+    build: checkBuild(
+      { race: card.race, style: card.style, background: card.background, skills: card.skills, extra: card.skills },
+      classId,
+    ),
+    cardApplied: { ...core.save.cardApplied, [sheetKey()]: true },
+  };
+  core.saves.write(core.save);
+  setSheet(sheet);
+  core.hud?.refreshInventory?.();
+  narrate(
+    null,
+    `${personaName()}'s 5e sheet from their persona card is in use: ${cardWords(card)}${learned ? `, with ${learned} of its spells` : ""}.`,
+  );
+  return true;
+}
+/** A card's sheet in a few words: "a level 3 Hill Dwarf fighter". */
+const cardWords = (card) =>
+  `a level ${card.level}${card.race ? ` ${SRD_RACES[card.race].name}` : ""}${card.classId ? ` ${SRD_CLASSES[card.classId].name.toLowerCase()}` : " character"}`;
 
 /** What a class casts in a fight here: the SRD's spells of its list, cantrips and first level, read as rules. */
 const classSpells = new Map();
@@ -9808,7 +9889,7 @@ function alliesTick(dt) {
       const foe = foes.reduce((best, entry) =>
         Math.hypot(entry.x - from.x, entry.z - from.z) < Math.hypot(best.x - from.x, best.z - from.z) ? entry : best,
       );
-      allyMoves(person, foe, spellsOfClass(classOf(person.id)).attack.length > 0);
+      allyMoves(person, foe, spellsOfPerson(person.id).attack.length > 0);
     }
     if (core.clock < (core.allyNext.get(person.id) ?? 0)) continue;
     if (allyActs(person, foes, hurt)) core.allyNext.set(person.id, core.clock + 2.4 + Math.random() * 2.2);
@@ -9827,7 +9908,8 @@ function fightingAllies() {
 function allyHp(id) {
   core.allyHp ??= new Map();
   if (!core.allyHp.has(id)) {
-    const max = SRD_CLASSES[classOf(id)].hitDie + 2;
+    // (Their card's most HP where its 5e sheet gives one; else a first-level one of their class.)
+    const max = (core.save?.classes?.[id] ? 0 : cardOf(id)?.hpMax) || SRD_CLASSES[classOf(id)].hitDie + 2;
     core.allyHp.set(id, { hp: max, max });
   }
   return core.allyHp.get(id);
@@ -9880,7 +9962,7 @@ function allyMoves(person, foe, caster) {
 function allyActs(person, foes, hurt) {
   const classId = classOf(person.id);
   const kind = SRD_CLASSES[classId];
-  const spells = spellsOfClass(classId);
+  const spells = spellsOfPerson(person.id);
   const name = nameFor(person.id, person.name);
   const who = personaName();
   const from = person.position;
@@ -10149,7 +10231,7 @@ function angryTick() {
       continue;
     }
     if (core.crowd.isOut(id)) continue;
-    const spells = spellsOfClass(classOf(id)).attack.filter((entry) => entry.spell.damage);
+    const spells = spellsOfPerson(id).attack.filter((entry) => entry.spell.damage);
     allyMoves(person, { x: at.x, z: at.z, room: 0.4 }, spells.length > 0);
     if (core.clock < grudge.next) continue;
     if (personActs(person, far, spells)) grudge.next = core.clock + 2.6 + Math.random() * 2.2;
@@ -11626,6 +11708,11 @@ function step(dt) {
   alliesTick(dt);
   angryTick();
   conditionsTick(dt);
+  // (A persona whose card has a 5e sheet brings it into each world once.)
+  if (core.save && core.personas && core.cardSeen !== `${core.save.id}|${core.personaId}`) {
+    core.cardSeen = `${core.save.id}|${core.personaId}`;
+    applyCard();
+  }
   dyingTick();
   core.still = speed < 0.1 ? (core.still ?? 0) + dt : 0; // how long the player has stood still, in seconds
   let lookAt = null;
@@ -12172,6 +12259,7 @@ function attach(element) {
     onBuild: setBuild,
     onAbility: useAbility,
     onShortRest: shortRest,
+    onApplyCard: () => applyCard(true),
     onBattleAct: battleAct,
     onAddSpell: (name) => {
       const spell = SRD_SPELLS.find((entry) => entry.name === name);

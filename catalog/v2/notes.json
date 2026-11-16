@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.07",
+          "date": "2026-11-16",
+          "notes": "- A persona whose card has a sheet for the Engine's 5e ruleset brings it into Wanderworld. Once in each world, your class, level, race, background, abilities, most HP, skills and the spells Wanderworld can play are set from it. You can change any of it afterwards, and Inventory → Sheet has a button to take it from the card again.\n- A companion whose character card has a 5e sheet fights as it says: their class, most HP and spells come from the card, unless you've chosen a class for them.\n- Settings → Inventory → 5e rules → \"Use a 5e sheet on a persona's or character's card\" turns it off.",
+          "highlight": false
+        },
+        {
           "version": "0.7.06",
           "date": "2026-11-16",
           "notes": "- Inventory → Sheet has a build, from the 5e SRD: a race (its ability bonuses and speed), a fighting style, a background and the skills you're proficient in.\n- Classes do more. Saving throws add proficiency where the class is trained. A rogue has Sneak Attack, Uncanny Dodge and Evasion; a monk Martial Arts, Ki and an unarmoured AC; a barbarian Rage by level and Reckless Attack; a paladin Lay on Hands and Divine Smite; a bard Bardic Inspiration; a cleric Turn Undead; a sorcerer Font of Magic. Casters cast with their class's ability.\n- What a class can call on works in real time too: from the Sheet tab, a number key, or the bar in a fight by turns.\n- Short rests spend hit dice to heal. A sleep is a long rest.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.88",
           "date": "2026-11-15",
           "notes": "- You can set your own keys. With a keyboard, Settings → Controls → Keys has a button for each action: press it, then the key you want. A key another action has is swapped with it. \"Reset keys\" puts them back.\n- The controls hint names your keys as you have them.\n- The README has a Fighting section, and its credits name the SRD 5.1.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.87",
-          "date": "2026-11-15",
-          "notes": "- Your companions fight beside you in real-time combat. Each has a class from the 5e SRD, which gives them a weapon and spells: they strike what comes within reach, cast at what doesn't, and a healer mends you when you're below half your HP.\n- Inventory → Sheet → Your companions sets each one's class. Until you choose, each has one of their own.\n- Their rolls are told in the chat like yours. Nothing attacks them yet, and they have no HP of their own.\n- Settings → Inventory → Combat → \"Your companions fight beside you\" turns it off.",
           "highlight": false
         }
       ]

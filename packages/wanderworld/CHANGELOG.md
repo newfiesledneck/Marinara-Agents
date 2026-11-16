@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.07 — 2026-11-16
+
+- A persona whose card has a sheet for the Engine's 5e ruleset brings it into Wanderworld. Once in each world, your class, level, race, background, abilities, most HP, skills and the spells Wanderworld can play are set from it. You can change any of it afterwards, and Inventory → Sheet has a button to take it from the card again.
+- A companion whose character card has a 5e sheet fights as it says: their class, most HP and spells come from the card, unless you've chosen a class for them.
+- Settings → Inventory → 5e rules → "Use a 5e sheet on a persona's or character's card" turns it off.
+
 ## 0.7.06 — 2026-11-16
 
 - Inventory → Sheet has a build, from the 5e SRD: a race (its ability bonuses and speed), a fighting style, a background and the skills you're proficient in.

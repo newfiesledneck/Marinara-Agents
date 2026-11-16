@@ -391,7 +391,35 @@ export async function listPersonas() {
     .map((persona) => ({
       id: persona.id,
       name: typeof persona.name === "string" && persona.name ? persona.name : "Unnamed",
+      sheet: rulesetSheet(persona.personaStats),
     }));
+}
+
+/** The id of the Engine's 5e ruleset (packages/ruleset-5e-2014): the one whose sheets Wanderworld can read. */
+const RULESET_5E = "5e-2014";
+/** Something the Engine keeps as JSON, which comes as text or already read. */
+function readJson(value) {
+  if (typeof value !== "string") return value && typeof value === "object" ? value : null;
+  try {
+    const read = JSON.parse(value);
+    return read && typeof read === "object" ? read : null;
+  } catch {
+    return null;
+  }
+}
+/**
+ * The 5e sheet a persona or a character card carries, if any: the Engine keeps a card's starting builds
+ * under `rulesetSheets`, by ruleset id (on a persona's `personaStats`, on a card's `data.extensions`).
+ * Given as it's stored ({ v, build }); build.js `cardBuild` reads it. null when there is none.
+ */
+function rulesetSheet(holder) {
+  const sheet = readJson(readJson(holder)?.rulesetSheets)?.[RULESET_5E];
+  return sheet && typeof sheet === "object" ? sheet : null;
+}
+/** The same from a character's row, whose card is JSON in `data` (the card itself, or one wrapped in `data`). */
+function cardSheet(row) {
+  const card = readJson(row?.data);
+  return rulesetSheet(card?.data?.extensions) ?? rulesetSheet(card?.extensions) ?? rulesetSheet(row?.extensions);
 }
 
 /** A character card's name: rows keep the card as JSON in `data` (a string or an object). */
@@ -437,6 +465,6 @@ export async function listCharacterFolders() {
 export async function listCharacters() {
   return rows(await getJson("/api/characters"))
     .filter((row) => typeof row?.id === "string" && row.id)
-    .map((row) => ({ id: row.id, name: cardName(row) }))
+    .map((row) => ({ id: row.id, name: cardName(row), sheet: cardSheet(row) }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

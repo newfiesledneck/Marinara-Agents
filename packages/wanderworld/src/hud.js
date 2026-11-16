@@ -890,6 +890,8 @@ export function createHud(root, handlers) {
       "On: a spell whose rule says Concentration (Hold Person, Bless and the like) lasts only while you keep your mind on it. When you're hurt you roll a Constitution save (DC 10, or half the damage if that's more) and on a failure the spell ends; casting another such spell ends the first. Off: they last their time whatever happens.",
     cover:
       "On: a tree or a boulder between a shot or a spell and its target is half cover: +2 to the target's AC, for you and for creatures alike. Off: only distance matters.",
+    cardSheets:
+      "On: a persona or a character whose card has a sheet for the Engine's 5e ruleset (made in the Engine's persona or character editor) brings it here. For you, once in each world: your class, level, race, background, abilities, most HP, the skills you're proficient in and the spells Wanderworld can play are set from it, and you can change any of it afterwards (Inventory → Sheet has a button to take it from the card again). For a companion: their class, most HP and spells come from their card unless you've chosen a class for them. Off: cards are left alone.",
     rangedFoes:
       "On: a creature the SRD gives a bow, a crossbow or spells uses them when you're out of its reach, in real time and by turns. A bandit shoots a light crossbow, a puglin and a skeleton a shortbow; a wizard casts Fire Bolt and Magic Missile, a witch Sacred Flame and Spiritual Weapon. Each is rolled against your AC or your saving throw, or a companion's AC. Off: they all have to close with you.",
     turnActions:
@@ -1412,6 +1414,7 @@ export function createHud(root, handlers) {
     "How much of the 5e SRD's rules your fights go by. Each can be switched off by itself; with all of them off, fights are as simple as they were.",
   );
   toggle("srdModifiers", "Proficiency, Dexterity and armour by the rules", "sheet");
+  toggle("cardSheets", "Use a 5e sheet on a persona's or character's card", "sheet");
   toggle("gearByDescription", "An item's description is its stats", "sheet");
   toggle("damageTypes", "Kinds of damage matter to creatures", "srdCreatures");
   toggle("creatureExtras", "Creatures use their special attacks", "srdCreatures");
@@ -3221,6 +3224,18 @@ export function createHud(root, handlers) {
         row.append(piece("flex:1;min-width:0;", label), choose);
         return row;
       };
+      if (build.card)
+        body.append(
+          debugNote(`Your persona's card has a 5e sheet: ${build.card}.`),
+          small(
+            "Take it from the card",
+            "Sets your class, level, race, abilities, HP, skills and spells from the card's 5e sheet again",
+            () => {
+              handlers.onApplyCard?.();
+              void drawInventory();
+            },
+          ),
+        );
       body.append(pick("Race", build.race, build.races, "race"));
       if (build.styles.length) body.append(pick("Fighting style", build.style, build.styles, "style"));
       body.append(pick("Background", build.background, build.backgrounds, "background"));
