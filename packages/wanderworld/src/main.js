@@ -8283,15 +8283,88 @@ function alliesTick(dt) {
     .filter((foe) => foe.hostile && (foe.hp !== undefined || Math.hypot(foe.x - at.x, foe.z - at.z) < 7));
   const hp = entryOf(sheetNow(), "hp");
   const hurt = !!hp && hp.on !== false && hp.value < hp.max / 2;
+  // (A fight well over: the companions are whole again.)
+  if (!foes.length && core.allyHp?.size && core.clock - (core.fightSeen ?? 0) > 30) core.allyHp.clear();
   if (!foes.length && !hurt) return;
   const party = new Set(core.crowd.party().map((member) => member.id));
   if (!party.size) return;
   core.allyNext ??= new Map();
+  if (foes.length) core.fightSeen = core.clock;
   for (const person of core.crowd.present(core.space)) {
     if (!party.has(person.id) || core.crowd.isOut(person.id)) continue;
+    // On the move the whole fight: toward the nearest creature in it, or round it.
+    if (foes.length) {
+      const from = person.position;
+      const foe = foes.reduce((best, entry) =>
+        Math.hypot(entry.x - from.x, entry.z - from.z) < Math.hypot(best.x - from.x, best.z - from.z) ? entry : best,
+      );
+      allyMoves(person, foe, spellsOfClass(classOf(person.id)).attack.length > 0);
+    }
     if (core.clock < (core.allyNext.get(person.id) ?? 0)) continue;
     if (allyActs(person, foes, hurt)) core.allyNext.set(person.id, core.clock + 2.4 + Math.random() * 2.2);
   }
+}
+
+/** The companions who can be in a fight now: with the player, out of doors, on their feet. */
+function fightingAllies() {
+  if (!fighting() || !core.settings.partyFights || core.interior || !core.crowd) return [];
+  const party = new Set(core.crowd.party().map((member) => member.id));
+  if (!party.size) return [];
+  return core.crowd.present(core.space).filter((person) => party.has(person.id) && !core.crowd.isOut(person.id));
+}
+
+/** A companion's HP in fights: their class's hit die and two, whole again once a fight is well over. */
+function allyHp(id) {
+  core.allyHp ??= new Map();
+  if (!core.allyHp.has(id)) {
+    const max = SRD_CLASSES[classOf(id)].hitDie + 2;
+    core.allyHp.set(id, { hp: max, max });
+  }
+  return core.allyHp.get(id);
+}
+
+/** A creature's attack on a companion (herd.js's "attack" with a `target`): rolled against their AC, and told. */
+function allyAttacked(event, what) {
+  const person = fightingAllies().find((entry) => entry.id === event.target);
+  if (!person) return;
+  const name = nameFor(person.id, person.name);
+  const stats = foeOf(event.kind, PACK.foes, event.scale);
+  const ac = PACK.foes.ally.ac;
+  const result = {
+    ...attackRoll({ bonus: stats.attack, ac, damage: stats.damage, damageBonus: stats.damageBonus ?? 0 }),
+    ac,
+  };
+  const health = allyHp(person.id);
+  if (result.hit) {
+    health.hp = Math.max(0, health.hp - result.damage);
+    core.crowd.gesture(person.id, "hurt");
+  }
+  narrate(null, foeWords({ who: name, what, verb: stats.verb, result, left: health.hp, max: health.max }));
+  if (result.hit && health.hp <= 0) {
+    // Out of the fight for a while, then up again with half (nobody dies).
+    health.hp = Math.ceil(health.max / 2);
+    if (core.crowd.knockOut(person.id, 45)) narrate(null, `${name} goes down, out of the fight.`);
+  }
+  core.fightSeen = core.clock;
+}
+
+/**
+ * Where a companion wants to be in a fight: one who strikes closes with the creature and works round it;
+ * one who casts keeps a few paces off and moves along the edge of it. A side of their own each, changed now and then.
+ */
+function allyMoves(person, foe, caster) {
+  core.allySide ??= new Map();
+  let side = core.allySide.get(person.id);
+  if (!side || core.clock > side.until) {
+    side = { way: Math.random() < 0.5 ? 1 : -1, until: core.clock + 3 + Math.random() * 4 };
+    core.allySide.set(person.id, side);
+  }
+  const from = person.position;
+  const around = Math.atan2(from.x - foe.x, from.z - foe.z) + side.way * (caster ? 0.35 : 0.6);
+  const ring = caster ? 7.5 : 1.5 + foe.room;
+  const spot = { x: foe.x + Math.sin(around) * ring, y: 0, z: foe.z + Math.cos(around) * ring };
+  if (waterAt(spot.x, spot.z).depth > 0.3) return;
+  core.crowd.fightTo(person.id, spot.x, spot.z, 1.2);
 }
 
 /** One companion's turn (alliesTick). Returns whether they did anything. */
@@ -9804,6 +9877,8 @@ function step(dt) {
       // confrontations are allowed at all); and whether it's night, for the ones about only then.
       hostile: core.settings.hostileAnimals,
       combat: fighting(),
+      // (Whom else a creature may go for: the companions in the fight.)
+      allies: fightingAllies().map((person) => ({ id: person.id, x: person.position.x, z: person.position.z })),
       // (Nothing goes for someone who's down, or while a scene plays the fight out.)
       down: !!core.downed || core.clock < (core.truceUntil ?? 0),
       bodySeconds: core.settings.bodyMinutes * 60,
@@ -9814,7 +9889,8 @@ function step(dt) {
       const what = (PACK.animals[event.kind] ?? "the animal").replace(/^the /u, "");
       // With fighting on, an attack is rolled against the player's AC and told as what was rolled.
       if (event.type === "attack" && fighting()) {
-        foeAttacks(event, what);
+        if (event.target) allyAttacked(event, what);
+        else foeAttacks(event, what);
         continue;
       }
       // The other ways to fight: an exchange rolled at once and told, or a scene.

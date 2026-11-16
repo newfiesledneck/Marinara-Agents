@@ -1025,6 +1025,14 @@ export function createCrowd() {
       person.state = "idle";
       return false;
     }
+    // In a fight: where they've been sent (close on a foe, or off at a distance), at a run.
+    if (person.fightAt && clock < person.fightUntil) {
+      const far = Math.hypot(person.fightAt.x - position.x, person.fightAt.z - position.z);
+      if (far > 0.5) stepToward(person, person.fightAt, far > 2.5 ? RUN_SPEED : WALK_SPEED, dt);
+      else person.state = "idle";
+      return false;
+    }
+    person.fightAt = null;
     // The player sat down: take a free seat close by, or stand near them.
     if (view.playerSitting) {
       if (person.state === "sit") return false;
@@ -1688,6 +1696,14 @@ export function createCrowd() {
           position: person.group.position,
           sitting: person.state === "sit",
         }));
+    },
+    /** A companion in a fight is sent to (x, z), for `seconds` at most (then they're the player's follower again). */
+    fightTo(id, x, z, seconds = 1.5) {
+      const person = people.get(id);
+      if (!person?.following || person.waiting || (person.outUntil ?? 0) > clock) return;
+      leaveSeat(person);
+      person.fightAt = { x, z };
+      person.fightUntil = clock + seconds;
     },
     /** `id` makes a gesture once (a swing, a cast: clips.js GESTURES), `held` in hand, turned toward (x, z). */
     gesture(id, name, held = null, x = null, z = null) {

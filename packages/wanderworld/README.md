@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.89)
+## What it does now (0.6.90)
 
 ### The world
 
@@ -562,7 +562,8 @@ every roll, and no AI call is made in a real-time fight.
 - **Resting.** Mana and HP come back slowly while you sit or lie down, and fully when you sleep.
 - **Your companions fight too.** Each has a class from the SRD (Inventory → Sheet → Your
   companions), which gives them a weapon and spells. They strike what comes within reach, cast at
-  what doesn't, and a healer mends you below half your HP. Nothing attacks them yet.
+  what doesn't, and a healer mends you below half your HP. They move with the fight, creatures
+  go for them as well as for you, and one at 0 HP is out of the fight for a while.
 - **Anything can be struck**: hostile creatures fight back, peaceful ones run, and people only if
   you turn on "Blows can land on people". Someone struck remembers it for good and becomes your
   enemy, whoever saw it remembers, and at 0 HP they lie out cold for two minutes. Nobody dies.
