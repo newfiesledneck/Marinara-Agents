@@ -884,6 +884,12 @@ export function createHud(root, handlers) {
       "On: creatures use what the 5e SRD gives them besides a plain attack. A wolf's bite can knock you prone (a Strength save) and wolves, jackals and rats attack with advantage when one of their own is beside you. A snake's, a spider's, a wasp's and an imp's venom does more damage (a Constitution save for half). A frog's bite holds you. A slime's touch burns with acid and a dragon's bite with fire. A witch strikes twice. A dragon breathes fire (a Dexterity save for half), then needs a while before it can again. Off: one plain attack each.",
     conditions:
       "On: conditions can land on you, from a creature's attack or a spell cast at you, and show at the top left. Prone, restrained, blinded: your attacks are rolled twice with the worse counting, and attacks on you with the better. Poisoned, frightened: your attacks are at that disadvantage. Grappled, restrained: you can't move (grappled, you try to break free by yourself). Paralyzed, stunned, asleep: you can't move or act. Slowed: half your pace. Each wears off. Off: only damage lands on you.",
+    deathSaves:
+      "On: at 0 HP you fall, dying, and roll a death saving throw every few seconds: 10 or more is a success, less a failure, a 1 two failures, and a 20 gets you up with 1 HP. Three successes and you're stable and come round with 1 HP; three failures and you're beaten, and \"When your HP runs out\" says what happens then. Healing from a companion gets you up at once. Off: you're beaten at 0 HP.",
+    concentration:
+      "On: a spell whose rule says Concentration (Hold Person, Bless and the like) lasts only while you keep your mind on it. When you're hurt you roll a Constitution save (DC 10, or half the damage if that's more) and on a failure the spell ends; casting another such spell ends the first. Off: they last their time whatever happens.",
+    cover:
+      "On: a tree or a boulder between a shot or a spell and its target is half cover: +2 to the target's AC, for you and for creatures alike. Off: only distance matters.",
     rangedFoes:
       "On: a creature the SRD gives a bow, a crossbow or spells uses them when you're out of its reach, in real time and by turns. A bandit shoots a light crossbow, a puglin and a skeleton a shortbow; a wizard casts Fire Bolt and Magic Missile, a witch Sacred Flame and Spiritual Weapon. Each is rolled against your AC or your saving throw, or a companion's AC. Off: they all have to close with you.",
     turnActions:
@@ -1410,6 +1416,9 @@ export function createHud(root, handlers) {
   toggle("damageTypes", "Kinds of damage matter to creatures", "srdCreatures");
   toggle("creatureExtras", "Creatures use their special attacks", "srdCreatures");
   toggle("conditions", "Conditions can land on you", "sheet");
+  toggle("deathSaves", "Death saving throws at 0 HP", "sheet");
+  toggle("concentration", "Concentration", "sheet");
+  toggle("cover", "Trees and boulders give cover", "sheet");
   at("Inventory", "Combat");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
   number("beatenDays", "Days before the beaten are about again", "sheet");

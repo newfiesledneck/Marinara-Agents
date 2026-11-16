@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.7.04 — 2026-11-16
+
+- Death saving throws (off to begin with): at 0 HP you fall, dying, and roll every few seconds. Three successes and you come round with 1 HP, three failures and you're beaten; a 20 gets you up at once, and so does a companion's healing.
+- Concentration: Hold Person and spells like it end if you're hurt and fail a Constitution save, or when you cast another such spell.
+- Cover: a tree or a boulder between a shot or a spell attack and its target gives +2 AC, for you and for creatures.
+- Creatures have their nerve from the ruleset: skeletons and fanatics never run, cowards run sooner. By turns, wolves go for whoever is most hurt, puglins for the weakest, a dragon for casters.
+- Each has a switch in Settings → Inventory → 5e rules.
+
 ## 0.7.03 — 2026-11-16
 
 - Creatures use their special attacks from the 5e SRD. A wolf's bite can knock you prone, and wolves, jackals and rats attack with advantage when one of their own is beside you. Snakes, spiders, wasps and imps have venom (a Constitution save for half). A frog's bite holds you. A witch strikes twice. A dragon breathes fire, then has to wait for it to come back.

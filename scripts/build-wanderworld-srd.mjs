@@ -110,6 +110,8 @@ for (const entry of read("spells.json")) {
     spell.seconds = lasts(applied.duration);
   }
   if (push && !spell.heal) spell.push = push;
+  // (One whose effect lasts only while the caster keeps their mind on it.)
+  if (mechanics.concentration && spell.effect) spell.conc = true;
   if (areaOf(mechanics.area) && !spell.heal) spell.area = areaOf(mechanics.area);
   spells.push(spell);
 }

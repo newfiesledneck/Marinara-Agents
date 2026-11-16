@@ -1010,6 +1010,14 @@ export function createHerd() {
       const beast = beasts.find((entry) => entry.id === id);
       if (beast && beast.down === undefined) beast.slowUntil = clock + seconds;
     },
+    /** Whatever holds, slows or calms `id` is over (the caster's concentration broke). */
+    clear(id) {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (!beast) return;
+      beast.stunUntil = 0;
+      beast.slowUntil = 0;
+      beast.calmUntil = 0;
+    },
     /** `id` leaves off fighting for `seconds`, or until it's hurt. */
     soothe(id, seconds) {
       const beast = beasts.find((entry) => entry.id === id);

@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.03)
+## What it does now (0.7.04)
 
 ### The world
 
@@ -603,6 +603,9 @@ every roll, and no AI call is made in a real-time fight.
 - **Special attacks and conditions**: creatures use what the SRD gives them (a wolf's knock-down and
   Pack Tactics, venom, a frog's hold, a dragon's breath), and conditions land on you (prone, poisoned,
   grappled, blinded and the rest), each shown with its seconds and wearing off.
+- **Dying, concentration and cover**: death saving throws at 0 HP (a setting), spells that need
+  concentration and can be broken by a blow, and half cover from trees and boulders. Creatures keep
+  or lose their nerve as the ruleset says, and pick whom to go for.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.

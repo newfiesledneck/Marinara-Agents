@@ -371,9 +371,12 @@ export function savingThrow({ score = 10, bonus = 0, dc = 10, damage = 0, onSave
  * How a creature that has just been hurt takes it: with a third of its HP or less left it may turn and
  * run (more likely the less it has); else it fights on. "flee" | "fight".
  */
-export function foeNerve(hp, max, random = Math.random) {
+export function foeNerve(hp, max, random = Math.random, temperament = "") {
   if (hp <= 0 || max <= 0) return "fight";
+  // (How it's made, where the ruleset says: the mindless and the fanatical never run; a coward does sooner.)
+  if (temperament === "mindless" || temperament === "fanatical") return "fight";
   const left = hp / max;
+  if (temperament === "cowardly") return left <= 1 / 2 && random() < 0.95 - left ? "flee" : "fight";
   return left <= 1 / 3 && random() < 0.75 - left ? "flee" : "fight";
 }
 
@@ -393,7 +396,7 @@ export function strikeWords({ who, what, weapon, result, left, max, named = fals
     : weapon.name
       ? `swings the ${weapon.name.toLowerCase()} at`
       : "strikes at";
-  const start = `${who} ${how} ${whom} (${rollWords(result)}${result.hampered ? ", hampered" : ""})`;
+  const start = `${who} ${how} ${whom} (${rollWords(result)}${result.hampered ? ", hampered" : ""}${result.cover ? ", half cover" : ""})`;
   if (!result.hit) return `${start}: a miss.`;
   const hit = `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}${typedWords(result.how, result.type)}.`;
   if (left <= 0) return `${hit} ${named ? what : `The ${what}`} goes down.`;
@@ -402,7 +405,7 @@ export function strikeWords({ who, what, weapon, result, left, max, named = fals
 
 /** A creature's attack, told: "The wolf bites at Zoey (15 against AC 12): a hit, for 4. Zoey has 9 of 20 HP." */
 export function foeWords({ who, what, verb, result, left, max }) {
-  const start = `The ${what} ${verb} at ${who} (${rollWords(result)}${result.guarded ? ", blocked" : ""}${result.hindered ? ", hindered" : ""}${result.keen ? ", with advantage" : ""})`;
+  const start = `The ${what} ${verb} at ${who} (${rollWords(result)}${result.guarded ? ", blocked" : ""}${result.hindered ? ", hindered" : ""}${result.keen ? ", with advantage" : ""}${result.cover ? ", half cover" : ""})`;
   if (!result.hit) return `${start}: a miss.`;
   return `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}. ${who} has ${Math.max(0, left)} of ${max} HP.`;
 }
@@ -558,6 +561,7 @@ export function spellRule(spell) {
   if (spell.push) parts.push(`Pushed ${spell.push} m`);
   if (spell.area) parts.push(`Area ${spell.area}`);
   if (spell.drain) parts.push("Heals the caster for half");
+  if (spell.conc && spell.effect) parts.push("Concentration");
   if (spell.bonus) parts.push("Bonus action");
   if (!spell.heal) parts.push(`Range ${spell.range}`);
   return `${parts.join(". ")}.`;
@@ -599,6 +603,8 @@ export function spellIn(entry) {
     push,
     area: Number(SPELL_AREA.exec(text)?.[1] ?? 0),
     drain: /\bheals the caster\b/iu.test(text),
+    // (Its effect lasts only while the caster keeps their mind on it: a blow may break it, another such spell ends it.)
+    conc: /\bconcentration\b/iu.test(text),
     range: Number(SPELL_RANGE.exec(text)?.[1] ?? SPELL_REACH),
   };
 }
