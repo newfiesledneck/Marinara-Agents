@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.7.08 — 2026-11-16
+
+- Worn magic from the 5e SRD works by its name, like weapons and armour: a Ring or Cloak of Protection, Bracers of Defense, an Amulet of Health, Gauntlets of Ogre Power, a Headband of Intellect and the rest that change Armor Class, saving throws, an ability or spellcasting.
+- Potions heal by their dice: a Potion of Healing is 2d4+2, and any item whose description says "+2d4+2 HP" rolls it.
+- Beaten creatures that carry money have the ruleset's pocket treasure on them: coin, now and then a Potion of Healing, and seldom a magic thing. "Creatures carry pocket treasure" in Settings → Inventory → 5e rules turns it off.
+- The same setting as for weapons decides whether a description or a name comes first.
+
 ## 0.7.07 — 2026-11-16
 
 - A persona whose card has a sheet for the Engine's 5e ruleset brings it into Wanderworld. Once in each world, your class, level, race, background, abilities, most HP, skills and the spells Wanderworld can play are set from it. You can change any of it afterwards, and Inventory → Sheet has a button to take it from the card again.

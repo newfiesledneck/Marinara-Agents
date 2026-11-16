@@ -693,4 +693,50 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   assert.equal(spellLook(read("Inflict Wounds")), "touch");
 }
 
+// Worn magic by its name, potions by their dice, and pocket treasure.
+{
+  const { accessoryIn, gearWorn, lootOf, magicWords, potionIn } = await import("../packages/wanderworld/src/combat.js");
+  const { SRD_LOOT, SRD_MAGIC, SRD_POTIONS } = await import("../packages/wanderworld/src/srd.js");
+  assert.deepEqual(
+    [SRD_MAGIC["ring-of-protection"].ac, SRD_MAGIC["ring-of-protection"].saves, SRD_MAGIC["amulet-of-health"].set],
+    [1, 1, { constitution: 19 }],
+  );
+  assert.equal(accessoryIn({ name: "Old ring of protection" }).name, "Ring of Protection");
+  assert.equal(accessoryIn({ name: "Wedding ring" }), null);
+  const on = (name, description = "") => ({ name, description, location: "equipped:finger" });
+  const plain = checkSheet(null);
+  const worn = gearWorn(plain, [on("Ring of Protection"), on("Amulet of Health"), on("Bracers of Defense")]);
+  assert.deepEqual([worn.ac, worn.saves, worn.constitution, worn.bare], [1, 1, 9, 2]);
+  assert.equal(armourOf(plain, worn), 13, "10, the ring's 1 and the bracers' 2");
+  assert.equal(
+    armourOf(plain, gearWorn(plain, [on("Bracers of Defense"), on("Shield")])),
+    12,
+    "the bracers want no shield",
+  );
+  const strong = changeSheet(plain, { set: "constitution", field: "value", value: 20 });
+  assert.equal(gearWorn(strong, [on("Amulet of Health")]).constitution, undefined, "already more than 19");
+  assert.equal(gearWorn(plain, [on("Ring of Protection", "+3 AC")]).ac, 3, "a description that states its own stays");
+  assert.equal(gearWorn(plain, [on("Ring of Protection", "+3 AC")], { byDescription: false }).ac, 1);
+  assert.match(magicWords(SRD_MAGIC["ring-of-protection"]), /^While worn: Armor Class and saving throws 1 better\.$/u);
+  // Potions.
+  assert.equal(SRD_POTIONS["potion-of-healing"].heal, "2d4+2");
+  assert.equal(potionIn({ name: "Potion of Healing", description: "Red." }), "2d4+2");
+  assert.equal(potionIn({ name: "Tonic", description: "+1d6 + 1 HP when drunk." }), "1d6+1");
+  assert.equal(potionIn({ name: "Potion of Healing", description: "+1d4 HP." }, true), "1d4");
+  assert.equal(potionIn({ name: "Potion of Healing", description: "+1d4 HP." }, false), "2d4+2");
+  assert.equal(potionIn({ name: "Bread", description: "+2 HP." }), "", "a plain number is the description's own");
+  // Pocket treasure: coin most times, now and then a potion.
+  assert.ok(SRD_LOOT.treasure_low.entries.some((entry) => entry.potion === "common"));
+  assert.deepEqual(lootOf("no such tier"), { coins: 0, items: [] });
+  let coins = 0;
+  let potions = 0;
+  for (let i = 0; i < 300; i++) {
+    const found = lootOf("treasure_low");
+    coins += found.coins;
+    potions += found.items.length;
+    for (const item of found.items) assert.ok(potionIn(item), `${item.name} heals`);
+  }
+  assert.ok(coins > 300 && potions > 5 && potions < 100, `coin and the odd potion (${coins}, ${potions})`);
+}
+
 console.log("ok: fighting by the rules");

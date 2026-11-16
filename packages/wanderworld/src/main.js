@@ -171,8 +171,10 @@ import {
   foeWords,
   gearWorn,
   initiativeOrder,
+  lootOf,
   personWords,
   playerStrike,
+  potionIn,
   proficiency,
   rolledTwice,
   slotFor,
@@ -8099,7 +8101,7 @@ function playerSave(attribute, dc) {
 function saveBonus(attribute) {
   const kit = kitNow();
   const aura = kit.aura ? Math.max(1, modifier(valueOf(sheetNow(), "charisma"))) : 0;
-  return (kit.saves.includes(attribute) ? profNow() : 0) + aura;
+  return (kit.saves.includes(attribute) ? profNow() : 0) + aura + (wornNow().saves ?? 0); // (and a Ring of Protection's)
 }
 
 // ── The build (build.js): race, class, style, background, skills; what the class can call on; rests ──
@@ -8749,7 +8751,7 @@ const wornNow = (sheet = sheetNow()) => {
 };
 /** The player's proficiency bonus on an attack (none with the SRD's modifiers off), and in a spell's attack and DC. */
 const profNow = () => (core.settings.srdModifiers ? proficiency(valueOf(sheetNow(), "level")) : 0);
-const spellProf = () => profNow() || 2;
+const spellProf = () => (profNow() || 2) + (wornNow().spell ?? 0); // (and a Wand of the War Mage's)
 
 /** How far a blow reaches from the player's middle (metres), and how wide of straight ahead (radians). */
 const SWING_REACH = 1.9;
@@ -10437,6 +10439,12 @@ async function tendBody(body, person, what) {
     core.player.rotation.y = Math.atan2(body.x - at.x, body.z - at.z);
     core.gesture = "pickUp";
     const spoils = spoilsOf(body.kind, PACK.spoils);
+    // (What it carried, by the ruleset's treasure tier for it.)
+    if (core.settings.srdLoot && core.settings.srdCreatures) {
+      const carried = lootOf(SRD_CREATURES[body.kind]?.loot);
+      spoils.coins += carried.coins;
+      spoils.items.push(...carried.items);
+    }
     const money = purse();
     for (const item of spoils.items) await core.inventory.add(item);
     if (spoils.coins > 0) await core.inventory.add({ name: money.name, description: "", quantity: spoils.coins });
@@ -11376,7 +11384,11 @@ async function itemAction(id, action) {
     await core.inventory.change(id, { location: "bag" });
     narrate(null, `${who} puts ${item.name} away.`);
   } else if (action === "use") {
-    const used = useItem(sheetNow(), item.description);
+    // (Something that heals by dice, a Potion of Healing: rolled. Anything else: what its description adds.)
+    const heals = potionIn(item, byDesc());
+    const used = heals
+      ? applyChanges(sheetNow(), [{ stat: "hp", by: Math.max(1, rollDice(heals).total) }])
+      : useItem(sheetNow(), item.description);
     if (used.applied.length) setSheet(used.sheet);
     await core.inventory.change(id, item.quantity > 1 ? { quantity: item.quantity - 1 } : null);
     const effect = used.applied.map((change) => `${change.name} ${change.from} to ${change.to}`).join(", ");

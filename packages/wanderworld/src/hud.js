@@ -892,6 +892,8 @@ export function createHud(root, handlers) {
       "On: a tree or a boulder between a shot or a spell and its target is half cover: +2 to the target's AC, for you and for creatures alike. Off: only distance matters.",
     cardSheets:
       "On: a persona or a character whose card has a sheet for the Engine's 5e ruleset (made in the Engine's persona or character editor) brings it here. For you, once in each world: your class, level, race, background, abilities, most HP, the skills you're proficient in and the spells Wanderworld can play are set from it, and you can change any of it afterwards (Inventory → Sheet has a button to take it from the card again). For a companion: their class, most HP and spells come from their card unless you've chosen a class for them. Off: cards are left alone.",
+    srdLoot:
+      "On: a beaten creature that would carry money (a bandit, a puglin, a skeleton, a witch, a wizard, an imp, a dragon) has pocket treasure on it besides what you'd harvest: coin, now and then a Potion of Healing, and seldom from the greater ones a magic thing to wear. Off: only what the game's own lists give.",
     rangedFoes:
       "On: a creature the SRD gives a bow, a crossbow or spells uses them when you're out of its reach, in real time and by turns. A bandit shoots a light crossbow, a puglin and a skeleton a shortbow; a wizard casts Fire Bolt and Magic Missile, a witch Sacred Flame and Spiritual Weapon. Each is rolled against your AC or your saving throw, or a companion's AC. Off: they all have to close with you.",
     turnActions:
@@ -1418,6 +1420,7 @@ export function createHud(root, handlers) {
   toggle("gearByDescription", "An item's description is its stats", "sheet");
   toggle("damageTypes", "Kinds of damage matter to creatures", "srdCreatures");
   toggle("creatureExtras", "Creatures use their special attacks", "srdCreatures");
+  toggle("srdLoot", "Creatures carry pocket treasure", "srdCreatures");
   toggle("conditions", "Conditions can land on you", "sheet");
   toggle("deathSaves", "Death saving throws at 0 HP", "sheet");
   toggle("concentration", "Concentration", "sheet");
