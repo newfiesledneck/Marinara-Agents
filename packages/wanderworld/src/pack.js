@@ -1029,6 +1029,16 @@ const VENDORS = {
       named: /apothecar|herbal|potion|alchem|healer|physic/iu,
       stock: [
         { name: "Health potion", description: "A red draught. +15 HP when drunk.", price: 15 },
+        {
+          name: "Potion of Healing",
+          description: "A red liquid that glimmers when shaken. +2d4+2 HP when drunk.",
+          price: 60,
+        },
+        {
+          name: "Potion of Greater Healing",
+          description: "A deeper red, and warm to the hand. +4d4+4 HP when drunk.",
+          price: 180,
+        },
         { name: "Mana potion", description: "A blue draught. +10 Mana when drunk.", price: 15 },
         { name: "Bandages", description: "Clean linen strips. +6 HP when used.", price: 5 },
         { name: "Herbal poultice", description: "Crushed herbs bound in fibre. +12 HP when used.", price: 9 },

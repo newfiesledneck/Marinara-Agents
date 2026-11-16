@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.7.10 — 2026-11-16
+
+- Spells that creatures cast at you look like the spell they are (a beam, light from above, a volley), as yours do.
+- A condition landing on you shows as a ring round you for a moment.
+- The apothecary sells the SRD's Potion of Healing (2d4+2) and Potion of Greater Healing (4d4+4).
+- By turns, a dragon with its breath ready uses it from as far as it reaches, and no longer has to close with you first.
+- Help → Credits names everything now taken from the 5e SRD.
+
 ## 0.7.09 — 2026-11-16
 
 - More to do in a fight, on the bar by turns, in Inventory → Sheet and on number keys: Shove (pushed back and knocked down), Grapple (held where it is), Help (a companion's next attack has advantage), Hide (your Stealth against what they notice) and an Off-hand attack with two light weapons.

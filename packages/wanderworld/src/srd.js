@@ -11,7 +11,7 @@
 
 /** The credit this material needs, shown in Help → Credits. */
 export const SRD_CREDIT =
-  "Spells, classes, weapons, armour and creatures' numbers include material from the System Reference Document 5.1 by Wizards of the Coast LLC (https://dnd.wizards.com/resources/systems-reference-document), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode), by way of the Open5e API project. Adapted: only names, levels, dice, damage types, saving throws, conditions, areas, ranges, weapons' and armour's numbers and creatures' hit points, Armor Class, attacks, saving throws and what they resist are kept. Not affiliated with or endorsed by Wizards of the Coast.";
+  "Spells, classes, races, skills, fighting styles, weapons, armour, magic items and creatures' numbers include material from the System Reference Document 5.1 by Wizards of the Coast LLC (https://dnd.wizards.com/resources/systems-reference-document), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode), by way of the Open5e API project. Adapted: only names, levels, dice, damage types, saving throws, conditions, areas, ranges, weapons' and armour's numbers and creatures' hit points, Armor Class, attacks, saving throws and what they resist are kept. Not affiliated with or endorsed by Wizards of the Coast.";
 
 /**
  * The SRD's spells of level 0 (cantrips) to 3 that a fight here can play: { name, level, classes, range
