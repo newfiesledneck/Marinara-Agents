@@ -345,6 +345,9 @@ export function createClipPlayer({ present, offset, legLength }) {
   let idleTime = Math.random() * 10;
   let talking = 0;
   let moving = 0;
+  let strafing = 0; // how far into stepping sideways or back, 0–1
+  let strafeWay = null; // "Left" | "Right" | "Back": the last such way
+  let strafePhase = 0;
   // Sitting: "none" → "down" (sitting down) → "seated" → "up" (standing up) → "none".
   let seat = "none";
   let seatTime = 0;
@@ -461,7 +464,15 @@ export function createClipPlayer({ present, offset, legLength }) {
   return function step(
     dt,
     speed,
-    { sit = false, talk = false, swim = false, act: wanted = null, gesture: made = null, air = false } = {},
+    {
+      sit = false,
+      talk = false,
+      swim = false,
+      act: wanted = null,
+      gesture: made = null,
+      air = false,
+      strafe = null,
+    } = {},
   ) {
     dt = Math.min(0.1, Math.max(0, Number.isFinite(dt) ? dt : 0));
     speed = Math.max(0, Number.isFinite(speed) ? speed : 0);
@@ -507,7 +518,25 @@ export function createClipPlayer({ present, offset, legLength }) {
         blend(gait, running, run);
       }
       blend(out, gait, moving);
-    }
+      // Stepping sideways or back (a weapon drawn: `strafe` is which way they're going, from the way they
+      // face, positive to their left): that walk or jog in place of the one forward, at the pace they go.
+      const turn = strafe === null ? 0 : Math.atan2(Math.sin(strafe), Math.cos(strafe));
+      const side = Math.abs(turn);
+      const way = strafe === null || side < 0.7 ? null : side > 2.2 ? "Back" : turn > 0 ? "Left" : "Right";
+      if (way) strafeWay = way;
+      strafing = ease(strafing, way ? 1 : 0, dt, 0.12);
+      if (strafing > 0.01 && strafeWay) {
+        const walked = CLIPS[`walk${strafeWay}`];
+        const jogged = CLIPS[`jog${strafeWay}`];
+        strafePhase =
+          (strafePhase +
+            dt * (((pace / 1.25) * (1 - run)) / walked.duration + ((pace / 3.4) * run) / jogged.duration)) %
+          1;
+        const stepped = sample(walked, strafePhase, poses.c);
+        if (run > 0.001) blend(stepped, sample(jogged, strafePhase, poses.a), run);
+        blend(out, stepped, moving * strafing);
+      }
+    } else strafing = 0;
 
     // Sitting down, seated (talking or not), standing up.
     if (sit && (seat === "none" || seat === "up")) {

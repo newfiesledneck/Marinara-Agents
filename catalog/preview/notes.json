@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.89",
+          "date": "2026-11-15",
+          "notes": "- Hotkeys. The number keys 1 to 0 each do what you set in Inventory → Hotkeys: cast one particular spell, use up something you carry, or put on and take off something that has a slot in Quartermaster (a weapon, armour, clothing). The ones you've set are buttons in the chat window too.\n- A spell costs its level in mana: 1 for a first-level spell, 2 for a second, 3 for a third. Cantrips cost none. Spells already on your sheet keep the cost written in them; edit the number, or add the spell again.\n- With a weapon drawn, stepping sideways and backwards has its own animations. Before, the forward walk played while you slid.",
+          "highlight": false
+        },
+        {
           "version": "0.6.88",
           "date": "2026-11-15",
           "notes": "- You can set your own keys. With a keyboard, Settings → Controls → Keys has a button for each action: press it, then the key you want. A key another action has is swapped with it. \"Reset keys\" puts them back.\n- The controls hint names your keys as you have them.\n- The README has a Fighting section, and its credits name the SRD 5.1.",
@@ -307,12 +313,6 @@
           "version": "0.6.70",
           "date": "2026-11-15",
           "notes": "- Market stalls buy and sell by day. A greengrocer joins the trades.\n- Haggle, in a shop's window: a Charisma check once a day at each vendor. It can take a tenth or a fifth off for the day, change nothing, or put prices up.\n- Signs follow the trade. A plain shop's sign says what it sells, and a vendor you name says its name.\n- Settings → World → Vendors: name a vendor, and write what it in particular should stock. \"Trades\" there lets you rewrite what the AI is told each trade stocks, and make trades of your own with a name, guidance and a list of goods.\n- While a shop's window is open, Quartermaster's tracker is held back, so talk of buying doesn't add things you haven't paid for.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.69",
-          "date": "2026-11-15",
-          "notes": "- Settings → World → Vendors lists every vendor in your world. Tick the trades a shop has; one shop can be several at once.\n- \"Empty houses\" in the same place turns a house nobody lives in into a shop of the trade you pick, for a world that came without one you want.\n- \"The AI stocks shop shelves\" (People → Inventory, and under AI and Token use): when a shop restocks, the AI writes its stock to fit your world's setting and the shop's trade. Off to begin with. It is one AI call per shop per restocking, made when you open the shop, and the built-in lists stand in if it fails.\n- \"The AI updates your sheet\" is now under AI and Token use as well.",
           "highlight": false
         }
       ]

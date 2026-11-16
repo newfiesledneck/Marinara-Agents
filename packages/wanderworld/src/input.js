@@ -42,6 +42,8 @@ export const KEY_ACTIONS = [
   ["cast", "Cast the ready spell", "z"],
 ];
 export const DEFAULT_KEYS = Object.fromEntries(KEY_ACTIONS.map(([action, , key]) => [action, key]));
+/** The number keys are the hotkeys (what each does is the player's: the Inventory window's Hotkeys tab). */
+const HOTKEYS = Object.fromEntries("1234567890".split("").map((digit) => [digit, `hot${digit}`]));
 /** Actions that go on for as long as their key is held; the rest act once at each press. */
 const HELD_ACTIONS = new Set(["forward", "back", "left", "right", "run"]);
 /** Keys that can't be given to an action: Esc leaves, Enter and Tab are the page's, and the fixed ones above. */
@@ -56,6 +58,7 @@ const RESERVED = new Set([
   "unidentified",
   ...Object.keys(FIXED),
 ]);
+for (const digit of Object.keys(HOTKEYS)) RESERVED.add(digit);
 const MODIFIERS = new Set(["control", "shift", "alt"]);
 export const keyAllowed = (key) => typeof key === "string" && key.length > 0 && key.length <= 12 && !RESERVED.has(key);
 
@@ -151,7 +154,7 @@ export function createInput() {
       if (!MODIFIERS.has(key) && !event.repeat) toggleRun();
       return;
     }
-    const action = byKey.get(key) ?? FIXED[key];
+    const action = byKey.get(key) ?? FIXED[key] ?? HOTKEYS[key];
     if (!action) return;
     if (key === " ") event.preventDefault(); // don't scroll the Home panel
     if (HELD_ACTIONS.has(action) || FIXED[key]) {

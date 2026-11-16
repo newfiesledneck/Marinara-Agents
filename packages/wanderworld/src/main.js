@@ -3056,6 +3056,12 @@ function stepPlaces(dt) {
   if (core.journalAt <= 0) {
     showFelled();
     showBeaten();
+    core.hud?.setHotbar(
+      "1234567890"
+        .split("")
+        .filter((key) => core.save?.hotkeys?.[key])
+        .map((key) => ({ key, label: hotkeyLabel(core.save.hotkeys[key]) })),
+    );
     {
       const spells = fighting() ? spellsNow() : [];
       core.hud?.setSpells(
@@ -8154,6 +8160,78 @@ function spellOnFoe(foe, who, name, spell, wit) {
   if (struck.down) foeBeaten(foe, stats);
 }
 
+// ── Hotkeys ──
+
+/**
+ * What a number key can be set to (the Inventory window's Hotkeys tab): [{ value, label, group }]. A spell
+ * of the sheet that does something by rule; something carried, to use up; something with a slot in
+ * Quartermaster, to put on and take off again (nothing can be put on without a slot).
+ */
+function hotkeyOptions() {
+  const names = [...new Set((core.items ?? []).map((item) => String(item.name ?? "").trim()).filter(Boolean))];
+  const slotted = new Set(
+    (core.items ?? []).filter((item) => item.defaultSlot).map((item) => String(item.name ?? "").trim()),
+  );
+  return [
+    ...spellsNow().map((entry) => ({
+      value: `spell:${entry.id}`,
+      label: `${entry.name}${entry.spell.cost ? ` (${entry.spell.cost} mana)` : " (cantrip)"}`,
+      group: "Cast a spell",
+    })),
+    ...names
+      .filter((name) => slotted.has(name))
+      .map((name) => ({ value: `equip:${name}`, label: name, group: "Put on or take off" })),
+    ...names
+      .filter((name) => !slotted.has(name))
+      .map((name) => ({ value: `use:${name}`, label: name, group: "Use (one is used up)" })),
+  ];
+}
+
+/** What a hotkey's setting is called on its button: "Fire Bolt", "Iron axe", "Health potion". */
+function hotkeyLabel(value) {
+  const [kind, ...rest] = String(value).split(":");
+  const what = rest.join(":");
+  if (kind !== "spell") return what;
+  return sheetNow().entries.find((entry) => entry.id === what)?.name ?? "Spell";
+}
+
+/**
+ * A number key is pressed (or its button in the chat window): it does what the player set it to. A spell is
+ * cast (where fights are in real time, as Z would the ready one); something carried is used up; something
+ * with a slot is put on, or taken off if it's on.
+ */
+async function hotkey(key) {
+  const value = core.save?.hotkeys?.[key];
+  if (!value || core.downed || core.hotBusy) return;
+  const [kind, ...rest] = String(value).split(":");
+  const what = rest.join(":");
+  if (kind === "spell") {
+    if (!fighting())
+      return void core.hud?.setNotice("Spells are cast in real-time combat: Settings → Inventory → Combat.");
+    return void cast(what);
+  }
+  if (!core.inventory.ready())
+    return void core.hud?.setNotice("That needs your inventory, which the Quartermaster package keeps.");
+  core.hotBusy = true;
+  try {
+    const item = (await readItems()).find(
+      (entry) =>
+        String(entry.name ?? "")
+          .trim()
+          .toLowerCase() === what.toLowerCase(),
+    );
+    if (!item) return void core.hud?.setNotice(`You have no ${what}.`);
+    if (kind === "use") await itemAction(item.id, "use");
+    else await itemAction(item.id, String(item.location ?? "").startsWith("equipped:") ? "unequip" : "equip");
+    core.itemsAt = core.clock; // (what's in hand may have changed: the next swing reads it fresh)
+    core.hud?.refreshInventory?.();
+  } catch (error) {
+    core.hud?.setNotice(error?.message ?? String(error));
+  } finally {
+    core.hotBusy = false;
+  }
+}
+
 // ── The party in a fight ──
 
 /** Someone's class (an SRD class's id): what was chosen for them, else one of their own, always the same. */
@@ -9619,6 +9697,7 @@ function step(dt) {
   if (input?.take("dodge")) dodge();
   if (input?.take("draw")) draw();
   if (input?.take("cast")) cast();
+  for (const digit of "1234567890") if (input?.take(`hot${digit}`)) void hotkey(digit);
   if (input?.take("rest") && core.settings.restKey) rest();
   if (input?.take("journal")) core.hud?.toggleJournal();
 
@@ -9655,6 +9734,9 @@ function step(dt) {
     gesture: core.gesture,
     held: core.gestureHeld ?? null,
     carry: weaponDrawn() ? weaponOf(core.items ?? []).held : null,
+    // (Weapon drawn and on the move: which way they're stepping, from the way they face.)
+    strafe:
+      weaponDrawn() && (core.still ?? 1) === 0 && !core.glide ? (core.moveWay ?? 0) - core.player.rotation.y : null,
     air: !!core.air && !core.air.mount, // (a rider keeps their seat through the animal's jump)
     lookAt,
     talk: false,
@@ -10111,6 +10193,20 @@ function attach(element) {
     onDodge: dodge,
     onDraw: draw,
     onCast: cast,
+    onHotkey: (key) => void hotkey(key),
+    hotkeys: async () => {
+      await readItems();
+      return { slots: { ...core.save?.hotkeys }, options: hotkeyOptions() };
+    },
+    onSetHotkey: (key, value) => {
+      if (!core.save || !/^\d$/u.test(key)) return;
+      const next = { ...core.save.hotkeys };
+      if (value) next[key] = String(value).slice(0, 120);
+      else delete next[key];
+      core.save = { ...core.save, hotkeys: next };
+      core.saves.write(core.save);
+      core.journalAt = 0;
+    },
     // The SRD's spells, for the sheet's picker, and one of them put on the sheet with its rule written out.
     spellList: () =>
       SRD_SPELLS.map((spell) => ({

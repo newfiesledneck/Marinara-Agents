@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.88)
+## What it does now (0.6.89)
 
 ### The world
 
@@ -555,8 +555,8 @@ every roll, and no AI call is made in a real-time fight.
   SRD's spells of level 0 to 3 that a fight here can play (40 of them, in `src/srd.js`), and each
   one added becomes a line of your sheet whose description is its rule: "Cantrip. 1d10 fire damage.
   Range 24." or "Level 1. 2 mana. 3d6 fire damage. Dexterity save for half. Range 5." You can
-  rewrite it, and write your own the same way. A cantrip costs no mana; a spell costs one more than
-  its level. A spell is a spell attack against AC, a saving throw against 10 plus your Intelligence
+  rewrite it, and write your own the same way. A cantrip costs no mana; a spell costs its level in
+  mana, the level of the spell slot it would take. A spell is a spell attack against AC, a saving throw against 10 plus your Intelligence
   modifier, or needs no roll. Being stunned, paralyzed, restrained or incapacitated holds a target
   where it stands; being frightened sends it running. A healing spell mends you.
 - **Resting.** Mana and HP come back slowly while you sit or lie down, and fully when you sleep.
@@ -573,6 +573,9 @@ every roll, and no AI call is made in a real-time fight.
   you press Respawn, as you set it. It can cost a quarter of your money or your experience toward
   the next level. Undefeatable holds your HP and mana at their most.
 - **Keys.** With a keyboard, Settings → Controls → Keys gives any action another key.
+- **Hotkeys.** The number keys 1 to 0 each do what you set in Inventory → Hotkeys: cast one spell,
+  use up something you carry, or put on and take off something that has a slot in Quartermaster.
+  The ones you've set are buttons in the chat window too.
 
 Every number of days, minutes and cost above is a setting on the same page.
 
