@@ -91,13 +91,18 @@ export function playerStrike({ sheet, worn = {}, weapon = UNARMED, foe }, random
 /** The player's AC: the sheet's, with what they wear. */
 export const armourOf = (sheet, worn = {}) => valueOf(sheet, "ac") + (worn.ac ?? 0);
 
-/** A creature's attack on the player. { roll, total, hit, crit, damage, ac }. */
-export function foeStrike({ foe, sheet, worn = {} }, random = Math.random) {
+/**
+ * A creature's attack on the player. `guarded` (they're blocking): it's rolled twice and the worse for the
+ * creature counts. { roll, total, hit, crit, damage, ac, guarded }.
+ */
+export function foeStrike({ foe, sheet, worn = {}, guarded = false }, random = Math.random) {
   const ac = armourOf(sheet, worn);
-  return {
-    ...attackRoll({ bonus: foe.attack, ac, damage: foe.damage, damageBonus: foe.damageBonus ?? 0 }, random),
-    ac,
-  };
+  const roll = () =>
+    attackRoll({ bonus: foe.attack, ac, damage: foe.damage, damageBonus: foe.damageBonus ?? 0 }, random);
+  const first = roll();
+  if (!guarded) return { ...first, ac, guarded: false };
+  const second = roll();
+  return { ...(second.roll < first.roll ? second : first), ac, guarded: true };
 }
 
 /**
@@ -141,7 +146,7 @@ export function strikeWords({ who, what, weapon, result, left, max }) {
 
 /** A creature's attack, told: "The wolf bites at Zoey (15 against AC 12): a hit, for 4. Zoey has 9 of 20 HP." */
 export function foeWords({ who, what, verb, result, left, max }) {
-  const start = `The ${what} ${verb} at ${who} (${rollWords(result)})`;
+  const start = `The ${what} ${verb} at ${who} (${rollWords(result)}${result.guarded ? ", blocked" : ""})`;
   if (!result.hit) return `${start}: a miss.`;
   return `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}. ${who} has ${Math.max(0, left)} of ${max} HP.`;
 }

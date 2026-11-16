@@ -848,11 +848,13 @@ export function createHud(root, handlers) {
     sheetTrack:
       "The AI reads what was narrated and changes your sheet to match: HP lost to a bite, mana spent on a spell, experience for something done. It answers with a short list of changes, which the game checks against your sheet, and a note in the chat says what changed. After moments: read each time something is narrated. It shares the inventory tracker's AI call when that is on, and is one more call when it isn't. After moments and replies: also after each reply in a conversation. Off: only you and the game's own rules (using an item) change it.",
     fights:
-      "Off: nothing can be hurt, and hostile creatures only see you off. Real time: F swings (on a touch screen, the Attack button by your thumb; there is one in the chat window too). You swing wherever you face, standing or on the move, and whatever animal is in front of you and in reach when the blow lands takes it. Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A hostile creature you strike fights back, its attacks rolled the same way against your AC; a peaceful one runs. No AI call is made: the game rolls and tells what was rolled. A scene and a narrated moment are to come as other ways to fight.",
+      "Off: nothing can be hurt, and hostile creatures only see you off. Real time: F swings, Q blocks and R dodges (on a touch screen the Combat button by your thumb swaps Run, Sit and Jump for Attack, Block and Dodge; the chat window has the three too). A block lasts a moment: an attack on you while it does is rolled twice and the worse roll counts. A dodge rolls you a few steps, and nothing lands on you while you roll. You swing wherever you face, standing or on the move, and whatever animal is in front of you and in reach when the blow lands takes it. Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A hostile creature you strike fights back, its attacks rolled the same way against your AC; a peaceful one runs. No AI call is made: the game rolls and tells what was rolled. A scene and a narrated moment are to come as other ways to fight.",
     bodyMinutes:
       "How long something you've beaten lies where it fell before it goes. 0 keeps it until you harvest it or clear it with the button below. While it lies there you can harvest an animal (hide, meat and the like go into your inventory, and the body goes) or search an outlaw (what they carried; the body stays).",
     defeat:
-      "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and what beat you has drawn off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Nothing is lost either way, and nobody dies for good.",
+      "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and what beat you has drawn off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Stay down until you choose: you lie where you fell while the chat and the narration go on, and a Respawn button at the top gets you up at home whenever you like. Nothing is lost either way, and nobody dies for good.",
+    undefeatable:
+      "On: your HP, mana and every other resource with a most are held at their most, whatever happens. Fights are still rolled and told, and nothing can put you down.",
     gathering:
       "On: buttons in the chat window let you gather where the land allows it. Each kind only at its resource: fish by water, chop wood standing against a tree (four strokes bring it down), forage in the woods, mine at a boulder or a cave, harvest on a farm in summer and fall. A roll with one of your attributes decides what you find, and it goes into your inventory. Needs the Quartermaster package for the items. Off: no gathering.",
     treeDays: "How many of the world's days a tree you cut down takes to stand again. 0: it never grows back.",
@@ -1240,7 +1242,13 @@ export function createHud(root, handlers) {
     "Fighting what would attack you: wolves, monsters and outlaws. It uses your character sheet (HP, AC, Strength), so the sheet has to be on. How hostile creatures behave when you're near is in Settings → Animals → Behaviour.",
   );
   choice("fights", "Combat", { off: "Off", realtime: "Real time" }, "sheet");
-  choice("defeat", "When your HP runs out", { here: "Come to where you fell", home: "Wake at home" }, "sheet");
+  choice(
+    "defeat",
+    "When your HP runs out",
+    { here: "Come to where you fell", home: "Wake at home", stay: "Stay down until you choose" },
+    "sheet",
+  );
+  toggle("undefeatable", "Undefeatable", "sheet");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
   {
     const clear = button("Clear the beaten now", "Everything beaten and still lying about goes", () =>
@@ -2995,19 +3003,31 @@ export function createHud(root, handlers) {
   run.setAttribute("aria-pressed", "false");
   const THUMB = "padding:10px 12px;font-size:13px;white-space:nowrap;flex:0 0 auto;";
   for (const control of [run, rest, jump]) control.style.cssText += `${THUMB}display:${touch ? "" : "none"};`;
-  strike.style.cssText += `${THUMB}display:none;`;
+  // Fighting's own: Block and Dodge with Attack, behind the Combat button (which swaps them in for Run, Sit and Jump).
+  const guard = button("Block", "Block: attacks on you are rolled twice and the worse counts", () =>
+    handlers.onBlock?.(),
+  );
+  const roll = button("Dodge", "Roll out of the way: nothing lands on you while you do", () => handlers.onDodge?.());
+  let combatOn = false;
+  const combatToggle = button("Combat", "Swap these buttons for Attack, Block and Dodge, and back", () => {
+    combatOn = !combatOn;
+    combatToggle.style.background = combatOn ? "#96422e" : "rgba(10,14,20,0.62)";
+    combatToggle.setAttribute("aria-pressed", String(combatOn));
+  });
+  combatToggle.setAttribute("aria-pressed", "false");
+  for (const control of [strike, guard, roll, combatToggle]) control.style.cssText += `${THUMB}display:none;`;
   use.style.cssText += `${THUMB}flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;display:none;`;
   const thumbs = document.createElement("div");
   thumbs.style.cssText =
     "position:absolute;left:8px;right:8px;bottom:calc(10px + env(safe-area-inset-bottom, 0px));display:flex;gap:6px;justify-content:flex-end;align-items:center;";
-  thumbs.append(run, rest, jump, strike, use);
+  thumbs.append(combatToggle, run, rest, jump, strike, guard, roll, use);
 
   const hint = document.createElement("div");
   const hintText = document.createElement("div");
   hintText.style.flex = "1";
   hintText.textContent = touch
     ? "Stick to walk: push it all the way, or tap Run, to run · or tap the ground to walk there · drag to look · pinch to zoom · tap someone or something to use it"
-    : "WASD walk · Shift run · Space jump · C sit · drag or arrows to look · scroll to zoom · E or click to use · F to swing (with combat on) · Esc to leave";
+    : "WASD walk · Shift run (Ctrl keeps it on) · Space jump · C sit · drag or arrows to look · scroll to zoom · E or click to use · with combat on: F swing, Q block, R dodge · Esc to leave";
   // Read once, it can go: its × turns off Settings → Display → On screen → Controls hint.
   const hintClose = button("×", "Hide this (Settings → Display → On screen brings it back)", () =>
     handlers.onSetting("hint", false),
@@ -3175,9 +3195,14 @@ export function createHud(root, handlers) {
     chatRest.textContent.startsWith("Get ") ? handlers.onUse() : handlers.onRest(),
   );
   const chatStrike = button("Attack", "Swing at whatever is in front of you (F)", () => handlers.onAttack?.());
-  for (const control of [chatJump, chatRest, chatStrike]) control.style.cssText += "padding:4px 10px;font-size:12px;";
-  chatStrike.style.display = "none";
-  moves.append(chatJump, chatRest, chatStrike);
+  const chatGuard = button("Block", "Block: attacks on you are rolled twice and the worse counts (Q)", () =>
+    handlers.onBlock?.(),
+  );
+  const chatRoll = button("Dodge", "Roll out of the way (R)", () => handlers.onDodge?.());
+  const chatFight = [chatStrike, chatGuard, chatRoll];
+  for (const control of [chatJump, chatRest, ...chatFight]) control.style.cssText += "padding:4px 10px;font-size:12px;";
+  for (const control of chatFight) control.style.display = "none";
+  moves.append(chatJump, chatRest, ...chatFight);
   const petMoves = document.createElement("div");
   petMoves.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
   const sendHome = (role) => {
@@ -3366,6 +3391,10 @@ export function createHud(root, handlers) {
     `${PARCHMENT}position:absolute;left:50%;top:22%;transform:translateX(-50%);display:none;flex-direction:column;gap:8px;` +
     "max-width:min(420px,calc(100% - 24px));padding:12px 14px;border-radius:10px;pointer-events:auto;font-size:13px;line-height:1.4;";
   layer.append(confront);
+  const respawn = button("Respawn", "Get up: you wake at home, with half your HP", () => handlers.onRespawn?.());
+  respawn.style.cssText +=
+    "position:absolute;left:50%;top:calc(52px + env(safe-area-inset-top, 0px));transform:translateX(-50%);padding:10px 18px;font-size:14px;background:#96422e;display:none;";
+  layer.append(respawn);
 
   const hud = {
     /**
@@ -3570,12 +3599,15 @@ export function createHud(root, handlers) {
     setThumbs(resting, shown, fighting = false) {
       const show = (want) => (shown && touch && want ? "" : "none");
       const riding = resting === "ride";
-      // (Attack: only with fighting on, and on your feet.)
-      strike.style.display = resting ? "none" : show(fighting);
-      chatStrike.style.display = fighting && !resting ? "" : "none";
-      jump.style.display = resting && !riding ? "none" : show(wanted.jump);
-      run.style.display = resting && !riding ? "none" : show(wanted.run);
-      rest.style.display = resting === "lie" || resting === "seat" || riding ? "none" : show(wanted.rest);
+      // Fighting's buttons: only with fighting on. On a touch screen the Combat button swaps them in for
+      // Run, Sit and Jump, so the row stays short; in the chat window they sit beside Jump and Sit.
+      const fight = fighting && !resting && combatOn;
+      combatToggle.style.display = resting ? "none" : show(fighting);
+      for (const control of [strike, guard, roll]) control.style.display = show(fight);
+      for (const control of chatFight) control.style.display = fighting && !resting ? "" : "none";
+      jump.style.display = fight || (resting && !riding) ? "none" : show(wanted.jump);
+      run.style.display = fight || (resting && !riding) ? "none" : show(wanted.run);
+      rest.style.display = fight || resting === "lie" || resting === "seat" || riding ? "none" : show(wanted.rest);
       rest.textContent = resting === "ground" ? "Lie down" : "Sit";
       // The chat window's: Sit, Lie down, Get up (also up from a bench or a bed).
       const label = resting === "ground" ? "Lie down" : riding ? "Get down" : resting ? "Get up" : "Sit";
@@ -3946,6 +3978,16 @@ export function createHud(root, handlers) {
       }
       nodes.push(line, actions, sceneNote);
       sceneBody.replaceChildren(...nodes);
+    },
+    /** The Respawn button at the top, while the player lies beaten and has chosen to stay down. */
+    setRespawn(shown) {
+      respawn.style.display = shown ? "" : "none";
+    },
+    /** The Run button shown as on or off (Ctrl turned running on or off). */
+    setRun(on) {
+      runOn = !!on;
+      run.style.background = runOn ? "#2e8c96" : "rgba(10,14,20,0.62)";
+      run.setAttribute("aria-pressed", String(runOn));
     },
     /** A notice with `text` and a Close button, or null to take it away. */
     setNotice(text) {

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.81",
+          "date": "2026-11-15",
+          "notes": "- The prompts for Chop wood, Mine, Fish and the rest sit at ground level, at the thing itself.\n- Keys: Ctrl by itself turns running on or off (Shift still runs while held). With combat on, F swings, Q blocks and R dodges. E stays for using and gathering.\n- On a touch screen a Combat button swaps Run, Sit and Jump for Attack, Block and Dodge, and back.\n- Block: for about a second, an attack on you is rolled twice and the worse roll counts. Dodge: a roll of a few steps, and nothing lands on you mid-roll.\n- A third choice for defeat: stay down where you fell while the chat and narration go on, with a Respawn button at the top.\n- Undefeatable (Settings → Inventory → Combat) holds HP, mana and your other resources at their most.",
+          "highlight": false
+        },
+        {
           "version": "0.6.80",
           "date": "2026-11-15",
           "notes": "- What you beat can be seen to. Stand at an animal and the prompt says Harvest: hide, meat and the like go into your inventory, and the body goes. At an outlaw it says Search: you take what they carried, coins among it.\n- What a creature gives can be sold. The new things have a worth at shops.\n- Settings → Inventory → Combat sets how many minutes the beaten lie where they fell (0 keeps them), and has a button that clears them all.",
@@ -307,12 +313,6 @@
           "version": "0.6.62",
           "date": "2026-11-15",
           "notes": "- \"Add your own\" on the sheet has a \"Most\" box. Fill it in for a line that reads like 2/40 (\"Collected cars 2/40\"); leave it empty for a plain number (\"Fame 15\").\n- The sheet itself now has the two AI switches at the top: \"Tell the AI your stats\" and \"The AI updates your sheet\". They are the same settings as in Settings → People → Inventory.\n- Settings → AI → Connections has \"Trackers use\": a separate model for the inventory and sheet trackers, if you want one. It starts as \"Same as conversations\". It is in People → Inventory too.\n- The chat's Commands list scrolls, so the whole list can be read as it grows.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.61",
-          "date": "2026-11-15",
-          "notes": "- The AI can keep your sheet. With Settings → People → Inventory → \"The AI updates your sheet\" on, it reads what was narrated and changes HP, mana and your other stats to match, and awards experience. A note in the chat says what changed. Off to begin with: it costs one more AI call each time.\n- Dice in the chat: /roll or /roll 2d6+1, and /check strength for a d20 plus a line of your sheet. With words after it (\"/check strength to lift the gate\"), what you try is narrated with the result.\n- Lines of the sheet you untick move to \"Not in use\" at the bottom. Tick one to bring it back; one you added yourself can be deleted there.\n- This version is numbered 0.6.61 so that it sorts after 0.6.6.",
           "highlight": false
         }
       ]

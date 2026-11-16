@@ -87,6 +87,14 @@ const bite = foeStrike({ foe: wolf, sheet }, dice([6, 20], [2, 4], [3, 4])); // 
 assert.deepEqual([bite.hit, bite.damage, bite.ac], [true, 5, 10]);
 assert.equal(foeStrike({ foe: wolf, sheet, worn: { ac: 2 } }, dice([6, 20])).hit, false, "armour turns it");
 
+// Blocking: the attack is rolled twice and the worse roll for the creature counts.
+const guarded = foeStrike({ foe: wolf, sheet, guarded: true }, dice([15, 20], [2, 4], [3, 4], [3, 20]));
+assert.deepEqual([guarded.roll, guarded.hit, guarded.guarded], [3, false, true]);
+assert.match(
+  foeWords({ who: "Zoey", what: "wolf", verb: "snaps", result: guarded, left: 20, max: 20 }),
+  /\(7 against AC 10, blocked\): a miss\.$/u,
+);
+
 // A saving throw: all of it on a failure; half, or none, on a save.
 assert.deepEqual(savingThrow({ score: 14, dc: 13, damage: "2d6" }, dice([10, 20], [4, 6], [5, 6])), {
   roll: 10,

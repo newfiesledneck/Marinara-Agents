@@ -181,6 +181,7 @@ import {
   rollDice,
   sheetList,
   sheetWords,
+  toppedUp,
   useItem,
   valueOf,
   wornBonuses,
@@ -4140,7 +4141,7 @@ function sit(seat) {
 
 function standUp() {
   const seat = core.seat;
-  if (!seat) return;
+  if (!seat || core.downed) return; // (beaten and staying down: Respawn gets them up)
   core.mode = "walk";
   core.seat = null;
   if (seat.taken === "player") seat.taken = null;
@@ -7405,7 +7406,7 @@ function usable() {
       label: GATHER_KINDS[target.kind].label,
       x: target.x,
       z: target.z,
-      y: target.kind === "chop" ? 1.7 : 1.2,
+      y: heightAt(target.x, target.z) + 0.35, // at the foot of the tree, on the rock, on the ground
       reach: 3.8,
       quiet: true, // (its own swing or cast, not a hand held out)
       act: () => void gather(target.kind),
@@ -7831,10 +7832,13 @@ function turnSeason() {
 const sheetKey = () => core.personaId || "persona";
 /** The sheet of whoever is being played, in this world. */
 function sheetNow() {
-  return checkSheet(core.save?.sheets?.[sheetKey()]);
+  const sheet = checkSheet(core.save?.sheets?.[sheetKey()]);
+  // (Undefeatable, a setting: every resource is at its most, whatever was last written.)
+  return core.settings.undefeatable ? toppedUp(sheet) : sheet;
 }
 function setSheet(sheet) {
   if (!core.save) return;
+  if (core.settings.undefeatable) sheet = toppedUp(sheet);
   core.save = { ...core.save, sheets: { ...core.save.sheets, [sheetKey()]: sheet } };
   core.saves.write(core.save);
 }
@@ -8002,39 +8006,80 @@ async function tendBody(body, person, what) {
   }
 }
 
+/** How long a dodge's roll takes (seconds), how far it carries, and how long before another. */
+const DODGE_SECONDS = 0.55;
+const DODGE_REACH = 3.2;
+
+/** A block (Q, or the Block button): for as long as its clip, attacks on the player are rolled twice, the worse counting. */
+function block() {
+  if (!fighting() || core.downed || core.mode !== "walk" || core.clock < (core.blockAgain ?? 0)) return;
+  const seconds = gestureSeconds("block") || 1;
+  core.gesture = "block";
+  core.gestureHeld = weaponOf(core.items ?? []).held;
+  core.blockUntil = core.clock + seconds;
+  core.blockAgain = core.clock + seconds + 0.3;
+  core.strikeUntil = Math.max(core.strikeUntil ?? 0, core.clock + seconds * 0.7); // (no swing from behind a guard)
+}
+
+/**
+ * A dodge (R, or the Dodge button): a roll a few steps the way they're going, or back the way they came
+ * if they're standing. Nothing lands on them while they roll.
+ */
+function dodge() {
+  if (!fighting() || core.downed || core.mode !== "walk" || core.glide || core.air || core.swimming) return;
+  if (core.clock < (core.dodgeAgain ?? 0)) return;
+  const at = core.player.position;
+  const facing = core.player.rotation.y;
+  const way = (core.still ?? 1) === 0 ? facing : facing + Math.PI; // on the move: onward; standing: back
+  const to = { x: at.x + Math.sin(way) * DODGE_REACH, y: at.y, z: at.z + Math.cos(way) * DODGE_REACH };
+  core.space.resolveCollisions(to, PLAYER_RADIUS, true);
+  if (!core.interior && waterAt(to.x, to.z).depth > 0.4) return; // not into the river
+  core.walkTo = null;
+  core.gesture = "dodge";
+  core.dodgeUntil = core.clock + DODGE_SECONDS;
+  core.dodgeAgain = core.clock + DODGE_SECONDS + 0.9;
+  glideTo(to.x, to.z, facing, DODGE_SECONDS);
+}
+
 /** A creature's attack on the player (herd.js's "attack"): rolled against their AC, their HP taken, and told. */
 function foeAttacks(event, what) {
   if (core.downed || core.mode === "talk") return;
+  const who = personaName();
+  // Mid-roll, nothing lands.
+  if (core.clock < (core.dodgeUntil ?? 0))
+    return void narrate(
+      null,
+      `The ${what} ${(PACK.foes[event.kind] ?? PACK.foes.default).verb} at ${who}, who rolls clear.`,
+    );
   const sheet = sheetNow();
   const worn = wornBonuses(sheet, core.items ?? []);
   const stats = foeOf(event.kind, PACK.foes, event.scale);
-  const result = foeStrike({ foe: stats, sheet, worn });
+  const result = foeStrike({ foe: stats, sheet, worn, guarded: core.clock < (core.blockUntil ?? 0) });
   let after = sheet;
   if (result.hit) {
     after = applyChanges(sheet, [{ stat: "hp", by: -result.damage }]).sheet;
     setSheet(after);
-    core.gesture = "hurt";
+    after = sheetNow();
+    if (!result.guarded) core.gesture = "hurt";
     // (A blow that lands sends them back a step, unless they're up on something or in the middle of a move.)
     const at = core.player.position;
     if (core.mode === "walk" && !core.glide) {
       const away = Math.atan2(at.x - event.x, at.z - event.z);
-      at.x += Math.sin(away) * 0.8;
-      at.z += Math.cos(away) * 0.8;
+      at.x += Math.sin(away) * (result.guarded ? 0.3 : 0.8);
+      at.z += Math.cos(away) * (result.guarded ? 0.3 : 0.8);
       core.space.resolveCollisions(at, PLAYER_RADIUS, true);
     }
     core.hud?.refreshInventory?.();
   }
   const hp = entryOf(after, "hp");
-  narrate(
-    null,
-    foeWords({ who: personaName(), what, verb: stats.verb, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }),
-  );
+  narrate(null, foeWords({ who, what, verb: stats.verb, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
   if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
 }
 
 /**
- * The player's HP has run out: they go down, what was at them draws off, and they come to (Settings →
- * Inventory → Combat → "When your HP runs out"): where they fell with 1 HP, or at home with half.
+ * The player's HP has run out: they go down and what was at them draws off. Then, as Settings → Inventory →
+ * Combat → "When your HP runs out" says: they come to where they fell with 1 HP, wake at home with half,
+ * or stay down (lying there while the chat and the narration go on) until they press Respawn.
  */
 function defeated() {
   if (core.downed) return;
@@ -8045,25 +8090,49 @@ function defeated() {
   const who = personaName();
   narrate(null, PACK.fight.down.replace("{who}", who));
   const saveId = core.save?.id;
-  later(2.6, () => {
-    core.downed = false;
-    if (!core.save || core.save.id !== saveId) return;
-    const sheet = sheetNow();
-    const most = entryOf(sheet, "hp")?.max ?? 1;
-    const home = core.settings.defeat === "home" && !core.interior && core.mode === "walk";
-    setSheet(applyChanges(sheet, [{ stat: "hp", to: home ? Math.max(1, Math.floor(most / 2)) : 1 }]).sheet);
-    let line = PACK.fight.here;
-    if (home) {
-      const door = playerHomeDoor() !== null ? core.world.doors[playerHomeDoor()] : null;
-      const spot = door
-        ? { x: door.x + Math.sin(door.angle) * 1.2, z: door.z + Math.cos(door.angle) * 1.2 }
-        : (core.world.spawn ?? SPAWN);
-      core.player.position.set(spot.x, heightAt(spot.x, spot.z), spot.z);
-      line = door ? PACK.fight.home : PACK.fight.square;
+  later(2.3, () => {
+    if (!core.save || core.save.id !== saveId) return void (core.downed = false);
+    if (core.settings.defeat === "stay" && core.mode === "walk") {
+      // Lying where they fell (as someone lying on the ground does), until Respawn.
+      const { x, z } = core.player.position;
+      core.seat = { x, z, angle: core.player.rotation.y, approach: { x, z }, ground: "lie", taken: "player" };
+      core.mode = "sit";
+      core.hud?.setRespawn(true);
+      return;
     }
-    narrate(null, line.replace("{who}", who));
-    core.hud?.refreshInventory?.();
+    comeTo(core.settings.defeat === "home");
   });
+}
+
+/** Up again after a defeat: at home (or by the market) with half their HP, or where they fell with 1. */
+function comeTo(home) {
+  core.downed = false;
+  core.hud?.setRespawn(false);
+  if (core.mode === "sit" && core.seat?.ground) {
+    core.seat = null;
+    core.mode = "walk";
+  }
+  const who = personaName();
+  const sheet = sheetNow();
+  const most = entryOf(sheet, "hp")?.max ?? 1;
+  const moved = home && !core.interior && core.mode === "walk";
+  setSheet(applyChanges(sheet, [{ stat: "hp", to: moved ? Math.max(1, Math.floor(most / 2)) : 1 }]).sheet);
+  let line = PACK.fight.here;
+  if (moved) {
+    const door = playerHomeDoor() !== null ? core.world.doors[playerHomeDoor()] : null;
+    const spot = door
+      ? { x: door.x + Math.sin(door.angle) * 1.2, z: door.z + Math.cos(door.angle) * 1.2 }
+      : (core.world.spawn ?? SPAWN);
+    core.player.position.set(spot.x, heightAt(spot.x, spot.z), spot.z);
+    line = door ? PACK.fight.home : PACK.fight.square;
+  }
+  narrate(null, line.replace("{who}", who));
+  core.hud?.refreshInventory?.();
+}
+
+/** The Respawn button: up from staying down, at home. */
+function respawn() {
+  if (core.downed && core.mode === "sit") comeTo(true);
 }
 
 // ── Gathering (gather.js) and the purse ─────────────────────────────────────────────────────────────────
@@ -8969,6 +9038,8 @@ function step(dt) {
   if (input?.take("use")) use();
   if (input?.take("jump")) jump();
   if (input?.take("attack")) swing();
+  if (input?.take("block")) block();
+  if (input?.take("dodge")) dodge();
   if (input?.take("rest") && core.settings.restKey) rest();
   if (input?.take("journal")) core.hud?.toggleJournal();
 
@@ -9067,6 +9138,7 @@ function step(dt) {
       // confrontations are allowed at all); and whether it's night, for the ones about only then.
       hostile: core.settings.hostileAnimals,
       combat: fighting(),
+      down: !!core.downed, // (nothing goes for someone who's down)
       bodySeconds: core.settings.bodyMinutes * 60,
       safe: !aggressionAllowed(at.x, at.z),
       night: core.hour < 5.5 || core.hour >= 20.5,
@@ -9143,7 +9215,13 @@ function step(dt) {
 
   // The use prompt over whatever is in reach.
   core.target = core.mode === "walk" && !core.walkTo ? pickTarget() : null;
-  const label = core.mode === "sit" ? "Stand up" : core.mode === "ride" ? "Get down" : core.target?.label;
+  const label = core.downed
+    ? null // (down: the Respawn button is how they get up)
+    : core.mode === "sit"
+      ? "Stand up"
+      : core.mode === "ride"
+        ? "Get down"
+        : core.target?.label;
   const screen = core.target
     ? toScreen(core.target.mark?.x ?? core.target.x, core.target.y, core.target.mark?.z ?? core.target.z)
     : null;
@@ -9439,6 +9517,9 @@ function attach(element) {
     },
     onJump: jump,
     onAttack: swing,
+    onBlock: block,
+    onDodge: dodge,
+    onRespawn: respawn,
     onClearBodies: () => {
       const cleared = core.herd.clearBodies();
       core.hud?.setNotice(cleared ? `Cleared: ${cleared}.` : "There was nothing lying about.");
@@ -9455,6 +9536,7 @@ function attach(element) {
     onKnowing: setKnowing,
   });
   core.input = createInput();
+  core.input.onRunToggle((on) => core.hud?.setRun(on)); // (Ctrl: the Run button shows it)
   core.hud.layer.prepend(core.input.stickElement); // under the windows and panels
   core.element.addEventListener("keydown", () => core.sound.unlock());
 
