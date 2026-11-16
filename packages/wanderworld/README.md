@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.94)
+## What it does now (0.6.95)
 
 ### The world
 
@@ -578,6 +578,9 @@ every roll, and no AI call is made in a real-time fight.
 - **Anything can be struck**: hostile creatures fight back, peaceful ones run, and people only if
   you turn on "Blows can land on people". Someone struck remembers it for good and becomes your
   enemy, whoever saw it remembers, and at 0 HP they lie out cold for two minutes. Nobody dies.
+  In real-time combat someone you attack fights back (a setting, on to begin with): they swing
+  their class's weapon or cast its spells at you, rolled against your AC or your saving throw,
+  until they're down to a third of their HP or you leave them alone.
 - **The beaten** lie where they fell for a few minutes. An animal can be harvested (hide, meat),
   an outlaw searched (coins, what they carried), and either carried and put down. What you beat
   stays gone for two days.

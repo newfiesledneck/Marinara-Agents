@@ -163,14 +163,17 @@ import {
 import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolBonus, toolFor, TOOLS } from "./craft.js";
 import {
   TURN_MOVE,
+  castAtWords,
   foeNerve,
   foeOf,
   foeStrike,
   foeWords,
   initiativeOrder,
+  personWords,
   playerStrike,
   slotFor,
   slotsAt,
+  spellAtPlayer,
   spellCost,
   spellIn,
   spellRule,
@@ -8849,6 +8852,127 @@ function personAttacked(target, mine, seen, hurt, left) {
     setRelation(target.id, PLAYER_ID, { kind: "enemy", level: hurt ? 85 : 60, role: "" });
   if (left <= 0 && core.crowd.knockOut(target.id, OUT_SECONDS))
     narrate(null, `${target.name} lies where they fell, out cold.`);
+  personAngry(target, left);
+}
+
+// ── People who fight back ──
+
+/** How long someone goes on at the player with nothing more done to them (seconds), and how far they follow (metres). */
+const GRUDGE_SECONDS = 45;
+const GRUDGE_REACH = 30;
+
+/**
+ * Someone the player has gone for turns on them (Settings → Inventory → Combat → "People you attack fight
+ * back"; real-time combat). With a third of their HP or less, or out cold, they've had enough.
+ */
+function personAngry(target, left) {
+  if (!core.settings.fightBack || fightMode() !== "realtime") return;
+  core.angry ??= new Map();
+  const had = core.angry.has(target.id);
+  if (left <= foeOf("person", PACK.foes).hp / 3) {
+    if (core.angry.delete(target.id) && left > 0) narrate(null, `${target.name} backs off: they've had enough.`);
+    return;
+  }
+  core.angry.set(target.id, { until: core.clock + GRUDGE_SECONDS, next: core.clock + 0.8 + Math.random() });
+  if (!had) narrate(null, `${target.name} turns on ${personaName()}.`);
+}
+
+/**
+ * Those fighting back, each on the move the whole while (as a companion is: `allyMoves`) and doing something
+ * every few seconds. One lets it go once the player is well away, or some time after they were last gone for.
+ */
+function angryTick() {
+  if (!core.angry?.size) return;
+  if (core.downed || fightMode() !== "realtime" || !core.settings.fightBack) return void core.angry.clear();
+  if (core.interior || core.mode === "talk") return;
+  const at = core.player.position;
+  const here = new Map(core.crowd.present(core.space).map((person) => [person.id, person]));
+  for (const [id, grudge] of core.angry) {
+    const person = here.get(id);
+    const far = person ? Math.hypot(person.position.x - at.x, person.position.z - at.z) : Infinity;
+    if (!person || far > GRUDGE_REACH || core.clock > grudge.until) {
+      core.angry.delete(id);
+      if (person) narrate(null, `${nameFor(id, person.name)} lets it go, for now.`);
+      continue;
+    }
+    if (core.crowd.isOut(id)) continue;
+    const spells = spellsOfClass(classOf(id)).attack.filter((entry) => entry.spell.damage);
+    allyMoves(person, { x: at.x, z: at.z, room: 0.4 }, spells.length > 0);
+    if (core.clock < grudge.next) continue;
+    if (personActs(person, far, spells)) grudge.next = core.clock + 2.6 + Math.random() * 2.2;
+  }
+}
+
+/** One go at the player by someone fighting back: a spell of their class when it reaches, else their class's weapon in reach. */
+function personActs(person, far, spells) {
+  const name = nameFor(person.id, person.name);
+  const who = personaName();
+  const at = core.player.position;
+  const from = { x: person.position.x, z: person.position.z };
+  const inReach = far <= ALLY_REACH + 0.4;
+  const castable = spells.filter((entry) => entry.spell.range >= far && (entry.level === 0 || Math.random() < 0.3));
+  if (castable.length && (!inReach || Math.random() < 0.5)) {
+    const chosen = castable[Math.floor(Math.random() * castable.length)];
+    core.crowd.gesture(person.id, "cast", null, at.x, at.z);
+    const saveId = core.save?.id;
+    spellFx().bolt(core.space.scene, chest(from.x, from.z), chest(at.x, at.z), colourOf(chosen.spell), {
+      then: () => {
+        if (core.save?.id !== saveId || core.downed) return;
+        if (core.clock < (core.dodgeUntil ?? 0))
+          return void narrate(null, `${name} casts ${chosen.name} at ${who}, who rolls clear.`);
+        const sheet = sheetNow();
+        const result = spellAtPlayer({
+          wit: ALLY_WIT,
+          spell: chosen.spell,
+          sheet,
+          worn: wornBonuses(sheet, core.items ?? []),
+        });
+        const hp = playerStruck(result, from);
+        narrate(null, castAtWords({ name, spell: chosen.name, who, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
+        if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
+      },
+    });
+    return true;
+  }
+  if (!inReach) return false;
+  const weapon = SRD_CLASSES[classOf(person.id)].weapon;
+  const held = weaponIn({ name: weapon.name, description: `${weapon.damage} damage` })?.held ?? "sword";
+  core.crowd.gesture(person.id, "strike", held, at.x, at.z);
+  if (core.clock < (core.dodgeUntil ?? 0)) {
+    narrate(null, `${name} swings at ${who}, who rolls clear.`);
+    return true;
+  }
+  const sheet = sheetNow();
+  const result = foeStrike({
+    foe: { attack: ALLY_ATTACK, damage: weapon.damage, damageBonus: 2 },
+    sheet,
+    worn: wornBonuses(sheet, core.items ?? []),
+    guarded: core.clock < (core.blockUntil ?? 0),
+  });
+  const hp = playerStruck(result, from);
+  narrate(null, personWords({ name, who, weapon: weapon.name, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
+  if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
+  return true;
+}
+
+/**
+ * A roll against the player that has landed (`result`; from `from`: { x, z }): their HP taken, and a step
+ * back unless they're up on something or in the middle of a move. Returns their HP as it is after.
+ */
+function playerStruck(result, from) {
+  if (result.hit && result.damage > 0) {
+    setSheet(applyChanges(sheetNow(), [{ stat: "hp", by: -result.damage }]).sheet);
+    if (!result.guarded) core.gesture = "hurt";
+    const at = core.player.position;
+    if (core.mode === "walk" && !core.glide) {
+      const away = Math.atan2(at.x - from.x, at.z - from.z);
+      at.x += Math.sin(away) * (result.guarded ? 0.3 : 0.8);
+      at.z += Math.cos(away) * (result.guarded ? 0.3 : 0.8);
+      core.space.resolveCollisions(at, PLAYER_RADIUS, true);
+    }
+    core.hud?.refreshInventory?.();
+  }
+  return entryOf(sheetNow(), "hp");
 }
 
 /**
@@ -9085,23 +9209,7 @@ function foeAttacks(event, what) {
     worn,
     guarded: core.clock < (core.blockUntil ?? 0) || !!core.battle?.dodging,
   });
-  let after = sheet;
-  if (result.hit) {
-    after = applyChanges(sheet, [{ stat: "hp", by: -result.damage }]).sheet;
-    setSheet(after);
-    after = sheetNow();
-    if (!result.guarded) core.gesture = "hurt";
-    // (A blow that lands sends them back a step, unless they're up on something or in the middle of a move.)
-    const at = core.player.position;
-    if (core.mode === "walk" && !core.glide) {
-      const away = Math.atan2(at.x - event.x, at.z - event.z);
-      at.x += Math.sin(away) * (result.guarded ? 0.3 : 0.8);
-      at.z += Math.cos(away) * (result.guarded ? 0.3 : 0.8);
-      core.space.resolveCollisions(at, PLAYER_RADIUS, true);
-    }
-    core.hud?.refreshInventory?.();
-  }
-  const hp = entryOf(after, "hp");
+  const hp = playerStruck(result, event);
   narrate(null, foeWords({ who, what, verb: stats.verb, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
   if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
 }
@@ -9117,6 +9225,7 @@ function defeated() {
   core.gesture = "fall";
   core.walkTo = null;
   core.herd.calm();
+  core.angry?.clear();
   const who = personaName();
   narrate(null, PACK.fight.down.replace("{who}", who));
   const saveId = core.save?.id;
@@ -10162,6 +10271,7 @@ function step(dt) {
   core.spellFx?.update(dt);
   restTick(dt);
   alliesTick(dt);
+  angryTick();
   core.still = speed < 0.1 ? (core.still ?? 0) + dt : 0; // how long the player has stood still, in seconds
   let lookAt = null;
   if (core.talking) {

@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.6.94, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.6.95, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, an AI assistant that changes a world on request, and the
@@ -494,7 +494,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.6.94: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.6.95: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -690,7 +690,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.6.94, 2026-11-14)
+## Outstanding (as of 0.6.95, 2026-11-14)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -1052,8 +1052,12 @@ initiativeOrder`): initiative, nine metres and an action and a bonus action a tu
        held until their turn (`herd.js hold / march`), companions by the same rules, a bar along the
        top (`hud.js setBattle`). A switch has spells cast with the SRD's spell slots there
        (`srd.js SRD_SLOTS`, `combat.js slotsAt / slotFor`, `save.slotsUsed`), mana elsewhere.
+       _In (0.6.95):_ people fight back (`main.js personAngry / angryTick / personActs`, the
+       `fightBack` setting; real time only): their class's weapon in reach, its damaging spells out
+       of it (`combat.js spellAtPlayer`: the player's saving throw, or a spell attack on their AC),
+       until a third of their HP, the player's defeat, distance, or 45 seconds left alone.
        _Not yet:_ reactions and opportunity attacks; difficult terrain; a companion's own slots;
-       people and creatures casting or striking back at range; more
+       people fighting back by turns, companions joining in against them, creatures at range; more
        effects (poison, burning, slowed) and effects on the player; the 5e ruleset as a source of
        creatures' numbers and spells; fights indoors.
   6. _Discovery._ Two switches: the map dark until explored (names hidden with it), and names hidden

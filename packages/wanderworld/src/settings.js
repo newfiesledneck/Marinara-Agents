@@ -172,6 +172,8 @@ export const SETTINGS = {
   restRestores: { value: true },
   // Whether a blow can land on a person (the townsfolk, your companions, anyone with a name).
   fightPeople: { value: false },
+  // Whether someone the player attacks fights back (real-time combat: main.js angryTick).
+  fightBack: { value: true },
   // Whether the party joins a real-time fight (each by their class: main.js alliesTick).
   partyFights: { value: true },
   // How many minutes something beaten lies where it fell (0: until it's harvested or cleared).

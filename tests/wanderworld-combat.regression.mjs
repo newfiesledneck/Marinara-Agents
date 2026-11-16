@@ -360,4 +360,46 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
       assert.ok(item.name && item.description, `${kind}'s ${item.name} is named and described`);
 }
 
+// Someone fighting back: their blow told, and a spell at the player (their own save, or a spell attack on their AC).
+{
+  const { castAtWords, personWords, spellAtPlayer } = await import("../packages/wanderworld/src/combat.js");
+  const sheet = checkSheet(null);
+  const high = () => 0.99;
+  const low = () => 0;
+  const bolt = { damage: "1d10", type: "fire" };
+  const struck = spellAtPlayer({ wit: 2, spell: bolt, sheet }, high);
+  assert.ok(struck.hit && struck.crit && struck.damage >= 2, "a 20 on a spell attack is a critical hit");
+  assert.equal(spellAtPlayer({ wit: 2, spell: bolt, sheet }, low).hit, false, "a 1 misses");
+  const burst = { damage: "2d6", save: { attribute: "Dexterity", onSave: "half" } };
+  const saved = spellAtPlayer({ wit: 2, spell: burst, sheet }, high);
+  assert.ok(saved.saved && saved.damage === 6 && saved.against === "DC 12", "a save takes half");
+  const failed = spellAtPlayer({ wit: 2, spell: burst, sheet }, low);
+  assert.ok(!failed.saved && failed.hit && failed.damage === 2, "a failed save takes it all");
+  const none = spellAtPlayer({ spell: { damage: "1d8", save: { attribute: "Wisdom", onSave: "none" } }, sheet }, high);
+  assert.ok(none.saved && !none.hit && none.damage === 0, "a save for none takes nothing");
+  assert.ok(
+    spellAtPlayer({ spell: { damage: "1d4+1", sure: true }, sheet }, low).damage === 2,
+    "a sure one just rolls",
+  );
+  assert.match(
+    castAtWords({ name: "Odo", spell: "Burning Hands", who: "Zoey", result: saved, left: 4, max: 10 }),
+    /^Odo casts Burning Hands at Zoey \(Zoey saves, \d+ against DC 12\): half, for 6\. Zoey has 4 of 10 HP\.$/u,
+  );
+  assert.match(
+    castAtWords({ name: "Odo", spell: "Hold", who: "Zoey", result: none, left: 4, max: 10 }),
+    /nothing comes of it\.$/u,
+  );
+  assert.equal(
+    personWords({
+      name: "Mira",
+      who: "Zoey",
+      weapon: "Greataxe",
+      result: { hit: true, crit: false, roll: 11, total: 15, ac: 12, damage: 4, guarded: true },
+      left: 6,
+      max: 10,
+    }),
+    "Mira swings a greataxe at Zoey (15 against AC 12, blocked): a hit, for 4. Zoey has 6 of 10 HP.",
+  );
+}
+
 console.log("ok: fighting by the rules");

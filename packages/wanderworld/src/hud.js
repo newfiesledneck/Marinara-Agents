@@ -875,7 +875,9 @@ export function createHud(root, handlers) {
     partyFights:
       "On: in real-time combat the people travelling with you join in. Each has a class from the 5e SRD (Inventory → Sheet → Your companions), which gives them a weapon and spells: they strike what comes within reach, cast at what doesn't, and one who can heal mends you when you're below half your HP. Their rolls are told in the chat like yours. They move with the fight: one who strikes closes with a creature and works round it, one who casts keeps a few paces off. Creatures go for them as well as for you; each has HP from their class, and at 0 is out of the fight for a while, then up again. Off: they stand by, and nothing goes for them.",
     fightPeople:
-      "Off: a swing passes people by, and only animals, monsters and outlaws can be struck. On: a blow can land on anyone in front of you, your companions too. It's rolled like any other. Whoever you strike remembers it for good and becomes your enemy, anyone who sees it remembers, and at 0 HP they are out cold for a couple of minutes, then get up. Nobody dies. People don't strike back yet.",
+      "Off: a swing passes people by, and only animals, monsters and outlaws can be struck. On: a blow can land on anyone in front of you, your companions too. It's rolled like any other. Whoever you strike remembers it for good and becomes your enemy, anyone who sees it remembers, and at 0 HP they are out cold for a couple of minutes, then get up. Nobody dies.",
+    fightBack:
+      "Real-time combat only. On: someone you strike or cast at turns on you. They close in and swing their class's weapon, or keep their distance and cast their class's spells at you; each is rolled against your AC or your saving throw and told in the chat, and Block and Dodge work against them. They stop when they're down to a third of their HP, when you go down, when you get well away, or about 45 seconds after you last went for them. Off: they take it, remember it and become your enemy, as before.",
     restRestores:
       "On: while you sit or lie down (on the ground, a bench, a bed) a point of mana comes back every few seconds and a point of HP a little slower, until both are full. A sleep in a tent or a bed restores both completely. Off: only items, spells and levelling restore them.",
     undefeatable:
@@ -1363,6 +1365,7 @@ export function createHud(root, handlers) {
   toggle("undefeatable", "Undefeatable", "sheet");
   toggle("restRestores", "Resting restores HP and mana", "sheet");
   toggle("fightPeople", "Blows can land on people", "sheet");
+  toggle("fightBack", "People you attack fight back", "fightPeople");
   toggle("partyFights", "Your companions fight beside you", "sheet");
   toggle("srdSlots", "Fights by turns use spell slots", "sheet");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");

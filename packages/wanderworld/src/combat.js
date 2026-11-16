@@ -154,6 +154,62 @@ export function foeWords({ who, what, verb, result, left, max }) {
   return `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}. ${who} has ${Math.max(0, left)} of ${max} HP.`;
 }
 
+/** Someone's blow at the player, told: "Mira swings a mace at Zoey (15 against AC 12): a hit, for 4. Zoey has 9 of 20 HP." */
+export function personWords({ name, who, weapon, result, left, max }) {
+  const a = /^[aeiou]/iu.test(weapon) ? "an" : "a";
+  const start = `${name} swings ${a} ${weapon.toLowerCase()} at ${who} (${rollWords(result)}${result.guarded ? ", blocked" : ""})`;
+  if (!result.hit) return `${start}: a miss.`;
+  return `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}. ${who} has ${Math.max(0, left)} of ${max} HP.`;
+}
+
+/**
+ * A spell cast at the player by someone whose casting modifier is `wit`. With a saving throw the player
+ * rolls it (their own score in that attribute) against the caster's DC (10 + wit), for half or none on a
+ * save. One that always hits just rolls its damage. Else a spell attack (a d20 + 2 + wit) against their AC.
+ * Only the damage is played: a spell's effect doesn't take hold of the player.
+ * { hit, saved, crit, sure, roll, total, against, damage }.
+ */
+export function spellAtPlayer({ wit = 0, spell, sheet, worn = {} }, random = Math.random) {
+  if (spell.save) {
+    const dc = 10 + wit;
+    const score = valueOf(sheet, spell.save.attribute.toLowerCase()) || 10;
+    const thrown = savingThrow({ score, dc, damage: spell.damage ?? 0, onSave: spell.save.onSave }, random);
+    return {
+      hit: thrown.damage > 0,
+      saved: thrown.saved,
+      crit: false,
+      sure: false,
+      roll: thrown.roll,
+      total: thrown.total,
+      against: `DC ${dc}`,
+      damage: thrown.damage,
+    };
+  }
+  if (spell.sure) {
+    const damage = spell.damage ? Math.max(1, rollDice(spell.damage, random).total) : 0;
+    return { hit: true, saved: false, crit: false, sure: true, roll: 0, total: 0, against: "", damage };
+  }
+  const ac = armourOf(sheet, worn);
+  const result = attackRoll({ bonus: 2 + wit, ac, damage: spell.damage ?? "0" }, random);
+  return { ...result, ac, saved: false, sure: false, against: `AC ${ac}` };
+}
+
+/** A spell at the player, told: "Odo casts Fire Bolt at Zoey (17 against AC 12): a hit, for 6. Zoey has 4 of 10 HP." */
+export function castAtWords({ name, spell, who, result, left, max }) {
+  const start = `${name} casts ${spell} at ${who}`;
+  const hp = `${who} has ${Math.max(0, left)} of ${max} HP.`;
+  if (result.sure) return `${start}: it strikes for ${result.damage}. ${hp}`;
+  if (result.against.startsWith("DC")) {
+    const thrown = `${result.total} against ${result.against}`;
+    if (!result.saved) return `${start} (${who} fails the save, ${thrown}): for ${result.damage}. ${hp}`;
+    return result.damage
+      ? `${start} (${who} saves, ${thrown}): half, for ${result.damage}. ${hp}`
+      : `${start} (${who} saves, ${thrown}): nothing comes of it.`;
+  }
+  if (!result.hit) return `${start} (${rollWords(result)}): a miss.`;
+  return `${start} (${rollWords(result)}): ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}. ${hp}`;
+}
+
 /**
  * What's had from a beaten creature of `kind`: { items: [{ name, description, quantity }], coins } from the
  * pack's `spoils` (its own, else nothing). Each thing listed is { name, description, quantity (a number, or
