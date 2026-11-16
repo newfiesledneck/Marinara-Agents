@@ -180,6 +180,10 @@ export const SETTINGS = {
   gearByDescription: { value: true },
   // Whether a creature's resistances, immunities and vulnerabilities to kinds of damage count.
   damageTypes: { value: true },
+  // Whether creatures use what the SRD gives them besides a plain attack: Multiattack, venom, a knock-down, Pack Tactics, a breath.
+  creatureExtras: { value: true },
+  // Whether conditions (prone, poisoned, grappled, …) can land on the player (conditions.js).
+  conditions: { value: true },
   // A turn in a fight by turns: actions, bonus actions, attacks for an Attack action, metres to move. 0 leaves
   // each to the rules (combat.js turnBudget: one, one, one or more by class and level, nine).
   turnActions: { value: 0, min: 0, max: 6 },

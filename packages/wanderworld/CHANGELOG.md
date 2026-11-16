@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.03 — 2026-11-16
+
+- Creatures use their special attacks from the 5e SRD. A wolf's bite can knock you prone, and wolves, jackals and rats attack with advantage when one of their own is beside you. Snakes, spiders, wasps and imps have venom (a Constitution save for half). A frog's bite holds you. A witch strikes twice. A dragon breathes fire, then has to wait for it to come back.
+- Conditions can land on you: prone, poisoned, frightened, grappled, restrained, blinded, paralyzed, stunned, asleep, slowed. Each shows at the top left with its seconds and wears off. Spells cast at you leave theirs too.
+- Both have switches in Settings → Inventory → 5e rules.
+
 ## 0.7.02 — 2026-11-16
 
 - Weapons and armour by the 5e SRD. New setting, "An item's description is its stats": on, a thing does what its description says; off, its name decides (sword, knife, dagger, axe, hammer, bow and the rest link to that SRD weapon, and armour and shields likewise).

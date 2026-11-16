@@ -330,14 +330,20 @@ export function armourOf(sheet, worn = {}) {
  * A creature's attack on the player. `guarded` (they're blocking): it's rolled twice and the worse for the
  * creature counts. { roll, total, hit, crit, damage, ac, guarded }.
  */
-export function foeStrike({ foe, sheet, worn = {}, guarded = false, hindered = false }, random = Math.random) {
+export function foeStrike(
+  { foe, sheet, worn = {}, guarded = false, hindered = false, keen = false },
+  random = Math.random,
+) {
   const ac = armourOf(sheet, worn);
   const roll = () =>
     attackRoll({ bonus: foe.attack, ac, damage: foe.damage, damageBonus: foe.damageBonus ?? 0 }, random);
   const first = roll();
-  // (`hindered`: blinded, say, by a spell. Rolled twice like a blocked one, the worse counting.)
-  if (!guarded && !hindered) return { ...first, ac, guarded: false };
+  // (`hindered`: blinded, say, by a spell. Rolled twice like a blocked one, the worse counting. `keen`: it has
+  // advantage (its pack is beside it, or its target is down or held): the better of two. Both, and it's one roll.)
+  const worse = guarded || hindered;
+  if (worse === keen) return { ...first, ac, guarded, ...(worse ? { hindered } : {}) };
   const second = roll();
+  if (keen) return { ...(second.roll > first.roll ? second : first), ac, guarded: false, keen: true };
   return { ...(second.roll < first.roll ? second : first), ac, guarded, hindered };
 }
 
@@ -387,7 +393,7 @@ export function strikeWords({ who, what, weapon, result, left, max, named = fals
     : weapon.name
       ? `swings the ${weapon.name.toLowerCase()} at`
       : "strikes at";
-  const start = `${who} ${how} ${whom} (${rollWords(result)})`;
+  const start = `${who} ${how} ${whom} (${rollWords(result)}${result.hampered ? ", hampered" : ""})`;
   if (!result.hit) return `${start}: a miss.`;
   const hit = `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}${typedWords(result.how, result.type)}.`;
   if (left <= 0) return `${hit} ${named ? what : `The ${what}`} goes down.`;
@@ -396,7 +402,7 @@ export function strikeWords({ who, what, weapon, result, left, max, named = fals
 
 /** A creature's attack, told: "The wolf bites at Zoey (15 against AC 12): a hit, for 4. Zoey has 9 of 20 HP." */
 export function foeWords({ who, what, verb, result, left, max }) {
-  const start = `The ${what} ${verb} at ${who} (${rollWords(result)}${result.guarded ? ", blocked" : ""}${result.hindered ? ", hindered" : ""})`;
+  const start = `The ${what} ${verb} at ${who} (${rollWords(result)}${result.guarded ? ", blocked" : ""}${result.hindered ? ", hindered" : ""}${result.keen ? ", with advantage" : ""})`;
   if (!result.hit) return `${start}: a miss.`;
   return `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}. ${who} has ${Math.max(0, left)} of ${max} HP.`;
 }
