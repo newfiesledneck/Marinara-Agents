@@ -24,6 +24,7 @@ import {
   Vector3,
   WebGLRenderer,
   Sphere,
+  SphereGeometry,
 } from "three";
 import {
   blobShadow,
@@ -159,6 +160,9 @@ import {
 } from "./vendor.js";
 import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolBonus, toolFor, TOOLS } from "./craft.js";
 import {
+  spellIn,
+  spellStrike,
+  spellWords,
   foeNerve,
   foeOf,
   foeStrike,
@@ -3040,6 +3044,13 @@ function stepPlaces(dt) {
   if (core.journalAt <= 0) {
     showFelled();
     showBeaten();
+    {
+      const spells = fighting() ? spellsNow() : [];
+      core.hud?.setSpells(
+        spells.map((entry) => ({ id: entry.id, name: entry.name, cost: entry.spell.cost })),
+        readySpell(spells)?.id ?? "",
+      );
+    }
     core.hud?.setShop(vendorHere()?.title ?? "");
     core.hud?.setGather([
       ...gatherOptions(zone).map((kind) => ({ kind, label: GATHER_KINDS[kind].label })),
@@ -7975,33 +7986,33 @@ function swing() {
 }
 
 /** What a swing would land on: the nearest animal in front of the player and in reach, or null. */
-function blowTarget() {
+function blowTarget(reach = SWING_REACH, arc = SWING_ARC, people = true) {
   const at = core.player.position;
   const facing = core.player.rotation.y;
   let foe = null;
   let nearest = Infinity;
-  for (const entry of core.interior ? [] : core.herd.foes(at, SWING_REACH + 2.5)) {
+  for (const entry of core.interior ? [] : core.herd.foes(at, reach + 2.5)) {
     const dx = entry.x - at.x;
     const dz = entry.z - at.z;
     const distance = Math.hypot(dx, dz);
-    if (distance > SWING_REACH + entry.room) continue;
+    if (distance > reach + entry.room) continue;
     // (One right on top of them is hit whichever way they face.)
     const off = Math.abs(Math.atan2(Math.sin(Math.atan2(dx, dz) - facing), Math.cos(Math.atan2(dx, dz) - facing)));
-    if (distance > entry.room + 0.5 && off > SWING_ARC) continue;
+    if (distance > entry.room + 0.5 && off > arc) continue;
     if (distance < nearest) {
       nearest = distance;
       foe = entry;
     }
   }
   // People too, where the player has allowed it (Settings → Inventory → Combat): whoever is nearer.
-  if (core.settings.fightPeople && fighting())
+  if (people && core.settings.fightPeople && fighting())
     for (const person of core.crowd.present(core.space)) {
       if (core.crowd.isOut(person.id)) continue;
       const dx = person.position.x - at.x;
       const dz = person.position.z - at.z;
       const distance = Math.hypot(dx, dz);
       const off = Math.abs(Math.atan2(Math.sin(Math.atan2(dx, dz) - facing), Math.cos(Math.atan2(dx, dz) - facing)));
-      if (distance > SWING_REACH + 0.4 || (distance > 0.9 && off > SWING_ARC) || distance >= nearest) continue;
+      if (distance > reach + 0.4 || (distance > 0.9 && off > arc) || distance >= nearest) continue;
       nearest = distance;
       foe = {
         person: true,
@@ -8012,6 +8023,117 @@ function blowTarget() {
       };
     }
   return foe;
+}
+
+/** A creature has gone down: its experience, and its day kept with the world so it stays gone for its days (showBeaten). */
+function foeBeaten(foe, stats) {
+  earnXp(stats.xp);
+  const key = `${core.save.region ?? HOME_REGION}|${foe.id}`;
+  core.save = { ...core.save, beaten: { ...core.save.beaten, [key]: core.social?.day ?? 0 } };
+  core.saves.write(core.save);
+}
+
+// ── Spells ──
+
+/** How far a spell reaches (metres), and how wide of straight ahead it can be cast (radians). */
+const SPELL_REACH = 14;
+const SPELL_ARC = 0.6;
+
+/** The spells on the sheet that do something by rule: [{ id, name, spell }] (combat.js spellIn). */
+function spellsNow() {
+  return sheetNow()
+    .entries.filter((entry) => entry.kind === "spell" && entry.on)
+    .map((entry) => ({ id: entry.id, name: entry.name, spell: spellIn(entry) }))
+    .filter((entry) => entry.spell);
+}
+/** The spell that Z and the Cast button cast: the last one cast, else the first. */
+const readySpell = (spells) => spells.find((entry) => entry.id === core.readySpell) ?? spells[0] ?? null;
+
+/**
+ * Casts a spell (Z, the Cast button, or a spell's own button in the chat window): the one given, else the
+ * one that's ready. It costs its mana whatever comes of it. One that heals mends the caster; the rest fly
+ * at the nearest creature ahead and in reach, which takes a spell attack or makes its saving throw.
+ */
+function cast(id = null) {
+  if (!fighting() || core.downed || core.carrying || core.mode !== "walk" || core.clock < (core.castUntil ?? 0)) return;
+  const spells = spellsNow();
+  const chosen = (id && spells.find((entry) => entry.id === id)) || readySpell(spells);
+  if (!chosen)
+    return void core.hud?.setNotice(
+      'You have no spell to cast. Inventory → Sheet → "Add this setting\'s spells" gives you some, or add your own.',
+    );
+  core.readySpell = chosen.id;
+  const { spell, name } = chosen;
+  let sheet = sheetNow();
+  if (valueOf(sheet, "mana") < spell.cost)
+    return void core.hud?.setNotice(`Not enough mana for ${name} (${spell.cost}).`);
+  if (spell.cost > 0) {
+    sheet = applyChanges(sheet, [{ stat: "mana", by: -spell.cost }]).sheet;
+    setSheet(sheet);
+  }
+  core.gesture = "cast";
+  core.castUntil = core.clock + 1.1;
+  const who = personaName();
+  const saveId = core.save?.id;
+  later(0.25, () => {
+    if (core.save?.id !== saveId || core.downed) return;
+    const at = core.player.position;
+    if (spell.heal > 0 && !spell.damage) {
+      const mended = applyChanges(sheetNow(), [{ stat: "hp", by: spell.heal }]).sheet;
+      setSheet(mended);
+      const hp = entryOf(sheetNow(), "hp");
+      narrate(null, `${who} casts ${name}: ${hp?.value ?? 0} of ${hp?.max ?? 0} HP.`);
+      return void core.hud?.refreshInventory?.();
+    }
+    const foe = blowTarget(SPELL_REACH, SPELL_ARC, false);
+    const facing = core.player.rotation.y;
+    const to = foe ?? { x: at.x + Math.sin(facing) * SPELL_REACH, z: at.z + Math.cos(facing) * SPELL_REACH };
+    bolt(
+      at,
+      to,
+      /cold|frost|ice/iu.test(`${name} ${spell.damage ?? ""}`) ? 0x9fd8ff : spell.damage ? 0xffa531 : 0xc9a0ff,
+    );
+    core.hud?.refreshInventory?.();
+    if (!foe) return void narrate(null, `${who} casts ${name}, at nothing.`);
+    const stats = foeOf(foe.kind, PACK.foes, foe.scale);
+    const result = spellStrike({
+      sheet: sheetNow(),
+      worn: wornBonuses(sheetNow(), core.items ?? []),
+      spell,
+      foe: stats,
+    });
+    const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
+    const frightened = result.effect?.name === "frightened";
+    const nerve = !foe.hostile || frightened ? "flee" : result.damage > 0 ? foeNerve(after, stats.hp) : "fight";
+    const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
+    if (!struck) return;
+    if (result.effect?.name === "stunned" && !struck.down) core.herd.stun(foe.id, result.effect.seconds);
+    const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+    const told = spellWords({ who, name, what, spell, result, left: struck.hp, max: struck.max });
+    narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
+    if (struck.down) foeBeaten(foe, stats);
+  });
+}
+
+/** A spell's bolt, seen: a small light from the caster to where it lands. */
+function bolt(from, to, colour) {
+  const mesh = new Mesh(new SphereGeometry(0.16, 10, 8), new MeshBasicMaterial({ color: colour }));
+  const y = core.player.position.y + 1.25;
+  mesh.position.set(from.x, y, from.z);
+  core.space.scene.add(mesh);
+  (core.bolts ??= []).push({ mesh, fromX: from.x, fromZ: from.z, toX: to.x, toZ: to.z, y, t: 0 });
+}
+function boltTick(dt) {
+  if (!core.bolts?.length) return;
+  core.bolts = core.bolts.filter((one) => {
+    one.t += dt / 0.22;
+    one.mesh.position.set(one.fromX + (one.toX - one.fromX) * one.t, one.y, one.fromZ + (one.toZ - one.fromZ) * one.t);
+    if (one.t < 1) return true;
+    one.mesh.removeFromParent();
+    one.mesh.geometry.dispose();
+    one.mesh.material.dispose();
+    return false;
+  });
 }
 
 /** How long someone knocked out lies there (seconds). */
@@ -8061,13 +8183,7 @@ function landOn(foe, weapon) {
   const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
   const told = strikeWords({ who: personaName(), what, weapon, result, left: struck.hp, max: struck.max });
   narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
-  if (struck.down) {
-    earnXp(stats.xp);
-    // (Kept with the world, so it stays gone for its days: showBeaten.)
-    const key = `${core.save.region ?? HOME_REGION}|${foe.id}`;
-    core.save = { ...core.save, beaten: { ...core.save.beaten, [key]: core.social?.day ?? 0 } };
-    core.saves.write(core.save);
-  }
+  if (struck.down) foeBeaten(foe, stats);
   return struck.down;
 }
 
@@ -9286,6 +9402,7 @@ function step(dt) {
   if (input?.take("block")) block();
   if (input?.take("dodge")) dodge();
   if (input?.take("draw")) draw();
+  if (input?.take("cast")) cast();
   if (input?.take("rest") && core.settings.restKey) rest();
   if (input?.take("journal")) core.hud?.toggleJournal();
 
@@ -9297,6 +9414,7 @@ function step(dt) {
   }
   const speed = movePlayer(dt, read);
   carryTick();
+  boltTick(dt);
   core.still = speed < 0.1 ? (core.still ?? 0) + dt : 0; // how long the player has stood still, in seconds
   let lookAt = null;
   if (core.talking) {
@@ -9774,6 +9892,13 @@ function attach(element) {
     onBlock: block,
     onDodge: dodge,
     onDraw: draw,
+    onCast: cast,
+    onAddSpells: () => {
+      let sheet = sheetNow();
+      for (const spell of PACK.spells)
+        sheet = changeSheet(sheet, { add: { kind: "spell", name: spell.name, about: spell.about } });
+      setSheet(sheet);
+    },
     onRespawn: respawn,
     onClearBodies: () => {
       const cleared = core.herd.clearBodies();

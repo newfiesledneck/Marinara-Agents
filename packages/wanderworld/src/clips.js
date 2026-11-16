@@ -112,6 +112,7 @@ export const GESTURES = new Set([
   "fall",
   "block",
   "dodge",
+  "cast",
 ]);
 /** Sitting on the ground: how far the hips come down (leg lengths), and how the legs fold (radians
  *  from hanging straight down: thighs past level, knees up; shins sloping down to the feet). */
@@ -218,7 +219,7 @@ function blendUpper(from, to, amount) {
   return from;
 }
 /** Gestures made on the move as well as standing (fighting), and how far through one a new one may begin. */
-const MOVING_GESTURES = new Set(["strike", "punch", "hurt", "block"]);
+const MOVING_GESTURES = new Set(["strike", "punch", "hurt", "block", "cast"]);
 /** Gestures of the whole body that are made on the move (a roll), and gestures played faster than recorded. */
 const WHOLE_MOVING = new Set(["dodge"]);
 const GESTURE_RATE = { dodge: 1.9 };

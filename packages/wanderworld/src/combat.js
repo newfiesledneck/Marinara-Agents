@@ -184,3 +184,97 @@ export function spoilsWords(spoils, currency) {
   if (!parts.length) return "nothing of use";
   return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0];
 }
+
+// ── Spells ───────────────────────────────────────────────────────────────────
+
+const ATTRIBUTES = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"];
+const SPELL_COST = /(\d{1,3})\s*mana/iu;
+const SPELL_DAMAGE = /(\d{0,2}d\d{1,3}(?:\s*[+-]\s*\d{1,3})?)\s*(?:[a-z]+\s+)?damage/iu;
+const SPELL_HEAL = /\+\s?(\d{1,3})\s*HP/iu;
+const SPELL_SAVE = new RegExp(`(${ATTRIBUTES.join("|")})\\s+sav(?:e|ing throw)`, "iu");
+const SPELL_EFFECT = /\b(stunned|frightened)\b(?:\s+(?:for\s+)?(\d{1,3})\s*seconds?)?/iu;
+
+/**
+ * What a spell does, from its description on the sheet, written as an item's is:
+ *   "2 mana. 1d10 fire damage."                          an attack roll against AC
+ *   "3 mana. 2d6 cold damage. Dexterity save for half."  a saving throw: half on a save ("for half"), else none
+ *   "2 mana. Wisdom save or stunned 6 seconds."          an effect on a failed save (stunned, frightened)
+ *   "3 mana. +8 HP."                                     healing, on the caster
+ * { cost, damage, heal, save: { attribute, onSave }, effect: { name, seconds } }, or null when it says none
+ * of these (a spell that is only words for the story).
+ */
+export function spellIn(entry) {
+  const text = String(entry?.about ?? "");
+  const damage = SPELL_DAMAGE.exec(text);
+  const heal = SPELL_HEAL.exec(text);
+  const effect = SPELL_EFFECT.exec(text);
+  if (!damage && !heal && !effect) return null;
+  const save = SPELL_SAVE.exec(text);
+  return {
+    cost: Number(SPELL_COST.exec(text)?.[1] ?? 0),
+    damage: damage ? damage[1].replace(/\s+/gu, "") : null,
+    heal: heal ? Number(heal[1]) : 0,
+    save: save ? { attribute: save[1].toLowerCase(), onSave: /\bhalf\b/iu.test(text) ? "half" : "none" } : null,
+    effect: effect ? { name: effect[1].toLowerCase(), seconds: Number(effect[2] ?? 6) } : null,
+  };
+}
+
+/**
+ * A spell cast at a creature. With a saving throw: the creature rolls against the caster's DC (8 + 2 +
+ * Intelligence's modifier), taking half or none on a save and the effect only on a failure. Without: a
+ * spell attack (a d20 + 2 + Intelligence's modifier) against its AC, as a weapon's, a 20 a critical hit.
+ * { hit, saved, crit, roll, total, against, damage, effect }.
+ */
+export function spellStrike({ sheet, worn = {}, spell, foe }, random = Math.random) {
+  const wit = modifier(valueOf(sheet, "intelligence") + (worn.intelligence ?? 0));
+  if (spell.save) {
+    const dc = 10 + wit;
+    const thrown = savingThrow(
+      {
+        score: 10,
+        bonus: foe.save ?? Math.floor(foe.attack / 2),
+        dc,
+        damage: spell.damage ?? 0,
+        onSave: spell.save.onSave,
+      },
+      random,
+    );
+    return {
+      hit: !thrown.saved,
+      saved: thrown.saved,
+      crit: false,
+      roll: thrown.roll,
+      total: thrown.total,
+      against: `DC ${dc}`,
+      damage: thrown.damage,
+      effect: thrown.saved ? null : spell.effect,
+    };
+  }
+  const result = attackRoll({ bonus: 2 + wit, ac: foe.ac, damage: spell.damage ?? "0" }, random);
+  return {
+    hit: result.hit,
+    saved: false,
+    crit: result.crit,
+    roll: result.roll,
+    total: result.total,
+    against: `AC ${foe.ac}`,
+    damage: result.hit && spell.damage ? result.damage : 0,
+    effect: result.hit ? spell.effect : null,
+  };
+}
+
+/** A spell cast at a creature, told: "Zoey casts Frost burst at the wolf (it saves, 15 against DC 12): half, for 3. …" */
+export function spellWords({ who, name, what, spell, result, left, max }) {
+  const start = `${who} casts ${name} at the ${what}`;
+  const rolled = spell.save
+    ? `(its ${spell.save.attribute} save: ${result.total} against ${result.against})`
+    : `(${result.crit ? "a 20 on the die" : `${result.total} against ${result.against}`})`;
+  const parts = [];
+  if (spell.save) parts.push(result.saved ? "it saves" : "it fails");
+  else parts.push(result.crit ? "a critical hit" : result.hit ? "a hit" : "a miss");
+  if (result.damage > 0) parts.push(`for ${result.damage}`);
+  if (result.effect) parts.push(`${result.effect.name} for ${result.effect.seconds} seconds`);
+  const told = `${start} ${rolled}: ${parts.join(", ")}.`;
+  if (result.damage <= 0) return told;
+  return left > 0 ? `${told} It has ${left} of ${max} HP left.` : `${told} The ${what} goes down.`;
+}

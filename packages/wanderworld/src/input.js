@@ -1,5 +1,5 @@
 // The keyboard and the on-screen touch stick. WASD walks (Shift runs), the arrow keys look around, + / -
-// zoom, E uses what's in front of you, F swings, Q blocks, R dodges, X draws or puts away a weapon, Ctrl alone turns running on or off, Space jumps, C sits down on the ground (again: lies down) and Esc
+// zoom, E uses what's in front of you, F swings, Q blocks, R dodges, X draws or puts away a weapon, Z casts the spell that's ready, Ctrl alone turns running on or off, Space jumps, C sits down on the ground (again: lies down) and Esc
 // leaves (a seat, a conversation). Camera dragging, pinching and clicking live in main.js.
 //
 // `read()` returns { x, y, amount, run, yaw, pitch, zoom }: (x, y) is the walking direction (x right,
@@ -33,6 +33,7 @@ const PRESSES = {
   q: "block",
   r: "dodge",
   x: "draw",
+  z: "cast",
 };
 
 const STICK_SIZE = 116;

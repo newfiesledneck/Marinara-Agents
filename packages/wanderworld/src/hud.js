@@ -2836,6 +2836,18 @@ export function createHud(root, handlers) {
       ),
     );
     body.append(form);
+    // The setting's own spells, to begin with: each becomes one of yours, to rewrite or delete.
+    const starter = inkSmall("Add this setting's spells", () => {
+      handlers.onAddSpells?.();
+      void drawInventory();
+    });
+    starter.title = "Puts a handful of spells on your sheet, each with a description that says what it does by rule";
+    body.append(
+      debugNote(
+        'A spell\'s description is its rule, written like an item\'s: "2 mana. 1d10 fire damage." is an attack roll; "3 mana. 2d6 cold damage. Dexterity save for half." asks the target for a saving throw; "Wisdom save or stunned 6 seconds" leaves an effect (stunned, frightened); "+8 HP" heals you. A spell without any of these is only told to the AI.',
+      ),
+      starter,
+    );
     // What's switched off, folded away at the bottom: tick one to bring it back.
     const unused = sheet.entries.filter((entry) => !entry.on);
     if (unused.length) {
@@ -3032,19 +3044,21 @@ export function createHud(root, handlers) {
     handlers.onDraw?.(); // (the weapon is drawn or put away with it: setDrawn says which)
   });
   combatToggle.setAttribute("aria-pressed", "false");
-  for (const control of [strike, guard, roll, combatToggle]) control.style.cssText += `${THUMB}display:none;`;
+  const spellThumb = button("Cast", "Cast the spell that's ready", () => handlers.onCast?.());
+  for (const control of [strike, guard, roll, spellThumb, combatToggle])
+    control.style.cssText += `${THUMB}display:none;`;
   use.style.cssText += `${THUMB}flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;display:none;`;
   const thumbs = document.createElement("div");
   thumbs.style.cssText =
     "position:absolute;left:8px;right:8px;bottom:calc(10px + env(safe-area-inset-bottom, 0px));display:flex;gap:6px;justify-content:flex-end;align-items:center;";
-  thumbs.append(combatToggle, run, rest, jump, strike, guard, roll, use);
+  thumbs.append(combatToggle, run, rest, jump, strike, guard, roll, spellThumb, use);
 
   const hint = document.createElement("div");
   const hintText = document.createElement("div");
   hintText.style.flex = "1";
   hintText.textContent = touch
     ? "Stick to walk: push it all the way, or tap Run, to run · or tap the ground to walk there · drag to look · pinch to zoom · tap someone or something to use it"
-    : "WASD walk · Shift run (Ctrl keeps it on) · Space jump · C sit · drag or arrows to look · scroll to zoom · E or click to use · with combat on: F swing, Q block, R dodge, X draw · Esc to leave";
+    : "WASD walk · Shift run (Ctrl keeps it on) · Space jump · C sit · drag or arrows to look · scroll to zoom · E or click to use · with combat on: F swing, Q block, R dodge, X draw, Z cast · Esc to leave";
   // Read once, it can go: its × turns off Settings → Display → On screen → Controls hint.
   const hintClose = button("×", "Hide this (Settings → Display → On screen brings it back)", () =>
     handlers.onSetting("hint", false),
@@ -3225,6 +3239,11 @@ export function createHud(root, handlers) {
   for (const control of [chatJump, chatRest, ...chatFight]) control.style.cssText += "padding:4px 10px;font-size:12px;";
   for (const control of chatFight) control.style.display = "none";
   moves.append(chatJump, chatRest, ...chatFight);
+  // The spells that can be cast, a button each (setSpells).
+  const spellRow = document.createElement("div");
+  spellRow.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
+  let spellsKey = "";
+  let spellsShown = [];
   const petMoves = document.createElement("div");
   petMoves.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
   const sendHome = (role) => {
@@ -3299,7 +3318,18 @@ export function createHud(root, handlers) {
   shopButton.style.cssText += "padding:4px 10px;font-size:12px;";
   shopRow.append(shopButton);
   let shopAt = "";
-  chat.frame.append(narration, speakBar, moves, shopRow, gatherRow, petMoves, commands, peopleHere, clearChat);
+  chat.frame.append(
+    narration,
+    speakBar,
+    moves,
+    shopRow,
+    gatherRow,
+    spellRow,
+    petMoves,
+    commands,
+    peopleHere,
+    clearChat,
+  );
   let narrationTimer = null;
   // Narration with the chat window closed: a caption over the world for a few seconds, then gone (it's
   // in the window when it's opened).
@@ -3628,6 +3658,7 @@ export function createHud(root, handlers) {
       combatToggle.style.display = resting ? "none" : show(fighting);
       strike.style.display = show(fight);
       for (const control of [guard, roll]) control.style.display = show(fight && realtime);
+      spellThumb.style.display = show(fight && realtime && spellsShown.length > 0);
       chatStrike.style.display = fighting && !resting ? "" : "none";
       chatDraw.style.display = realtime && !resting ? "" : "none";
       for (const control of [chatGuard, chatRoll]) control.style.display = realtime && !resting ? "" : "none";
@@ -4004,6 +4035,30 @@ export function createHud(root, handlers) {
       }
       nodes.push(line, actions, sceneNote);
       sceneBody.replaceChildren(...nodes);
+    },
+    /**
+     * The spells that can be cast: [{ id, name, cost }], and which is ready. A button each in the chat
+     * window (casting one makes it the ready one), and the touch screen's Cast button names the ready one.
+     */
+    setSpells(spells, readyId) {
+      const key = `${spells.map((spell) => `${spell.id}:${spell.name}:${spell.cost}`).join("|")}>${readyId}`;
+      if (key === spellsKey) return;
+      spellsKey = key;
+      spellsShown = spells;
+      spellRow.replaceChildren(
+        ...spells.map((spell) => {
+          const control = button(
+            `${spell.name}${spell.cost ? ` (${spell.cost})` : ""}`,
+            `Cast ${spell.name}${spell.cost ? `: ${spell.cost} mana` : ""}${spell.id === readyId ? " (Z)" : ""}`,
+            () => handlers.onCast?.(spell.id),
+          );
+          control.style.cssText += `padding:4px 10px;font-size:12px;${spell.id === readyId ? "outline:1px solid #c9a15a;" : ""}`;
+          return control;
+        }),
+      );
+      spellRow.style.display = spells.length ? "flex" : "none";
+      const ready = spells.find((spell) => spell.id === readyId);
+      spellThumb.textContent = ready ? ready.name : "Cast";
     },
     /** Whether the weapon is drawn: the Combat button shows it, and a touch screen's row is the fighting one. */
     setDrawn(on) {

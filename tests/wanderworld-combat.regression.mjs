@@ -185,6 +185,44 @@ assert.equal(
 );
 assert.equal(foeOf("person", PACK.foes).hp, 10);
 
+// Spells: a description is its rule.
+{
+  const { spellIn, spellStrike, spellWords } = await import("../packages/wanderworld/src/combat.js");
+  assert.deepEqual(spellIn({ about: "A dart of flame. 2 mana. 1d10 fire damage." }), {
+    cost: 2,
+    damage: "1d10",
+    heal: 0,
+    save: null,
+    effect: null,
+  });
+  const frost = spellIn({ about: "3 mana. 2d6 cold damage. Dexterity save for half." });
+  assert.deepEqual([frost.damage, frost.save], ["2d6", { attribute: "dexterity", onSave: "half" }]);
+  const daze = spellIn({ about: "2 mana. Wisdom save or stunned 6 seconds." });
+  assert.deepEqual([daze.save.onSave, daze.effect], ["none", { name: "stunned", seconds: 6 }]);
+  assert.equal(spellIn({ about: "Knits a wound. 3 mana. +8 HP." }).heal, 8);
+  assert.equal(spellIn({ about: "Makes a small light." }), null, "a spell that's only words");
+  for (const spell of PACK.spells) assert.ok(spellIn(spell), `${spell.name} does something by rule`);
+  const mage = changeSheet(checkSheet(null), { set: "intelligence", field: "value", value: 16 }); // +3
+  // A spell attack: 9 + 2 + 3 = 14 against AC 13.
+  const hit = spellStrike({ sheet: mage, spell: spellIn(PACK.spells[0]), foe: wolf }, dice([9, 20], [7, 10]));
+  assert.deepEqual([hit.hit, hit.total, hit.against, hit.damage], [true, 14, "AC 13", 7]);
+  // A saving throw against DC 13: the wolf's 10 + 2 falls short and takes it all; 11 + 2 saves for half.
+  const failed = spellStrike({ sheet: mage, spell: frost, foe: wolf }, dice([10, 20], [4, 6], [5, 6]));
+  assert.deepEqual([failed.saved, failed.against, failed.damage], [false, "DC 13", 9]);
+  const saved = spellStrike({ sheet: mage, spell: frost, foe: wolf }, dice([11, 20], [4, 6], [5, 6]));
+  assert.deepEqual([saved.saved, saved.damage], [true, 4]);
+  // An effect lands only on a failed save.
+  assert.deepEqual(spellStrike({ sheet: mage, spell: daze, foe: wolf }, dice([3, 20])).effect, {
+    name: "stunned",
+    seconds: 6,
+  });
+  assert.equal(spellStrike({ sheet: mage, spell: daze, foe: wolf }, dice([19, 20])).effect, null);
+  assert.equal(
+    spellWords({ who: "Zoey", name: "Frost burst", what: "wolf", spell: frost, result: saved, left: 7, max: 11 }),
+    "Zoey casts Frost burst at the wolf (its dexterity save: 13 against DC 13): it saves, for 4. It has 7 of 11 HP left.",
+  );
+}
+
 // A herd's creature takes blows: HP kept, roused by a miss, down at 0, and out of the reckoning after.
 {
   const { createHerd } = await import("../packages/wanderworld/src/herd.js");

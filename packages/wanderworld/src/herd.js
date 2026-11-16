@@ -742,6 +742,14 @@ export function createHerd() {
         continue;
       }
       const far = Math.hypot(player.x - beast.x, player.z - beast.z) > NEAR;
+      // Stunned (a spell): it stands where it is until it wears off.
+      if ((beast.stunUntil ?? 0) > clock && !far) {
+        beast.group.visible = true;
+        beast.speed = 0;
+        place(beast);
+        beast.animal.update(dt, 0, {});
+        continue;
+      }
       // One that's about only by night (or only by day) is out of sight, in its den, the rest of the time.
       const away = beast.when === "night" ? !view.night : beast.when === "day" ? !!view.night : false;
       beast.group.visible = !far && !away;
@@ -868,6 +876,11 @@ export function createHerd() {
         }
         if (away.has(beast.id)) beast.counted = true;
       }
+    },
+    /** `id` can do nothing for `seconds`. */
+    stun(id, seconds) {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (beast && beast.down === undefined) beast.stunUntil = clock + seconds;
     },
     /** The beaten lying within `reach` of `at`: [{ id, kind, x, z, searched }]. */
     bodies(at, reach) {
