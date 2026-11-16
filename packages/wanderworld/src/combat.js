@@ -559,7 +559,9 @@ export function spellRule(spell) {
   if (spell.effect && (spell.damage || !spell.save))
     parts.push(`${spell.effect[0].toUpperCase()}${spell.effect.slice(1)} ${seconds} seconds`);
   if (spell.push) parts.push(`Pushed ${spell.push} m`);
-  if (spell.area) parts.push(`Area ${spell.area}`);
+  if (spell.area) parts.push(`Area ${spell.area}${spell.shape ? ` (${spell.shape})` : ""}`);
+  if (spell.up) parts.push(`Higher: +${spell.up} a level`);
+  if (spell.grows) parts.push("Grows with level");
   if (spell.drain) parts.push("Heals the caster for half");
   if (spell.conc && spell.effect) parts.push("Concentration");
   if (spell.bonus) parts.push("Bonus action");
@@ -603,6 +605,10 @@ export function spellIn(entry) {
     push,
     area: Number(SPELL_AREA.exec(text)?.[1] ?? 0),
     drain: /\bheals the caster\b/iu.test(text),
+    // (Its shape, for how it looks; and how it grows: dice more for each slot level above its own, or with the caster's level.)
+    shape: /\barea\s+[\d.]+\s*\((cone|line|cube|burst)\)/iu.exec(text)?.[1].toLowerCase() ?? "",
+    up: /\bhigher:\s*\+(\d{0,2}d\d{1,3})/iu.exec(text)?.[1] ?? "",
+    grows: /\bgrows with level\b/iu.test(text),
     // (Its effect lasts only while the caster keeps their mind on it: a blow may break it, another such spell ends it.)
     conc: /\bconcentration\b/iu.test(text),
     range: Number(SPELL_RANGE.exec(text)?.[1] ?? SPELL_REACH),
@@ -680,6 +686,41 @@ function spellRolled({ wit, spell, foe, prof }, random) {
     damage: result.hit && spell.damage ? result.damage : 0,
     effect: result.hit ? spell.effect : null,
   };
+}
+
+/** `dice` with `steps` times `more` added, where they're the same die ("8d6" and two of "1d6" is "10d6"); else as it was. */
+export function grownDice(dice, more, steps) {
+  const a = /^(\d*)d(\d+)([+-]\d+)?$/u.exec(String(dice ?? ""));
+  const b = /^(\d*)d(\d+)([+-]\d+)?$/u.exec(String(more ?? ""));
+  if (!a || !b || a[2] !== b[2] || steps <= 0) return dice;
+  const add = Number(a[3] ?? 0) + Number(b[3] ?? 0) * steps;
+  return `${Number(a[1] || 1) + Number(b[1] || 1) * steps}d${a[2]}${add ? (add > 0 ? `+${add}` : add) : ""}`;
+}
+
+/**
+ * A spell as it's cast now: from a `slot` above its own level its dice grow by its `up` for each level above
+ * (Fireball from a fifth-level slot is 10d6), and a cantrip that `grows` rolls its dice again at the caster's
+ * levels 5, 11 and 17 (Fire Bolt is 2d10 at 5). The spell itself when neither applies.
+ */
+export function spellGrown(spell, { slot = 0, level = 1 } = {}) {
+  const steps =
+    spell.level > 0
+      ? spell.up
+        ? Math.max(0, slot - spell.level)
+        : 0
+      : spell.grows
+        ? level >= 17
+          ? 3
+          : level >= 11
+            ? 2
+            : level >= 5
+              ? 1
+              : 0
+        : 0;
+  if (!steps) return spell;
+  const grow = (dice) =>
+    dice ? grownDice(dice, spell.level > 0 ? spell.up : String(dice).replace(/[+-]\d+$/u, ""), steps) : dice;
+  return spell.damage ? { ...spell, damage: grow(spell.damage) } : { ...spell, heal: grow(spell.heal) };
 }
 
 /** The player's casting modifier: Intelligence's, with what they wear. */

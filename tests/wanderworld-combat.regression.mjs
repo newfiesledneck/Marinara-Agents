@@ -204,17 +204,17 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
     ranged: { name: "Light crossbow", damage: "1d8", range: 24 },
   });
   const srd = (name) => SRD_SPELLS.find((spell) => spell.name === name);
-  assert.equal(spellRule(srd("Fire Bolt")), "Cantrip. 1d10 fire damage. Range 24.");
+  assert.equal(spellRule(srd("Fire Bolt")), "Cantrip. 1d10 fire damage. Grows with level. Range 24.");
   assert.equal(
     spellRule(srd("Burning Hands")),
-    "Level 1. 1 mana. 3d6 fire damage. Dexterity save for half. Area 2.5. Range 5.",
+    "Level 1. 1 mana. 3d6 fire damage. Dexterity save for half. Area 2.5 (cone). Higher: +1d6 a level. Range 5.",
   );
   assert.equal(spellRule(srd("Magic Missile")), "Level 1. 1 mana. 1d4+1 force damage. Always hits. Range 24.");
   assert.equal(
     spellRule(srd("Hold Person")),
     "Level 2. 2 mana. Wisdom save or paralyzed 12 seconds. Concentration. Range 18.",
   );
-  assert.equal(spellRule(srd("Cure Wounds")), "Level 1. 1 mana. +1d8 HP.");
+  assert.equal(spellRule(srd("Cure Wounds")), "Level 1. 1 mana. +1d8 HP. Higher: +1d8 a level.");
   assert.deepEqual([spellCost(0), spellCost(1), spellCost(3)], [0, 1, 3]);
   // Every one of them reads back as what it was written from.
   for (const spell of SRD_SPELLS) {
@@ -235,10 +235,13 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   // What a spell leaves besides damage: a shove, an area, a condition on a hit, the caster mended.
   assert.equal(
     spellRule(srd("Thunderwave")),
-    "Level 1. 1 mana. 2d8 thunder damage. Constitution save for half. Pushed 3 m. Area 2.5. Range 5.",
+    "Level 1. 1 mana. 2d8 thunder damage. Constitution save for half. Pushed 3 m. Area 2.5 (cube). Higher: +1d8 a level. Range 5.",
   );
-  assert.equal(spellRule(srd("Ray of Frost")), "Cantrip. 1d8 cold damage. Slowed 6 seconds. Range 18.");
-  assert.equal(spellRule(srd("Sleep")), "Level 1. 1 mana. Always hits. Asleep 12 seconds. Area 6. Range 24.");
+  assert.equal(
+    spellRule(srd("Ray of Frost")),
+    "Cantrip. 1d8 cold damage. Slowed 6 seconds. Grows with level. Range 18.",
+  );
+  assert.equal(spellRule(srd("Sleep")), "Level 1. 1 mana. Always hits. Asleep 12 seconds. Area 6 (burst). Range 24.");
   assert.match(spellRule(srd("Vampiric Touch")), /Heals the caster for half/u);
   const wave = spellIn({ about: spellRule(srd("Thunderwave")) });
   const weak = { ac: 10, attack: 0 };
@@ -360,9 +363,10 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
     { id: "zoey", roll: 10, total: 12 }, // (a tie with Mira's 11 + 1: the higher bonus goes first)
     { id: "mira", roll: 11, total: 12 },
   ]);
-  assert.deepEqual(slotsAt(1, SRD_SLOTS), { 1: 2, 2: 0, 3: 0 });
-  assert.deepEqual(slotsAt(3, SRD_SLOTS), { 1: 4, 2: 2, 3: 0 });
-  assert.deepEqual(slotsAt(5, SRD_SLOTS), { 1: 4, 2: 3, 3: 2 });
+  const first3 = (slots) => [slots[1], slots[2], slots[3]];
+  assert.deepEqual(first3(slotsAt(1, SRD_SLOTS)), [2, 0, 0]);
+  assert.deepEqual(first3(slotsAt(3, SRD_SLOTS)), [4, 2, 0]);
+  assert.deepEqual(first3(slotsAt(5, SRD_SLOTS)), [4, 3, 2]);
   const slots = slotsAt(3, SRD_SLOTS);
   assert.equal(slotFor(0, slots, {}), -1, "a cantrip needs no slot");
   assert.equal(slotFor(1, slots, {}), 1);
@@ -370,7 +374,7 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   assert.equal(slotFor(2, slots, { 2: 2 }), 0, "none left");
   assert.equal(slotFor(3, slots, {}), 0, "none of that level yet");
   const word = SRD_SPELLS.find((spell) => spell.name === "Healing Word");
-  assert.equal(spellRule(word), "Level 1. 1 mana. +1d4 HP. Bonus action.");
+  assert.equal(spellRule(word), "Level 1. 1 mana. +1d4 HP. Higher: +1d4 a level. Bonus action.");
   assert.deepEqual([spellIn({ about: spellRule(word) }).bonus, spellIn({ about: spellRule(word) }).level], [true, 1]);
   assert.equal(spellIn({ about: "Cantrip. 1d10 fire damage." }).level, 0);
   assert.equal(
@@ -639,6 +643,47 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   assert.equal(hold.conc, true);
   assert.equal(spellIn({ about: spellRule(hold) }).conc, true);
   assert.equal(spellIn({ about: spellRule(SRD_SPELLS.find((spell) => spell.name === "Fire Bolt")) }).conc, false);
+}
+
+// Spells to the ninth level; how they grow; how each is seen.
+{
+  const { grownDice, slotsAt, spellGrown, spellIn, spellRule } = await import("../packages/wanderworld/src/combat.js");
+  const { SRD_SLOTS, SRD_SPELLS } = await import("../packages/wanderworld/src/srd.js");
+  const { spellLook } = await import("../packages/wanderworld/src/spellfx.js");
+  const read = (name) => spellIn({ about: spellRule(SRD_SPELLS.find((spell) => spell.name === name)) });
+  assert.ok(
+    SRD_SPELLS.some((spell) => spell.level === 9),
+    "the ninth level is there",
+  );
+  assert.equal(Object.keys(SRD_SLOTS).length, 9);
+  assert.deepEqual([slotsAt(1, SRD_SLOTS)[1], slotsAt(1, SRD_SLOTS)[2], slotsAt(17, SRD_SLOTS)[9]], [2, 0, 1]);
+  assert.equal(grownDice("8d6", "1d6", 2), "10d6");
+  assert.equal(grownDice("1d4+1", "1d4+1", 2), "3d4+3");
+  assert.equal(grownDice("8d6", "1d8", 2), "8d6", "a different die: left as it is");
+  const ball = read("Fireball");
+  assert.deepEqual([ball.up, ball.shape, ball.area], ["1d6", "burst", 6]);
+  assert.equal(spellGrown(ball, { slot: 5 }).damage, "10d6");
+  assert.equal(spellGrown(ball, { slot: 3 }), ball, "from its own level it's as written");
+  assert.equal(spellGrown(ball, { slot: 0 }), ball, "cast with mana, the same");
+  const bolt = read("Fire Bolt");
+  assert.deepEqual(
+    [1, 5, 11, 17].map((level) => spellGrown(bolt, { level }).damage),
+    ["1d10", "2d10", "3d10", "4d10"],
+  );
+  assert.equal(spellGrown(read("Cure Wounds"), { slot: 3 }).heal, "3d8");
+  assert.deepEqual(
+    [
+      "Fire Bolt",
+      "Burning Hands",
+      "Lightning Bolt",
+      "Magic Missile",
+      "Sacred Flame",
+      "Shocking Grasp",
+      "Cure Wounds",
+    ].map((name) => spellLook(read(name))),
+    ["bolt", "cone", "beam", "volley", "column", "beam", "motes"],
+  );
+  assert.equal(spellLook(read("Inflict Wounds")), "touch");
 }
 
 console.log("ok: fighting by the rules");

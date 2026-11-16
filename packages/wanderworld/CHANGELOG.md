@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.05 — 2026-11-16
+
+- Spells go to the ninth level: 94 of the 5e SRD's can be added from Inventory → Sheet, up from 53. Spell slots go to the ninth level too.
+- Spells grow as in the SRD. A cantrip rolls its dice again at levels 5, 11 and 17. Cast from a higher spell slot than its own, a spell is the greater for it (Fireball from a fifth-level slot is 10d6).
+- Each kind of spell has its own look: a fan of flame for a cone, a beam for a line or for lightning, three darts for one that can't miss, light from above, a flash for a touch. A shove throws a shockwave over the ground, and motes circle whatever is under a spell.
+
 ## 0.7.04 — 2026-11-16
 
 - Death saving throws (off to begin with): at 0 HP you fall, dying, and roll every few seconds. Three successes and you come round with 1 HP, three failures and you're beaten; a 20 gets you up at once, and so does a companion's healing.

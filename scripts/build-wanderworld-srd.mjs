@@ -75,7 +75,7 @@ const spells = [];
 for (const entry of read("spells.json")) {
   const level = entry.filters?.level;
   const mechanics = entry.mechanics ?? {};
-  if (!(level >= 0 && level <= 3) || /[(:]/u.test(entry.label) || !entry.filters.classes?.length) continue;
+  if (!(level >= 0 && level <= 9) || /[(:]/u.test(entry.label) || !entry.filters.classes?.length) continue;
   const dice = mechanics.amount?.dice ?? null;
   const save = SAVES[mechanics.save?.save] ?? null;
   const applied = (Array.isArray(mechanics.applies) ? mechanics.applies : [])
@@ -112,7 +112,13 @@ for (const entry of read("spells.json")) {
   if (push && !spell.heal) spell.push = push;
   // (One whose effect lasts only while the caster keeps their mind on it.)
   if (mechanics.concentration && spell.effect) spell.conc = true;
-  if (areaOf(mechanics.area) && !spell.heal) spell.area = areaOf(mechanics.area);
+  if (areaOf(mechanics.area) && !spell.heal) {
+    spell.area = areaOf(mechanics.area);
+    spell.shape = { box: "cube" }[mechanics.area.shape] ?? mechanics.area.shape;
+  }
+  // How it grows: a cantrip with the caster's level, any other with the slot it's cast from (dice a level above its own).
+  if (level === 0 && mechanics.scales && dice) spell.grows = true;
+  if (level > 0 && /^\d*d\d+$/u.test(mechanics.perCostStep?.dice ?? "") && dice) spell.up = mechanics.perCostStep.dice;
   spells.push(spell);
 }
 spells.sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
@@ -164,11 +170,11 @@ const slots = {};
 (function find(node) {
   if (Array.isArray(node)) return node.forEach(find);
   if (!node || typeof node !== "object") return;
-  const level = /^slots_([1-3])_from_level$/u.exec(node.id ?? "")?.[1];
+  const level = /^slots_([1-9])_from_level$/u.exec(node.id ?? "")?.[1];
   if (level && Array.isArray(node.table)) slots[level] = node.table;
   Object.values(node).forEach(find);
 })(ruleset);
-if (Object.keys(slots).length !== 3) throw new Error("The ruleset's spell slot tables weren't found.");
+if (Object.keys(slots).length !== 9) throw new Error("The ruleset's spell slot tables weren't found.");
 
 if (Object.keys(classes).length !== 12)
   throw new Error(`Expected the SRD's twelve classes, found ${Object.keys(classes).length}`);

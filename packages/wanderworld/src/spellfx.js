@@ -23,6 +23,21 @@ export const SPELL_COLOURS = {
 };
 export const spellColour = (kind) => SPELL_COLOURS[kind] ?? 0xffd9a0;
 
+/**
+ * How a spell is seen on its way, from what it is (combat.js spellIn): a fan of fire for a cone, a beam for
+ * a line or for lightning, a volley for one that can't miss, light from above for radiance that asks a
+ * save, a flash at the hand for a touch, and a bolt for the rest. "motes" for one that only mends.
+ */
+export function spellLook(spell) {
+  if (spell.heal && !spell.damage) return "motes";
+  if (spell.shape === "cone") return "cone";
+  if (spell.shape === "line" || spell.type === "lightning") return "beam";
+  if (spell.sure && spell.damage) return "volley";
+  if (spell.type === "radiant" && spell.save) return "column";
+  if (spell.range <= 2.5) return "touch";
+  return "bolt";
+}
+
 const BALL = new SphereGeometry(1, 12, 8);
 const RING = new RingGeometry(0.82, 1, 28);
 
@@ -95,6 +110,112 @@ export function createSpellFx() {
         then?.();
       }
     });
+  }
+
+  /** Runs `run` after `seconds` (kept in step with the effects, so a pause holds it too). */
+  function delayed(scene, seconds, run) {
+    const mesh = glow(BALL, 0xffffff, 0);
+    mesh.scale.setScalar(0.001);
+    add(scene, mesh, Math.max(0.01, seconds), (effect, through) => {
+      if (through >= 1) run();
+    });
+  }
+
+  /** A beam: light along the whole line at once (`jagged`: lightning), then fading; `then` runs as it strikes. */
+  function beam(scene, from, to, colour, { size = 1, then = null, jagged = false } = {}) {
+    const far = Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z);
+    const count = Math.max(6, Math.min(40, Math.round(far * 2.5)));
+    for (let i = 0; i <= count; i++) {
+      const t = i / count;
+      const off = jagged && i > 0 && i < count ? 0.26 : 0.03;
+      const mesh = glow(BALL, colour, 0.95);
+      mesh.position.set(
+        from.x + (to.x - from.x) * t + (Math.random() - 0.5) * off,
+        from.y + (to.y - from.y) * t + (Math.random() - 0.5) * off,
+        from.z + (to.z - from.z) * t + (Math.random() - 0.5) * off,
+      );
+      add(scene, mesh, 0.4, (effect, through) => {
+        mesh.scale.setScalar(0.11 * size * (1 - through * 0.7));
+        mesh.material.opacity = 0.95 * (1 - through);
+      });
+    }
+    burst(scene, to, colour, size);
+    then?.();
+  }
+
+  /** A fan of bolts from `from` toward `to` and to either side of it: a cone. `then` runs as the middle one lands. */
+  function cone(scene, from, to, colour, { size = 1, then = null } = {}) {
+    const angle = Math.atan2(to.x - from.x, to.z - from.z);
+    const far = Math.max(2.5, Math.hypot(to.x - from.x, to.z - from.z));
+    [-0.5, -0.25, 0, 0.25, 0.5].forEach((off) =>
+      bolt(
+        scene,
+        from,
+        { x: from.x + Math.sin(angle + off) * far, y: to.y, z: from.z + Math.cos(angle + off) * far },
+        colour,
+        { seconds: 0.22, size: size * 0.8, then: off === 0 ? then : null },
+      ),
+    );
+  }
+
+  /** Three small bolts one after another, each from a little apart: one that can't miss. `then` runs as the last lands. */
+  function volley(scene, from, to, colour, { size = 1, then = null } = {}) {
+    for (let i = 0; i < 3; i++)
+      delayed(scene, i * 0.09, () =>
+        bolt(scene, { x: from.x + (i - 1) * 0.28, y: from.y + (i % 2) * 0.3, z: from.z }, to, colour, {
+          seconds: 0.24,
+          size: size * 0.6,
+          then: i === 2 ? then : null,
+        }),
+      );
+  }
+
+  /** Light falling on `to` from above. */
+  function column(scene, to, colour, { size = 1, then = null } = {}) {
+    beam(scene, { x: to.x, y: to.y + 9, z: to.z }, to, colour, { size: size * 1.5, then });
+  }
+
+  /** A flash where the hand lands, and motes off it: a touch. */
+  function touch(scene, to, colour, { size = 1, then = null } = {}) {
+    burst(scene, to, colour, size * 0.8);
+    motes(scene, { x: to.x, y: to.y - 0.7, z: to.z }, colour, 6);
+    then?.();
+  }
+
+  /** A ring thrown out over the ground from `at` to `radius` metres: a shove, a shock. */
+  function wave(scene, at, colour, radius = 3) {
+    for (const [delay, strength] of [
+      [0, 0.9],
+      [0.12, 0.5],
+    ])
+      delayed(scene, delay, () => {
+        const mesh = glow(RING, colour, strength);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.set(at.x, at.y, at.z);
+        add(scene, mesh, 0.5, (effect, through) => {
+          mesh.scale.setScalar(0.4 + through * radius);
+          mesh.material.opacity = strength * (1 - through);
+        });
+      });
+  }
+
+  /** Motes circling (x, z) for `seconds`: something under a spell. */
+  function swirl(scene, at, colour, seconds, size = 1) {
+    const lasts = Math.max(0.5, Math.min(12, seconds));
+    for (let i = 0; i < 5; i++) {
+      const mesh = glow(BALL, colour, 0.85);
+      const start = (i / 5) * Math.PI * 2;
+      add(scene, mesh, lasts, (effect, through) => {
+        const angle = start + effect.life * 2.4;
+        mesh.position.set(
+          at.x + Math.sin(angle) * 0.6 * size,
+          at.y + 0.5 + Math.sin(effect.life * 3 + i) * 0.35,
+          at.z + Math.cos(angle) * 0.6 * size,
+        );
+        mesh.scale.setScalar(0.06);
+        mesh.material.opacity = 0.85 * Math.min(1, (1 - through) * 5);
+      });
+    }
   }
 
   /** A ring turning round (x, z) at `y` for `seconds`: something held where it stands. */
@@ -177,5 +298,21 @@ export function createSpellFx() {
     live = [];
   }
 
-  return { bolt, burst, ring, circle, motes, update, clear, count: () => live.length };
+  return {
+    bolt,
+    beam,
+    cone,
+    volley,
+    column,
+    touch,
+    wave,
+    swirl,
+    burst,
+    ring,
+    circle,
+    motes,
+    update,
+    clear,
+    count: () => live.length,
+  };
 }

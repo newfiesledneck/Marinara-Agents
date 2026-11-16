@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.05",
+          "date": "2026-11-16",
+          "notes": "- Spells go to the ninth level: 94 of the 5e SRD's can be added from Inventory → Sheet, up from 53. Spell slots go to the ninth level too.\n- Spells grow as in the SRD. A cantrip rolls its dice again at levels 5, 11 and 17. Cast from a higher spell slot than its own, a spell is the greater for it (Fireball from a fifth-level slot is 10d6).\n- Each kind of spell has its own look: a fan of flame for a cone, a beam for a line or for lightning, three darts for one that can't miss, light from above, a flash for a touch. A shove throws a shockwave over the ground, and motes circle whatever is under a spell.",
+          "highlight": false
+        },
+        {
           "version": "0.7.04",
           "date": "2026-11-16",
           "notes": "- Death saving throws (off to begin with): at 0 HP you fall, dying, and roll every few seconds. Three successes and you come round with 1 HP, three failures and you're beaten; a 20 gets you up at once, and so does a companion's healing.\n- Concentration: Hold Person and spells like it end if you're hurt and fail a Constitution save, or when you cast another such spell.\n- Cover: a tree or a boulder between a shot or a spell attack and its target gives +2 AC, for you and for creatures.\n- Creatures have their nerve from the ruleset: skeletons and fanatics never run, cowards run sooner. By turns, wolves go for whoever is most hurt, puglins for the weakest, a dragon for casters.\n- Each has a switch in Settings → Inventory → 5e rules.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.86",
           "date": "2026-11-15",
           "notes": "- Spells come from the 5e SRD and from you, and nowhere else. Inventory → Sheet lists 40 SRD spells of level 0 to 3 to add from. The five spells made up for 0.6.85 are gone from the game; any on your sheet stay as your own.\n- Cantrips cost no mana. A spell costs one more than its level.\n- Spells have ranges, some need no roll, and healing rolls dice.\n- A spell can be cast at a person, where blows can land on people.\n- Sitting or lying down slowly restores mana and HP; a sleep restores both fully (Settings → Inventory → Sheet).\n- Spells look like something: a bolt with a trail, a burst where it lands, a ring round what's held, motes for mending.\n- Credits name the SRD 5.1 (CC BY 4.0).",
-          "highlight": false
-        },
-        {
-          "version": "0.6.85",
-          "date": "2026-11-15",
-          "notes": "- Casting. A spell is a line of your sheet whose description is its rule, written like an item's: \"2 mana. 1d10 fire damage.\" or \"3 mana. 2d6 cold damage. Dexterity save for half.\" or \"Wisdom save or stunned 6 seconds.\" or \"+8 HP.\"\n- Z casts the spell that's ready. Each spell has a button in the chat window, and a touch screen's Combat row has a Cast button.\n- A spell flies at the nearest creature ahead of you. It is a spell attack against AC, or the creature makes a saving throw for half or none. Stunned stops it; frightened sends it running. A healing spell mends you.\n- Inventory → Sheet has a button that adds five spells to begin with. You can rewrite them and add your own.",
           "highlight": false
         }
       ]
