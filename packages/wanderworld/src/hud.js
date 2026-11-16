@@ -875,7 +875,18 @@ export function createHud(root, handlers) {
     srdCreatures:
       "On: a creature's HP, AC, attack and damage are those of the 5e SRD creature it is taken as: a wolf is the SRD's wolf (11 HP, AC 13, +4 to hit, 2d4+2), a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage. Cattle, the alpaca and the shiba have nothing close in the SRD and keep the game's own numbers, as they all do with this off. People fight by their class either way. Experience for a win is the game's own.",
     rangedFoes:
-      "Real-time combat only. On: a creature the SRD gives a bow, a crossbow or spells uses them when you're out of its reach. A bandit shoots a light crossbow, a puglin and a skeleton a shortbow; a wizard casts Fire Bolt and Magic Missile, a witch Sacred Flame and Spiritual Weapon. Each is rolled against your AC or your saving throw, or a companion's AC. Off: they all have to close with you.",
+      "On: a creature the SRD gives a bow, a crossbow or spells uses them when you're out of its reach, in real time and by turns. A bandit shoots a light crossbow, a puglin and a skeleton a shortbow; a wizard casts Fire Bolt and Magic Missile, a witch Sacred Flame and Spiritual Weapon. Each is rolled against your AC or your saving throw, or a companion's AC. Off: they all have to close with you.",
+    turnActions:
+      "How many actions you have on each of your turns in a fight by turns. 0 leaves it to the rules: one (a fighter's Action Surge adds one, once between sleeps). Set a number to have that many whatever your class.",
+    turnBonus: "How many bonus actions you have each turn. 0 leaves it to the rules: one.",
+    turnAttacks:
+      "How many attacks one Attack action gives. 0 leaves it to the rules: one, or two from level 5 for a barbarian, fighter, monk, paladin or ranger (a fighter three from level 11, four at 20), by the class you chose in Inventory → Sheet.",
+    turnMove:
+      "How far you can go from where your turn began, in metres. You can walk about inside that circle as much as you like, and back again; you can't leave it. 0 leaves it to the rules: 9 (the SRD's 30 feet), 12 for a barbarian from level 5 or a monk from level 2. Dash doubles it for the turn.",
+    surprise:
+      "On: when a creature starts coming for you, its Stealth (a d20 plus its Dexterity) is rolled against your passive Perception (10 plus your Wisdom modifier). If you notice it, the fight begins there and then, by initiative. If you don't, you're surprised: you and your companions lose your first turn. Off: you always notice.",
+    opportunity:
+      "On: if you move out of a creature's reach on your turn, it gets one strike at you as you go, once a round each. The Disengage action lets you move away freely for that turn. Off: nothing strikes as you leave.",
     partyFights:
       "On: in real-time combat the people travelling with you join in. Each has a class from the 5e SRD (Inventory → Sheet → Your companions), which gives them a weapon and spells: they strike what comes within reach, cast at what doesn't, and one who can heal mends you when you're below half your HP. Their rolls are told in the chat like yours. They move with the fight: one who strikes closes with a creature and works round it, one who casts keeps a few paces off. Creatures go for them as well as for you; each has HP from their class, and at 0 is out of the fight for a while, then up again. Off: they stand by, and nothing goes for them.",
     fightPeople:
@@ -1372,6 +1383,12 @@ export function createHud(root, handlers) {
   toggle("fightBack", "People you attack fight back", "fightPeople");
   toggle("partyFights", "Your companions fight beside you", "sheet");
   toggle("srdSlots", "Fights by turns use spell slots", "sheet");
+  number("turnActions", "By turns: actions each turn (0: by the rules)", "sheet");
+  number("turnBonus", "By turns: bonus actions each turn (0: by the rules)", "sheet");
+  number("turnAttacks", "By turns: attacks for one action (0: by the rules)", "sheet");
+  number("turnMove", "By turns: metres you can move (0: by the rules)", "sheet");
+  toggle("surprise", "By turns: creatures can surprise you", "sheet");
+  toggle("opportunity", "By turns: opportunity attacks", "sheet");
   toggle("srdCreatures", "Creatures use the 5e SRD's numbers", "sheet");
   toggle("rangedFoes", "Creatures shoot and cast from a distance", "srdCreatures");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
@@ -3100,6 +3117,29 @@ export function createHud(root, handlers) {
       ),
       spellForm,
     );
+    // The player's own class, if they want one: what it adds to their turns in a fight by turns.
+    {
+      const row = piece("display:flex;align-items:center;gap:6px;margin-top:6px;");
+      const choose = document.createElement("select");
+      choose.style.cssText = `${INK_INPUT}padding:2px 4px;`;
+      choose.setAttribute("aria-label", "Your class");
+      const mine = handlers.playerClass?.() ?? "";
+      for (const option of [{ id: "", label: "None" }, ...(handlers.classList?.() ?? [])]) {
+        const node = document.createElement("option");
+        node.value = option.id;
+        node.textContent = option.label;
+        node.selected = option.id === mine;
+        choose.append(node);
+      }
+      choose.addEventListener("change", () => handlers.onSetClass?.("player", choose.value));
+      row.append(piece("flex:1;min-width:0;font-weight:700;", "Your class"), choose);
+      body.append(
+        row,
+        debugNote(
+          "Optional, and only for fights by turns. A class from the 5e SRD gives you what it gives by level: a fighter Second Wind (a bonus action: +1d10 + your level HP, once between sleeps), Action Surge from level 2 (one more action, once between sleeps) and more attacks for an Attack action from level 5; a rogue Cunning Action from level 2 (Dash or Disengage as a bonus action); a barbarian Rage (a bonus action, twice between sleeps: +2 damage with what you swing, and half damage from weapons, teeth and claws, for the rest of the fight). Barbarians, monks, paladins and rangers also attack twice from level 5. Settings → Inventory → Combat has the numbers, if you'd rather set them yourself.",
+        ),
+      );
+    }
     // The party, each with a class: what they fight with and what they cast.
     const companions = handlers.companions?.() ?? [];
     if (companions.length) {
@@ -4335,15 +4375,19 @@ export function createHud(root, handlers) {
       sceneBody.replaceChildren(...nodes);
     },
     /**
-     * A fight by turns, shown along the top: { round, order: [{ name, current, kind }], mine, move, action,
-     * bonus, slots } (`mine`: it's the player's turn; `slots`: "1st 2/2 · 2nd 0/0" or ""); null: no fight.
+     * A fight by turns, shown along the top: { round, order: [{ name, current, kind }], mine, out, reach,
+     * action, attacks, bonus, acts: [{ id, label, title, ready }], slots } (`mine`: it's the player's turn; `slots`: "1st 2/2 · 2nd 0/0" or ""); null: no fight.
      */
     setBattle(state) {
       const key = JSON.stringify(state);
       if (key === battleKey) return;
       battleKey = key;
       battleBar.style.display = state ? "flex" : "none";
-      if (!state) return;
+      if (!state) {
+        notice.style.top = "48px";
+        caption.style.top = "84px";
+        return;
+      }
       const order = document.createElement("div");
       order.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;justify-content:center;";
       for (const entry of state.order) {
@@ -4354,9 +4398,19 @@ export function createHud(root, handlers) {
       }
       const line = document.createElement("div");
       line.style.cssText = "font-size:12px;text-align:center;";
+      const count = (n, word) => (n > 0 ? `${n} ${word}${n === 1 ? "" : "s"}` : `no ${word}`);
       line.textContent = state.mine
-        ? `Round ${state.round} · Your turn · Move ${state.move.toFixed(1)} m · Action ${state.action ? "ready" : "used"} · Bonus ${state.bonus ? "ready" : "used"}${state.slots ? ` · Slots ${state.slots}` : ""}`
+        ? `Round ${state.round} · Your turn · Moved ${state.out.toFixed(1)} of ${state.reach} m · ${count(state.action, "action")}${state.attacks ? ` (+${count(state.attacks, "attack")})` : ""} · ${count(state.bonus, "bonus action")}${state.slots ? ` · Slots ${state.slots}` : ""}`
         : `Round ${state.round} · ${state.order.find((entry) => entry.current)?.name ?? ""}'s turn`;
+      // What else a turn can be spent on (Dash, Disengage, Dodge, and a class's own), each a button.
+      const acts = document.createElement("div");
+      acts.style.cssText = "display:flex;gap:5px;flex-wrap:wrap;justify-content:center;";
+      for (const act of state.acts ?? []) {
+        const node = button(act.label, act.title, () => handlers.onBattleAct?.(act.id));
+        node.disabled = !act.ready;
+        node.style.cssText += `padding:5px 9px;font-size:12px;${act.ready ? "" : "opacity:0.45;"}`;
+        acts.append(node);
+      }
       const row = document.createElement("div");
       row.style.cssText = "display:flex;gap:6px;justify-content:center;";
       const end = button("End turn", "End your turn", () => handlers.onEndTurn?.());
@@ -4366,7 +4420,11 @@ export function createHud(root, handlers) {
       );
       flee.style.cssText += "padding:6px 10px;font-size:12px;";
       row.append(end, flee);
-      battleBar.replaceChildren(order, line, row);
+      battleBar.replaceChildren(order, line, ...(acts.childElementCount ? [acts] : []), row);
+      // (Notices and captions come under the bar, not behind it.)
+      const under = battleBar.offsetTop + battleBar.offsetHeight + 6;
+      notice.style.top = `${under}px`;
+      caption.style.top = `${under}px`;
     },
     /** The hotkeys that are set: [{ key, label }]. A button each in the chat window (none hides the row). */
     setHotbar(slots) {

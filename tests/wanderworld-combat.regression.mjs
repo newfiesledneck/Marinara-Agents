@@ -503,4 +503,28 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   assert.ok(!SRD_CREATURES.wolf.ranged && !SRD_CREATURES.wolf.spells, "a wolf has to close with you");
 }
 
+// What a turn gives: by the rules for a class and level, or the player's own numbers.
+{
+  const { turnBudget } = await import("../packages/wanderworld/src/combat.js");
+  assert.deepEqual(turnBudget(), { actions: 1, bonus: 1, attacks: 1, move: 9 });
+  assert.equal(turnBudget("fighter", 4).attacks, 1);
+  assert.deepEqual(
+    [5, 11, 20].map((level) => turnBudget("fighter", level).attacks),
+    [2, 3, 4],
+  );
+  assert.equal(turnBudget("ranger", 5).attacks, 2);
+  assert.equal(turnBudget("wizard", 20).attacks, 1);
+  assert.deepEqual(
+    [turnBudget("monk", 2).move, turnBudget("barbarian", 5).move, turnBudget("barbarian", 4).move],
+    [12, 12, 9],
+  );
+  assert.deepEqual(turnBudget("wizard", 1, { actions: 2, bonus: 3, attacks: 4, move: 15 }), {
+    actions: 2,
+    bonus: 3,
+    attacks: 4,
+    move: 15,
+  });
+  assert.equal(turnBudget("fighter", 5, { attacks: 0 }).attacks, 2, "0 leaves it to the rules");
+}
+
 console.log("ok: fighting by the rules");

@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.99",
+          "date": "2026-11-16",
+          "notes": "- By turns: a fight starts when a creature begins coming for you, not when it hits. Its Stealth is rolled against your passive Perception; if you miss it, you lose your first turn.\n- Movement is a circle on the ground: anywhere within nine metres of where your turn began, and back. Clicking to walk no longer goes past it.\n- Dash, Disengage and Dodge buttons on the bar. Leaving a creature's reach gives it an opportunity attack unless you Disengaged.\n- An optional class of your own (Inventory → Sheet): Second Wind, Action Surge, Cunning Action, Rage, Extra Attack.\n- Actions, bonus actions, attacks and metres per turn can be set by hand in Settings → Inventory → Combat.\n- Creatures shoot and cast on their turns.\n- The bar no longer covers notices.",
+          "highlight": false
+        },
+        {
           "version": "0.6.98",
           "date": "2026-11-16",
           "notes": "- Bows and crossbows. One you carry is shot with the attack key when nothing is in reach of a swing, by Dexterity. The smith sells a shortbow and a light crossbow. Arrows aren't counted.\n- Companions who are fighters, rangers or rogues shoot when a creature is out of reach, and so do people fighting back.\n- Creatures shoot and cast from a distance: a bandit's light crossbow, a puglin's and a skeleton's shortbow, a wizard's Fire Bolt and Magic Missile, a witch's Sacred Flame. \"Creatures shoot and cast from a distance\" turns it off.\n- Fixed: moving one Creatures slider moved every animal in the world. Each sort is now counted out by itself. Wild animals live out in the country, so some deer now graze within sight of the last houses.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.80",
           "date": "2026-11-15",
           "notes": "- What you beat can be seen to. Stand at an animal and the prompt says Harvest: hide, meat and the like go into your inventory, and the body goes. At an outlaw it says Search: you take what they carried, coins among it.\n- What a creature gives can be sold. The new things have a worth at shops.\n- Settings → Inventory → Combat sets how many minutes the beaten lie where they fell (0 keeps them), and has a button that clears them all.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.79",
-          "date": "2026-11-15",
-          "notes": "- Fighting has no prompt now. F swings; on a touch screen there is an Attack button by your thumb, and the chat window has one too.\n- You swing wherever you face, and can keep walking or running while you do: the swing plays over the walking legs.\n- Nothing is aimed at. When the blow lands, the nearest animal in front of you and in reach takes the attack roll. A swing at nothing is just a swing.\n- Any animal can be struck, not only hostile ones. Peaceful ones run. People and your own animals can't be struck yet.\n- One swing can follow another a little before the last has finished.\n- A creature in a fight no longer draws off six paces after every attack. It chooses each time: stay on you, circle, come again at once, or back away.",
           "highlight": false
         }
       ]
