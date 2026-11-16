@@ -857,6 +857,8 @@ export function createHud(root, handlers) {
       "How long something you've beaten lies where it fell before it goes. 0 keeps it until you harvest it or clear it with the button below. While it lies there you can harvest an animal (hide, meat and the like go into your inventory, and the body goes) or search an outlaw (what they carried; the body stays).",
     defeat:
       "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and what beat you has drawn off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Stay down until you choose: you lie where you fell while the chat and the narration go on, and a Respawn button at the top gets you up at home whenever you like. Nothing is lost either way, and nobody dies for good.",
+    fightPeople:
+      "Off: a swing passes people by, and only animals, monsters and outlaws can be struck. On: a blow can land on anyone in front of you, your companions too. It's rolled like any other. Whoever you strike remembers it for good and becomes your enemy, anyone who sees it remembers, and at 0 HP they are out cold for a couple of minutes, then get up. Nobody dies. People don't strike back yet.",
     undefeatable:
       "On: your HP, mana and every other resource with a most are held at their most, whatever happens. Fights are still rolled and told, and nothing can put you down.",
     gathering:
@@ -1264,6 +1266,7 @@ export function createHud(root, handlers) {
     "sheet",
   );
   toggle("undefeatable", "Undefeatable", "sheet");
+  toggle("fightPeople", "Blows can land on people", "sheet");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
   number("beatenDays", "Days before the beaten are about again", "sheet");
   {

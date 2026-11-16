@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.6.84 — 2026-11-15
+
+- People can be struck, if you allow it: Settings → Inventory → Combat → "Blows can land on people", off to begin with.
+- A blow on someone is rolled like any other. They remember it for good and become your enemy (unless you've locked how they see you), and anyone who saw it remembers.
+- At 0 HP they lie out cold for two minutes, then get up. Nobody dies. People don't strike back yet.
+
 ## 0.6.83 — 2026-11-15
 
 - X draws your weapon or puts it away (real-time combat). On a touch screen the Combat button does it. Drawn, the view stays behind you: turning the view turns you, and you step sideways and backwards without turning away. The weapon stays in your hand.

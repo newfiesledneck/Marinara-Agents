@@ -1284,7 +1284,10 @@ export function createCrowd() {
           : "";
         if (line) say(person, view, line);
       }
-      if (!spot || person.wait <= 0 || (space === world && isNight(view.hour))) {
+      // (Knocked out, they lie where they fell until their time's up, whatever the hour.)
+      const out = (person.outUntil ?? 0) > clock;
+      if (!out && (!spot || person.wait <= 0 || (space === world && isNight(view.hour)))) {
+        person.outUntil = 0;
         const lying = person.act === "lie";
         leaveSeat(person);
         // Back out the way they came in (a garden's gate, a field's, the forge's arches), not through a fence.
@@ -1682,6 +1685,21 @@ export function createCrowd() {
           sitting: person.state === "sit",
         }));
     },
+    /** `id` is knocked out: they lie where they are for `seconds`, then get up and go about their day. */
+    knockOut(id, seconds) {
+      const person = people.get(id);
+      if (!person || person.state === "inside") return false;
+      leaveSeat(person);
+      person.plan = [];
+      person.state = "busy";
+      person.act = "lie";
+      person.spot = null;
+      person.wait = seconds;
+      person.outUntil = clock + seconds;
+      return true;
+    },
+    /** Whether `id` is knocked out now. */
+    isOut: (id) => (people.get(id)?.outUntil ?? 0) > clock,
     /** Starts a conversation: they stop what they're doing (standing up if seated) and face the player. */
     /** Someone's group (to put a speech bubble over), or null. */
     groupOf(id) {

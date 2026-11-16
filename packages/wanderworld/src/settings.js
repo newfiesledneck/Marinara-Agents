@@ -164,6 +164,8 @@ export const SETTINGS = {
   defeat: { value: "home", options: ["here", "home", "stay"] },
   // HP, mana and every other resource held at their most.
   undefeatable: { value: false },
+  // Whether a blow can land on a person (the townsfolk, your companions, anyone with a name).
+  fightPeople: { value: false },
   // How many minutes something beaten lies where it fell (0: until it's harvested or cleared).
   bodyMinutes: { value: 3, min: 0, max: 120 },
   /** How many of the world's days a felled tree takes to stand again (0: it never does). */
