@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.97)
+## What it does now (0.6.98)
 
 ### The world
 
@@ -582,6 +582,11 @@ every roll, and no AI call is made in a real-time fight.
   an area that catches everything near the target (Fireball), and healing the caster for half
   (Vampiric Touch). 53 SRD spells of level 0 to 3 can be added. With spell slots on, the sheet and
   the spell buttons show slots where mana was.
+- **Bows and crossbows**: one you carry is shot with the attack key when nothing is in reach of a
+  swing, by Dexterity; the smith sells a shortbow and a light crossbow. Fighters, rangers and
+  rogues among your companions shoot too, as do people fighting back. Creatures the SRD gives a
+  bow or spells use them from a distance (a setting): a bandit's light crossbow, a wizard's Fire
+  Bolt and Magic Missile.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.

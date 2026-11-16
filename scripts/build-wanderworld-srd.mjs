@@ -119,6 +119,8 @@ const CLASS_WEAPON = {
   warlock: "dagger",
   wizard: "quarterstaff",
 };
+/** The classes that carry something to shoot with, and what (ours again; the rest cast, or close in). */
+const CLASS_RANGED = { fighter: "crossbow-light", ranger: "longbow", rogue: "shortbow" };
 const weapons = new Map(read("weapons.json").map((entry) => [entry.id, entry]));
 const classes = {};
 for (const entry of read("classes.json")) {
@@ -129,6 +131,16 @@ for (const entry of read("classes.json")) {
     hitDie: Number(String(entry.grants?.sets?.hp_first_die ?? "d8").slice(1)) || 8,
     weapon: { name: weapon.label, damage: weapon.mechanics.amount.dice },
   };
+  const shot = weapons.get(CLASS_RANGED[entry.id]);
+  if (shot) {
+    // ("Crossbow, light" in the catalog reads "Light crossbow" here.)
+    const [what, sort] = shot.label.split(", ");
+    classes[entry.id].ranged = {
+      name: sort ? `${sort[0].toUpperCase()}${sort.slice(1)} ${what.toLowerCase()}` : what,
+      damage: shot.mechanics.amount.dice,
+      range: metres(shot.mechanics.range),
+    };
+  }
 }
 /**
  * Spell slots by caster level, for slot levels 1 to 3: the ruleset's own step tables (its derived values
@@ -211,6 +223,26 @@ for (const [kind, id] of Object.entries(CREATURE_OF)) {
     damage: `${diceOf(attack)}${flat}`,
     dex: sheet.initiativeModifier ?? 0,
   };
+  // What it has for a distance: a bow or a crossbow before something thrown.
+  const far = attacks.filter((action) => action.range?.normal);
+  const shot = far.find((action) => !action.reach) ?? far[0];
+  if (shot)
+    creatures[kind].ranged = {
+      name: shot.name,
+      attack: shot.toHit,
+      damage: `${diceOf(shot)}${shot.damage.flat > 0 ? `+${shot.damage.flat}` : ""}`,
+      range: metres(shot.range.normal),
+    };
+  // A spellcaster's spells: those of its list that a fight here can play as damage, to the second level (the
+  // greater ones would end a fight in one go), and what its casting adds.
+  const known = (sheet.sheet?.lists?.spells ?? [])
+    .map((spell) => spells.find((ours) => ours.name === spell.name))
+    .filter((spell) => spell?.damage && spell.level <= 2);
+  if (known.length) {
+    creatures[kind].spells = known.map((spell) => spell.name);
+    const ability = sheet.sheet.fields?.spellcasting_ability;
+    creatures[kind].wit = Math.floor(((sheet.sheet.abilities?.[ability] ?? 10) - 10) / 2);
+  }
 }
 if (Object.keys(creatures).length < 15)
   throw new Error(
@@ -242,13 +274,14 @@ export const SRD_SPELLS = ${JSON.stringify(spells)};
 /** Spell slots of levels 1 to 3 by caster level: { [slot level]: [[from this caster level, this many], …] }. */
 export const SRD_SLOTS = ${JSON.stringify(slots)};
 
-/** The SRD's classes: { [id]: { name, hitDie, weapon: { name, damage } } }. */
+/** The SRD's classes: { [id]: { name, hitDie, weapon: { name, damage }, ranged?: { name, damage, range (metres) } } }. */
 export const SRD_CLASSES = ${JSON.stringify(classes)};
 
 /**
  * The SRD's numbers for Wanderworld's creatures, by Wanderworld's kind: { name (the SRD creature it's taken
  * as), hp (its hit dice's average), ac, attack (what its attack up close adds to the roll), damage (dice),
- * dex (what it adds to initiative) }.
+ * dex (what it adds to initiative), and where it has them ranged { name, attack, damage, range (metres) },
+ * spells (names from SRD_SPELLS) and wit (what its casting adds) }.
  */
 export const SRD_CREATURES = ${JSON.stringify(creatures)};
 `;

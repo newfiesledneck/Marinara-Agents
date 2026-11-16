@@ -10,6 +10,8 @@ import { attackRoll, modifier, rollDice, valueOf } from "./sheet.js";
 /** Bare hands. */
 const UNARMED = { name: "", damage: "1d2", attack: 0, held: null };
 const DAMAGE = /(\d{0,2}d\d{1,3}(?:\s*[+-]\s*\d{1,3})?)\s*damage/iu;
+const WEAPON_RANGE = /\brange\s+(\d{1,3})/iu;
+const SHOOTS = /(?:bow|sling)\b/iu;
 const TO_ATTACK = /([+\-−])\s?(\d{1,2})\s*(?:to\s+)?(?:attack|to hit)/iu;
 /** What a weapon looks like in the hand, by its name (character.js draws these); a sword for the rest. */
 const HELD = [
@@ -30,7 +32,24 @@ export function weaponIn(item) {
     damage: damage[1].replace(/\s+/gu, ""),
     attack: attack ? (attack[1] === "+" ? 1 : -1) * Number(attack[2]) : 0,
     held: HELD.find(([named]) => named.test(name))?.[1] ?? "sword",
+    // (Something to shoot with, by its name or a "Range 24" in its description: how far it reaches, in metres.)
+    range: Number(WEAPON_RANGE.exec(text)?.[1] ?? 0) || (SHOOTS.test(name) ? 24 : 0),
   };
+}
+
+/**
+ * What the player shoots with, of what they carry: the bow, crossbow or sling they have equipped, else the
+ * best they carry, as { ...weapon, worn (it's the one equipped) }; null when they have none.
+ */
+export function bowOf(items) {
+  const all = (Array.isArray(items) ? items : [])
+    .map((item) => ({ item, weapon: weaponIn(item) }))
+    .filter((entry) => entry.weapon?.range > 0);
+  const worn = all.filter((entry) => String(entry.item.location ?? "").startsWith("equipped:"));
+  const best = (list) =>
+    list.reduce((top, entry) => (!top || mean(entry.weapon.damage) > mean(top.weapon.damage) ? entry : top), null);
+  const chosen = best(worn) ?? best(all);
+  return chosen ? { ...chosen.weapon, worn: worn.includes(chosen) } : null;
 }
 
 /**
@@ -39,7 +58,7 @@ export function weaponIn(item) {
  */
 export function weaponOf(items) {
   const all = (Array.isArray(items) ? items : []).map((item) => ({ item, weapon: weaponIn(item) }));
-  const weapons = all.filter((entry) => entry.weapon);
+  const weapons = all.filter((entry) => entry.weapon && !entry.weapon.range); // (a bow isn't swung)
   const worn = weapons.filter((entry) => String(entry.item.location ?? "").startsWith("equipped:"));
   const best = (list) =>
     list.reduce((top, entry) => (!top || mean(entry.weapon.damage) > mean(top.weapon.damage) ? entry : top), null);
@@ -75,7 +94,9 @@ export function foeOf(kind, foes, scale = 1) {
  * { roll, total, hit, crit, damage, ac }.
  */
 export function playerStrike({ sheet, worn = {}, weapon = UNARMED, foe }, random = Math.random) {
-  const strength = modifier(valueOf(sheet, "strength") + (worn.strength ?? 0));
+  // (A bow goes by Dexterity, as the SRD has it; anything swung by Strength.)
+  const attribute = weapon.range ? "dexterity" : "strength";
+  const strength = modifier(valueOf(sheet, attribute) + (worn[attribute] ?? 0));
   const result = attackRoll(
     {
       bonus: strength + weapon.attack + (worn.attack ?? 0),
@@ -147,7 +168,11 @@ const rollWords = (result) =>
 export function strikeWords({ who, what, weapon, result, left, max, named = false }) {
   // (`named`: `what` is someone's name, not a kind of creature.)
   const whom = named ? what : `the ${what}`;
-  const how = weapon.name ? `swings the ${weapon.name.toLowerCase()} at` : "strikes at";
+  const how = weapon.range
+    ? `shoots the ${weapon.name.toLowerCase()} at`
+    : weapon.name
+      ? `swings the ${weapon.name.toLowerCase()} at`
+      : "strikes at";
   const start = `${who} ${how} ${whom} (${rollWords(result)})`;
   if (!result.hit) return `${start}: a miss.`;
   const hit = `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}.`;
@@ -163,9 +188,9 @@ export function foeWords({ who, what, verb, result, left, max }) {
 }
 
 /** Someone's blow at the player, told: "Mira swings a mace at Zoey (15 against AC 12): a hit, for 4. Zoey has 9 of 20 HP." */
-export function personWords({ name, who, weapon, result, left, max }) {
+export function personWords({ name, who, weapon, result, left, max, shot = false }) {
   const a = /^[aeiou]/iu.test(weapon) ? "an" : "a";
-  const start = `${name} swings ${a} ${weapon.toLowerCase()} at ${who} (${rollWords(result)}${result.guarded ? ", blocked" : ""})`;
+  const start = `${name} ${shot ? "shoots" : "swings"} ${a} ${weapon.toLowerCase()} at ${who} (${rollWords(result)}${result.guarded ? ", blocked" : ""})`;
   if (!result.hit) return `${start}: a miss.`;
   return `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}. ${who} has ${Math.max(0, left)} of ${max} HP.`;
 }

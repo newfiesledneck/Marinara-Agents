@@ -50,7 +50,10 @@ export function afloatAt(x, z, back) {
 
 export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {} } = {}) {
   if (quiet.all) return [];
-  const random = rng((seed ^ 0x6a09e667) >>> 0);
+  // Each sort is counted out from numbers of its own, so changing how many there are of one sort leaves
+  // the others where they were.
+  let random = rng((seed ^ 0x6a09e667) >>> 0);
+  const from = (sort) => (random = rng(hashString(`herd:${seed}:${sort}`)));
   const pick = (list) => list[Math.floor(random() * list.length)];
   const on = (kind) => !off.includes(kind);
   const out = [];
@@ -100,6 +103,7 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
   // The farms' animals: cattle, now and then a bull or an alpaca, a donkey and a horse at each farm; a
   // horse by each tavern and inn and a donkey at a hamlet; then the farms again, till there are enough.
   {
+    from("farm");
     const farms = layout.outposts.filter((outpost) => outpost.kind === "farm");
     const stands = [
       ...layout.outposts
@@ -150,6 +154,7 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
   }
   // Strays: dogs about the market, of whatever size (animals.js DOG_SIZES).
   if (on("husky") || on("shiba")) {
+    from("strays");
     const plaza = layout.plaza;
     for (let n = 0; n < want("strays"); n++) {
       // (About the market while the settlement has room; after that, about its edges.)
@@ -170,8 +175,21 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
     }
     return null;
   };
+  /** Open ground a little way out from the settlement's edge: near enough to be seen from its last houses. */
+  const edge = () => {
+    for (let tries = 0; tries < 30; tries++) {
+      const angle = random() * Math.PI * 2;
+      const far = layout.townHalf * 1.42 + 14 + random() * 40;
+      const at = { x: Math.sin(angle) * far, z: Math.cos(angle) * far };
+      if (Math.max(Math.abs(at.x), Math.abs(at.z)) > half) continue;
+      if (layout.outposts.some((outpost) => Math.hypot(outpost.x - at.x, outpost.z - at.z) < 28)) continue;
+      if (dry(at.x, at.z) && heightAt(at.x, at.z) < 22) return at;
+    }
+    return null;
+  };
   // The ones that keep their distance: a fox here and there on its own, deer in twos to fours, a stag among them.
   if (!quiet.wild) {
+    from("wild");
     let left = want("wild");
     const grazers = ["deer", "stag"].filter(on);
     let foxes = on("fox") ? (grazers.length ? Math.round(left * 0.2) : left) : 0;
@@ -184,7 +202,8 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
         left--;
         continue;
       }
-      const at = wild(25) ?? wild(10);
+      // (Every other herd grazes within sight of the settlement's edge; the rest are anywhere out there.)
+      const at = (guard % 2 === 0 ? edge() : null) ?? wild(25) ?? wild(10);
       if (!at) continue;
       const size = Math.min(left, 2 + Math.floor(random() * 3));
       for (let n = 0; n < size; n++) {
@@ -197,6 +216,7 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
   }
   // The ones that would attack: wolves, some alone and some in packs of two to five that keep together.
   if (on("wolf") && !quiet.wild) {
+    from("hostile");
     let left = want("hostile");
     for (let guard = 0; guard < 60 && left > 0; guard++) {
       const size = Math.min(left, random() < 0.4 ? 1 : 2 + Math.floor(random() * 4));
@@ -214,6 +234,7 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
   // (a kind's `when`) are about only then.
   {
     const kinds = Object.keys(ANIMALS).filter((kind) => ANIMALS[kind].group === "monsters" && on(kind));
+    from("monsters");
     let left = quiet.wild || !kinds.length ? 0 : want("monsters");
     for (let guard = 0; guard < 200 && left > 0; guard++) {
       // (A rare kind, a dragon, is let through one time in five, and is alone.)
@@ -604,6 +625,27 @@ export function createHerd() {
           beast.cool = 6 + beast.random() * 4;
           beast.stance = "back";
         }
+        face();
+      } else if (
+        (view.combat || beast.angry) &&
+        view.ranged?.[beast.kind] >= distance &&
+        distance > 3.5 &&
+        beast.random() < 0.8
+      ) {
+        // It has something for a distance (`view.ranged`: how far, by kind): it shoots or casts from where it
+        // stands, then keeps off till it's ready again. (Now and then it runs in all the same.)
+        events.push({
+          type: "attack",
+          ranged: true,
+          target: player.id ?? null,
+          id: beast.id,
+          kind: beast.kind,
+          scale: beast.scale ?? 1,
+          x: beast.x,
+          z: beast.z,
+        });
+        beast.cool = 2.6 + beast.random() * 2.6;
+        beast.stance = "back";
         face();
       } else toward(beast, player.x, player.z, facts.gallop, dt);
       return true;

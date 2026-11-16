@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.6.98 — 2026-11-16
+
+- Bows and crossbows. One you carry is shot with the attack key when nothing is in reach of a swing, by Dexterity. The smith sells a shortbow and a light crossbow. Arrows aren't counted.
+- Companions who are fighters, rangers or rogues shoot when a creature is out of reach, and so do people fighting back.
+- Creatures shoot and cast from a distance: a bandit's light crossbow, a puglin's and a skeleton's shortbow, a wizard's Fire Bolt and Magic Missile, a witch's Sacred Flame. "Creatures shoot and cast from a distance" turns it off.
+- Fixed: moving one Creatures slider moved every animal in the world. Each sort is now counted out by itself. Wild animals live out in the country, so some deer now graze within sight of the last houses.
+
 ## 0.6.97 — 2026-11-15
 
 - Spells leave more than damage, as the 5e SRD has them. Thunderwave shoves back whatever fails its save. Fireball and other area spells catch everything near the target. Ray of Frost slows, Sleep and Grease drop a creature where it stands, Blindness and Vicious Mockery spoil its attacks, Guiding Bolt and Faerie Fire make your blows on it surer, Charm Person and Calm Emotions stop it fighting until it's hurt, and Vampiric Touch gives you back half of what it deals.

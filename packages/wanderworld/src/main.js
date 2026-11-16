@@ -163,6 +163,7 @@ import {
 import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolBonus, toolFor, TOOLS } from "./craft.js";
 import {
   TURN_MOVE,
+  bowOf,
   castAtWords,
   foeNerve,
   foeOf,
@@ -8053,13 +8054,19 @@ function swing() {
     void readItems();
   }
   const weapon = weaponOf(core.items ?? []);
-  // By turns: an Attack is a turn's action; outside a fight, a swing at something starts one.
+  // A bow, a crossbow or a sling they carry is shot when nothing is in reach of a swing: at whatever is
+  // ahead within its range, or (with it equipped) at nothing at all.
+  const bow = bowOf(core.items ?? []);
+  const near = blowTarget();
+  const far = bow && !near ? blowTarget(bow.range, SPELL_ARC, true) : null;
+  // By turns: an Attack is a turn's action; outside a fight, a swing or a shot at something starts one.
   if (mode === "turns") {
     if (!core.battle) {
-      const first = blowTarget();
+      const first = near ?? far;
       if (first && !first.person) return void battleStart(first.id);
     } else if (!battleSpend("action")) return;
   }
+  if (bow && !near && (far || bow.worn)) return void shoot(bow, mode);
   core.gesture = weapon.name ? "strike" : "punch";
   core.gestureHeld = weapon.held;
   const seconds = gestureSeconds(core.gesture) || 1;
@@ -8621,12 +8628,99 @@ async function hotkey(key) {
 const SRD_FOES = {
   ...PACK.foes,
   ...Object.fromEntries(
-    Object.entries(SRD_CREATURES).map(([kind, { hp, ac, attack, damage, dex }]) => [
+    Object.entries(SRD_CREATURES).map(([kind, { name: _name, ...numbers }]) => [
       kind,
-      { ...PACK.foes[kind], hp, ac, attack, damage, dex },
+      { ...PACK.foes[kind], ...numbers },
     ]),
   ),
 };
+/** How far each kind that can shoot or cast does so from (metres), for herd.js. */
+const RANGED_KINDS = Object.fromEntries(
+  Object.entries(SRD_CREATURES)
+    .filter(([, creature]) => creature.ranged || creature.spells)
+    .map(([kind, creature]) => [kind, Math.max(creature.ranged?.range ?? 0, creature.spells ? 18 : 0)]),
+);
+/** A creature's spell by its name, read as a rule: { name, level, spell }, or null when it isn't one a fight can play. */
+const foeSpells = new Map();
+function foeSpell(name) {
+  if (!foeSpells.has(name)) {
+    const found = SRD_SPELLS.find((spell) => spell.name === name);
+    foeSpells.set(name, found ? { name, level: found.level, spell: spellIn({ about: spellRule(found) }) } : null);
+  }
+  return foeSpells.get(name);
+}
+/** The colour of an arrow or a bolt in flight. */
+const ARROW = 0xd8c8a0;
+
+/**
+ * A creature shoots or casts from where it stands (herd.js's "attack" with `ranged`), at the player or the
+ * companion it chose: a spell of its own that reaches, more often than not, else its bow or what it throws.
+ * What comes of it is rolled as the shot lands.
+ */
+function foeShoots(event, what) {
+  const stats = foeOf(event.kind, foeTable(), event.scale);
+  const ally = event.target ? fightingAllies().find((person) => person.id === event.target) : null;
+  if (event.target ? !ally : core.downed || core.mode === "talk") return;
+  const to = ally ? ally.position : core.player.position;
+  const far = Math.hypot(to.x - event.x, to.z - event.z);
+  const spells = (stats.spells ?? [])
+    .map(foeSpell)
+    .filter((entry) => entry?.spell.damage && entry.spell.range >= far && (entry.level === 0 || Math.random() < 0.35));
+  const shot = stats.ranged?.range >= far ? stats.ranged : null;
+  const chosen =
+    spells.length && (!shot || Math.random() < 0.7) ? spells[Math.floor(Math.random() * spells.length)] : null;
+  if (!chosen && !shot) return;
+  const saveId = core.save?.id;
+  const who = personaName();
+  spellFx().bolt(
+    core.space.scene,
+    chest(event.x, event.z, 1.1),
+    chest(to.x, to.z),
+    chosen ? colourOf(chosen.spell) : ARROW,
+    {
+      size: chosen ? 1 : 0.4,
+      then: () => {
+        if (core.save?.id !== saveId) return;
+        if (!chosen) {
+          const verb = `${/bow/iu.test(shot.name) ? "shoots" : "throws"} its ${shot.name.toLowerCase()}`;
+          const with_ = { attack: shot.attack, damage: shot.damage, damageBonus: 0, verb };
+          return void (ally ? allyAttacked(event, what, with_) : foeAttacks(event, what, with_));
+        }
+        if (ally)
+          return void allyAttacked(event, what, {
+            attack: 2 + (stats.wit ?? 0),
+            damage: chosen.spell.damage,
+            damageBonus: 0,
+            verb: `casts ${chosen.name}`,
+          });
+        if (core.downed) return;
+        if (core.clock < (core.dodgeUntil ?? 0))
+          return void narrate(null, `The ${what} casts ${chosen.name} at ${who}, who rolls clear.`);
+        const sheet = sheetNow();
+        const result = spellAtPlayer({
+          wit: stats.wit ?? 0,
+          spell: chosen.spell,
+          sheet,
+          worn: wornBonuses(sheet, core.items ?? []),
+        });
+        const hp = playerStruck(result, event);
+        narrate(
+          null,
+          castAtWords({
+            name: `The ${what}`,
+            spell: chosen.name,
+            who,
+            result,
+            left: hp?.value ?? 0,
+            max: hp?.max ?? 0,
+          }),
+        );
+        if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
+      },
+    },
+  );
+}
+
 /** What each creature is in a fight: the 5e SRD's numbers (Settings → Inventory → Combat), or the setting pack's own. */
 function foeTable() {
   return core.settings?.srdCreatures ? SRD_FOES : PACK.foes;
@@ -8724,11 +8818,12 @@ function allyHp(id) {
 }
 
 /** A creature's attack on a companion (herd.js's "attack" with a `target`): rolled against their AC, and told. */
-function allyAttacked(event, what) {
+function allyAttacked(event, what, with_ = null) {
   const person = fightingAllies().find((entry) => entry.id === event.target);
   if (!person) return;
   const name = nameFor(person.id, person.name);
-  const stats = foeOf(event.kind, foeTable(), event.scale);
+  // (`with_`: what it attacks with when that isn't its own teeth: a bow's or a spell's numbers, and how it's told.)
+  const stats = { ...foeOf(event.kind, foeTable(), event.scale), ...with_ };
   const ac = foeTable().ally.ac;
   const roll = () => attackRoll({ bonus: stats.attack, ac, damage: stats.damage, damageBonus: stats.damageBonus ?? 0 });
   const result = { ...(hindered(event.id) ? rolledTwice(roll, false) : roll()), ac, hindered: hindered(event.id) };
@@ -8817,16 +8912,36 @@ function allyActs(person, foes, hurt) {
     });
     return true;
   }
-  if (!inReach) return false; // (nothing of theirs reaches: they keep by the player)
+  // Out of reach: one whose class carries a bow or a crossbow shoots it; the rest keep by the player.
+  const shot = !inReach && kind.ranged?.range >= distance ? kind.ranged : null;
+  if (!inReach && !shot) return false;
+  if (shot) {
+    core.crowd.gesture(person.id, "cast", null, foe.x, foe.z);
+    const saveId = core.save?.id;
+    spellFx().bolt(scene, chest(from.x, from.z), chest(foe.x, foe.z, 0.7), ARROW, {
+      size: 0.4,
+      then: () => {
+        if (core.save?.id !== saveId) return;
+        const now = core.herd.foes({ x: foe.x, z: foe.z }, 40).find((entry) => entry.id === foe.id);
+        if (now) allyStrikes(person, now, { name: shot.name, damage: shot.damage, range: shot.range });
+      },
+    });
+    return true;
+  }
   // A strike with their class's weapon.
+  return allyStrikes(person, foe, { name: kind.weapon.name, damage: kind.weapon.damage });
+}
+
+/** A companion's weapon lands (or doesn't) on a creature: rolled, told, and the creature beaten if that's what comes of it. */
+function allyStrikes(person, foe, weapon) {
+  const name = nameFor(person.id, person.name);
   const stats = foeOf(foe.kind, foeTable(), foe.scale);
-  const weapon = { name: kind.weapon.name, damage: kind.weapon.damage };
   const result = attackRoll({ bonus: ALLY_ATTACK, ac: stats.ac, damage: weapon.damage, damageBonus: 2 });
   const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, result.hit ? foeNerve(after, stats.hp) : "fight");
   if (!struck) return false;
   const held = weaponIn({ name: weapon.name, description: `${weapon.damage} damage` })?.held ?? "sword";
-  core.crowd.gesture(person.id, "strike", held, foe.x, foe.z);
+  if (!weapon.range) core.crowd.gesture(person.id, "strike", held, foe.x, foe.z);
   const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
   const told = strikeWords({
     who: name,
@@ -8887,6 +9002,39 @@ function restTick(dt) {
   if (!changes.length) return;
   setSheet(applyChanges(sheet, changes).sheet);
   core.hud?.refreshInventory?.();
+}
+
+/** Looses the player's bow at whatever is ahead within its range when the arrow leaves; what comes of it is rolled as it lands. */
+function shoot(bow, mode) {
+  core.gesture = "cast"; // ponytail: no draw-and-loose clip in the packs; the casting arm stands in until one is added
+  core.strikeUntil = core.clock + 1.1;
+  const saveId = core.save?.id;
+  later(0.3, () => {
+    if (core.save?.id !== saveId || fightMode() !== mode || core.downed) return;
+    const at = core.player.position;
+    const facing = core.player.rotation.y;
+    const from = chest(at.x + Math.sin(facing) * 0.5, at.z + Math.cos(facing) * 0.5);
+    const foe = blowTarget(bow.range, SPELL_ARC, true);
+    if (!foe) {
+      const reach = Math.min(bow.range, 14);
+      return void spellFx().bolt(
+        core.space.scene,
+        from,
+        chest(at.x + Math.sin(facing) * reach, at.z + Math.cos(facing) * reach),
+        ARROW,
+        { size: 0.4 },
+      );
+    }
+    spellFx().bolt(core.space.scene, from, chest(foe.x, foe.z, foe.person ? 1.2 : 0.7), ARROW, {
+      size: 0.4,
+      then: () => {
+        if (core.save?.id !== saveId) return;
+        if (foe.person) return void landOnPerson(foe, bow);
+        if (mode === "realtime" || mode === "turns") return void landOn(foe, bow);
+        encounter(foe, (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, ""), "player");
+      },
+    });
+  });
 }
 
 /** How long someone knocked out lies there (seconds). */
@@ -9018,24 +9166,41 @@ function personActs(person, far, spells) {
     });
     return true;
   }
-  if (!inReach) return false;
-  const weapon = SRD_CLASSES[classOf(person.id)].weapon;
-  const held = weaponIn({ name: weapon.name, description: `${weapon.damage} damage` })?.held ?? "sword";
-  core.crowd.gesture(person.id, "strike", held, at.x, at.z);
-  if (core.clock < (core.dodgeUntil ?? 0)) {
-    narrate(null, `${name} swings at ${who}, who rolls clear.`);
+  const mine = SRD_CLASSES[classOf(person.id)];
+  const shot = !inReach && mine.ranged?.range >= far ? mine.ranged : null;
+  if (!inReach && !shot) return false;
+  const weapon = shot ?? mine.weapon;
+  /** Their weapon comes at the player: rolled against their AC (twice, the worse counting, while they block). */
+  const lands = () => {
+    if (core.downed) return;
+    if (core.clock < (core.dodgeUntil ?? 0))
+      return void narrate(null, `${name} ${shot ? "shoots" : "swings"} at ${who}, who rolls clear.`);
+    const sheet = sheetNow();
+    const result = foeStrike({
+      foe: { attack: ALLY_ATTACK, damage: weapon.damage, damageBonus: 2 },
+      sheet,
+      worn: wornBonuses(sheet, core.items ?? []),
+      guarded: core.clock < (core.blockUntil ?? 0),
+    });
+    const hp = playerStruck(result, from);
+    narrate(
+      null,
+      personWords({ name, who, weapon: weapon.name, result, left: hp?.value ?? 0, max: hp?.max ?? 0, shot: !!shot }),
+    );
+    if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
+  };
+  if (shot) {
+    core.crowd.gesture(person.id, "cast", null, at.x, at.z);
+    const saveId = core.save?.id;
+    spellFx().bolt(core.space.scene, chest(from.x, from.z), chest(at.x, at.z), ARROW, {
+      size: 0.4,
+      then: () => core.save?.id === saveId && lands(),
+    });
     return true;
   }
-  const sheet = sheetNow();
-  const result = foeStrike({
-    foe: { attack: ALLY_ATTACK, damage: weapon.damage, damageBonus: 2 },
-    sheet,
-    worn: wornBonuses(sheet, core.items ?? []),
-    guarded: core.clock < (core.blockUntil ?? 0),
-  });
-  const hp = playerStruck(result, from);
-  narrate(null, personWords({ name, who, weapon: weapon.name, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
-  if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
+  const held = weaponIn({ name: weapon.name, description: `${weapon.damage} damage` })?.held ?? "sword";
+  core.crowd.gesture(person.id, "strike", held, at.x, at.z);
+  lands();
   return true;
 }
 
@@ -9276,7 +9441,7 @@ function dodge() {
 }
 
 /** A creature's attack on the player (herd.js's "attack"): rolled against their AC, their HP taken, and told. */
-function foeAttacks(event, what) {
+function foeAttacks(event, what, with_ = null) {
   if (core.downed || core.mode === "talk") return;
   const who = personaName();
   // Mid-roll, nothing lands.
@@ -9287,7 +9452,7 @@ function foeAttacks(event, what) {
     );
   const sheet = sheetNow();
   const worn = wornBonuses(sheet, core.items ?? []);
-  const stats = foeOf(event.kind, foeTable(), event.scale);
+  const stats = { ...foeOf(event.kind, foeTable(), event.scale), ...with_ };
   const result = foeStrike({
     foe: stats,
     sheet,
@@ -10450,6 +10615,9 @@ function step(dt) {
       // confrontations are allowed at all); and whether it's night, for the ones about only then.
       hostile: core.settings.hostileAnimals,
       combat: fighting(),
+      // (Which kinds shoot or cast from a distance, and from how far: real time, with the SRD's numbers.)
+      ranged:
+        core.settings.rangedFoes && core.settings.srdCreatures && fightMode() === "realtime" ? RANGED_KINDS : null,
       // (Whom else a creature may go for: the companions in the fight.)
       allies: fightingAllies().map((person) => ({ id: person.id, x: person.position.x, z: person.position.z })),
       // (Nothing goes for someone who's down, or while a scene plays the fight out.)
@@ -10467,7 +10635,8 @@ function step(dt) {
         continue;
       }
       if (event.type === "attack" && fighting()) {
-        if (event.target) allyAttacked(event, what);
+        if (event.ranged) foeShoots(event, what);
+        else if (event.target) allyAttacked(event, what);
         else foeAttacks(event, what);
         continue;
       }

@@ -494,6 +494,26 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
   assert.equal(tally().hostile, POPULATION.hostile, "left alone, the usual number");
   // Monsters: the number asked for, of the kinds switched on, the night's ones about only at night.
   assert.equal(tally().monsters, POPULATION.monsters, "and the usual number of monsters");
+  // Each sort is counted out by itself: more stray dogs leaves every wolf and monster where it was.
+  {
+    const usual = { strays: 0, farm: 12, wild: 12, hostile: 8, monsters: 8, town: 5 };
+    const spots = (herd, sort) =>
+      herd
+        .filter((beast) => (sort === "wolf" ? beast.kind === "wolf" : ANIMALS[beast.kind].group === "monsters"))
+        .map((beast) => `${beast.kind}:${beast.x.toFixed(2)}:${beast.z.toFixed(2)}`);
+    const few = herdFor(world, 4242, { counts: usual });
+    const dogs = herdFor(world, 4242, { counts: { ...usual, strays: 12 } });
+    assert.deepEqual(spots(dogs, "wolf"), spots(few, "wolf"), "the wolves haven't moved");
+    assert.deepEqual(spots(dogs, "monsters"), spots(few, "monsters"), "nor the monsters");
+    // And at the most of everything, some deer graze within sight of the settlement's edge.
+    const most = herdFor(world, 4242, {
+      counts: { strays: 12, farm: 40, wild: 40, hostile: 30, monsters: 30, town: 20 },
+    });
+    const by = (kind) => most.filter((beast) => beast.kind === kind);
+    assert.equal(by("wolf").length, 30);
+    const edge = world.layout.townHalf * 1.42 + 60;
+    assert.ok(by("deer").filter((deer) => Math.hypot(deer.x, deer.z) < edge).length >= 4, "deer near the last houses");
+  }
   const horde = herdFor(world, 4242, { counts: { ...none, monsters: 20 } });
   assert.equal(horde.length, 20);
   assert.ok(new Set(horde.map((beast) => beast.kind)).size >= 4, "of several kinds");
