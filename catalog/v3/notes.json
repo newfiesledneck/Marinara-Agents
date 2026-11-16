@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.03",
+          "date": "2026-11-16",
+          "notes": "- Creatures use their special attacks from the 5e SRD. A wolf's bite can knock you prone, and wolves, jackals and rats attack with advantage when one of their own is beside you. Snakes, spiders, wasps and imps have venom (a Constitution save for half). A frog's bite holds you. A witch strikes twice. A dragon breathes fire, then has to wait for it to come back.\n- Conditions can land on you: prone, poisoned, frightened, grappled, restrained, blinded, paralyzed, stunned, asleep, slowed. Each shows at the top left with its seconds and wears off. Spells cast at you leave theirs too.\n- Both have switches in Settings → Inventory → 5e rules.",
+          "highlight": false
+        },
+        {
           "version": "0.7.02",
           "date": "2026-11-16",
           "notes": "- Weapons and armour by the 5e SRD. New setting, \"An item's description is its stats\": on, a thing does what its description says; off, its name decides (sword, knife, dagger, axe, hammer, bow and the rest link to that SRD weapon, and armour and shields likewise).\n- Armour you wear sets your AC and limits how much Dexterity counts. With none, AC is 10 plus your Dexterity modifier.\n- Attacks and spells add a proficiency bonus that grows with level. Finesse weapons use the better of Strength and Dexterity.\n- Kinds of damage matter: a skeleton takes a blunt blow twice over, a slime resists fire, fire can't hurt a dragon.\n- The smith sells SRD weapons and armour.\n- All of it is in Settings → Inventory → 5e rules, each with its own switch.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.84",
           "date": "2026-11-15",
           "notes": "- People can be struck, if you allow it: Settings → Inventory → Combat → \"Blows can land on people\", off to begin with.\n- A blow on someone is rolled like any other. They remember it for good and become your enemy (unless you've locked how they see you), and anyone who saw it remembers.\n- At 0 HP they lie out cold for two minutes, then get up. Nobody dies. People don't strike back yet.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.83",
-          "date": "2026-11-15",
-          "notes": "- X draws your weapon or puts it away (real-time combat). On a touch screen the Combat button does it. Drawn, the view stays behind you: turning the view turns you, and you step sideways and backwards without turning away. The weapon stays in your hand.\n- A dodge goes the way you are moving, sideways and back too.\n- What you beat can be carried. Stand at it and the chat window has a Carry button. You walk slowly under it, and the prompt puts it down.",
           "highlight": false
         }
       ]

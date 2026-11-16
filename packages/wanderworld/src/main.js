@@ -192,6 +192,16 @@ import {
   witOf,
 } from "./combat.js";
 import { createSpellFx, spellColour } from "./spellfx.js";
+import {
+  CONDITIONS,
+  afflict,
+  conditionChips,
+  conditionFor,
+  conditionMods,
+  hurtConditions,
+  lift,
+  tickConditions,
+} from "./conditions.js";
 import { SRD_CLASSES, SRD_CREATURES, SRD_SLOTS, SRD_SPELLS } from "./srd.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
@@ -8034,6 +8044,149 @@ const fightMode = () =>
 const fighting = () => fightMode() === "realtime" || fightMode() === "turns";
 /** Whether fights go by turns. */
 const byTurns = () => fightMode() === "turns";
+// ── Conditions on the player (conditions.js) ──
+
+/** What the conditions on the player add up to now (nothing, with conditions switched off). */
+const afflicted = () => conditionMods(core.settings.conditions ? core.afflicted : null);
+/** Whether creatures use what the SRD gives them besides a plain attack. */
+const extrasOn = () => !!core.settings.creatureExtras && !!core.settings.srdCreatures;
+
+/** Lays a condition on the player for `seconds` (its own length when not given). Whether it took. */
+function afflictPlayer(name, seconds = 0) {
+  if (!core.settings.conditions || !CONDITIONS[name] || core.downed) return false;
+  core.afflicted = afflict(core.afflicted, name, seconds);
+  if (name === "prone") core.gesture = "hurt";
+  return true;
+}
+
+/**
+ * The player's saving throw: a d20 plus that attribute's modifier (with what they wear) against `dc`.
+ * { roll, total, saved, words: "Strength save 9 against DC 11" }.
+ */
+function playerSave(attribute, dc) {
+  const sheet = sheetNow();
+  const worn = wornNow(sheet);
+  const roll = 1 + Math.floor(Math.random() * 20);
+  const total = roll + modifier(valueOf(sheet, attribute) + (worn[attribute] ?? 0)) + saveBonus(attribute);
+  const name = `${attribute[0].toUpperCase()}${attribute.slice(1)}`;
+  return { roll, total, saved: total >= dc, words: `${name} save ${total} against DC ${dc}` };
+}
+/** What the player's class adds to a saving throw in `attribute` (nothing, without the SRD's modifiers). */
+function saveBonus(_attribute) {
+  return 0;
+}
+
+/** Grappled, they strain against the hold: Strength or Dexterity, the better, against its DC. */
+function tryEscape() {
+  const sheet = sheetNow();
+  const worn = wornNow(sheet);
+  const of = (attribute) => modifier(valueOf(sheet, attribute) + (worn[attribute] ?? 0));
+  const total = 1 + Math.floor(Math.random() * 20) + Math.max(of("strength"), of("dexterity"));
+  const dc = core.grappleDc ?? 11;
+  if (total >= dc) {
+    core.afflicted = lift(core.afflicted, "grappled");
+    narrate(null, `${personaName()} breaks free (${total} against DC ${dc}).`);
+  } else narrate(null, `${personaName()} strains against the hold (${total} against DC ${dc}): still held.`);
+}
+
+/** The conditions run down (outside a fight by turns, where a turn counts them), hold the player, and are shown. */
+function conditionsTick(dt) {
+  const has = core.afflicted && Object.keys(core.afflicted).length > 0;
+  if (!has) {
+    core.escapeAt = undefined;
+    return void core.hud?.setConditions?.([]);
+  }
+  if (core.downed || !core.settings.conditions) core.afflicted = {};
+  else if (!core.battle) core.afflicted = tickConditions(core.afflicted, dt);
+  if (afflicted().still) {
+    core.stillUntil = Math.max(core.stillUntil ?? 0, core.clock + 0.15);
+    core.walkTo = null;
+  }
+  if (core.afflicted.grappled !== undefined && !core.battle) {
+    core.escapeAt ??= core.clock + 3;
+    if (core.clock >= core.escapeAt) {
+      core.escapeAt = core.clock + 3;
+      tryEscape();
+    }
+  }
+  core.hud?.setConditions?.(conditionChips(core.afflicted));
+}
+
+/**
+ * The conditions at the start of the player's turn in a fight by turns: a round (six seconds) comes off
+ * each, a hold is strained against, and one who's prone gets up. { stood, mods }.
+ */
+function turnConditions() {
+  if (!core.afflicted || !Object.keys(core.afflicted).length) return { stood: false, mods: afflicted() };
+  const stood = core.afflicted.prone !== undefined;
+  core.afflicted = lift(tickConditions(core.afflicted, 6), "prone");
+  if (core.afflicted.grappled !== undefined) tryEscape();
+  return { stood, mods: afflicted() };
+}
+
+/**
+ * What comes with a creature's blow that has landed (the SRD's): more damage of another kind, with a saving
+ * throw for half where it has one (venom), and a condition, on a failed save or outright (knocked prone,
+ * held). Told as it goes; the damage is taken here.
+ */
+function foeExtras(stats, what, event) {
+  const who = personaName();
+  const rider = stats.rider;
+  if (rider && !core.downed) {
+    const full = Math.max(1, rollDice(rider.damage).total);
+    const thrown = rider.save ? playerSave(rider.save.attribute, rider.save.dc) : null;
+    const dealt = !thrown || !thrown.saved ? full : rider.save.onSave === "half" ? Math.floor(full / 2) : 0;
+    const hp = playerStruck({ hit: dealt > 0, damage: dealt, guarded: true }, event);
+    narrate(
+      null,
+      thrown
+        ? `The ${what}'s ${rider.type || "blow"} (${who}'s ${thrown.words}, ${thrown.saved ? "made" : "failed"}): ${dealt} more. ${who} has ${Math.max(0, hp?.value ?? 0)} of ${hp?.max ?? 0} HP.`
+        : `And ${dealt} ${rider.type || "more"} with it. ${who} has ${Math.max(0, hp?.value ?? 0)} of ${hp?.max ?? 0} HP.`,
+    );
+    if (hp?.on !== false && (hp?.value ?? 1) <= 0) return void defeated();
+  }
+  const laid = stats.inflict;
+  if (laid && core.settings.conditions && !core.downed && core.afflicted?.[laid.condition] === undefined) {
+    const thrown = laid.save ? playerSave(laid.save.attribute, laid.save.dc) : null;
+    const label = CONDITIONS[laid.condition]?.label.toLowerCase() ?? laid.condition;
+    if (thrown?.saved) narrate(null, `${who} isn't ${label} (${thrown.words}).`);
+    else if (afflictPlayer(laid.condition)) {
+      if (laid.escape) core.grappleDc = laid.escape;
+      narrate(null, `${who} is ${label}${thrown ? ` (${thrown.words}, failed)` : ""}.`);
+    }
+  }
+}
+
+/** Whether a creature with a breath has it ready: once used, a d6 each time it would attack brings it back on its number or more. */
+function breathReady(id, breath) {
+  const fx = foeFx(id);
+  if (fx.breathSpent && 1 + Math.floor(Math.random() * 6) >= breath.recharge) fx.breathSpent = false;
+  return !fx.breathSpent;
+}
+
+/** A creature's breath on the player: a saving throw for half, and it's spent until it comes back. */
+function foeBreathes(event, what, stats) {
+  const breath = stats.breath;
+  foeFx(event.id).breathSpent = true;
+  core.herd.act(event.id, "cast");
+  const who = personaName();
+  const at = core.player.position;
+  const colour = spellColour(breath.type);
+  spellFx().bolt(core.space.scene, chest(event.x, event.z, 1.1), chest(at.x, at.z), colour, { size: 2 });
+  spellFx().burst(core.space.scene, chest(at.x, at.z, 0.5), colour, 2.2);
+  if (core.clock < (core.dodgeUntil ?? 0))
+    return void narrate(null, `The ${what} breathes ${breath.type} at ${who}, who rolls clear.`);
+  const thrown = playerSave(breath.save.attribute, breath.save.dc);
+  const full = Math.max(1, rollDice(breath.damage).total);
+  const dealt = thrown.saved ? Math.floor(full / 2) : full;
+  const hp = playerStruck({ hit: true, damage: dealt }, event);
+  narrate(
+    null,
+    `The ${what} breathes ${breath.type} over ${who} (${thrown.words}, ${thrown.saved ? "made: half" : "failed"}): ${dealt}. ${who} has ${Math.max(0, hp?.value ?? 0)} of ${hp?.max ?? 0} HP.`,
+  );
+  if (hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
+}
+
 /** Whether an item's description is its stats (else its name links it to the SRD's weapon or armour). */
 const byDesc = () => core.settings.gearByDescription !== false;
 /** What's worn adds up to, by the gear rules that are on (combat.js gearWorn). */
@@ -8058,6 +8211,7 @@ const SWING_LANDS = 0.34;
 function swing() {
   const mode = fightMode();
   if (!mode || core.downed || core.carrying || core.mode !== "walk" || core.clock < (core.strikeUntil ?? 0)) return;
+  if (afflicted().helpless) return void core.hud?.setNotice("You can't act: it has to wear off first.");
   // (What's carried is read again now and then, behind the swing: the first of a session may be with bare hands.)
   if (!core.itemsAt || core.clock - core.itemsAt > 15) {
     core.itemsAt = core.clock;
@@ -8173,6 +8327,7 @@ const chest = (x, z, up = 1.2) => ({ x, y: (core.interior ? core.player.position
  */
 function cast(id = null) {
   if (!fighting() || core.downed || core.carrying || core.mode !== "walk" || core.clock < (core.castUntil ?? 0)) return;
+  if (afflicted().helpless) return void core.hud?.setNotice("You can't act: it has to wear off first.");
   const spells = spellsNow();
   const chosen = (id && spells.find((entry) => entry.id === id)) || readySpell(spells);
   if (!chosen)
@@ -8729,6 +8884,17 @@ function battleTick(dt, moved) {
         battle.attacks = 0;
         battle.from = { x: at.x, z: at.z };
         battle.reach = turn.move;
+        // (Conditions: getting up from prone takes half the turn's movement; held, they go nowhere;
+        // paralyzed, stunned or asleep, the turn is lost.)
+        const state = turnConditions();
+        if (state.stood) battle.reach = Math.floor(battle.reach / 2);
+        if (state.mods.slow) battle.reach = Math.floor(battle.reach / 2);
+        if (state.mods.still) battle.reach = 0;
+        if (state.mods.helpless) {
+          battle.action = 0;
+          battle.bonus = 0;
+          narrate(null, `${personaName()} can't act this turn.`);
+        }
         battle.near = null;
         battle.reacted = new Set();
         battle.disengaged = false;
@@ -9001,6 +9167,13 @@ function foeShoots(event, what) {
             max: hp?.max ?? 0,
           }),
         );
+        // (What the spell leaves, it leaves on them too: a failed save or a hit.)
+        const left = result.hit && !result.saved ? conditionFor(chosen.spell.effect?.name) : "";
+        if (left && afflictPlayer(left, chosen.spell.effect.seconds))
+          narrate(
+            null,
+            `${who} is ${CONDITIONS[left].label.toLowerCase()} for ${chosen.spell.effect.seconds} seconds.`,
+          );
         if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
       },
     },
@@ -9497,6 +9670,7 @@ function personActs(person, far, spells) {
 function playerStruck(result, from) {
   if (result.hit && result.damage > 0) {
     setSheet(applyChanges(sheetNow(), [{ stat: "hp", by: -result.damage }]).sheet);
+    if (core.afflicted) core.afflicted = hurtConditions(core.afflicted);
     if (!result.guarded) core.gesture = "hurt";
     const at = core.player.position;
     if (core.mode === "walk" && !core.glide && !core.battle) {
@@ -9518,7 +9692,11 @@ function landOn(foe, weapon) {
   const sheet = sheetNow();
   const stats = foeOf(foe.kind, foeTable(), foe.scale);
   const swung = () => playerStrike({ sheet, worn: wornNow(sheet), weapon, foe: stats, prof: profNow() });
-  const result = marked(foe.id) ? rolledTwice(swung, true) : swung(); // (marked by a spell: the better of two)
+  // (Marked by a spell: the better of two. Hampered by a condition: the worse. Both: one roll.)
+  const better = marked(foe.id);
+  const worse = afflicted().attackDis;
+  const result = better === worse ? swung() : rolledTwice(swung, better);
+  if (worse && !better) result.hampered = true;
   if (core.battle?.raging && result.hit && !weapon.range) result.damage += 2; // (a barbarian's Rage)
   const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
   const nerve = !foe.hostile ? "flee" : result.hit ? foeNerve(after, stats.hp) : "fight";
@@ -9740,17 +9918,34 @@ function foeAttacks(event, what, with_ = null) {
   const sheet = sheetNow();
   const worn = wornNow(sheet);
   const stats = { ...foeOf(event.kind, foeTable(), event.scale), ...with_ };
+  const extras = extrasOn() && !with_;
+  // (A breath, when it has one ready, in place of its bite.)
+  if (extras && stats.breath && !event.again && breathReady(event.id, stats.breath))
+    return void foeBreathes(event, what, stats);
+  // (Pack Tactics: the better of two rolls with another of its kind beside the player. And anyone who's
+  // down, held or blinded is easier to hit.)
+  const pack =
+    extras &&
+    stats.pack &&
+    core.herd
+      .foes(core.player.position, 3)
+      .some((other) => other.id !== event.id && other.kind === event.kind && !other.fled);
   const result = foeStrike({
     foe: stats,
     sheet,
     worn,
     guarded: core.clock < (core.blockUntil ?? 0) || !!core.battle?.dodging,
     hindered: hindered(event.id),
+    keen: pack || afflicted().defendAdv,
   });
   if (core.battle?.raging && result.hit) result.damage = Math.floor(result.damage / 2); // (Rage: half from weapons)
   const hp = playerStruck(result, event);
   narrate(null, foeWords({ who, what, verb: stats.verb, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
-  if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
+  if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) return void defeated();
+  if (extras && result.hit) foeExtras(stats, what, event);
+  // (Multiattack: its other blows, one after another.)
+  if (extras && !event.again && !core.downed)
+    for (let more = 1; more < (stats.multi ?? 1) && !core.downed; more++) foeAttacks({ ...event, again: true }, what);
 }
 
 /**
@@ -9798,6 +9993,7 @@ const needsRespawn = () => !!core.downed && (!!core.stayDown || performance.now(
 function comeTo(home, free = false) {
   core.downed = false;
   core.stayDown = false;
+  core.afflicted = {};
   core.gesture = null;
   if (core.mode === "sit" && core.seat?.ground) {
     core.seat = null;
@@ -10589,6 +10785,7 @@ function movePlayer(dt, input) {
     let speedFactor = input.run ? RUN_SPEED : WALK_SPEED * input.amount;
     if (core.carrying) speedFactor = Math.min(speedFactor, WALK_SPEED) * 0.7; // (under a load: a slow walk)
     if (waiting) speedFactor = 0;
+    if (afflicted().slow) speedFactor *= 0.5;
     // In the river: swimming in deep water, wading slower where it's shallower.
     const water = core.interior ? null : waterAt(position.x, position.z);
     if (water?.depth > SWIM_DEPTH) speedFactor = input.run ? SWIM_SPRINT : SWIM_SPEED * input.amount;
@@ -10845,6 +11042,7 @@ function step(dt) {
   restTick(dt);
   alliesTick(dt);
   angryTick();
+  conditionsTick(dt);
   core.still = speed < 0.1 ? (core.still ?? 0) + dt : 0; // how long the player has stood still, in seconds
   let lookAt = null;
   if (core.talking) {

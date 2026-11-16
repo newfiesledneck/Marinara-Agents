@@ -880,6 +880,10 @@ export function createHud(root, handlers) {
       'On: what an item\'s description says is what it does ("Weapon: 1d8 slashing damage, +1 to attack", "+2 AC"), and only an item whose description states nothing goes by its name. Off: the name decides. Anything with a word such as sword, knife, dagger, axe, hammer, mace, spear, staff, bow or crossbow in its name is that weapon from the 5e SRD, and armour and shields likewise; only an item whose name says nothing goes by its description. A +1 in a name adds 1.',
     damageTypes:
       "On: what a blow or a spell is made of matters to some creatures. A skeleton takes a blunt blow twice over and poison not at all; a slime resists fire, cold and acid; fire can't hurt a dragon or an imp. Off: damage is damage.",
+    creatureExtras:
+      "On: creatures use what the 5e SRD gives them besides a plain attack. A wolf's bite can knock you prone (a Strength save) and wolves, jackals and rats attack with advantage when one of their own is beside you. A snake's, a spider's, a wasp's and an imp's venom does more damage (a Constitution save for half). A frog's bite holds you. A slime's touch burns with acid and a dragon's bite with fire. A witch strikes twice. A dragon breathes fire (a Dexterity save for half), then needs a while before it can again. Off: one plain attack each.",
+    conditions:
+      "On: conditions can land on you, from a creature's attack or a spell cast at you, and show at the top left. Prone, restrained, blinded: your attacks are rolled twice with the worse counting, and attacks on you with the better. Poisoned, frightened: your attacks are at that disadvantage. Grappled, restrained: you can't move (grappled, you try to break free by yourself). Paralyzed, stunned, asleep: you can't move or act. Slowed: half your pace. Each wears off. Off: only damage lands on you.",
     rangedFoes:
       "On: a creature the SRD gives a bow, a crossbow or spells uses them when you're out of its reach, in real time and by turns. A bandit shoots a light crossbow, a puglin and a skeleton a shortbow; a wizard casts Fire Bolt and Magic Missile, a witch Sacred Flame and Spiritual Weapon. Each is rolled against your AC or your saving throw, or a companion's AC. Off: they all have to close with you.",
     turnActions:
@@ -1404,6 +1408,8 @@ export function createHud(root, handlers) {
   toggle("srdModifiers", "Proficiency, Dexterity and armour by the rules", "sheet");
   toggle("gearByDescription", "An item's description is its stats", "sheet");
   toggle("damageTypes", "Kinds of damage matter to creatures", "srdCreatures");
+  toggle("creatureExtras", "Creatures use their special attacks", "srdCreatures");
+  toggle("conditions", "Conditions can land on you", "sheet");
   at("Inventory", "Combat");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
   number("beatenDays", "Days before the beaten are about again", "sheet");
@@ -3813,6 +3819,13 @@ export function createHud(root, handlers) {
     "position:absolute;left:50%;top:calc(46px + env(safe-area-inset-top, 0px));transform:translateX(-50%);max-width:min(560px,calc(100% - 16px));display:none;flex-direction:column;gap:5px;padding:7px 10px;border-radius:10px;background:rgba(10,14,20,0.78);color:#fff;font:13px system-ui,sans-serif;pointer-events:auto;";
   let battleKey = "null";
   layer.append(battleBar);
+  // What's on the player for now (prone, poisoned, …): a chip each at the top left (setConditions).
+  const conditionRow = document.createElement("div");
+  conditionRow.setAttribute("data-wanderworld-ui", "");
+  conditionRow.style.cssText =
+    "position:absolute;left:8px;top:calc(92px + env(safe-area-inset-top, 0px));display:none;flex-direction:column;align-items:flex-start;gap:4px;pointer-events:none;max-width:46%;";
+  let conditionKey = "";
+  layer.append(conditionRow);
   const respawn = button("Respawn", "Get up: you wake at home, with half your HP", () => handlers.onRespawn?.());
   respawn.style.cssText +=
     "position:absolute;left:50%;top:calc(52px + env(safe-area-inset-top, 0px));transform:translateX(-50%);padding:10px 18px;font-size:14px;background:#96422e;display:none;";
@@ -4505,6 +4518,23 @@ export function createHud(root, handlers) {
       combatToggle.style.background = combatOn ? "#96422e" : "rgba(10,14,20,0.62)";
       combatToggle.setAttribute("aria-pressed", String(combatOn));
       chatDraw.textContent = combatOn ? "Put away" : "Draw";
+    },
+    /** The conditions on the player: [{ id, label, about, seconds }] (conditions.js conditionChips); none hides them. */
+    setConditions(list) {
+      const key = list.map((entry) => `${entry.id}:${entry.seconds}`).join("|");
+      if (key === conditionKey) return;
+      conditionKey = key;
+      conditionRow.style.display = list.length ? "flex" : "none";
+      conditionRow.replaceChildren(
+        ...list.map((entry) => {
+          const chip = document.createElement("span");
+          chip.textContent = `${entry.label} ${entry.seconds}s`;
+          chip.title = entry.about;
+          chip.style.cssText =
+            "padding:3px 9px;border-radius:10px;font:600 12px system-ui,sans-serif;background:rgba(120,30,20,0.86);color:#fff;";
+          return chip;
+        }),
+      );
     },
     /** The Respawn button at the top, while the player lies beaten and has chosen to stay down. */
     setRespawn(shown) {
