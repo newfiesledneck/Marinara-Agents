@@ -174,6 +174,12 @@ export const SETTINGS = {
   fightPeople: { value: false },
   // Whether creatures fight with the 5e SRD's numbers (srd.js SRD_CREATURES) or the setting pack's own.
   srdCreatures: { value: true },
+  // Numbers the SRD's way: a proficiency bonus on attacks and spells, Dexterity in the AC, armour by its name.
+  srdModifiers: { value: true },
+  // An item's description is its stats; off, its name links it to the SRD's weapon or armour (combat.js weaponIn).
+  gearByDescription: { value: true },
+  // Whether a creature's resistances, immunities and vulnerabilities to kinds of damage count.
+  damageTypes: { value: true },
   // A turn in a fight by turns: actions, bonus actions, attacks for an Attack action, metres to move. 0 leaves
   // each to the rules (combat.js turnBudget: one, one, one or more by class and level, nine).
   turnActions: { value: 0, min: 0, max: 6 },

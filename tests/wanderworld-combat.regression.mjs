@@ -29,7 +29,7 @@ const dice = (...faces) => {
 // A weapon is an item whose description gives its damage.
 assert.deepEqual(
   weaponIn({ name: "Iron axe", description: "A forged head. Tool: chops wood. Weapon: 1d8 damage, +1 to attack." }),
-  { name: "Iron axe", damage: "1d8", attack: 1, held: "axe", range: 0 },
+  { name: "Iron axe", damage: "1d8", attack: 1, held: "axe", range: 0, type: "slashing" },
 );
 assert.deepEqual(weaponIn({ name: "Short sword", description: "Weapon: 1d6 + 1 damage." }), {
   name: "Short sword",
@@ -37,6 +37,7 @@ assert.deepEqual(weaponIn({ name: "Short sword", description: "Weapon: 1d6 + 1 d
   attack: 0,
   held: "sword",
   range: 0,
+  type: "piercing",
 });
 assert.equal(weaponIn({ name: "Fishing rod", description: "Tool: catches fish." }), null);
 assert.equal(weaponIn({ name: "Health potion", description: "+15 HP when drunk." }), null);
@@ -48,7 +49,7 @@ const sword = { name: "Long sword", description: "Weapon: 1d10 damage.", locatio
 const knife = { name: "Knife", description: "Weapon: 1d4 damage.", location: "equipped:hand" };
 assert.equal(weaponOf([axe, sword]).name, "Long sword");
 assert.equal(weaponOf([axe, sword, knife]).name, "Knife", "the one in the hand, though a better is carried");
-assert.deepEqual(weaponOf([]), { name: "", damage: "1d2", attack: 0, held: null });
+assert.deepEqual(weaponOf([]), { name: "", damage: "1d2", attack: 0, held: null, type: "bludgeoning" });
 assert.equal(weaponOf(null).damage, "1d2");
 
 // A creature in a fight: the pack's numbers, more HP and a harder hit for a bigger one.
@@ -72,6 +73,8 @@ assert.deepEqual(playerStrike({ sheet, weapon: iron, foe: wolf }, dice([10, 20],
   hit: true,
   crit: false,
   damage: 7,
+  how: "",
+  type: "slashing",
   ac: 13,
 });
 assert.equal(playerStrike({ sheet, weapon: iron, foe: wolf }, dice([9, 20])).hit, false, "under the AC misses");
@@ -451,9 +454,20 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
 {
   const { SRD_CREATURES } = await import("../packages/wanderworld/src/srd.js");
   const { rollDice } = await import("../packages/wanderworld/src/sheet.js");
+  const { name, hp, ac, attack, damage, dex, type, pack, inflict } = SRD_CREATURES.wolf;
   assert.deepEqual(
-    SRD_CREATURES.wolf,
-    { name: "Wolf", hp: 11, ac: 13, attack: 4, damage: "2d4+2", dex: 2 },
+    { name, hp, ac, attack, damage, dex, type, pack, inflict },
+    {
+      name: "Wolf",
+      hp: 11,
+      ac: 13,
+      attack: 4,
+      damage: "2d4+2",
+      dex: 2,
+      type: "piercing",
+      pack: true,
+      inflict: { condition: "prone", save: { attribute: "strength", dc: 11 } },
+    },
     "a wolf is the SRD's wolf",
   );
   for (const [kind, creature] of Object.entries(SRD_CREATURES)) {
@@ -525,6 +539,88 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
     move: 15,
   });
   assert.equal(turnBudget("fighter", 5, { attacks: 0 }).attacks, 2, "0 leaves it to the rules");
+}
+
+// Gear by the SRD: a thing's name links it to a weapon or armour; its description is its stats, or isn't.
+{
+  const { armourIn, armourLink, gearWorn, proficiency, typedDamage, weaponLink } =
+    await import("../packages/wanderworld/src/combat.js");
+  assert.deepEqual(
+    [
+      "Rusty sword",
+      "Hunting knife",
+      "Elven longbow",
+      "Bowl",
+      "Great Sword of Kings",
+      "Woodcutter's axe",
+      "Oak staff",
+      "Bread",
+    ].map(weaponLink),
+    ["longsword", "dagger", "longbow", null, "greatsword", "battleaxe", "quarterstaff", null],
+  );
+  assert.deepEqual(
+    ["Chain mail", "Leather jerkin", "Old buckler", "Plate armor", "Dinner plate of gold", "Sword"].map(armourLink),
+    ["chain-mail", "leather-armor", "shield", "plate-armor", null, null],
+  );
+  // The toggle: on, the description wins and the name fills in for one that states nothing; off, the name wins.
+  const odd = { name: "Rusty sword", description: "Weapon: 1d4 damage." };
+  assert.equal(weaponIn(odd, true).damage, "1d4");
+  assert.equal(weaponIn(odd, false).damage, "1d8");
+  assert.equal(weaponIn(odd, false).type, "slashing");
+  const plain = { name: "Hunting knife", description: "Bone-handled." };
+  assert.deepEqual([weaponIn(plain, true).damage, weaponIn(plain, true).finesse], ["1d4", true]);
+  assert.equal(weaponIn({ name: "Longsword +1", description: "" }).attack, 1);
+  assert.equal(weaponIn({ name: "Odd thing", description: "Weapon: 2d4 fire damage." }, false).type, "fire");
+  assert.equal(weaponIn({ name: "Bread", description: "Tasty." }, false), null);
+  // Proficiency by level.
+  assert.deepEqual([1, 4, 5, 9, 13, 17, 20].map(proficiency), [2, 2, 3, 4, 5, 6, 6]);
+  // A finesse weapon goes by the better of Strength and Dexterity, and proficiency is on the roll.
+  let nimble = checkSheet(null);
+  nimble = changeSheet(nimble, { set: "dexterity", field: "value", value: 16 });
+  const mid = () => 0.5; // an 11 on the die
+  assert.equal(playerStrike({ sheet: nimble, weapon: weaponIn(plain), foe: { ac: 5 }, prof: 2 }, mid).total, 16);
+  // Armour: its number in place of 10, as much Dexterity as it lets through, a shield, and what else says "+1 AC".
+  const on = (name, description = "") => ({ name, description, location: "equipped:body" });
+  assert.equal(armourOf(nimble, gearWorn(nimble, [])), 13, "none: 10 and Dexterity");
+  assert.equal(armourOf(nimble, gearWorn(nimble, [on("Leather armor")])), 14);
+  assert.equal(armourOf(nimble, gearWorn(nimble, [on("Chain shirt")])), 15, "medium: two of Dexterity at most");
+  assert.equal(armourOf(nimble, gearWorn(nimble, [on("Chain mail"), on("Wooden shield")])), 18, "heavy: none of it");
+  assert.equal(armourOf(nimble, gearWorn(nimble, [on("Chain mail"), on("Ring of warding", "+1 AC")])), 17);
+  assert.equal(gearWorn(nimble, [on("Chain mail")]).acTotal, 16);
+  assert.equal(
+    armourOf(nimble, gearWorn(nimble, [{ ...on("Chain mail"), location: "bag" }])),
+    13,
+    "carried isn't worn",
+  );
+  // A described thing keeps its description while descriptions are the stats; off, its name decides.
+  const shield = on("Wooden shield", "Limewood boards. +3 AC.");
+  assert.equal(armourOf(nimble, gearWorn(nimble, [shield], { byDescription: true })), 16);
+  assert.equal(armourOf(nimble, gearWorn(nimble, [shield], { byDescription: false })), 15);
+  // With the rules off it's the sheet's AC and what's written, as it was.
+  assert.equal(armourOf(nimble, gearWorn(nimble, [on("Chain mail"), shield], { rules: false })), 13);
+  assert.equal(armourIn(on("Plate armor +1")).plus, 1);
+  // Kinds of damage.
+  const bones = {
+    vulnerable: ["bludgeoning"],
+    immune: ["poison"],
+    resist: [{ type: "slashing", except: ["magical"] }],
+  };
+  assert.deepEqual(typedDamage(7, "bludgeoning", bones), { damage: 14, how: "vulnerable" });
+  assert.deepEqual(typedDamage(7, "poison", bones), { damage: 0, how: "immune" });
+  assert.deepEqual(typedDamage(7, "slashing", bones), { damage: 3, how: "resists" });
+  assert.deepEqual(typedDamage(7, "slashing", bones, true), { damage: 7, how: "" }, "a magical blade gets past it");
+  assert.deepEqual(typedDamage(7, "fire", bones), { damage: 7, how: "" });
+  const club = weaponIn({ name: "Club", description: "" });
+  const hit = playerStrike({ sheet: checkSheet(null), weapon: club, foe: { ac: 5, ...bones } }, dice([15, 20], [3, 4]));
+  assert.deepEqual([hit.damage, hit.how], [6, "vulnerable"]);
+  assert.match(
+    strikeWords({ who: "Zoey", what: "skeleton", weapon: club, result: hit, left: 7, max: 13 }),
+    /for 6 \(doubled: bludgeoning is its weakness\)\./u,
+  );
+  const { SRD_ARMOUR, SRD_CREATURES, SRD_WEAPONS } = await import("../packages/wanderworld/src/srd.js");
+  assert.deepEqual(SRD_CREATURES.skeleton.vulnerable, ["bludgeoning"]);
+  assert.equal(SRD_WEAPONS.longsword.versatile, "1d10");
+  assert.deepEqual([SRD_ARMOUR["chain-mail"].ac, SRD_ARMOUR["chain-mail"].dex, SRD_ARMOUR.shield.bonus], [16, 0, 2]);
 }
 
 console.log("ok: fighting by the rules");

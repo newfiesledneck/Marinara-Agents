@@ -965,6 +965,57 @@ const VENDORS = {
           description: "A crossbow light enough to span by hand, with bolts. Weapon: 1d8 damage. Range 24.",
           price: 25,
         },
+        { name: "Longsword", description: "A straight, double-edged blade. Weapon: 1d8 slashing damage.", price: 45 },
+        {
+          name: "Greatsword",
+          description: "A blade for both hands, as long as its bearer is tall. Weapon: 2d6 slashing damage.",
+          price: 110,
+        },
+        { name: "Rapier", description: "A slim thrusting blade. Weapon: 1d8 piercing damage. Finesse.", price: 60 },
+        {
+          name: "Warhammer",
+          description: "A square iron head on an ash haft. Weapon: 1d8 bludgeoning damage.",
+          price: 40,
+        },
+        {
+          name: "Mace",
+          description: "A flanged iron head on a short haft. Weapon: 1d6 bludgeoning damage.",
+          price: 20,
+        },
+        { name: "Spear", description: "An ash shaft with a leaf-shaped head. Weapon: 1d6 piercing damage.", price: 12 },
+        {
+          name: "Longbow",
+          description: "A bow as tall as its archer, with a quiver of arrows. Weapon: 1d8 piercing damage. Range 24.",
+          price: 110,
+        },
+        {
+          name: "Leather armor",
+          description: "Boiled leather shaped to the body. Armour: Armor Class 11 in it, and all of your Dexterity.",
+          price: 30,
+        },
+        {
+          name: "Chain shirt",
+          description:
+            "A shirt of riveted rings, worn under the clothes. Armour: Armor Class 13 in it, and up to 2 of your Dexterity.",
+          price: 110,
+        },
+        {
+          name: "Scale mail",
+          description:
+            "A coat of overlapping iron scales. Armour: Armor Class 14 in it, and up to 2 of your Dexterity.",
+          price: 110,
+        },
+        {
+          name: "Chain mail",
+          description:
+            "Interlocking rings from neck to knee, over a padded coat. Armour: Armor Class 16 in it; Dexterity adds nothing.",
+          price: 160,
+        },
+        {
+          name: "Plate armor",
+          description: "Shaped steel plates over the whole body. Armour: Armor Class 18 in it; Dexterity adds nothing.",
+          price: 3000,
+        },
         { name: "Wooden shield", description: "Limewood boards rimmed with iron. +2 AC.", price: 20 },
         { name: "Iron helm", description: "A riveted iron cap. +1 AC.", price: 25 },
         { name: "Iron ingot", description: "Iron smelted out of its ore.", price: 12 },

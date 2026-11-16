@@ -5,11 +5,100 @@
 // player fights with is what they carry, read from its description ("Weapon: 1d8 damage, +1 to attack").
 // This module only works things out: main.js moves the bodies and tells what happened.
 
-import { attackRoll, modifier, rollDice, valueOf } from "./sheet.js";
+import { attackRoll, bonusesIn, modifier, rollDice, valueOf } from "./sheet.js";
+import { SRD_ARMOUR, SRD_WEAPONS } from "./srd.js";
 
 /** Bare hands. */
-const UNARMED = { name: "", damage: "1d2", attack: 0, held: null };
-const DAMAGE = /(\d{0,2}d\d{1,3}(?:\s*[+-]\s*\d{1,3})?)\s*damage/iu;
+const UNARMED = { name: "", damage: "1d2", attack: 0, held: null, type: "bludgeoning" };
+/** The kinds of damage there are (the SRD's). */
+export const DAMAGE_TYPES = [
+  "acid",
+  "bludgeoning",
+  "cold",
+  "fire",
+  "force",
+  "lightning",
+  "necrotic",
+  "piercing",
+  "poison",
+  "psychic",
+  "radiant",
+  "slashing",
+  "thunder",
+];
+const DAMAGE = new RegExp(
+  `(\\d{0,2}d\\d{1,3}(?:\\s*[+-]\\s*\\d{1,3})?)\\s*(?:(${DAMAGE_TYPES.join("|")})\\s+)?damage`,
+  "iu",
+);
+/**
+ * Which of the SRD's weapons something is, by a word in its name: the first of these that's there. So a
+ * "Rusty sword" is a longsword, a "Hunting knife" a dagger, an "Elven longbow" a longbow. The choice of
+ * which word means which weapon is Wanderworld's; what the weapon then does is the SRD's (srd.js).
+ */
+const WEAPON_WORDS = [
+  [/\b(?:great ?sword|claymore|zweihander)\b/iu, "greatsword"],
+  [/\b(?:short ?sword|gladius)\b/iu, "shortsword"],
+  [/\b(?:rapier|estoc|foil)\b/iu, "rapier"],
+  [/\b(?:scimitar|sabre|saber|cutlass|falchion)\b/iu, "scimitar"],
+  [/\b(?:\w*sword|blade|katana)\b/iu, "longsword"],
+  [/\b(?:dagger|knife|dirk|stiletto|shiv)\b/iu, "dagger"],
+  [/\b(?:great ?axe)\b/iu, "greataxe"],
+  [/\b(?:hand ?axe|hatchet|tomahawk)\b/iu, "handaxe"],
+  [/\b(?:pick|pickaxe|war pick)\b/iu, "war-pick"],
+  [/\b\w*axe\b/iu, "battleaxe"],
+  [/\b(?:maul|sledge|sledgehammer)\b/iu, "maul"],
+  [/\b(?:war ?hammer)\b/iu, "warhammer"],
+  [/\bhammer\b/iu, "light-hammer"],
+  [/\b(?:morningstar|morning star)\b/iu, "morningstar"],
+  [/\bmace\b/iu, "mace"],
+  [/\bflail\b/iu, "flail"],
+  [/\b(?:great ?club)\b/iu, "greatclub"],
+  [/\b(?:club|cudgel|baton|truncheon)\b/iu, "club"],
+  [/\b(?:quarterstaff|staff|stave)\b/iu, "quarterstaff"],
+  [/\bjavelin\b/iu, "javelin"],
+  [/\btrident\b/iu, "trident"],
+  [/\bpike\b/iu, "pike"],
+  [/\bhalberd\b/iu, "halberd"],
+  [/\bglaive\b/iu, "glaive"],
+  [/\blance\b/iu, "lance"],
+  [/\bspear\b/iu, "spear"],
+  [/\bwhip\b/iu, "whip"],
+  [/\b(?:sickle|scythe)\b/iu, "sickle"],
+  [/\b(?:heavy crossbow|arbalest)\b/iu, "crossbow-heavy"],
+  [/\bhand crossbow\b/iu, "crossbow-hand"],
+  [/\bcrossbow\b/iu, "crossbow-light"],
+  [/\b(?:longbow|long bow|war ?bow)\b/iu, "longbow"],
+  [/\b(?:\w*bow)\b/iu, "shortbow"],
+  [/\b(?:sling|slingshot)\b/iu, "sling"],
+  [/\bdart\b/iu, "dart"],
+  [/\bblowgun\b/iu, "blowgun"],
+];
+/** The same for armour and shields. */
+const ARMOUR_WORDS = [
+  [/\b(?:shield|buckler)\b/iu, "shield"],
+  [/\bhalf[ -]?plate\b/iu, "half-plate"],
+  [/\b(?:breastplate|cuirass)\b/iu, "breastplate"],
+  [/\b(?:plate|full plate)\b(?! of\b)/iu, "plate-armor"],
+  [/\bsplint\b/iu, "splint-armor"],
+  [/\bchain ?shirt\b/iu, "chain-shirt"],
+  [/\b(?:chain ?mail|hauberk)\b/iu, "chain-mail"],
+  [/\bring ?mail\b/iu, "ring-mail"],
+  [/\bscale\b/iu, "scale-mail"],
+  [/\bstudded\b/iu, "studded-leather-armor"],
+  [/\bhide (?:armou?r|coat|jerkin)\b/iu, "hide-armor"],
+  [/\bleather (?:armou?r|jerkin|vest|cuirass|coat|jack)\b/iu, "leather-armor"],
+  [/\b(?:padded|gambeson|quilted)\b/iu, "padded-armor"],
+];
+const linkOf = (words, table, name) => {
+  const id = words.find(([named]) => named.test(String(name ?? "")))?.[1];
+  return id && table[id] ? id : null;
+};
+/** The SRD weapon something is by its name (an id of srd.js SRD_WEAPONS), or null. */
+export const weaponLink = (name) => linkOf(WEAPON_WORDS, SRD_WEAPONS, name);
+/** The SRD armour or shield something is by its name (an id of srd.js SRD_ARMOUR), or null. A weapon never is. */
+export const armourLink = (name) => (weaponLink(name) ? null : linkOf(ARMOUR_WORDS, SRD_ARMOUR, name));
+/** A "+1" in a thing's name ("Longsword +1"): what it adds. */
+const plusIn = (name) => Number(/(?:^|\s)\+(\d)\b/u.exec(String(name ?? ""))?.[1] ?? 0);
 const WEAPON_RANGE = /\brange\s+(\d{1,3})/iu;
 const SHOOTS = /(?:bow|sling)\b/iu;
 const TO_ATTACK = /([+\-−])\s?(\d{1,2})\s*(?:to\s+)?(?:attack|to hit)/iu;
@@ -20,13 +109,27 @@ const HELD = [
   [/\b(?:hammer|maul|mace|club)\b/iu, "hammer"],
 ];
 
-/** What `item` is as a weapon, from its description: { name, damage, attack, held }, or null when it isn't one. */
-export function weaponIn(item) {
+/**
+ * What `item` is as a weapon: { name, damage, attack, held, range, type, and where it has them finesse,
+ * versatile, two, light, reach, thrown, plus (a +1's damage), srd (the SRD weapon it's taken as) }, or null
+ * when it isn't one. `byDescription` (Settings → Inventory → Combat): its description is its stats ("Weapon:
+ * 1d8 slashing damage, +1 to attack"), and only one that states none goes by its name; off, its name decides
+ * (a word such as sword, knife or bow links it to the SRD's weapon of that sort) and only one whose name
+ * says nothing goes by its description.
+ */
+export function weaponIn(item, byDescription = true) {
+  const written = weaponWritten(item);
+  const linked = weaponLinked(item);
+  return byDescription ? (written ?? linked) : (linked ?? written);
+}
+
+function weaponWritten(item) {
   const text = String(item?.description ?? "");
   const damage = DAMAGE.exec(text);
   if (!damage) return null;
   const attack = TO_ATTACK.exec(text);
   const name = String(item?.name ?? "").trim();
+  const like = SRD_WEAPONS[weaponLink(name)];
   return {
     name,
     damage: damage[1].replace(/\s+/gu, ""),
@@ -34,16 +137,110 @@ export function weaponIn(item) {
     held: HELD.find(([named]) => named.test(name))?.[1] ?? "sword",
     // (Something to shoot with, by its name or a "Range 24" in its description: how far it reaches, in metres.)
     range: Number(WEAPON_RANGE.exec(text)?.[1] ?? 0) || (SHOOTS.test(name) ? 24 : 0),
+    // (Its kind of damage: as written, else that of the weapon its name is like, else a blunt knock.)
+    type: damage[2]?.toLowerCase() ?? like?.type ?? "bludgeoning",
+    ...(/\bfinesse\b/iu.test(text) ? { finesse: true } : {}),
   };
 }
+
+function weaponLinked(item) {
+  const name = String(item?.name ?? "").trim();
+  const id = weaponLink(name);
+  const like = SRD_WEAPONS[id];
+  if (!like) return null;
+  const plus = plusIn(name);
+  const weapon = {
+    name,
+    damage: like.damage,
+    attack: plus,
+    held: HELD.find(([named]) => named.test(name))?.[1] ?? "sword",
+    range: like.range ?? 0,
+    type: like.type,
+    srd: id,
+  };
+  for (const key of ["finesse", "versatile", "two", "light", "reach", "thrown", "heavy"])
+    if (like[key]) weapon[key] = like[key];
+  if (plus) weapon.plus = plus;
+  return weapon;
+}
+
+/**
+ * What `item` is as armour, by its name: { name, kind, ac, dex, noisy } or a shield's { name, kind: "shield",
+ * bonus }, each with plus (a "+1" in its name), or null.
+ */
+export function armourIn(item) {
+  const like = SRD_ARMOUR[armourLink(item?.name)];
+  return like ? { ...like, name: String(item.name).trim(), plus: plusIn(item.name) } : null;
+}
+
+/**
+ * What's worn adds up to, with the gear rules: sheet.js wornBonuses' { [stat]: amount }, and beside it
+ * `armour` (the body armour worn, by its name: armourIn), `shield` (a shield's bonus) and `rules` (Armor
+ * Class is worked out the SRD's way: armourOf). `byDescription`: an equipped thing's description is its
+ * stats, and only one that states none goes by its name; off, the other way round.
+ */
+export function gearWorn(sheet, items, { byDescription = true, rules = true } = {}) {
+  const total = {};
+  let armour = null;
+  let shield = 0;
+  for (const item of Array.isArray(items) ? items : []) {
+    if (typeof item?.location !== "string" || !item.location.startsWith("equipped:")) continue;
+    const stated = bonusesIn(item.description, sheet);
+    const linked = rules ? armourIn(item) : null;
+    if (linked && !(byDescription && stated.length)) {
+      if (linked.kind === "shield") shield = Math.max(shield, linked.bonus + linked.plus);
+      else if (!armour || linked.ac + linked.plus > armour.ac + armour.plus) armour = linked;
+      continue;
+    }
+    for (const bonus of stated) total[bonus.stat] = (total[bonus.stat] ?? 0) + bonus.amount;
+  }
+  if (armour) total.armour = armour;
+  if (shield) total.shield = shield;
+  if (rules) total.rules = true;
+  if (rules) total.acTotal = armourOf(sheet, total); // (the AC all of it comes to, for showing)
+  return total;
+}
+
+/** The proficiency bonus at `level`, the SRD's: +2 to level 4, +3 to 8, +4 to 12, +5 to 16, +6 after. */
+export const proficiency = (level) => 2 + Math.floor((Math.max(1, Math.min(20, Math.round(level) || 1)) - 1) / 4);
+
+/**
+ * `damage` of `type` as `foe` takes it: twice over if it's vulnerable to that, half (rounded down) if it
+ * resists it, none if it's immune. { damage, how: "vulnerable" | "resists" | "immune" | "" }.
+ */
+export function typedDamage(damage, type, foe, magical = false) {
+  // (An entry is a kind of damage, or { type, except: ["magical", …] }: that kind unless the blow is magical.)
+  const has = (list) =>
+    !!type &&
+    Array.isArray(list) &&
+    list.some((entry) =>
+      typeof entry === "string"
+        ? entry === type
+        : entry?.type === type && !(magical && entry.except?.includes("magical")),
+    );
+  if (damage <= 0 || !foe) return { damage, how: "" };
+  if (has(foe.immune)) return { damage: 0, how: "immune" };
+  if (has(foe.vulnerable)) return { damage: damage * 2, how: "vulnerable" };
+  if (has(foe.resist)) return { damage: Math.floor(damage / 2), how: "resists" };
+  return { damage, how: "" };
+}
+/** That, in a few words for the telling: " (doubled: it can't bear fire)", "" when it's as rolled. */
+export const typedWords = (how, type) =>
+  how === "vulnerable"
+    ? ` (doubled: ${type} is its weakness)`
+    : how === "resists"
+      ? ` (halved: it resists ${type})`
+      : how === "immune"
+        ? ` (nothing: ${type} can't hurt it)`
+        : "";
 
 /**
  * What the player shoots with, of what they carry: the bow, crossbow or sling they have equipped, else the
  * best they carry, as { ...weapon, worn (it's the one equipped) }; null when they have none.
  */
-export function bowOf(items) {
+export function bowOf(items, byDescription = true) {
   const all = (Array.isArray(items) ? items : [])
-    .map((item) => ({ item, weapon: weaponIn(item) }))
+    .map((item) => ({ item, weapon: weaponIn(item, byDescription) }))
     .filter((entry) => entry.weapon?.range > 0);
   const worn = all.filter((entry) => String(entry.item.location ?? "").startsWith("equipped:"));
   const best = (list) =>
@@ -56,8 +253,8 @@ export function bowOf(items) {
  * What the player fights with: a weapon they have equipped, else the best they carry (so an axe just made
  * is of use before they've learned where things are worn), else their bare hands. `items`: Quartermaster's.
  */
-export function weaponOf(items) {
-  const all = (Array.isArray(items) ? items : []).map((item) => ({ item, weapon: weaponIn(item) }));
+export function weaponOf(items, byDescription = true) {
+  const all = (Array.isArray(items) ? items : []).map((item) => ({ item, weapon: weaponIn(item, byDescription) }));
   const weapons = all.filter((entry) => entry.weapon && !entry.weapon.range); // (a bow isn't swung)
   const worn = weapons.filter((entry) => String(entry.item.location ?? "").startsWith("equipped:"));
   const best = (list) =>
@@ -93,24 +290,41 @@ export function foeOf(kind, foes, scale = 1) {
  * the roll; the weapon's dice, Strength's modifier and worn "damage" on a hit. `worn`: sheet.js wornBonuses.
  * { roll, total, hit, crit, damage, ac }.
  */
-export function playerStrike({ sheet, worn = {}, weapon = UNARMED, foe }, random = Math.random) {
-  // (A bow goes by Dexterity, as the SRD has it; anything swung by Strength.)
-  const attribute = weapon.range ? "dexterity" : "strength";
-  const strength = modifier(valueOf(sheet, attribute) + (worn[attribute] ?? 0));
+export function playerStrike({ sheet, worn = {}, weapon = UNARMED, foe, prof = 0 }, random = Math.random) {
+  // (A bow goes by Dexterity, as the SRD has it; anything swung by Strength; a finesse weapon by the better.)
+  const of = (attribute) => modifier(valueOf(sheet, attribute) + (worn[attribute] ?? 0));
+  const strength = weapon.range
+    ? of("dexterity")
+    : weapon.finesse
+      ? Math.max(of("strength"), of("dexterity"))
+      : of("strength");
   const result = attackRoll(
     {
-      bonus: strength + weapon.attack + (worn.attack ?? 0),
+      bonus: strength + prof + weapon.attack + (worn.attack ?? 0),
       ac: foe.ac,
       damage: weapon.damage,
-      damageBonus: strength + (worn.damage ?? 0),
+      damageBonus: strength + (weapon.plus ?? 0) + (worn.damage ?? 0),
     },
     random,
   );
-  return { ...result, ac: foe.ac };
+  // (What it's made of matters to some: a skeleton takes a blunt blow twice over.)
+  const typed = typedDamage(result.damage, weapon.type, foe, !!weapon.plus);
+  return { ...result, damage: typed.damage, how: typed.how, type: weapon.type, ac: foe.ac };
 }
 
-/** The player's AC: the sheet's, with what they wear. */
-export const armourOf = (sheet, worn = {}) => valueOf(sheet, "ac") + (worn.ac ?? 0);
+/**
+ * The player's AC. As the sheet has it with what they wear; or, with the gear rules (`worn.rules`, from
+ * gearWorn), the SRD's way: armour's own number in place of 10, as much of the Dexterity modifier as the
+ * armour lets through (all of it in none), a shield, and anything else worn that says "+1 AC". The sheet's
+ * AC stays the base: 10 is "nothing of their own", and what's over or under it still counts.
+ */
+export function armourOf(sheet, worn = {}) {
+  const own = valueOf(sheet, "ac") + (worn.ac ?? 0);
+  if (!worn.rules) return own;
+  const dex = modifier(valueOf(sheet, "dexterity") + (worn.dexterity ?? 0));
+  const armour = worn.armour;
+  return own - 10 + (armour ? armour.ac + armour.plus + Math.min(dex, armour.dex) : 10 + dex) + (worn.shield ?? 0);
+}
 
 /**
  * A creature's attack on the player. `guarded` (they're blocking): it's rolled twice and the worse for the
@@ -175,7 +389,7 @@ export function strikeWords({ who, what, weapon, result, left, max, named = fals
       : "strikes at";
   const start = `${who} ${how} ${whom} (${rollWords(result)})`;
   if (!result.hit) return `${start}: a miss.`;
-  const hit = `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}.`;
+  const hit = `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}${typedWords(result.how, result.type)}.`;
   if (left <= 0) return `${hit} ${named ? what : `The ${what}`} goes down.`;
   return `${hit} ${named ? `${what} has` : "It has"} ${left} of ${max} HP left.`;
 }
@@ -202,9 +416,9 @@ export function personWords({ name, who, weapon, result, left, max, shot = false
  * Only the damage is played: a spell's effect doesn't take hold of the player.
  * { hit, saved, crit, sure, roll, total, against, damage }.
  */
-export function spellAtPlayer({ wit = 0, spell, sheet, worn = {} }, random = Math.random) {
+export function spellAtPlayer({ wit = 0, spell, sheet, worn = {}, prof = 2 }, random = Math.random) {
   if (spell.save) {
-    const dc = 10 + wit;
+    const dc = 8 + prof + wit;
     const score = valueOf(sheet, spell.save.attribute.toLowerCase()) || 10;
     const thrown = savingThrow({ score, dc, damage: spell.damage ?? 0, onSave: spell.save.onSave }, random);
     return {
@@ -223,7 +437,7 @@ export function spellAtPlayer({ wit = 0, spell, sheet, worn = {} }, random = Mat
     return { hit: true, saved: false, crit: false, sure: true, roll: 0, total: 0, against: "", damage };
   }
   const ac = armourOf(sheet, worn);
-  const result = attackRoll({ bonus: 2 + wit, ac, damage: spell.damage ?? "0" }, random);
+  const result = attackRoll({ bonus: prof + wit, ac, damage: spell.damage ?? "0" }, random);
   return { ...result, ac, saved: false, sure: false, against: `AC ${ac}` };
 }
 
@@ -390,18 +604,26 @@ export function spellIn(entry) {
  * (a d20 + 2 + wit) against its AC, as a weapon's, a 20 a critical hit.
  * { hit, saved, crit, sure, roll, total, against, damage, effect }.
  */
-export function spellStrike({ wit = 0, spell, foe }, random = Math.random) {
-  const result = spellRolled({ wit, spell, foe }, random);
+export function spellStrike({ wit = 0, spell, foe, prof = 2 }, random = Math.random) {
+  const result = spellRolled({ wit, spell, foe, prof }, random);
+  const typed = typedDamage(result.damage, spell.type, foe, true);
   // (What it shoves back, it shoves on a failed save or a hit.)
-  return { ...result, push: result.hit ? (spell.push ?? 0) : 0 };
+  return {
+    ...result,
+    damage: typed.damage,
+    how: typed.how,
+    type: spell.type,
+    push: result.hit ? (spell.push ?? 0) : 0,
+  };
 }
-function spellRolled({ wit, spell, foe }, random) {
+function spellRolled({ wit, spell, foe, prof }, random) {
   if (spell.save) {
-    const dc = 10 + wit;
+    const dc = 8 + prof + wit;
     const thrown = savingThrow(
       {
         score: 10,
-        bonus: foe.save ?? Math.floor(foe.attack / 2),
+        // (Its own saving throw in that attribute where the SRD gives one.)
+        bonus: foe.saves?.[spell.save.attribute.toLowerCase()] ?? foe.save ?? Math.floor(foe.attack / 2),
         dc,
         damage: spell.damage ?? 0,
         onSave: spell.save.onSave,
@@ -434,7 +656,7 @@ function spellRolled({ wit, spell, foe }, random) {
       effect: spell.effect,
     };
   }
-  const result = attackRoll({ bonus: 2 + wit, ac: foe.ac, damage: spell.damage ?? "0" }, random);
+  const result = attackRoll({ bonus: prof + wit, ac: foe.ac, damage: spell.damage ?? "0" }, random);
   return {
     hit: result.hit,
     saved: false,
@@ -468,7 +690,7 @@ export function spellWords({ who, name, what, spell, result, left, max, named = 
   if (result.sure) parts.push("it strikes home");
   else if (spell.save) parts.push(result.saved ? (named ? "they save" : "it saves") : named ? "they fail" : "it fails");
   else parts.push(result.crit ? "a critical hit" : result.hit ? "a hit" : "a miss");
-  if (result.damage > 0) parts.push(`for ${result.damage}`);
+  if (result.damage > 0 || result.how) parts.push(`for ${result.damage}${typedWords(result.how, result.type)}`);
   if (result.effect) parts.push(`${result.effect.name} for ${result.effect.seconds} seconds`);
   if (result.push) parts.push(`pushed back ${result.push} m`);
   const told = `${start}${rolled}: ${parts.join(", ")}.`;

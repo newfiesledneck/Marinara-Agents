@@ -255,7 +255,14 @@ export function useItem(sheet, description) {
 export function sheetWords(sheet, worn = {}) {
   const on = sheet.entries.filter((entry) => entry.on);
   const told = (entry) => {
-    const bonus = worn[entry.id] ?? 0;
+    // (With the gear rules the AC is worked out from armour and Dexterity: combat.js gearWorn's acTotal.)
+    if (entry.id === "ac" && worn.acTotal !== undefined) {
+      const inWhat = [worn.armour ? `in ${worn.armour.name.toLowerCase()}` : "", worn.shield ? "with a shield" : ""]
+        .filter(Boolean)
+        .join(", ");
+      return `AC ${worn.acTotal}${inWhat ? ` (${inWhat})` : ""}`;
+    }
+    const bonus = typeof worn[entry.id] === "number" ? worn[entry.id] : 0;
     const about = entry.own && entry.about ? ` (${entry.about})` : "";
     if (NUMBERLESS.has(entry.kind)) return `${entry.name}${about}`;
     if ("max" in entry) return `${entry.name} ${entry.value}/${entry.max}${about}`;

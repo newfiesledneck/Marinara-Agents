@@ -874,6 +874,12 @@ export function createHud(root, handlers) {
       "Only where combat is By turns. Off: a spell costs its level in mana, as in real time. On: a spell is cast with a spell slot of its level or higher, as the 5e SRD has it, and mana is left alone; your sheet and the spell buttons then show spell slots where mana was. You have the slots of a full caster of your level (two first-level slots at level 1, three at level 2, four and two second-level at level 3, and so on up to third-level slots), and a sleep gives them back. Cantrips need neither.",
     srdCreatures:
       "On: a creature's HP, AC, attack and damage are those of the 5e SRD creature it is taken as: a wolf is the SRD's wolf (11 HP, AC 13, +4 to hit, 2d4+2), a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage. Cattle, the alpaca and the shiba have nothing close in the SRD and keep the game's own numbers, as they all do with this off. People fight by their class either way. Experience for a win is the game's own.",
+    srdModifiers:
+      "On: numbers work as in the 5e SRD. Your attacks and spells add a proficiency bonus that grows with your level (+2, +3 from level 5, up to +6). Your AC adds your Dexterity modifier. Armour you wear, known by its name (leather armor, chain shirt, scale mail, chain mail, plate and the rest), sets your AC in place of 10 and limits how much Dexterity counts; a shield adds 2. A finesse weapon (dagger, rapier, shortsword) uses the better of Strength and Dexterity. Off: your sheet's AC plus what worn things say, and no proficiency.",
+    gearByDescription:
+      'On: what an item\'s description says is what it does ("Weapon: 1d8 slashing damage, +1 to attack", "+2 AC"), and only an item whose description states nothing goes by its name. Off: the name decides. Anything with a word such as sword, knife, dagger, axe, hammer, mace, spear, staff, bow or crossbow in its name is that weapon from the 5e SRD, and armour and shields likewise; only an item whose name says nothing goes by its description. A +1 in a name adds 1.',
+    damageTypes:
+      "On: what a blow or a spell is made of matters to some creatures. A skeleton takes a blunt blow twice over and poison not at all; a slime resists fire, cold and acid; fire can't hurt a dragon or an imp. Off: damage is damage.",
     rangedFoes:
       "On: a creature the SRD gives a bow, a crossbow or spells uses them when you're out of its reach, in real time and by turns. A bandit shoots a light crossbow, a puglin and a skeleton a shortbow; a wizard casts Fire Bolt and Magic Missile, a witch Sacred Flame and Spiritual Weapon. Each is rolled against your AC or your saving throw, or a companion's AC. Off: they all have to close with you.",
     turnActions:
@@ -1312,7 +1318,7 @@ export function createHud(root, handlers) {
   heading(
     "Inventory",
     "What you carry, your character sheet, gathering and shops. The things themselves are kept by the Quartermaster package, if you have it installed; your sheet is Wanderworld's own and works without it.",
-    ["Items", "Sheet", "Gathering", "Shops", "Combat"],
+    ["Items", "Sheet", "Gathering", "Shops", "Combat", "5e rules"],
   );
   at("Inventory", "Items");
   intro(
@@ -1391,6 +1397,14 @@ export function createHud(root, handlers) {
   toggle("opportunity", "By turns: opportunity attacks", "sheet");
   toggle("srdCreatures", "Creatures use the 5e SRD's numbers", "sheet");
   toggle("rangedFoes", "Creatures shoot and cast from a distance", "srdCreatures");
+  at("Inventory", "5e rules");
+  intro(
+    "How much of the 5e SRD's rules your fights go by. Each can be switched off by itself; with all of them off, fights are as simple as they were.",
+  );
+  toggle("srdModifiers", "Proficiency, Dexterity and armour by the rules", "sheet");
+  toggle("gearByDescription", "An item's description is its stats", "sheet");
+  toggle("damageTypes", "Kinds of damage matter to creatures", "srdCreatures");
+  at("Inventory", "Combat");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
   number("beatenDays", "Days before the beaten are about again", "sheet");
   {
@@ -2947,7 +2961,12 @@ export function createHud(root, handlers) {
       on.checked = entry.on;
       on.setAttribute("aria-label", `Use ${entry.name}`);
       on.addEventListener("change", () => change({ set: entry.id, field: "on", value: on.checked }));
-      const bonus = worn[entry.id] ? ` (${worn[entry.id] > 0 ? "+" : ""}${worn[entry.id]} worn)` : "";
+      const bonus =
+        entry.id === "ac" && worn.acTotal !== undefined
+          ? ` (${worn.acTotal} as you stand${worn.armour ? `, in ${worn.armour.name.toLowerCase()}` : ""}${worn.shield ? ", with a shield" : ""})`
+          : typeof worn[entry.id] === "number" && worn[entry.id]
+            ? ` (${worn[entry.id] > 0 ? "+" : ""}${worn[entry.id]} worn)`
+            : "";
       row.append(on, piece("flex:1;min-width:0;", `${entry.name}${bonus}`));
       if (!entry.on) {
         row.append(piece(`color:${INK_SOFT};font-size:11px;`, kindWords(entry.kind)));
