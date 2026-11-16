@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.01 — 2026-11-16
+
+- Fixed: with "Stay down until you choose", the Respawn button could vanish and leave you lying there for good. It now stays up for as long as you're down, and works whatever else has happened meanwhile.
+- Settings → Debug has a Respawn button of its own, for getting unstuck: it puts you at your door, on your feet. If you weren't beaten it costs nothing.
+
 ## 0.7.00 — 2026-11-16
 
 - Creatures act out their attacks. Bandits swing their swords, and witches and wizards cast, with the same animations people use. Animals and monsters lunge at you when they strike (their models have no attack animations yet).

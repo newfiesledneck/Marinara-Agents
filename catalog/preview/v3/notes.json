@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.01",
+          "date": "2026-11-16",
+          "notes": "- Fixed: with \"Stay down until you choose\", the Respawn button could vanish and leave you lying there for good. It now stays up for as long as you're down, and works whatever else has happened meanwhile.\n- Settings → Debug has a Respawn button of its own, for getting unstuck: it puts you at your door, on your feet. If you weren't beaten it costs nothing.",
+          "highlight": false
+        },
+        {
           "version": "0.7.00",
           "date": "2026-11-16",
           "notes": "- Creatures act out their attacks. Bandits swing their swords, and witches and wizards cast, with the same animations people use. Animals and monsters lunge at you when they strike (their models have no attack animations yet).\n- Casting with nothing in front of you turns you to the nearest enemy the spell can reach, then casts. A bow does the same. Peaceful animals are never picked.",
@@ -307,12 +313,6 @@
           "version": "0.6.82",
           "date": "2026-11-15",
           "notes": "- Two more ways to fight, in Settings → Inventory → Combat. A narrated moment: when a creature gets to you, or you press Attack with one in reach, the game rolls one exchange of blows at once and the AI tells it as rolled. A scene: the meeting opens a scene chat, and the creatures let you be while you play it.\n- A defeat can have a cost: a quarter of your money, or your experience toward the next level. Nothing, to begin with.\n- What you beat stays gone for two days (a setting), then is back where it lives. Before, everything was back whenever the world was opened.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.81",
-          "date": "2026-11-15",
-          "notes": "- The prompts for Chop wood, Mine, Fish and the rest sit at ground level, at the thing itself.\n- Keys: Ctrl by itself turns running on or off (Shift still runs while held). With combat on, F swings, Q blocks and R dodges. E stays for using and gathering.\n- On a touch screen a Combat button swaps Run, Sit and Jump for Attack, Block and Dodge, and back.\n- Block: for about a second, an attack on you is rolled twice and the worse roll counts. Dodge: a roll of a few steps, and nothing lands on you mid-roll.\n- A third choice for defeat: stay down where you fell while the chat and narration go on, with a Respawn button at the top.\n- Undefeatable (Settings → Inventory → Combat) holds HP, mana and your other resources at their most.",
           "highlight": false
         }
       ]
