@@ -1,5 +1,15 @@
 # Wanderworld release notes
 
+## 0.6.99 — 2026-11-16
+
+- By turns: a fight starts when a creature begins coming for you, not when it hits. Its Stealth is rolled against your passive Perception; if you miss it, you lose your first turn.
+- Movement is a circle on the ground: anywhere within nine metres of where your turn began, and back. Clicking to walk no longer goes past it.
+- Dash, Disengage and Dodge buttons on the bar. Leaving a creature's reach gives it an opportunity attack unless you Disengaged.
+- An optional class of your own (Inventory → Sheet): Second Wind, Action Surge, Cunning Action, Rage, Extra Attack.
+- Actions, bonus actions, attacks and metres per turn can be set by hand in Settings → Inventory → Combat.
+- Creatures shoot and cast on their turns.
+- The bar no longer covers notices.
+
 ## 0.6.98 — 2026-11-16
 
 - Bows and crossbows. One you carry is shot with the attack key when nothing is in reach of a swing, by Dexterity. The smith sells a shortbow and a light crossbow. Arrows aren't counted.

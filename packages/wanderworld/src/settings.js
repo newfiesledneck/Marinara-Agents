@@ -174,6 +174,16 @@ export const SETTINGS = {
   fightPeople: { value: false },
   // Whether creatures fight with the 5e SRD's numbers (srd.js SRD_CREATURES) or the setting pack's own.
   srdCreatures: { value: true },
+  // A turn in a fight by turns: actions, bonus actions, attacks for an Attack action, metres to move. 0 leaves
+  // each to the rules (combat.js turnBudget: one, one, one or more by class and level, nine).
+  turnActions: { value: 0, min: 0, max: 6 },
+  turnBonus: { value: 0, min: 0, max: 6 },
+  turnAttacks: { value: 0, min: 0, max: 8 },
+  turnMove: { value: 0, min: 0, max: 60 },
+  // Whether a creature coming for the player may catch them by surprise (its Stealth against their passive Perception).
+  surprise: { value: true },
+  // Whether moving out of a creature's reach on your turn lets it strike (an opportunity attack).
+  opportunity: { value: true },
   // Whether creatures that have a bow or spells use them from a distance (real-time combat, with the SRD's numbers).
   rangedFoes: { value: true },
   // Whether someone the player attacks fights back (real-time combat: main.js angryTick).

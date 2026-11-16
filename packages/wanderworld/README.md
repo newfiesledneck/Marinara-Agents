@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.98)
+## What it does now (0.6.99)
 
 ### The world
 
@@ -545,8 +545,14 @@ Combat can be played four ways.
   you step sideways and back without turning. Z casts the spell that's ready. On a touch screen a
   Combat button swaps Run, Sit and Jump for Attack, Block, Dodge and Cast.
 - **By turns.** A fight stops the clock for those in it. Everyone rolls initiative and acts in that
-  order. On your turn you may move nine metres, take one action (Attack, Cast, Dodge, or use
-  something by its hotkey) and one bonus action, then end your turn (T). Companions and creatures
+  order. It begins when a creature starts coming for you: its Stealth against your passive
+  Perception decides whether you're surprised and lose your first turn. On your turn a circle on
+  the ground shows how far you can go (nine metres from where the turn began; anywhere inside it,
+  and back). You have one action (Attack, Cast, Dash, Disengage, Dodge, or something by its hotkey)
+  and one bonus action, then end your turn (T). Leaving a creature's reach gives it an opportunity
+  attack unless you Disengaged. Creatures with bows or spells use them. An optional class of your
+  own adds Second Wind, Action Surge, Cunning Action, Rage and Extra Attack by level, and the
+  numbers a turn gives can be set by hand. Companions and creatures
   take turns by the same rules, and a bar along the top shows the order. With "Fights by turns use
   spell slots" on, a spell takes a spell slot of its level or higher, as the SRD has it, and mana
   is left alone; a sleep gives the slots back.

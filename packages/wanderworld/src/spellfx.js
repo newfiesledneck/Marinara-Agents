@@ -109,6 +109,28 @@ export function createSpellFx() {
     });
   }
 
+  /**
+   * A thin circle of `radius` metres lying on the ground round `at`, seen through what's in front of it, until
+   * its `remove()` is called: how far a turn's movement reaches.
+   */
+  function circle(scene, at, radius, colour) {
+    const mesh = new Mesh(
+      new RingGeometry(Math.max(0.1, radius - 0.12), radius, 72),
+      new MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.55, depthTest: false, depthWrite: false }),
+    );
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(at.x, at.y, at.z);
+    mesh.renderOrder = 5;
+    scene.add(mesh);
+    return {
+      remove() {
+        mesh.removeFromParent();
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+      },
+    };
+  }
+
   /** Motes of light rising round (x, z) from `y`: mending. */
   function motes(scene, at, colour, count = 10) {
     for (let i = 0; i < count; i++) {
@@ -155,5 +177,5 @@ export function createSpellFx() {
     live = [];
   }
 
-  return { bolt, burst, ring, motes, update, clear, count: () => live.length };
+  return { bolt, burst, ring, circle, motes, update, clear, count: () => live.length };
 }

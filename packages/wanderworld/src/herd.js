@@ -590,7 +590,13 @@ export function createHerd() {
     const distance = Math.hypot(dx, dz);
     if (distance > (mode === "attack" ? HUNT_FROM : THREAT_FROM)) {
       beast.angry = false; // (they got away)
+      beast.chasing = false;
       return false;
+    }
+    // (The moment it starts coming for them is told once, for a fight by turns to begin before it lands a blow.)
+    if (mode === "attack" && !beast.chasing && (view.combat || beast.angry)) {
+      beast.chasing = true;
+      events.push({ type: "chase", id: beast.id, kind: beast.kind, scale: beast.scale ?? 1, x: beast.x, z: beast.z });
     }
     beast.state = "idle";
     beast.target = null;

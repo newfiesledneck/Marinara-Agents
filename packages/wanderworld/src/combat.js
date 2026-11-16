@@ -522,3 +522,23 @@ export function slotFor(level, slots, used = {}) {
     if (slot >= level && (slots[slot] ?? 0) - (used[slot] ?? 0) > 0) return slot;
   return 0;
 }
+
+/**
+ * What a turn gives in a fight by turns, by the SRD: one action, one bonus action, nine metres (30 feet), and
+ * one attack for an Attack action. A class changes these as it gains levels: Extra Attack gives a barbarian,
+ * fighter, monk, paladin or ranger two attacks from level 5 (a fighter three from 11 and four from 20), and
+ * Fast Movement and Unarmored Movement give a barbarian (from 5) and a monk (from 2) three metres more.
+ * `set`: the player's own numbers ({ actions, bonus, attacks, move }; 0 or nothing leaves that one to the rules).
+ */
+export function turnBudget(classId = "", level = 1, set = {}) {
+  const extra = ["barbarian", "fighter", "monk", "paladin", "ranger"].includes(classId) && level >= 5;
+  const attacks = classId === "fighter" && level >= 20 ? 4 : classId === "fighter" && level >= 11 ? 3 : extra ? 2 : 1;
+  const fast = (classId === "barbarian" && level >= 5) || (classId === "monk" && level >= 2);
+  const or = (own, ruled) => (Number(own) > 0 ? Math.round(Number(own)) : ruled);
+  return {
+    actions: or(set.actions, 1),
+    bonus: or(set.bonus, 1),
+    attacks: or(set.attacks, attacks),
+    move: or(set.move, TURN_MOVE + (fast ? 3 : 0)),
+  };
+}
