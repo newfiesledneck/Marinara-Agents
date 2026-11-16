@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.88",
+          "date": "2026-11-15",
+          "notes": "- You can set your own keys. With a keyboard, Settings → Controls → Keys has a button for each action: press it, then the key you want. A key another action has is swapped with it. \"Reset keys\" puts them back.\n- The controls hint names your keys as you have them.\n- The README has a Fighting section, and its credits name the SRD 5.1.",
+          "highlight": false
+        },
+        {
           "version": "0.6.87",
           "date": "2026-11-15",
           "notes": "- Your companions fight beside you in real-time combat. Each has a class from the 5e SRD, which gives them a weapon and spells: they strike what comes within reach, cast at what doesn't, and a healer mends you when you're below half your HP.\n- Inventory → Sheet → Your companions sets each one's class. Until you choose, each has one of their own.\n- Their rolls are told in the chat like yours. Nothing attacks them yet, and they have no HP of their own.\n- Settings → Inventory → Combat → \"Your companions fight beside you\" turns it off.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.69",
           "date": "2026-11-15",
           "notes": "- Settings → World → Vendors lists every vendor in your world. Tick the trades a shop has; one shop can be several at once.\n- \"Empty houses\" in the same place turns a house nobody lives in into a shop of the trade you pick, for a world that came without one you want.\n- \"The AI stocks shop shelves\" (People → Inventory, and under AI and Token use): when a shop restocks, the AI writes its stock to fit your world's setting and the shop's trade. Off to begin with. It is one AI call per shop per restocking, made when you open the shop, and the built-in lists stand in if it fails.\n- \"The AI updates your sheet\" is now under AI and Token use as well.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.68",
-          "date": "2026-11-15",
-          "notes": "- Shops. At a vendor's door or inside it, a Shop button appears in the chat window. The smithy sells tools, weapons and armour, a shop is a general store, and a tavern or inn sells food and drink. A town's plain shops are a mix of general stores, apothecaries and tailors, and a building named for a trade sells that.\n- Buy with what's in your purse. Sell what you carry: a shop pays half a thing's worth for what it deals in, and a quarter for anything else.\n- Shelves hold a few things of each kind and are restocked every three days with different ones. Settings → People → Inventory has the switch and the days.\n- A shop that is shut for the night doesn't trade.\n- Not yet: managing vendors in Settings, stock written by the AI, and market stalls.",
           "highlight": false
         }
       ]

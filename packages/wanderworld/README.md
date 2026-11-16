@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.87)
+## What it does now (0.6.88)
 
 ### The world
 
@@ -528,6 +528,54 @@ Avatars models from the Engine, and changes none of them. The server part keeps 
 contexts (until the Engine's planner reads them), scene recaps (until the world takes them) and each
 world's newest 60 pictures.
 
+### Fighting
+
+Off to begin with: Settings → Inventory → Combat. It needs the character sheet, and nothing else.
+Combat can be played three ways.
+
+- **Real time.** F swings wherever you face, standing or on the move, and whatever is in front of
+  you and in reach when the blow lands takes it. Q blocks for about a second: an attack on you
+  meanwhile is rolled twice and the worse roll counts. R dodges: a roll of a few steps, and nothing
+  lands on you mid-roll. X draws your weapon or puts it away; drawn, the view stays behind you and
+  you step sideways and back without turning. Z casts the spell that's ready. On a touch screen a
+  Combat button swaps Run, Sit and Jump for Attack, Block, Dodge and Cast.
+- **A narrated moment.** When a creature gets to you, or you press Attack with one in reach, the
+  game rolls one exchange of blows at once and the AI tells it as rolled.
+- **A scene.** The same meeting opens a scene chat with your stats, and the creatures let you be.
+
+The rules are the same in all three, and the game rolls them (`src/combat.js`). An attack is a d20
+plus a bonus against the target's AC: under it misses, at or over it hits, a 20 on the die is a
+critical hit that rolls the damage dice twice, and a 1 always misses. Your bonus is your Strength
+modifier and what your weapon and anything worn add. A weapon is any item whose description gives
+its damage ("Weapon: 1d8 damage, +1 to attack"): the one equipped, else the best carried, else
+your fists. A creature's HP, AC, attack and damage are in `src/pack.js` (`foes`). The chat tells
+every roll, and no AI call is made in a real-time fight.
+
+- **Spells** come from the 5e SRD and from you, and from nowhere else. Inventory → Sheet lists the
+  SRD's spells of level 0 to 3 that a fight here can play (40 of them, in `src/srd.js`), and each
+  one added becomes a line of your sheet whose description is its rule: "Cantrip. 1d10 fire damage.
+  Range 24." or "Level 1. 2 mana. 3d6 fire damage. Dexterity save for half. Range 5." You can
+  rewrite it, and write your own the same way. A cantrip costs no mana; a spell costs one more than
+  its level. A spell is a spell attack against AC, a saving throw against 10 plus your Intelligence
+  modifier, or needs no roll. Being stunned, paralyzed, restrained or incapacitated holds a target
+  where it stands; being frightened sends it running. A healing spell mends you.
+- **Resting.** Mana and HP come back slowly while you sit or lie down, and fully when you sleep.
+- **Your companions fight too.** Each has a class from the SRD (Inventory → Sheet → Your
+  companions), which gives them a weapon and spells. They strike what comes within reach, cast at
+  what doesn't, and a healer mends you below half your HP. Nothing attacks them yet.
+- **Anything can be struck**: hostile creatures fight back, peaceful ones run, and people only if
+  you turn on "Blows can land on people". Someone struck remembers it for good and becomes your
+  enemy, whoever saw it remembers, and at 0 HP they lie out cold for two minutes. Nobody dies.
+- **The beaten** lie where they fell for a few minutes. An animal can be harvested (hide, meat),
+  an outlaw searched (coins, what they carried), and either carried and put down. What you beat
+  stays gone for two days.
+- **Defeat.** At 0 HP you go down, then come to where you fell, wake at home, or stay down until
+  you press Respawn, as you set it. It can cost a quarter of your money or your experience toward
+  the next level. Undefeatable holds your HP and mana at their most.
+- **Keys.** With a keyboard, Settings → Controls → Keys gives any action another key.
+
+Every number of days, minutes and cost above is a setting on the same page.
+
 ### Lorebook keywords
 
 Wanderworld acts only on lorebook keys written `ww:<what>:<value>`, so an entry's ordinary trigger words
@@ -765,9 +813,17 @@ node scripts/build-wanderworld-package.mjs
 Edit `src/` or `server.mjs` and rebuild; never edit `client.js`, `manifest.json` or the artifact by hand.
 Bump `VERSION` in the build script and add a `CHANGELOG.md` entry first. The regression suites are
 `tests/wanderworld*.regression.mjs`, each run with `node`. The kit's files are made from the downloaded
-packs by `scripts/build-wanderworld-kit.mjs`, `build-wanderworld-people.mjs` (also `--folk`) and `build-wanderworld-animals.mjs`; [kit/CREDITS.md](kit/CREDITS.md) says which pack each needs.
+packs by `scripts/build-wanderworld-kit.mjs`, `build-wanderworld-people.mjs` (also `--folk`), `build-wanderworld-animals.mjs` and `build-wanderworld-srd.mjs` (the SRD's spells and classes, from the `ruleset-5e-2014` package); [kit/CREDITS.md](kit/CREDITS.md) says which pack each needs.
 
 ## Credits
+
+Spells, classes and class weapons include material from the System Reference Document 5.1 by Wizards
+of the Coast LLC (https://dnd.wizards.com/resources/systems-reference-document), licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode), in the machine-readable form of
+the [Open5e API](https://github.com/open5e/open5e-api) project, taken from this repository's
+`ruleset-5e-2014` package by `scripts/build-wanderworld-srd.mjs`. It has been adapted: only names,
+levels, classes, dice, damage types, saving throws and ranges are kept, and what a spell costs in
+mana is Wanderworld's own. Not affiliated with or endorsed by Wizards of the Coast.
 
 The buildings, props, nature, townsfolk and recorded animations are converted from free packs by
 [Quaternius](https://quaternius.com), released under

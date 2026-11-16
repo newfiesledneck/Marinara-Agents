@@ -164,6 +164,8 @@ export const SETTINGS = {
   defeat: { value: "home", options: ["here", "home", "stay"] },
   // HP, mana and every other resource held at their most.
   undefeatable: { value: false },
+  // The keys the player has changed (input.js KEY_ACTIONS), as JSON: {"block":"h"}. "" for none.
+  keys: { value: "", text: true },
   // Sitting or lying down slowly restores HP and mana; a sleep restores them fully.
   restRestores: { value: true },
   // Whether a blow can land on a person (the townsfolk, your companions, anyone with a name).

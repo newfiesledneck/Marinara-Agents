@@ -1,5 +1,7 @@
 // The keyboard and the on-screen touch stick. WASD walks (Shift runs), the arrow keys look around, + / -
-// zoom, E uses what's in front of you, F swings, Q blocks, R dodges, X draws or puts away a weapon, Z casts the spell that's ready, Ctrl alone turns running on or off, Space jumps, C sits down on the ground (again: lies down) and Esc
+// zoom; and, to begin with (the player can set these: KEY_ACTIONS), E uses what's in front of you, F swings,
+// Q blocks, R dodges, X draws or puts away a weapon, Z casts the spell that's ready, Ctrl alone turns running
+// on or off, Space jumps, C sits down on the ground (again: lies down). Esc
 // leaves (a seat, a conversation). Camera dragging, pinching and clicking live in main.js.
 //
 // `read()` returns { x, y, amount, run, yaw, pitch, zoom }: (x, y) is the walking direction (x right,
@@ -7,34 +9,95 @@
 // `yaw` and `pitch` the arrow keys' look direction, and `zoom` the + / - keys. `take("use")`,
 // `take("leave")`, `take("jump")` and `take("rest")` report a press of E, Esc, Space or C once.
 
-const KEYS = {
-  w: "forward",
-  s: "back",
-  a: "left",
-  d: "right",
+/** Keys that are always the same: looking round and zooming. */
+const FIXED = {
   arrowleft: "lookLeft",
   arrowright: "lookRight",
   arrowup: "lookUp",
   arrowdown: "lookDown",
-  shift: "run",
   "=": "zoomIn",
   "+": "zoomIn",
   "-": "zoomOut",
   _: "zoomOut",
 };
-/** Keys that act once per press rather than while held. */
-const PRESSES = {
-  e: "use",
-  escape: "leave",
-  j: "journal",
-  " ": "jump",
-  c: "rest",
-  f: "attack",
-  q: "block",
-  r: "dodge",
-  x: "draw",
-  z: "cast",
-};
+/**
+ * Every action a key can be set for (Settings → Controls → Keys): [its name, what it's called, the key it
+ * has to begin with]. A key is `event.key` in lower case ("w", " ", "shift", "control").
+ */
+export const KEY_ACTIONS = [
+  ["forward", "Walk forward", "w"],
+  ["back", "Walk back", "s"],
+  ["left", "Step left", "a"],
+  ["right", "Step right", "d"],
+  ["run", "Run (while held)", "shift"],
+  ["runToggle", "Running on or off", "control"],
+  ["use", "Use, gather, talk", "e"],
+  ["jump", "Jump", " "],
+  ["rest", "Sit, then lie down", "c"],
+  ["journal", "Journal", "j"],
+  ["attack", "Attack", "f"],
+  ["block", "Block", "q"],
+  ["dodge", "Dodge", "r"],
+  ["draw", "Draw or put away a weapon", "x"],
+  ["cast", "Cast the ready spell", "z"],
+];
+export const DEFAULT_KEYS = Object.fromEntries(KEY_ACTIONS.map(([action, , key]) => [action, key]));
+/** Actions that go on for as long as their key is held; the rest act once at each press. */
+const HELD_ACTIONS = new Set(["forward", "back", "left", "right", "run"]);
+/** Keys that can't be given to an action: Esc leaves, Enter and Tab are the page's, and the fixed ones above. */
+const RESERVED = new Set([
+  "escape",
+  "enter",
+  "tab",
+  "meta",
+  "os",
+  "capslock",
+  "dead",
+  "unidentified",
+  ...Object.keys(FIXED),
+]);
+const MODIFIERS = new Set(["control", "shift", "alt"]);
+export const keyAllowed = (key) => typeof key === "string" && key.length > 0 && key.length <= 12 && !RESERVED.has(key);
+
+/**
+ * The player's keys, checked: { [action]: key } for every action. `raw`: what was saved (an object, or its
+ * JSON; only the actions changed need be in it). A key given to two actions stays with the first of them,
+ * and the other keeps its own to begin with (or has none, "", if that is taken too).
+ */
+export function checkKeys(raw) {
+  let given = raw;
+  if (typeof raw === "string") {
+    try {
+      given = raw ? JSON.parse(raw) : {};
+    } catch {
+      given = {};
+    }
+  }
+  const wanted = given && typeof given === "object" ? given : {};
+  const keys = {};
+  const taken = new Set();
+  const changed = KEY_ACTIONS.filter(([action]) => keyAllowed(String(wanted[action] ?? "").toLowerCase()));
+  for (const [action] of changed) {
+    const key = String(wanted[action]).toLowerCase();
+    if (taken.has(key)) continue;
+    keys[action] = key;
+    taken.add(key);
+  }
+  for (const [action, , first] of KEY_ACTIONS) {
+    if (keys[action] !== undefined) continue;
+    keys[action] = taken.has(first) ? "" : first;
+    if (keys[action]) taken.add(first);
+  }
+  return keys;
+}
+
+/** A key as it's shown: "W", "Space", "Ctrl", "Shift", "F5". */
+export function keyName(key) {
+  if (!key) return "None";
+  if (key === " ") return "Space";
+  if (key === "control") return "Ctrl";
+  return key.length === 1 ? key.toUpperCase() : key[0].toUpperCase() + key.slice(1);
+}
 
 const STICK_SIZE = 116;
 const KNOB_SIZE = 48;
@@ -50,31 +113,60 @@ export function createInput() {
   const held = new Set();
   const pressed = new Set();
   const stick = { x: 0, y: 0, pointerId: null };
-  let running = false; // the touch screen's Run button, or Ctrl: on until it's tapped again
-  let ctrlAlone = false; // Ctrl went down and nothing else has since (so it's not Ctrl+C)
+  let running = false; // the touch screen's Run button, or the run-toggle key: on until it's pressed again
+  let toggleAlone = false; // the run-toggle key, a modifier, went down and nothing else has since (so it's not Ctrl+C)
   let onRunToggle = null;
+  let keys = { ...DEFAULT_KEYS };
+  let byKey = new Map(Object.entries(keys).map(([action, key]) => [key, action]));
+
+  /** The player's keys (Settings → Controls → Keys): an object or its JSON, only what differs from the usual. */
+  function setKeys(raw) {
+    keys = checkKeys(raw);
+    byKey = new Map(
+      Object.entries(keys)
+        .filter(([, key]) => key)
+        .map(([action, key]) => [key, action]),
+    );
+    held.clear();
+  }
+  const toggleRun = () => {
+    running = !running;
+    onRunToggle?.(running);
+  };
 
   const onKeyDown = (event) => {
     const key = String(event.key).toLowerCase();
-    ctrlAlone = key === "control" && !event.repeat ? !isTyping(event.target) : key === "control" ? ctrlAlone : false;
+    const typing = isTyping(event.target);
+    const isToggle = key === keys.runToggle;
+    // The run toggle on a modifier (Ctrl, to begin with) counts when it's pressed and let go by itself.
+    if (isToggle && MODIFIERS.has(key)) toggleAlone = event.repeat ? toggleAlone : !typing;
+    else toggleAlone = false;
     // Esc still leaves while typing in the chat box; nothing else does.
     if (key === "escape" && !event.repeat) pressed.add("leave");
-    if (isTyping(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
-    if (PRESSES[key] && !event.repeat) pressed.add(PRESSES[key]);
-    if (key === " ") event.preventDefault(); // a jump; don't scroll the Home panel
-    const action = KEYS[key];
+    // (A key pressed with Ctrl, Alt or the system key is the browser's; the modifier itself may be an action's.)
+    const combo =
+      (event.ctrlKey && key !== "control") || (event.altKey && key !== "alt") || (event.metaKey && key !== "meta");
+    if (typing || combo) return;
+    if (isToggle) {
+      if (!MODIFIERS.has(key) && !event.repeat) toggleRun();
+      return;
+    }
+    const action = byKey.get(key) ?? FIXED[key];
     if (!action) return;
-    held.add(action);
-    if (action.startsWith("look")) event.preventDefault(); // look around; don't scroll the Home panel
+    if (key === " ") event.preventDefault(); // don't scroll the Home panel
+    if (HELD_ACTIONS.has(action) || FIXED[key]) {
+      held.add(action);
+      if (action.startsWith("look")) event.preventDefault(); // look around; don't scroll the Home panel
+    } else if (!event.repeat) pressed.add(action);
   };
   const onKeyUp = (event) => {
-    // Ctrl pressed and let go by itself: running stays on (or goes off) until it's pressed again.
-    if (String(event.key).toLowerCase() === "control" && ctrlAlone) {
-      ctrlAlone = false;
-      running = !running;
-      onRunToggle?.(running);
+    const key = String(event.key).toLowerCase();
+    // The run toggle, pressed and let go by itself: running stays on (or goes off) until it's pressed again.
+    if (key === keys.runToggle && toggleAlone) {
+      toggleAlone = false;
+      toggleRun();
     }
-    const action = KEYS[String(event.key).toLowerCase()];
+    const action = byKey.get(key) ?? FIXED[key];
     if (action) held.delete(action);
   };
   // A key released while the window is unfocused never sends keyup, so drop everything on blur.
@@ -188,6 +280,7 @@ export function createInput() {
     release,
     dispose,
     setRun: (on) => (running = !!on),
+    setKeys,
     /** `listener(on)` is told when Ctrl turns running on or off. */
     onRunToggle: (listener) => (onRunToggle = listener),
   };
