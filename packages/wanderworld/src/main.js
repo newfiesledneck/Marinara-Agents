@@ -172,14 +172,16 @@ import {
   spoilsOf,
   spoilsWords,
   strikeWords,
+  weaponIn,
   weaponOf,
   witOf,
 } from "./combat.js";
 import { createSpellFx, spellColour } from "./spellfx.js";
-import { SRD_SPELLS } from "./srd.js";
+import { SRD_CLASSES, SRD_SPELLS } from "./srd.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
   applyChanges,
+  attackRoll,
   changeSheet,
   checkRoll,
   checkSheet,
@@ -8122,24 +8124,171 @@ function cast(id = null) {
       then: () => {
         if (core.save?.id !== saveId) return;
         if (foe.person) return void spellOnPerson(foe, name, spell, wit);
-        const stats = foeOf(foe.kind, PACK.foes, foe.scale);
-        const result = spellStrike({ wit, spell, foe: stats });
-        const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
-        const flees = result.effect?.kind === "flee";
-        const nerve = !foe.hostile || flees ? "flee" : result.damage > 0 ? foeNerve(after, stats.hp) : "fight";
-        const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
-        if (!struck) return;
-        if (result.effect?.kind === "hold" && !struck.down) {
-          core.herd.stun(foe.id, result.effect.seconds);
-          spellFx().ring(scene, chest(foe.x, foe.z, 0.15), colour, result.effect.seconds, 0.8 + foe.room);
-        }
-        const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
-        const told = spellWords({ who, name, what, spell, result, left: struck.hp, max: struck.max });
-        narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
-        if (struck.down) foeBeaten(foe, stats);
+        spellOnFoe(foe, who, name, spell, wit);
       },
     });
   });
+}
+
+/**
+ * A spell cast by `who` lands on a creature: its saving throw or the spell attack (`wit`: the caster's
+ * modifier), its HP, what it does about it, an effect that holds it or sends it running, and all of it told.
+ */
+function spellOnFoe(foe, who, name, spell, wit) {
+  const stats = foeOf(foe.kind, PACK.foes, foe.scale);
+  const result = spellStrike({ wit, spell, foe: stats });
+  const now = core.herd.foes({ x: foe.x, z: foe.z }, 40).find((entry) => entry.id === foe.id) ?? foe;
+  const after = Math.max(0, (now.hp ?? stats.hp) - result.damage);
+  const flees = result.effect?.kind === "flee";
+  const nerve = !foe.hostile || flees ? "flee" : result.damage > 0 ? foeNerve(after, stats.hp) : "fight";
+  const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
+  if (!struck) return;
+  if (result.effect?.kind === "hold" && !struck.down) {
+    core.herd.stun(foe.id, result.effect.seconds);
+    spellFx().ring(core.space.scene, chest(now.x, now.z, 0.15), colourOf(spell), result.effect.seconds, 0.8 + foe.room);
+  }
+  const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const told = spellWords({ who, name, what, spell, result, left: struck.hp, max: struck.max });
+  narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
+  if (struck.down) foeBeaten(foe, stats);
+}
+
+// ── The party in a fight ──
+
+/** Someone's class (an SRD class's id): what was chosen for them, else one of their own, always the same. */
+function classOf(id) {
+  const chosen = core.save?.classes?.[id];
+  if (chosen && SRD_CLASSES[chosen]) return chosen;
+  const all = Object.keys(SRD_CLASSES);
+  return all[hashString(`class:${id}`) % all.length];
+}
+
+/** What a class casts in a fight here: the SRD's spells of its list, cantrips and first level, read as rules. */
+const classSpells = new Map();
+function spellsOfClass(classId) {
+  if (!classSpells.has(classId)) {
+    const mine = SRD_SPELLS.filter((spell) => spell.level <= 1 && spell.classes.includes(classId)).map((spell) => ({
+      name: spell.name,
+      level: spell.level,
+      spell: spellIn({ about: spellRule(spell) }),
+    }));
+    classSpells.set(classId, {
+      attack: mine.filter((entry) => entry.spell.damage || entry.spell.effect),
+      heal: mine.filter((entry) => entry.spell.heal && !entry.spell.damage),
+    });
+  }
+  return classSpells.get(classId);
+}
+
+/** What a companion adds to an attack roll and to a spell (a simple +2 proficiency and +2 from their best score). */
+const ALLY_ATTACK = 4;
+const ALLY_WIT = 2;
+const ALLY_REACH = 3.2; // metres within which a companion's weapon lands
+
+/**
+ * The party in a real-time fight (Settings → Inventory → Combat): every few seconds each companion with
+ * the player does what their class would. One who can heal mends the player when they're below half their
+ * HP. Else, at the nearest creature that's in the fight: a strike with their class's weapon when it's in
+ * reach, a spell when it isn't (or as often as not when it is). Their rolls are told like the player's.
+ * Nothing attacks them, and they have no HP of their own yet.
+ */
+function alliesTick(dt) {
+  if (!fighting() || !core.settings.partyFights || core.downed || core.interior) return;
+  core.alliesAt = (core.alliesAt ?? 0) - dt;
+  if (core.alliesAt > 0) return;
+  core.alliesAt = 0.4;
+  const at = core.player.position;
+  // In the fight: hostile and already struck, or hostile and close to the player.
+  const foes = core.herd
+    .foes(at, 18)
+    .filter((foe) => foe.hostile && (foe.hp !== undefined || Math.hypot(foe.x - at.x, foe.z - at.z) < 7));
+  const hp = entryOf(sheetNow(), "hp");
+  const hurt = !!hp && hp.on !== false && hp.value < hp.max / 2;
+  if (!foes.length && !hurt) return;
+  const party = new Set(core.crowd.party().map((member) => member.id));
+  if (!party.size) return;
+  core.allyNext ??= new Map();
+  for (const person of core.crowd.present(core.space)) {
+    if (!party.has(person.id) || core.crowd.isOut(person.id)) continue;
+    if (core.clock < (core.allyNext.get(person.id) ?? 0)) continue;
+    if (allyActs(person, foes, hurt)) core.allyNext.set(person.id, core.clock + 2.4 + Math.random() * 2.2);
+  }
+}
+
+/** One companion's turn (alliesTick). Returns whether they did anything. */
+function allyActs(person, foes, hurt) {
+  const classId = classOf(person.id);
+  const kind = SRD_CLASSES[classId];
+  const spells = spellsOfClass(classId);
+  const name = nameFor(person.id, person.name);
+  const who = personaName();
+  const from = person.position;
+  const scene = core.space.scene;
+  // A healer mends the player first (not more than once in a while).
+  core.allyHealed ??= new Map();
+  if (hurt && spells.heal.length && core.clock >= (core.allyHealed.get(person.id) ?? 0)) {
+    const at = core.player.position;
+    if (Math.hypot(at.x - from.x, at.z - from.z) < 14) {
+      const chosen = spells.heal[Math.floor(Math.random() * spells.heal.length)];
+      const mended = Math.max(1, rollDice(chosen.spell.heal).total + ALLY_WIT);
+      core.allyHealed.set(person.id, core.clock + 12);
+      core.crowd.gesture(person.id, "cast", null, at.x, at.z);
+      setSheet(applyChanges(sheetNow(), [{ stat: "hp", by: mended }]).sheet);
+      const hp = entryOf(sheetNow(), "hp");
+      spellFx().motes(scene, chest(at.x, at.z, 0), colourOf(chosen.spell));
+      narrate(null, `${name} casts ${chosen.name} on ${who}: +${mended} HP (${hp?.value ?? 0} of ${hp?.max ?? 0}).`);
+      core.hud?.refreshInventory?.();
+      return true;
+    }
+  }
+  let foe = null;
+  let distance = Infinity;
+  for (const entry of foes) {
+    const far = Math.hypot(entry.x - from.x, entry.z - from.z);
+    if (far < distance) {
+      distance = far;
+      foe = entry;
+    }
+  }
+  if (!foe) return false;
+  // A spell: a cantrip mostly, now and then one of the first level; only what reaches.
+  const inReach = distance <= ALLY_REACH + foe.room;
+  const castable = spells.attack.filter(
+    (entry) => entry.spell.range >= distance && (entry.level === 0 || Math.random() < 0.3),
+  );
+  if (castable.length && (!inReach || Math.random() < 0.5)) {
+    const chosen = castable[Math.floor(Math.random() * castable.length)];
+    core.crowd.gesture(person.id, "cast", null, foe.x, foe.z);
+    const saveId = core.save?.id;
+    spellFx().bolt(scene, chest(from.x, from.z), chest(foe.x, foe.z, 0.7), colourOf(chosen.spell), {
+      then: () => {
+        if (core.save?.id === saveId) spellOnFoe(foe, name, chosen.name, chosen.spell, ALLY_WIT);
+      },
+    });
+    return true;
+  }
+  if (!inReach) return false; // (nothing of theirs reaches: they keep by the player)
+  // A strike with their class's weapon.
+  const stats = foeOf(foe.kind, PACK.foes, foe.scale);
+  const weapon = { name: kind.weapon.name, damage: kind.weapon.damage };
+  const result = attackRoll({ bonus: ALLY_ATTACK, ac: stats.ac, damage: weapon.damage, damageBonus: 2 });
+  const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
+  const struck = core.herd.strike(foe.id, result.damage, stats.hp, result.hit ? foeNerve(after, stats.hp) : "fight");
+  if (!struck) return false;
+  const held = weaponIn({ name: weapon.name, description: `${weapon.damage} damage` })?.held ?? "sword";
+  core.crowd.gesture(person.id, "strike", held, foe.x, foe.z);
+  const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const told = strikeWords({
+    who: name,
+    what,
+    weapon,
+    result: { ...result, ac: stats.ac },
+    left: struck.hp,
+    max: struck.max,
+  });
+  narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
+  if (struck.down) foeBeaten(foe, stats);
+  return true;
 }
 
 /** A spell lands on a person: their saving throw or the spell attack, and what comes of attacking someone. */
@@ -9482,6 +9631,7 @@ function step(dt) {
   carryTick();
   core.spellFx?.update(dt);
   restTick(dt);
+  alliesTick(dt);
   core.still = speed < 0.1 ? (core.still ?? 0) + dt : 0; // how long the player has stood still, in seconds
   let lookAt = null;
   if (core.talking) {
@@ -9969,6 +10119,20 @@ function attach(element) {
         classes: spell.classes.join(", "),
         rule: spellRule(spell),
       })),
+    // The party and their classes, for the sheet's "Your companions".
+    companions: () =>
+      core.crowd.party().map((member) => ({
+        id: member.id,
+        name: nameFor(member.id, member.name),
+        classId: classOf(member.id),
+      })),
+    classList: () =>
+      Object.entries(SRD_CLASSES).map(([id, entry]) => ({ id, label: `${entry.name} (${entry.weapon.name})` })),
+    onSetClass: (id, classId) => {
+      if (!core.save || !SRD_CLASSES[classId]) return;
+      core.save = { ...core.save, classes: { ...core.save.classes, [id]: classId } };
+      core.saves.write(core.save);
+    },
     onAddSpell: (name) => {
       const spell = SRD_SPELLS.find((entry) => entry.name === name);
       if (spell)

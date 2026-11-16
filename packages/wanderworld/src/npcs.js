@@ -1400,11 +1400,15 @@ export function createCrowd() {
       swim: person.swimming,
       sit: person.state === "sit",
       act: person.state === "busy" ? person.act : null,
+      gesture: person.gesture ?? null,
+      held: person.gestureHeld ?? null,
       lookAt,
       talk: (person.state === "talk" || person.state === "chat" || person.state === "sit") && person.speaking,
       wave,
     });
     person.animate = 0;
+    person.gesture = null;
+    person.gestureHeld = null;
     if (pose?.footstep && visible && playerDistance < 14) view.onFootstep?.(position, pose.running, playerDistance);
   }
 
@@ -1684,6 +1688,15 @@ export function createCrowd() {
           position: person.group.position,
           sitting: person.state === "sit",
         }));
+    },
+    /** `id` makes a gesture once (a swing, a cast: clips.js GESTURES), `held` in hand, turned toward (x, z). */
+    gesture(id, name, held = null, x = null, z = null) {
+      const person = people.get(id);
+      if (!person || person.state === "inside") return;
+      person.gesture = name;
+      person.gestureHeld = held;
+      if (x !== null && z !== null)
+        person.group.rotation.y = Math.atan2(x - person.group.position.x, z - person.group.position.z);
     },
     /** `id` is knocked out: they lie where they are for `seconds`, then get up and go about their day. */
     knockOut(id, seconds) {

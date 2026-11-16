@@ -345,6 +345,8 @@ export function checkWorld(raw) {
     trees: isRecord(raw.trees) ? raw.trees : {},
     // The creatures beaten, and the day each was: { "<region>|<its id>": day } (main.js showBeaten).
     beaten: isRecord(raw.beaten) ? raw.beaten : {},
+    // The class chosen for someone, where one was: { [their id]: an SRD class's id } (main.js classOf).
+    classes: isRecord(raw.classes) ? raw.classes : {},
     // The player's own recipes (craft.js checks them when they're read).
     recipes: Array.isArray(raw.recipes) ? raw.recipes : [],
     // Each vendor: { [zone id]: { kinds (once set by hand), stock, period, stocked } } (vendor.js).
