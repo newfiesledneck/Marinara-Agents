@@ -38,6 +38,7 @@ assert.deepEqual(weaponIn({ name: "Short sword", description: "Weapon: 1d6 + 1 d
   held: "sword",
   range: 0,
   type: "piercing",
+  light: true,
 });
 assert.equal(weaponIn({ name: "Fishing rod", description: "Tool: catches fish." }), null);
 assert.equal(weaponIn({ name: "Health potion", description: "+15 HP when drunk." }), null);
@@ -737,6 +738,34 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
     for (const item of found.items) assert.ok(potionIn(item), `${item.name} heals`);
   }
   assert.ok(coins > 300 && potions > 5 && potions < 100, `coin and the odd potion (${coins}, ${potions})`);
+}
+
+// The other hand; and the two spells that are cast in answer.
+{
+  const { offhandOf, spellIn, spellRule } = await import("../packages/wanderworld/src/combat.js");
+  const { SRD_SPELLS } = await import("../packages/wanderworld/src/srd.js");
+  const held = (name) => ({ name, description: "", location: "equipped:hand" });
+  assert.equal(offhandOf([held("Dagger")]), null, "one weapon: no other hand");
+  assert.equal(offhandOf([held("Dagger"), held("Longsword")]), null, "a longsword isn't light");
+  const other = offhandOf([held("Shortsword"), held("Dagger")]);
+  assert.deepEqual([other.name, other.offhand], ["Dagger", true]);
+  assert.equal(offhandOf([{ ...held("Dagger"), location: "bag" }, held("Dagger")]), null, "carried isn't in the hand");
+  // Its damage has no ability modifier added.
+  let strong = checkSheet(null);
+  strong = changeSheet(strong, { set: "strength", field: "value", value: 18 });
+  const blow = playerStrike(
+    { sheet: strong, weapon: { ...other, finesse: false }, foe: { ac: 5 } },
+    dice([15, 20], [3, 4]),
+  );
+  assert.equal(blow.damage, 3);
+  const shield = SRD_SPELLS.find((spell) => spell.name === "Shield");
+  const counter = SRD_SPELLS.find((spell) => spell.name === "Counterspell");
+  assert.deepEqual([shield.reaction, shield.level, counter.reaction, counter.level], ["shield", 1, "counter", 3]);
+  assert.deepEqual(
+    [spellIn({ about: spellRule(shield) }).reaction, spellIn({ about: spellRule(counter) }).reaction],
+    ["shield", "counter"],
+  );
+  assert.equal(spellIn({ about: "Cantrip. 1d10 fire damage." }).reaction, "");
 }
 
 console.log("ok: fighting by the rules");

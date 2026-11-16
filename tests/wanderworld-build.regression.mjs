@@ -203,4 +203,12 @@ assert.equal(turnBudget("", 1).move, 9);
   assert.deepEqual(skillsOf(kept, "fighter").sort(), ["arcana", "athletics"]);
 }
 
+// The SRD's one feat.
+{
+  const { SRD_FEATS } = await import("../packages/wanderworld/src/build.js");
+  assert.deepEqual(Object.keys(SRD_FEATS), ["grappler"]);
+  assert.deepEqual(checkBuild({ feats: ["grappler", "lucky"] }, "fighter").feats, ["grappler"]);
+  assert.equal(checkBuild({ feats: ["lucky"] }, "fighter").feats, undefined);
+}
+
 console.log("ok: the build");

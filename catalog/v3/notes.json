@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.09",
+          "date": "2026-11-16",
+          "notes": "- More to do in a fight, on the bar by turns, in Inventory → Sheet and on number keys: Shove (pushed back and knocked down), Grapple (held where it is), Help (a companion's next attack has advantage), Hide (your Stealth against what they notice) and an Off-hand attack with two light weapons.\n- Shield and Counterspell can be added to your sheet. They cast themselves: Shield when +5 AC would turn a blow, Counterspell when a creature casts at you.\n- The SRD's one feat, Grappler, is in the Sheet tab.\n- Swimming, a swing is at a disadvantage unless it's a dagger, javelin, shortsword, spear or trident.\n- A setting has jump height go by Strength (off to begin with).\n- Each has a switch in Settings → Inventory → 5e rules.",
+          "highlight": false
+        },
+        {
           "version": "0.7.08",
           "date": "2026-11-16",
           "notes": "- Worn magic from the 5e SRD works by its name, like weapons and armour: a Ring or Cloak of Protection, Bracers of Defense, an Amulet of Health, Gauntlets of Ogre Power, a Headband of Intellect and the rest that change Armor Class, saving throws, an ability or spellcasting.\n- Potions heal by their dice: a Potion of Healing is 2d4+2, and any item whose description says \"+2d4+2 HP\" rolls it.\n- Beaten creatures that carry money have the ruleset's pocket treasure on them: coin, now and then a Potion of Healing, and seldom a magic thing. \"Creatures carry pocket treasure\" in Settings → Inventory → 5e rules turns it off.\n- The same setting as for weapons decides whether a description or a name comes first.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.90",
           "date": "2026-11-15",
           "notes": "- Fights move. A companion who strikes closes with a creature and works round it; one who casts keeps a few paces off and moves along the edge.\n- Creatures go for your companions as well as for you, choosing again every few seconds.\n- Companions have HP from their class. At 0 one is out of the fight for a while, then gets up. They are whole again once a fight is well over.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.89",
-          "date": "2026-11-15",
-          "notes": "- Hotkeys. The number keys 1 to 0 each do what you set in Inventory → Hotkeys: cast one particular spell, use up something you carry, or put on and take off something that has a slot in Quartermaster (a weapon, armour, clothing). The ones you've set are buttons in the chat window too.\n- A spell costs its level in mana: 1 for a first-level spell, 2 for a second, 3 for a third. Cantrips cost none. Spells already on your sheet keep the cost written in them; edit the number, or add the spell again.\n- With a weapon drawn, stepping sideways and backwards has its own animations. Before, the forward walk played while you slid.",
           "highlight": false
         }
       ]
