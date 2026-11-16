@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.79",
+          "date": "2026-11-15",
+          "notes": "- Fighting has no prompt now. F swings; on a touch screen there is an Attack button by your thumb, and the chat window has one too.\n- You swing wherever you face, and can keep walking or running while you do: the swing plays over the walking legs.\n- Nothing is aimed at. When the blow lands, the nearest animal in front of you and in reach takes the attack roll. A swing at nothing is just a swing.\n- Any animal can be struck, not only hostile ones. Peaceful ones run. People and your own animals can't be struck yet.\n- One swing can follow another a little before the last has finished.\n- A creature in a fight no longer draws off six paces after every attack. It chooses each time: stay on you, circle, come again at once, or back away.",
+          "highlight": false
+        },
+        {
           "version": "0.6.78",
           "date": "2026-11-15",
           "notes": "- Combat, the first part: fighting in real time. Off to begin with: Settings → Inventory → Combat.\n- Near a hostile creature a prompt says Attack (press E, or tap it). Each swing is a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. A 20 on the die is a critical hit.\n- A weapon is any item whose description gives its damage (\"Weapon: 1d8 damage, +1 to attack\"). Without one you use your fists.\n- A creature you strike fights back, its attacks rolled against your AC. One badly hurt may run. Beating one earns experience.\n- At 0 HP you go down, then come to where you fell with 1 HP or wake at home with half (a setting).\n- No AI call is made in a fight. The chat tells every roll.",
@@ -307,12 +313,6 @@
           "version": "0.6.07",
           "date": "2026-11-15",
           "notes": "- A character sheet. Inventory → Sheet has your level, experience, HP, mana, AC and six attributes, each with a box to change it and a tick for whether the AI is told. Add your own stats, skills, feats and spells, each with a few words saying what it is.\n- The Inventory button now opens Wanderworld's own window in tabs: Items, Sheet and Quartermaster. Items lists what Quartermaster holds, with Equip or Take off, Use and Drop. What you do there is done in Quartermaster too, and said in the chat.\n- Using an item applies what its description gives: \"+10 HP\" heals 10. Worn items that say \"+2 AC\" are counted on the sheet.\n- Not yet: the AI changing your stats, and dice rolled in play.\n- Versions are now written with two digits at the end (0.6.07).",
-          "highlight": false
-        },
-        {
-          "version": "0.6.6",
-          "date": "2026-11-15",
-          "notes": "- New trees from the Stylized Nature MegaKit's Pro tier: cherry trees, birches, giant drooping pines and tall thick conifers, three shapes of each.\n- Cherry trees are in blossom in spring and green the rest of the year. Birches turn orange in fall. Spring no longer tints a third of the ordinary trees pink.\n- Also new: three bushes, three more rocks (two of them big), a fern, three plants, three kinds of flower, a red-capped mushroom and two wide grasses.\n- In a world you already have, trees and rocks stand where they stood, but many are now a different kind.\n- The package is larger for it.",
           "highlight": false
         }
       ]

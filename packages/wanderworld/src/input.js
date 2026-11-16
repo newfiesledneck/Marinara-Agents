@@ -1,5 +1,5 @@
 // The keyboard and the on-screen touch stick. WASD walks (Shift runs), the arrow keys look around, + / -
-// zoom, E uses what's in front of you, Space jumps, C sits down on the ground (again: lies down) and Esc
+// zoom, E uses what's in front of you, F swings, Space jumps, C sits down on the ground (again: lies down) and Esc
 // leaves (a seat, a conversation). Camera dragging, pinching and clicking live in main.js.
 //
 // `read()` returns { x, y, amount, run, yaw, pitch, zoom }: (x, y) is the walking direction (x right,
@@ -23,7 +23,7 @@ const KEYS = {
   _: "zoomOut",
 };
 /** Keys that act once per press rather than while held. */
-const PRESSES = { e: "use", escape: "leave", j: "journal", " ": "jump", c: "rest" };
+const PRESSES = { e: "use", escape: "leave", j: "journal", " ": "jump", c: "rest", f: "attack" };
 
 const STICK_SIZE = 116;
 const KNOB_SIZE = 48;

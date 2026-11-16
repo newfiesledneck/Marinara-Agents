@@ -1,5 +1,14 @@
 # Wanderworld release notes
 
+## 0.6.79 — 2026-11-15
+
+- Fighting has no prompt now. F swings; on a touch screen there is an Attack button by your thumb, and the chat window has one too.
+- You swing wherever you face, and can keep walking or running while you do: the swing plays over the walking legs.
+- Nothing is aimed at. When the blow lands, the nearest animal in front of you and in reach takes the attack roll. A swing at nothing is just a swing.
+- Any animal can be struck, not only hostile ones. Peaceful ones run. People and your own animals can't be struck yet.
+- One swing can follow another a little before the last has finished.
+- A creature in a fight no longer draws off six paces after every attack. It chooses each time: stay on you, circle, come again at once, or back away.
+
 ## 0.6.78 — 2026-11-15
 
 - Combat, the first part: fighting in real time. Off to begin with: Settings → Inventory → Combat.
