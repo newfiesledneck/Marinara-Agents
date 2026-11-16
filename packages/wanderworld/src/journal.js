@@ -857,8 +857,8 @@ export function createJournal(panelCss, handlers, shows = () => true) {
       write();
     }
     // This world's own numbers of animals, over what Settings has for every world.
-    body.append(mark("Animals"));
-    body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Animals in this world"));
+    body.append(mark("Creatures"));
+    body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Creatures in this world"));
     body.append(
       explain(
         "Off: this world uses Menu → Settings → Creatures, like every other. On: the numbers below are this world's alone. 0 is none of that sort.",
@@ -1070,7 +1070,7 @@ export function createJournal(panelCss, handlers, shows = () => true) {
       row.append(element("span", "opacity:0.7;", label), shown);
       body.append(row);
     }
-    intoViews(["This world", "Setting", "Animals", "Lore"], worldView, (view) => (worldView = view));
+    intoViews(["This world", "Setting", "Creatures", "Lore"], worldView, (view) => (worldView = view));
   }
 
   let map = null; // the Map tab's canvas, redrawn in place as you walk

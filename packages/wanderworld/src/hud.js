@@ -1432,7 +1432,7 @@ export function createHud(root, handlers) {
   const whole = (value) => String(Math.round(value));
   group(
     "How many",
-    "How many of each sort a world has of its own. 0 is none of that sort. A world can have numbers of its own (Journal → World → Animals in this world), which are used in place of these.",
+    "How many of each sort a world has of its own. 0 is none of that sort. A world can have numbers of its own (Journal → World → Creatures in this world), which are used in place of these.",
   );
   slider("animalsStrays", "Stray dogs", 1, whole);
   slider("animalsFarm", "Farm animals", 1, whole);
