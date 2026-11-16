@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.6.96 — 2026-11-15
+
+- Creatures fight with the 5e SRD's numbers: HP, AC, what they add to an attack, their damage, and their initiative in fights by turns. A wolf is the SRD's wolf, a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage.
+- Cattle, the alpaca and the shiba have nothing close in the SRD and keep the game's own numbers. People fight by their class. Experience for a win is unchanged.
+- "Creatures use the 5e SRD's numbers" (Settings → Inventory → Combat) is on to begin with; off brings back the game's own numbers.
+
 ## 0.6.95 — 2026-11-15
 
 - People fight back. In real-time combat, someone you strike or cast at turns on you: they close in and swing their class's weapon, or keep off and cast their class's spells. Each go is rolled against your AC or your saving throw and told in the chat. Block and Dodge work against them.

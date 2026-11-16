@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.95)
+## What it does now (0.6.96)
 
 ### The world
 
@@ -575,6 +575,9 @@ every roll, and no AI call is made in a real-time fight.
   companions), which gives them a weapon and spells. They strike what comes within reach, cast at
   what doesn't, and a healer mends you below half your HP. They move with the fight, creatures
   go for them as well as for you, and one at 0 HP is out of the fight for a while.
+- **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
+  the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
+  that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.
 - **Anything can be struck**: hostile creatures fight back, peaceful ones run, and people only if
   you turn on "Blows can land on people". Someone struck remembers it for good and becomes your
   enemy, whoever saw it remembers, and at 0 HP they lie out cold for two minutes. Nobody dies.
@@ -835,7 +838,7 @@ packs by `scripts/build-wanderworld-kit.mjs`, `build-wanderworld-people.mjs` (al
 
 ## Credits
 
-Spells, classes and class weapons include material from the System Reference Document 5.1 by Wizards
+Spells, classes, class weapons and creatures' numbers include material from the System Reference Document 5.1 by Wizards
 of the Coast LLC (https://dnd.wizards.com/resources/systems-reference-document), licensed under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode), in the machine-readable form of
 the [Open5e API](https://github.com/open5e/open5e-api) project, taken from this repository's

@@ -402,4 +402,22 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   );
 }
 
+// Creatures' numbers from the SRD: each is one of the pack's kinds, and whole.
+{
+  const { SRD_CREATURES } = await import("../packages/wanderworld/src/srd.js");
+  const { rollDice } = await import("../packages/wanderworld/src/sheet.js");
+  assert.deepEqual(
+    SRD_CREATURES.wolf,
+    { name: "Wolf", hp: 11, ac: 13, attack: 4, damage: "2d4+2", dex: 2 },
+    "a wolf is the SRD's wolf",
+  );
+  for (const [kind, creature] of Object.entries(SRD_CREATURES)) {
+    assert.ok(PACK.foes[kind], `${kind} is one of the pack's creatures`);
+    assert.ok(creature.hp >= 1 && creature.ac >= 5 && Number.isInteger(creature.attack), `${kind} has its numbers`);
+    const made = foeOf(kind, { ...PACK.foes, [kind]: { ...PACK.foes[kind], ...creature } });
+    assert.ok(made.verb && made.xp >= 1 && rollDice(made.damage).total >= 1, `${kind} can be fought`);
+  }
+  assert.ok(!SRD_CREATURES.person && !SRD_CREATURES.ally, "people keep their own numbers");
+}
+
 console.log("ok: fighting by the rules");

@@ -11,7 +11,7 @@
 
 /** The credit this material needs, shown in Help → Credits. */
 export const SRD_CREDIT =
-  "Spells, classes and class weapons include material from the System Reference Document 5.1 by Wizards of the Coast LLC (https://dnd.wizards.com/resources/systems-reference-document), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode), by way of the Open5e API project. Adapted: only names, levels, dice, damage types, saving throws and ranges are kept. Not affiliated with or endorsed by Wizards of the Coast.";
+  "Spells, classes, class weapons and creatures' numbers include material from the System Reference Document 5.1 by Wizards of the Coast LLC (https://dnd.wizards.com/resources/systems-reference-document), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode), by way of the Open5e API project. Adapted: only names, levels, dice, damage types, saving throws, ranges and creatures' hit points, Armor Class and attacks are kept. Not affiliated with or endorsed by Wizards of the Coast.";
 
 /**
  * The SRD's spells of level 0 (cantrips) to 3 that a fight here can play: { name, level, classes, range
@@ -295,4 +295,33 @@ export const SRD_CLASSES = {
   sorcerer: { name: "Sorcerer", hitDie: 6, weapon: { name: "Dagger", damage: "1d4" } },
   warlock: { name: "Warlock", hitDie: 8, weapon: { name: "Dagger", damage: "1d4" } },
   wizard: { name: "Wizard", hitDie: 6, weapon: { name: "Quarterstaff", damage: "1d6" } },
+};
+
+/**
+ * The SRD's numbers for Wanderworld's creatures, by Wanderworld's kind: { name (the SRD creature it's taken
+ * as), hp (its hit dice's average), ac, attack (what its attack up close adds to the roll), damage (dice),
+ * dex (what it adds to initiative) }.
+ */
+export const SRD_CREATURES = {
+  wolf: { name: "Wolf", hp: 11, ac: 13, attack: 4, damage: "2d4+2", dex: 2 },
+  deer: { name: "Deer", hp: 4, ac: 13, attack: 2, damage: "1d4", dex: 3 },
+  stag: { name: "Elk", hp: 13, ac: 10, attack: 5, damage: "1d6+3", dex: 0 },
+  fox: { name: "Jackal", hp: 3, ac: 12, attack: 1, damage: "1d4", dex: 2 },
+  horse: { name: "Riding Horse", hp: 13, ac: 10, attack: 5, damage: "2d4+3", dex: 0 },
+  donkey: { name: "Mule", hp: 11, ac: 10, attack: 2, damage: "1d4+2", dex: 0 },
+  husky: { name: "Mastiff", hp: 5, ac: 12, attack: 3, damage: "1d6+1", dex: 2 },
+  slime: { name: "Gray Ooze", hp: 22, ac: 8, attack: 3, damage: "1d6+1", dex: -2 },
+  skeleton: { name: "Skeleton", hp: 13, ac: 13, attack: 4, damage: "1d6+2", dex: 2 },
+  spider: { name: "Giant Wolf Spider", hp: 11, ac: 13, attack: 3, damage: "1d6+1", dex: 3 },
+  rat: { name: "Giant Rat", hp: 7, ac: 12, attack: 4, damage: "1d4+2", dex: 2 },
+  snake: { name: "Poisonous Snake", hp: 2, ac: 13, attack: 5, damage: "2d4+1", dex: 3 },
+  bat: { name: "Giant Bat", hp: 22, ac: 13, attack: 4, damage: "1d6+2", dex: 3 },
+  wasp: { name: "Giant Wasp", hp: 13, ac: 12, attack: 4, damage: "1d6+2", dex: 2 },
+  frog: { name: "Giant Frog", hp: 18, ac: 11, attack: 3, damage: "1d6+1", dex: 1 },
+  dragon: { name: "Red Dragon Wyrmling", hp: 75, ac: 17, attack: 6, damage: "1d10+4", dex: 0 },
+  bandit: { name: "Bandit", hp: 11, ac: 12, attack: 3, damage: "1d6+1", dex: 1 },
+  witch: { name: "Cult Fanatic", hp: 22, ac: 13, attack: 4, damage: "1d4+2", dex: 0 },
+  wizard: { name: "Mage", hp: 40, ac: 12, attack: 5, damage: "1d4+2", dex: 0 },
+  imp: { name: "Imp", hp: 10, ac: 13, attack: 5, damage: "1d4+3", dex: 3 },
+  puglin: { name: "Goblin", hp: 7, ac: 15, attack: 4, damage: "1d6+2", dex: 2 },
 };
