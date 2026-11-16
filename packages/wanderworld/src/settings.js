@@ -156,7 +156,11 @@ export const SETTINGS = {
   /** Chopping, mining and fishing each need their tool carried (off: bare hands will do). */
   gatherTools: { value: true },
   // Fighting (combat.js): off, or in real time; and where the player comes to when their HP runs out.
-  fights: { value: "off", options: ["off", "realtime"] },
+  fights: { value: "off", options: ["off", "realtime", "moment", "scene"] },
+  // What a defeat costs: nothing, a quarter of the purse, or the experience gathered toward the next level.
+  defeatCost: { value: "none", options: ["none", "coins", "xp"] },
+  // Days before something beaten is about again (0: when the world is next opened).
+  beatenDays: { value: 2, min: 0, max: 60 },
   defeat: { value: "home", options: ["here", "home", "stay"] },
   // HP, mana and every other resource held at their most.
   undefeatable: { value: false },

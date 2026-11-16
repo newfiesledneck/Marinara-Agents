@@ -3039,6 +3039,7 @@ function stepPlaces(dt) {
   if (core.hud?.loreOpen()) core.hud.setLore(activeLore(zone, names));
   if (core.journalAt <= 0) {
     showFelled();
+    showBeaten();
     core.hud?.setShop(vendorHere()?.title ?? "");
     core.hud?.setGather(gatherOptions(zone).map((kind) => ({ kind, label: GATHER_KINDS[kind].label })));
     core.journalAt = 0.5;
@@ -6340,7 +6341,8 @@ async function runMoment({
       separate: core.settings.aiSeparate === true,
     });
     if (result.narration) narrate(null, result.narration, heardIds, source === "arrive");
-    trackInventory([
+    // (A fight's moment tells what the game has rolled and already applied: nothing for a tracker to change.)
+    (source === "fight" ? () => {} : trackInventory)([
       action && `What ${personaName()} does: ${action}`,
       line && `${personaName()}: ${line}`,
       result.narration,
@@ -7904,8 +7906,14 @@ function takeSheetAnswer(saveId, answer) {
 
 // ── Fighting (combat.js) ────────────────────────────────────────────────────────────────────────────────
 
-/** Whether there's fighting: Settings → Inventory → Combat is "Real time", with the character sheet on. */
-const fighting = () => core.settings.fights === "realtime" && !!core.settings.sheet && !!core.save;
+/**
+ * How fights are played (Settings → Inventory → Combat), with the character sheet on: "" (not at all),
+ * "realtime", "moment" (an exchange rolled at once and told) or "scene" (a scene chat).
+ */
+const fightMode = () =>
+  core.settings.sheet && core.save && core.settings.fights !== "off" ? core.settings.fights : "";
+/** Whether blows are struck and taken in real time. */
+const fighting = () => fightMode() === "realtime";
 
 /** How far a blow reaches from the player's middle (metres), and how wide of straight ahead (radians). */
 const SWING_REACH = 1.9;
@@ -7916,10 +7924,12 @@ const SWING_LANDS = 0.34;
 /**
  * The player swings (F, or the Attack button): wherever they face, standing or on the move, with the weapon
  * they carry (combat.js weaponOf) or their hands. Nothing is aimed at: when the blow lands, whatever is in
- * front of them and in reach takes it (`landBlow`). A swing can follow a swing a little before its clip ends.
+ * front of them and in reach takes it. A swing can follow a swing a little before its clip ends. Where
+ * fights are a narrated moment or a scene, the swing starts one with whatever is in reach.
  */
 function swing() {
-  if (!fighting() || core.downed || core.mode !== "walk" || core.clock < (core.strikeUntil ?? 0)) return;
+  const mode = fightMode();
+  if (!mode || core.downed || core.mode !== "walk" || core.clock < (core.strikeUntil ?? 0)) return;
   // (What's carried is read again now and then, behind the swing: the first of a session may be with bare hands.)
   if (!core.itemsAt || core.clock - core.itemsAt > 15) {
     core.itemsAt = core.clock;
@@ -7932,16 +7942,17 @@ function swing() {
   core.strikeUntil = core.clock + seconds * 0.6;
   const saveId = core.save?.id;
   later(seconds * SWING_LANDS, () => {
-    if (core.save?.id === saveId && fighting() && !core.downed) landBlow(weapon);
+    if (core.save?.id !== saveId || fightMode() !== mode || core.downed) return;
+    const foe = blowTarget();
+    if (!foe) return;
+    if (mode === "realtime") return void landOn(foe, weapon);
+    const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+    encounter(foe, what, "player");
   });
 }
 
-/**
- * A swing lands: the nearest animal in front of the player and in reach takes an attack roll against its
- * AC, and what came of it is told. Nothing there: nothing happens, and nothing is said. A hostile one
- * that's struck fights back (unless it has had enough); a peaceful one runs.
- */
-function landBlow(weapon) {
+/** What a swing would land on: the nearest animal in front of the player and in reach, or null. */
+function blowTarget() {
   const at = core.player.position;
   const facing = core.player.rotation.y;
   let foe = null;
@@ -7959,18 +7970,90 @@ function landBlow(weapon) {
       foe = entry;
     }
   }
-  if (!foe) return;
+  return foe;
+}
+
+/**
+ * A blow lands on `foe` (herd.js foes): an attack roll against its AC, and what came of it told. A hostile
+ * one that's struck fights back (unless it has had enough); a peaceful one runs. Returns whether it's down.
+ */
+function landOn(foe, weapon) {
   const sheet = sheetNow();
   const stats = foeOf(foe.kind, PACK.foes, foe.scale);
   const result = playerStrike({ sheet, worn: wornBonuses(sheet, core.items ?? []), weapon, foe: stats });
   const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
   const nerve = !foe.hostile ? "flee" : result.hit ? foeNerve(after, stats.hp) : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
-  if (!struck) return;
+  if (!struck) return false;
   const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
   const told = strikeWords({ who: personaName(), what, weapon, result, left: struck.hp, max: struck.max });
   narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
-  if (struck.down) earnXp(stats.xp);
+  if (struck.down) {
+    earnXp(stats.xp);
+    // (Kept with the world, so it stays gone for its days: showBeaten.)
+    const key = `${core.save.region ?? HOME_REGION}|${foe.id}`;
+    core.save = { ...core.save, beaten: { ...core.save.beaten, [key]: core.social?.day ?? 0 } };
+    core.saves.write(core.save);
+  }
+  return struck.down;
+}
+
+/**
+ * A fight met where fights aren't in real time. `foe`: the creature (a herd "attack" event, or what a swing
+ * would land on); `first`: who struck first, "foe" or "player".
+ * A narrated moment: the game rolls one exchange at once (both attacks, in that order, the second only if
+ * whoever it is still stands), tells it as rolled, and with AI moments on the AI narrates it. The creature
+ * then holds off a little. A scene: a scene chat is opened on it, and the creatures let be while it plays.
+ */
+function encounter(foe, what, first) {
+  if (core.downed || core.mode !== "walk" || core.clock < (core.encounterAt ?? 0)) return;
+  if (fightMode() === "scene") {
+    core.encounterAt = core.clock + 90;
+    core.truceUntil = core.clock + 600;
+    core.herd.calm();
+    narrate(null, `A ${what} comes at ${personaName()}.`);
+    return void sceneHere(
+      first === "foe" ? `A ${what} attacks me, and I have to fight it off` : `I attack a ${what}, and it's a fight`,
+    );
+  }
+  core.encounterAt = core.clock + 6;
+  const weapon = weaponOf(core.items ?? []);
+  const target = core.herd.foes(core.player.position, 6).find((entry) => entry.id === foe.id);
+  let down = false;
+  if (first === "player" && target) down = landOn(target, weapon);
+  if (!down) foeAttacks({ kind: foe.kind, scale: foe.scale ?? 1, x: foe.x, z: foe.z }, what);
+  if (first === "foe" && target && !core.downed) {
+    core.gesture = weapon.name ? "strike" : "punch";
+    core.gestureHeld = weapon.held;
+    landOn(target, weapon);
+  }
+  void runMoment({
+    action: `is in a fight with a ${what}. The game has rolled this exchange and the lines just above say how it went: tell it as rolled, vividly, and decide nothing the dice didn't`,
+    source: "fight",
+  });
+}
+
+/** Has the herd keep away what was beaten and isn't yet due back (and let back what is). Cheap to call often. */
+function showBeaten() {
+  if (!core.save || !core.herd?.setBeaten) return;
+  const day = core.social?.day ?? 0;
+  const days = core.settings.beatenDays;
+  const region = `${core.save.region ?? HOME_REGION}|`;
+  const kept = {};
+  let changed = false;
+  for (const [key, when] of Object.entries(core.save.beaten ?? {})) {
+    if (days > 0 && day - when < days && day >= when) kept[key] = when;
+    else changed = true;
+  }
+  if (changed) {
+    core.save = { ...core.save, beaten: kept };
+    core.saves.write(core.save);
+  }
+  core.herd.setBeaten(
+    Object.keys(kept)
+      .filter((key) => key.startsWith(region))
+      .map((key) => key.slice(region.length)),
+  );
 }
 
 /**
@@ -8127,6 +8210,30 @@ function comeTo(home) {
     line = door ? PACK.fight.home : PACK.fight.square;
   }
   narrate(null, line.replace("{who}", who));
+  void defeatCost(who);
+  core.hud?.refreshInventory?.();
+}
+
+/** What a defeat costs (Settings → Inventory → Combat): a quarter of the purse, or the experience toward the next level. */
+async function defeatCost(who) {
+  const cost = core.settings.defeatCost;
+  if (cost === "xp") {
+    const sheet = sheetNow();
+    const had = valueOf(sheet, "xp");
+    if (had <= 0) return;
+    setSheet(applyChanges(sheet, [{ stat: "xp", to: 0 }]).sheet);
+    return void narrate(null, `${who} has lost ${had} experience.`);
+  }
+  if (cost !== "coins" || !core.inventory.ready()) return;
+  const money = purse().name.toLowerCase();
+  const held = (await readItems()).find((item) => String(item.name).trim().toLowerCase() === money);
+  const lost = Math.ceil((held?.quantity ?? 0) / 4);
+  if (!held || lost <= 0) return;
+  await core.inventory
+    .change(held.id, held.quantity - lost > 0 ? { quantity: held.quantity - lost } : null)
+    .catch(() => {});
+  await readItems();
+  narrate(null, `${who} is ${lost} ${money} the poorer.`);
   core.hud?.refreshInventory?.();
 }
 
@@ -9089,7 +9196,7 @@ function step(dt) {
   core.hud?.setThumbs(
     onGround ?? (core.mode === "sit" ? "seat" : core.mode === "ride" ? "ride" : ""),
     core.mode === "walk" || core.mode === "sit" || core.mode === "ride",
-    fighting() && !core.downed,
+    core.downed ? "" : fightMode(),
   );
 
   // The town lives on while the player is indoors: doors, people, the clock. An open door stays open
@@ -9138,7 +9245,8 @@ function step(dt) {
       // confrontations are allowed at all); and whether it's night, for the ones about only then.
       hostile: core.settings.hostileAnimals,
       combat: fighting(),
-      down: !!core.downed, // (nothing goes for someone who's down)
+      // (Nothing goes for someone who's down, or while a scene plays the fight out.)
+      down: !!core.downed || core.clock < (core.truceUntil ?? 0),
       bodySeconds: core.settings.bodyMinutes * 60,
       safe: !aggressionAllowed(at.x, at.z),
       night: core.hour < 5.5 || core.hour >= 20.5,
@@ -9148,6 +9256,11 @@ function step(dt) {
       // With fighting on, an attack is rolled against the player's AC and told as what was rolled.
       if (event.type === "attack" && fighting()) {
         foeAttacks(event, what);
+        continue;
+      }
+      // The other ways to fight: an exchange rolled at once and told, or a scene.
+      if (event.type === "attack" && fightMode()) {
+        encounter(event, what, "foe");
         continue;
       }
       const lines = ANIMALS[event.kind]?.person ? PACK.outlaws : PACK.beasts; // (a person isn't told as a beast)

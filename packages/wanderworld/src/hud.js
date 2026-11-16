@@ -848,7 +848,11 @@ export function createHud(root, handlers) {
     sheetTrack:
       "The AI reads what was narrated and changes your sheet to match: HP lost to a bite, mana spent on a spell, experience for something done. It answers with a short list of changes, which the game checks against your sheet, and a note in the chat says what changed. After moments: read each time something is narrated. It shares the inventory tracker's AI call when that is on, and is one more call when it isn't. After moments and replies: also after each reply in a conversation. Off: only you and the game's own rules (using an item) change it.",
     fights:
-      "Off: nothing can be hurt, and hostile creatures only see you off. Real time: F swings, Q blocks and R dodges (on a touch screen the Combat button by your thumb swaps Run, Sit and Jump for Attack, Block and Dodge; the chat window has the three too). A block lasts a moment: an attack on you while it does is rolled twice and the worse roll counts. A dodge rolls you a few steps, and nothing lands on you while you roll. You swing wherever you face, standing or on the move, and whatever animal is in front of you and in reach when the blow lands takes it. Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A hostile creature you strike fights back, its attacks rolled the same way against your AC; a peaceful one runs. No AI call is made: the game rolls and tells what was rolled. A scene and a narrated moment are to come as other ways to fight.",
+      "Off: nothing can be hurt, and hostile creatures only see you off. Real time: F swings, Q blocks and R dodges (on a touch screen the Combat button by your thumb swaps Run, Sit and Jump for Attack, Block and Dodge; the chat window has the three too). A block lasts a moment: an attack on you while it does is rolled twice and the worse roll counts. A dodge rolls you a few steps, and nothing lands on you while you roll. You swing wherever you face, standing or on the move, and whatever animal is in front of you and in reach when the blow lands takes it. Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A hostile creature you strike fights back, its attacks rolled the same way against your AC; a peaceful one runs. No AI call is made: the game rolls and tells what was rolled. A narrated moment: nothing is swung in real time. When a creature gets to you, or you press Attack with one in reach, the game rolls one exchange (its attack and yours) and, with AI moments on, the AI tells it as rolled; then the creature holds off a few seconds before the next. A scene: the same meeting opens a scene chat instead, with your stats sent to it, and the creatures let you be while you play it out.",
+    defeatCost:
+      "Taken when you get up after a defeat, however you get up. A quarter of your money (rounded up) is gone, or the experience you had toward your next level. Never a level, and never an item.",
+    beatenDays:
+      "How many days pass before something you've beaten is about again, back where it lives. 0: it's back the next time the world is opened.",
     bodyMinutes:
       "How long something you've beaten lies where it fell before it goes. 0 keeps it until you harvest it or clear it with the button below. While it lies there you can harvest an animal (hide, meat and the like go into your inventory, and the body goes) or search an outlaw (what they carried; the body stays).",
     defeat:
@@ -1241,15 +1245,27 @@ export function createHud(root, handlers) {
   intro(
     "Fighting what would attack you: wolves, monsters and outlaws. It uses your character sheet (HP, AC, Strength), so the sheet has to be on. How hostile creatures behave when you're near is in Settings → Animals → Behaviour.",
   );
-  choice("fights", "Combat", { off: "Off", realtime: "Real time" }, "sheet");
+  choice(
+    "fights",
+    "Combat",
+    { off: "Off", realtime: "Real time", moment: "A narrated moment", scene: "A scene" },
+    "sheet",
+  );
   choice(
     "defeat",
     "When your HP runs out",
     { here: "Come to where you fell", home: "Wake at home", stay: "Stay down until you choose" },
     "sheet",
   );
+  choice(
+    "defeatCost",
+    "What a defeat costs",
+    { none: "Nothing", coins: "A quarter of your money", xp: "Your experience toward the next level" },
+    "sheet",
+  );
   toggle("undefeatable", "Undefeatable", "sheet");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
+  number("beatenDays", "Days before the beaten are about again", "sheet");
   {
     const clear = button("Clear the beaten now", "Everything beaten and still lying about goes", () =>
       handlers.onClearBodies?.(),
@@ -3601,10 +3617,13 @@ export function createHud(root, handlers) {
       const riding = resting === "ride";
       // Fighting's buttons: only with fighting on. On a touch screen the Combat button swaps them in for
       // Run, Sit and Jump, so the row stays short; in the chat window they sit beside Jump and Sit.
-      const fight = fighting && !resting && combatOn;
+      const fight = !!fighting && !resting && combatOn;
+      const realtime = fighting === "realtime"; // (Block and Dodge are real time's; the others only have Attack)
       combatToggle.style.display = resting ? "none" : show(fighting);
-      for (const control of [strike, guard, roll]) control.style.display = show(fight);
-      for (const control of chatFight) control.style.display = fighting && !resting ? "" : "none";
+      strike.style.display = show(fight);
+      for (const control of [guard, roll]) control.style.display = show(fight && realtime);
+      chatStrike.style.display = fighting && !resting ? "" : "none";
+      for (const control of [chatGuard, chatRoll]) control.style.display = realtime && !resting ? "" : "none";
       jump.style.display = fight || (resting && !riding) ? "none" : show(wanted.jump);
       run.style.display = fight || (resting && !riding) ? "none" : show(wanted.run);
       rest.style.display = fight || resting === "lie" || resting === "seat" || riding ? "none" : show(wanted.rest);
