@@ -8086,6 +8086,15 @@ function afflictPlayer(name, seconds = 0) {
   if (!core.settings.conditions || !CONDITIONS[name] || core.downed) return false;
   core.afflicted = afflict(core.afflicted, name, seconds);
   if (name === "prone") core.gesture = "hurt";
+  // (A ring round them for a moment, as round a creature under a spell.)
+  const at = core.player.position;
+  spellFx().ring(
+    core.space.scene,
+    chest(at.x, at.z, 0.15),
+    spellColour("hold"),
+    Math.min(4, core.afflicted[name]),
+    0.9,
+  );
   return true;
 }
 
@@ -9619,7 +9628,12 @@ function battleTick(dt, moved) {
     const stats = foeOf(foe.kind, foeTable(), foe.scale);
     const range =
       core.settings.rangedFoes && core.settings.srdCreatures
-        ? Math.max(stats.ranged?.range ?? 0, stats.spells ? 18 : 0)
+        ? Math.max(
+            stats.ranged?.range ?? 0,
+            stats.spells ? 18 : 0,
+            // (One with its breath ready uses it from as far as it reaches.)
+            extrasOn() && stats.breath && !core.foeFx?.get(foe.id)?.breathSpent ? stats.breath.reach : 0,
+          )
         : 0;
     const shoots = far > reach + 0.9 && far <= range;
     if (battle.step === "move") {
@@ -9822,6 +9836,9 @@ function foeShoots(event, what) {
   if (event.target ? !ally : core.downed || core.mode === "talk") return;
   const to = ally ? ally.position : core.player.position;
   const far = Math.hypot(to.x - event.x, to.z - event.z);
+  // (A breath, from as far as it reaches.)
+  if (extrasOn() && stats.breath && !ally && far <= stats.breath.reach && breathReady(event.id, stats.breath))
+    return void foeBreathes(event, what, stats);
   const spells = (stats.spells ?? [])
     .map(foeSpell)
     .filter((entry) => entry?.spell.damage && entry.spell.range >= far && (entry.level === 0 || Math.random() < 0.35));
@@ -9831,76 +9848,79 @@ function foeShoots(event, what) {
   if (!chosen && !shot) return;
   const saveId = core.save?.id;
   const who = personaName();
-  spellFx().bolt(
-    core.space.scene,
-    chest(event.x, event.z, 1.1),
-    chest(to.x, to.z),
-    chosen ? colourOf(chosen.spell) : ARROW,
-    {
-      size: chosen ? 1 : 0.4,
-      then: () => {
-        if (core.save?.id !== saveId) return;
-        if (!chosen) {
-          const verb = `${/bow/iu.test(shot.name) ? "shoots" : "throws"} its ${shot.name.toLowerCase()}`;
-          const with_ = {
-            attack: shot.attack,
-            damage: shot.damage,
-            damageBonus: 0,
-            verb,
-            cover: ally ? 0 : coverBetween(event, to),
-          };
-          return void (ally ? allyAttacked(event, what, with_) : foeAttacks(event, what, with_));
-        }
-        if (ally)
-          return void allyAttacked(event, what, {
-            attack: 2 + (stats.wit ?? 0),
-            damage: chosen.spell.damage,
-            damageBonus: 0,
-            verb: `casts ${chosen.name}`,
-          });
-        if (core.downed) return;
-        if (core.clock < (core.dodgeUntil ?? 0))
-          return void narrate(null, `The ${what} casts ${chosen.name} at ${who}, who rolls clear.`);
-        const countered = chosen.level <= 3 ? reactionSpell("counter") : "";
-        if (countered)
-          return void narrate(
-            null,
-            `The ${what} casts ${chosen.name} at ${who}, who answers with ${countered}: it comes to nothing.`,
-          );
-        const sheet = sheetNow();
-        const result = spellAtPlayer({
-          wit: stats.wit ?? 0,
-          spell: chosen.spell,
-          sheet,
-          worn: wornNow(sheet),
-          saveBonus: chosen.spell.save ? saveBonus(chosen.spell.save.attribute.toLowerCase()) : 0,
+  // (A spell is seen as that spell is: a fan, a beam, light from above. A shot is an arrow.)
+  const flies = (options) =>
+    chosen
+      ? castSeen(
+          chosen.spell,
+          core.space.scene,
+          chest(event.x, event.z, 1.1),
+          chest(to.x, to.z),
+          colourOf(chosen.spell),
+          options,
+        )
+      : spellFx().bolt(core.space.scene, chest(event.x, event.z, 1.1), chest(to.x, to.z), ARROW, options);
+  flies({
+    size: chosen ? 1 : 0.4,
+    then: () => {
+      if (core.save?.id !== saveId) return;
+      if (!chosen) {
+        const verb = `${/bow/iu.test(shot.name) ? "shoots" : "throws"} its ${shot.name.toLowerCase()}`;
+        const with_ = {
+          attack: shot.attack,
+          damage: shot.damage,
+          damageBonus: 0,
+          verb,
+          cover: ally ? 0 : coverBetween(event, to),
+        };
+        return void (ally ? allyAttacked(event, what, with_) : foeAttacks(event, what, with_));
+      }
+      if (ally)
+        return void allyAttacked(event, what, {
+          attack: 2 + (stats.wit ?? 0),
+          damage: chosen.spell.damage,
+          damageBonus: 0,
+          verb: `casts ${chosen.name}`,
         });
-        // (Evasion: a Dexterity save made takes nothing, and one failed only half.)
-        if (kitNow().evasion && chosen.spell.save?.attribute.toLowerCase() === "dexterity")
-          result.damage = result.saved ? 0 : Math.floor(result.damage / 2);
-        const hp = playerStruck(result, event);
-        narrate(
+      if (core.downed) return;
+      if (core.clock < (core.dodgeUntil ?? 0))
+        return void narrate(null, `The ${what} casts ${chosen.name} at ${who}, who rolls clear.`);
+      const countered = chosen.level <= 3 ? reactionSpell("counter") : "";
+      if (countered)
+        return void narrate(
           null,
-          castAtWords({
-            name: `The ${what}`,
-            spell: chosen.name,
-            who,
-            result,
-            left: hp?.value ?? 0,
-            max: hp?.max ?? 0,
-          }),
+          `The ${what} casts ${chosen.name} at ${who}, who answers with ${countered}: it comes to nothing.`,
         );
-        // (What the spell leaves, it leaves on them too: a failed save or a hit.)
-        const left = result.hit && !result.saved ? conditionFor(chosen.spell.effect?.name) : "";
-        if (left && afflictPlayer(left, chosen.spell.effect.seconds))
-          narrate(
-            null,
-            `${who} is ${CONDITIONS[left].label.toLowerCase()} for ${chosen.spell.effect.seconds} seconds.`,
-          );
-        if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
-      },
+      const sheet = sheetNow();
+      const result = spellAtPlayer({
+        wit: stats.wit ?? 0,
+        spell: chosen.spell,
+        sheet,
+        worn: wornNow(sheet),
+        saveBonus: chosen.spell.save ? saveBonus(chosen.spell.save.attribute.toLowerCase()) : 0,
+      });
+      // (Evasion: a Dexterity save made takes nothing, and one failed only half.)
+      if (kitNow().evasion && chosen.spell.save?.attribute.toLowerCase() === "dexterity")
+        result.damage = result.saved ? 0 : Math.floor(result.damage / 2);
+      const hp = playerStruck(result, event);
+      narrate(
+        null,
+        castAtWords({
+          name: `The ${what}`,
+          spell: chosen.name,
+          who,
+          result,
+          left: hp?.value ?? 0,
+          max: hp?.max ?? 0,
+        }),
+      );
+      // (What the spell leaves, it leaves on them too: a failed save or a hit.)
+      const left = result.hit && !result.saved ? conditionFor(chosen.spell.effect?.name) : "";
+      if (left && afflictPlayer(left, chosen.spell.effect.seconds))
+        narrate(null, `${who} is ${CONDITIONS[left].label.toLowerCase()} for ${chosen.spell.effect.seconds} seconds.`);
+      if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
     },
-  );
+  });
 }
 
 /** What each creature is in a fight: the 5e SRD's numbers (Settings → Inventory → Combat), or the setting pack's own. */
