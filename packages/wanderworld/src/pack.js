@@ -489,6 +489,8 @@ const BEASTS = {
  */
 const FOES = {
   default: { hp: 6, ac: 11, attack: 2, damage: "1d4", xp: 5, verb: "strikes" },
+  // (One of the townsfolk, or anyone with a name: struck only where the player has allowed it.)
+  person: { hp: 10, ac: 10, attack: 2, damage: "1d4", xp: 0, verb: "swings" },
   wolf: { hp: 11, ac: 13, attack: 4, damage: "2d4", xp: 15, verb: "snaps" },
   // (The peaceful ones run when struck; these are for one that's cornered, or that lore has made hostile.)
   deer: { hp: 8, ac: 13, attack: 2, damage: "1d4", xp: 5, verb: "kicks out" },

@@ -170,6 +170,21 @@ assert.match(
   /a hit, for 5\. Zoey has 15 of 20 HP\.$/u,
 );
 
+// A blow on someone with a name is told by their name.
+assert.equal(
+  strikeWords({
+    who: "Zoey",
+    what: "Mira",
+    named: true,
+    weapon: iron,
+    result: { roll: 12, total: 15, hit: true, crit: false, damage: 4, ac: 10 },
+    left: 6,
+    max: 10,
+  }),
+  "Zoey swings the iron axe at Mira (15 against AC 10): a hit, for 4. Mira has 6 of 10 HP left.",
+);
+assert.equal(foeOf("person", PACK.foes).hp, 10);
+
 // A herd's creature takes blows: HP kept, roused by a miss, down at 0, and out of the reckoning after.
 {
   const { createHerd } = await import("../packages/wanderworld/src/herd.js");

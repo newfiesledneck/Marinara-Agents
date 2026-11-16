@@ -7967,6 +7967,7 @@ function swing() {
     if (core.save?.id !== saveId || fightMode() !== mode || core.downed) return;
     const foe = blowTarget();
     if (!foe) return;
+    if (foe.person) return void landOnPerson(foe, weapon);
     if (mode === "realtime") return void landOn(foe, weapon);
     const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
     encounter(foe, what, "player");
@@ -7992,7 +7993,57 @@ function blowTarget() {
       foe = entry;
     }
   }
+  // People too, where the player has allowed it (Settings → Inventory → Combat): whoever is nearer.
+  if (core.settings.fightPeople && fighting())
+    for (const person of core.crowd.present(core.space)) {
+      if (core.crowd.isOut(person.id)) continue;
+      const dx = person.position.x - at.x;
+      const dz = person.position.z - at.z;
+      const distance = Math.hypot(dx, dz);
+      const off = Math.abs(Math.atan2(Math.sin(Math.atan2(dx, dz) - facing), Math.cos(Math.atan2(dx, dz) - facing)));
+      if (distance > SWING_REACH + 0.4 || (distance > 0.9 && off > SWING_ARC) || distance >= nearest) continue;
+      nearest = distance;
+      foe = {
+        person: true,
+        id: person.id,
+        name: nameFor(person.id, person.name),
+        x: person.position.x,
+        z: person.position.z,
+      };
+    }
   return foe;
+}
+
+/** How long someone knocked out lies there (seconds). */
+const OUT_SECONDS = 120;
+
+/**
+ * A blow lands on a person: rolled like any other, against the pack's numbers for a person. Struck at or
+ * struck, they remember it for good and are the player's enemy from then on; whoever saw it remembers too.
+ * At 0 HP they're out cold for a while, then up again (nobody dies). Their HP is kept for the session.
+ */
+function landOnPerson(target, weapon) {
+  const sheet = sheetNow();
+  const stats = foeOf("person", PACK.foes);
+  const result = playerStrike({ sheet, worn: wornBonuses(sheet, core.items ?? []), weapon, foe: stats });
+  core.peopleHp ??= new Map();
+  const left = Math.max(0, (core.peopleHp.get(target.id) ?? stats.hp) - result.damage);
+  core.peopleHp.set(target.id, left > 0 ? left : Math.ceil(stats.hp / 2)); // (they come round with half)
+  const who = personaName();
+  narrate(null, strikeWords({ who, what: target.name, weapon, result, left, max: stats.hp, named: true }));
+  // What comes of it, hit or miss: an attack is an attack.
+  const with_ = weapon.name ? ` with ${/^[aeiou]/iu.test(weapon.name) ? "an" : "a"} ${weapon.name.toLowerCase()}` : "";
+  recall([target.id], `${who} attacked me${with_}${result.hit ? " and hurt me" : ""}`, false, "saw", true);
+  recall(
+    inSight().filter((id) => id !== target.id),
+    `${who} attacked ${target.name}${with_}`,
+    false,
+    "saw",
+  );
+  if (!core.relations.get(target.id, PLAYER_ID)?.locked)
+    setRelation(target.id, PLAYER_ID, { kind: "enemy", level: result.hit ? 85 : 60, role: "" });
+  if (left <= 0 && core.crowd.knockOut(target.id, OUT_SECONDS))
+    narrate(null, `${target.name} lies where they fell, out cold.`);
 }
 
 /**

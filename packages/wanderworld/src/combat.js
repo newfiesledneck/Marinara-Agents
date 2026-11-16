@@ -136,12 +136,15 @@ const rollWords = (result) =>
  * The player's swing, told: "You swing your iron axe at the wolf (14 against AC 12): a hit, for 6. It has 5
  * of 11 HP left." `what`: the creature ("wolf"); `left` and `max`: its HP after.
  */
-export function strikeWords({ who, what, weapon, result, left, max }) {
+export function strikeWords({ who, what, weapon, result, left, max, named = false }) {
+  // (`named`: `what` is someone's name, not a kind of creature.)
+  const whom = named ? what : `the ${what}`;
   const how = weapon.name ? `swings the ${weapon.name.toLowerCase()} at` : "strikes at";
-  const start = `${who} ${how} the ${what} (${rollWords(result)})`;
+  const start = `${who} ${how} ${whom} (${rollWords(result)})`;
   if (!result.hit) return `${start}: a miss.`;
   const hit = `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}.`;
-  return left > 0 ? `${hit} It has ${left} of ${max} HP left.` : `${hit} The ${what} goes down.`;
+  if (left <= 0) return `${hit} ${named ? what : `The ${what}`} goes down.`;
+  return `${hit} ${named ? `${what} has` : "It has"} ${left} of ${max} HP left.`;
 }
 
 /** A creature's attack, told: "The wolf bites at Zoey (15 against AC 12): a hit, for 4. Zoey has 9 of 20 HP." */
