@@ -320,6 +320,8 @@ export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror
       if (HELD_FOR_GESTURE[options?.gesture]) tool = [...HELD_FOR_GESTURE[options.gesture]];
       // (A weapon swung: `held` says which, since the one clip serves a sword, an axe and a hammer.)
       if (options?.gesture && options.held) tool = [options.held, 1.6];
+      // (A weapon drawn stays in the hand.)
+      if (options?.carry && (!tool || tool[0] === options.carry)) tool = [options.carry, 0.2];
       if (tool && (tool[1] -= dt) <= 0) tool = null;
       // The hand-made motion has nothing for the acts (clips.js): low ones it sits for, the rest it stands.
       const low = animationStyle !== "recorded" && LOW_ACTS.has(options?.act);

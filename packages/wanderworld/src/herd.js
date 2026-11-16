@@ -730,6 +730,10 @@ export function createHerd() {
         continue;
       }
       // One that's been beaten lies where it fell for a while, then is gone (until it's due back).
+      if (beast.down !== undefined && beast.carried) {
+        beast.group.visible = true; // (on someone's shoulder: main.js puts it there, holdBody)
+        continue;
+      }
       if (beast.down !== undefined) {
         // (`view.bodySeconds`: how long, from the player's settings; 0 leaves it until it's taken or cleared.)
         const lies = view.bodySeconds ?? BODY_SECONDS;
@@ -868,7 +872,7 @@ export function createHerd() {
     /** The beaten lying within `reach` of `at`: [{ id, kind, x, z, searched }]. */
     bodies(at, reach) {
       return beasts
-        .filter((beast) => beast.down !== undefined && !beast.gone && !beast.away && beast.group)
+        .filter((beast) => beast.down !== undefined && !beast.gone && !beast.away && !beast.carried && beast.group)
         .filter((beast) => Math.hypot(beast.x - at.x, beast.z - at.z) < reach)
         .map((beast) => ({ id: beast.id, kind: beast.kind, x: beast.x, z: beast.z, searched: !!beast.searched }));
     },
@@ -882,11 +886,39 @@ export function createHerd() {
         if (beast.group) beast.group.visible = false;
       }
     },
+    /** A body is taken up to be carried. Returns whether it was there to take. */
+    liftBody(id) {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (!beast?.group || beast.down === undefined || beast.gone || beast.away) return false;
+      beast.carried = true;
+      return true;
+    },
+    /** Where a carried body is this frame: over a shoulder at (x, y, z), lying across the way `angle` faces. */
+    holdBody(id, x, y, z, angle) {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (!beast?.carried || !beast.group) return false;
+      beast.x = x;
+      beast.z = z;
+      beast.group.position.set(x, y, z);
+      beast.group.rotation.y = angle + Math.PI / 2;
+      return true;
+    },
+    /** A carried body is put down at (x, z); how long it lies starts again. */
+    putDown(id, x, z) {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (!beast?.carried) return;
+      beast.carried = false;
+      beast.x = x;
+      beast.z = z;
+      beast.down = clock;
+      place(beast);
+      if (beast.group) beast.group.position.y += 0.25 * (beast.scale ?? 1);
+    },
     /** Every body goes, now. Returns how many there were. */
     clearBodies() {
       let cleared = 0;
       for (const beast of beasts) {
-        if (beast.down === undefined || beast.gone) continue;
+        if (beast.down === undefined || beast.gone || beast.carried) continue;
         beast.gone = true;
         if (beast.group) beast.group.visible = false;
         cleared++;

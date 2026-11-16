@@ -848,7 +848,7 @@ export function createHud(root, handlers) {
     sheetTrack:
       "The AI reads what was narrated and changes your sheet to match: HP lost to a bite, mana spent on a spell, experience for something done. It answers with a short list of changes, which the game checks against your sheet, and a note in the chat says what changed. After moments: read each time something is narrated. It shares the inventory tracker's AI call when that is on, and is one more call when it isn't. After moments and replies: also after each reply in a conversation. Off: only you and the game's own rules (using an item) change it.",
     fights:
-      "Off: nothing can be hurt, and hostile creatures only see you off. Real time: F swings, Q blocks and R dodges (on a touch screen the Combat button by your thumb swaps Run, Sit and Jump for Attack, Block and Dodge; the chat window has the three too). A block lasts a moment: an attack on you while it does is rolled twice and the worse roll counts. A dodge rolls you a few steps, and nothing lands on you while you roll. You swing wherever you face, standing or on the move, and whatever animal is in front of you and in reach when the blow lands takes it. Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A hostile creature you strike fights back, its attacks rolled the same way against your AC; a peaceful one runs. No AI call is made: the game rolls and tells what was rolled. A narrated moment: nothing is swung in real time. When a creature gets to you, or you press Attack with one in reach, the game rolls one exchange (its attack and yours) and, with AI moments on, the AI tells it as rolled; then the creature holds off a few seconds before the next. A scene: the same meeting opens a scene chat instead, with your stats sent to it, and the creatures let you be while you play it out.",
+      "Off: nothing can be hurt, and hostile creatures only see you off. Real time: F swings, Q blocks, R dodges and X draws your weapon or puts it away. With it drawn the view stays behind you, turning the view turns you, and you step sideways and back without turning away (on a touch screen the Combat button by your thumb swaps Run, Sit and Jump for Attack, Block and Dodge; the chat window has the three too). A block lasts a moment: an attack on you while it does is rolled twice and the worse roll counts. A dodge rolls you a few steps, and nothing lands on you while you roll. You swing wherever you face, standing or on the move, and whatever animal is in front of you and in reach when the blow lands takes it. Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A hostile creature you strike fights back, its attacks rolled the same way against your AC; a peaceful one runs. No AI call is made: the game rolls and tells what was rolled. A narrated moment: nothing is swung in real time. When a creature gets to you, or you press Attack with one in reach, the game rolls one exchange (its attack and yours) and, with AI moments on, the AI tells it as rolled; then the creature holds off a few seconds before the next. A scene: the same meeting opens a scene chat instead, with your stats sent to it, and the creatures let you be while you play it out.",
     defeatCost:
       "Taken when you get up after a defeat, however you get up. A quarter of your money (rounded up) is gone, or the experience you had toward your next level. Never a level, and never an item.",
     beatenDays:
@@ -3026,9 +3026,7 @@ export function createHud(root, handlers) {
   const roll = button("Dodge", "Roll out of the way: nothing lands on you while you do", () => handlers.onDodge?.());
   let combatOn = false;
   const combatToggle = button("Combat", "Swap these buttons for Attack, Block and Dodge, and back", () => {
-    combatOn = !combatOn;
-    combatToggle.style.background = combatOn ? "#96422e" : "rgba(10,14,20,0.62)";
-    combatToggle.setAttribute("aria-pressed", String(combatOn));
+    handlers.onDraw?.(); // (the weapon is drawn or put away with it: setDrawn says which)
   });
   combatToggle.setAttribute("aria-pressed", "false");
   for (const control of [strike, guard, roll, combatToggle]) control.style.cssText += `${THUMB}display:none;`;
@@ -3043,7 +3041,7 @@ export function createHud(root, handlers) {
   hintText.style.flex = "1";
   hintText.textContent = touch
     ? "Stick to walk: push it all the way, or tap Run, to run · or tap the ground to walk there · drag to look · pinch to zoom · tap someone or something to use it"
-    : "WASD walk · Shift run (Ctrl keeps it on) · Space jump · C sit · drag or arrows to look · scroll to zoom · E or click to use · with combat on: F swing, Q block, R dodge · Esc to leave";
+    : "WASD walk · Shift run (Ctrl keeps it on) · Space jump · C sit · drag or arrows to look · scroll to zoom · E or click to use · with combat on: F swing, Q block, R dodge, X draw · Esc to leave";
   // Read once, it can go: its × turns off Settings → Display → On screen → Controls hint.
   const hintClose = button("×", "Hide this (Settings → Display → On screen brings it back)", () =>
     handlers.onSetting("hint", false),
@@ -3215,7 +3213,12 @@ export function createHud(root, handlers) {
     handlers.onBlock?.(),
   );
   const chatRoll = button("Dodge", "Roll out of the way (R)", () => handlers.onDodge?.());
-  const chatFight = [chatStrike, chatGuard, chatRoll];
+  const chatDraw = button(
+    "Draw",
+    "Draw your weapon, or put it away (X): drawn, the view stays behind you and turning it turns you",
+    () => handlers.onDraw?.(),
+  );
+  const chatFight = [chatDraw, chatStrike, chatGuard, chatRoll];
   for (const control of [chatJump, chatRest, ...chatFight]) control.style.cssText += "padding:4px 10px;font-size:12px;";
   for (const control of chatFight) control.style.display = "none";
   moves.append(chatJump, chatRest, ...chatFight);
@@ -3623,6 +3626,7 @@ export function createHud(root, handlers) {
       strike.style.display = show(fight);
       for (const control of [guard, roll]) control.style.display = show(fight && realtime);
       chatStrike.style.display = fighting && !resting ? "" : "none";
+      chatDraw.style.display = realtime && !resting ? "" : "none";
       for (const control of [chatGuard, chatRoll]) control.style.display = realtime && !resting ? "" : "none";
       jump.style.display = fight || (resting && !riding) ? "none" : show(wanted.jump);
       run.style.display = fight || (resting && !riding) ? "none" : show(wanted.run);
@@ -3997,6 +4001,14 @@ export function createHud(root, handlers) {
       }
       nodes.push(line, actions, sceneNote);
       sceneBody.replaceChildren(...nodes);
+    },
+    /** Whether the weapon is drawn: the Combat button shows it, and a touch screen's row is the fighting one. */
+    setDrawn(on) {
+      if (combatOn === !!on) return;
+      combatOn = !!on;
+      combatToggle.style.background = combatOn ? "#96422e" : "rgba(10,14,20,0.62)";
+      combatToggle.setAttribute("aria-pressed", String(combatOn));
+      chatDraw.textContent = combatOn ? "Put away" : "Draw";
     },
     /** The Respawn button at the top, while the player lies beaten and has chosen to stay down. */
     setRespawn(shown) {

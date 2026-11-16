@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.6.83 — 2026-11-15
+
+- X draws your weapon or puts it away (real-time combat). On a touch screen the Combat button does it. Drawn, the view stays behind you: turning the view turns you, and you step sideways and backwards without turning away. The weapon stays in your hand.
+- A dodge goes the way you are moving, sideways and back too.
+- What you beat can be carried. Stand at it and the chat window has a Carry button. You walk slowly under it, and the prompt puts it down.
+
 ## 0.6.82 — 2026-11-15
 
 - Two more ways to fight, in Settings → Inventory → Combat. A narrated moment: when a creature gets to you, or you press Attack with one in reach, the game rolls one exchange of blows at once and the AI tells it as rolled. A scene: the meeting opens a scene chat, and the creatures let you be while you play it.

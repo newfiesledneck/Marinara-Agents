@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.83",
+          "date": "2026-11-15",
+          "notes": "- X draws your weapon or puts it away (real-time combat). On a touch screen the Combat button does it. Drawn, the view stays behind you: turning the view turns you, and you step sideways and backwards without turning away. The weapon stays in your hand.\n- A dodge goes the way you are moving, sideways and back too.\n- What you beat can be carried. Stand at it and the chat window has a Carry button. You walk slowly under it, and the prompt puts it down.",
+          "highlight": false
+        },
+        {
           "version": "0.6.82",
           "date": "2026-11-15",
           "notes": "- Two more ways to fight, in Settings → Inventory → Combat. A narrated moment: when a creature gets to you, or you press Attack with one in reach, the game rolls one exchange of blows at once and the AI tells it as rolled. A scene: the meeting opens a scene chat, and the creatures let you be while you play it.\n- A defeat can have a cost: a quarter of your money, or your experience toward the next level. Nothing, to begin with.\n- What you beat stays gone for two days (a setting), then is back where it lives. Before, everything was back whenever the world was opened.",
@@ -307,12 +313,6 @@
           "version": "0.6.64",
           "date": "2026-11-15",
           "notes": "- Gathering is only offered at its resource. \"Chop wood\" appears when you stand against a tree, and \"Mine\" at a boulder or a cave. Before, they showed anywhere in the woods or near the mountains.\n- A tree gives up to four pieces of wood, one stroke at a time, and the fourth stroke brings it down. A felled tree is gone, and no longer in your way, until it grows back after a week. Settings → People → Inventory sets the days, or 0 for never.\n- Each boulder is its own spot: mine one and it is worked out until the next day, while the one beside it isn't.\n- On the sheet, \"Most (optional)\" is now \"Max (optional)\".",
-          "highlight": false
-        },
-        {
-          "version": "0.6.63",
-          "date": "2026-11-15",
-          "notes": "- Gathering. Where there's something to gather, buttons appear in the chat window: Fish beside water, Chop wood and Forage in the woods, Mine at the mountains or a cave, Harvest on a farm in summer and fall. A d20 plus one of your attributes decides what you find.\n- What you find goes into your Quartermaster inventory. Food says what eating it gives, and Use in Inventory → Items applies it. Foraging follows the season, and there is none in winter.\n- A patch gives nothing more of that kind until the next day. Settings → People → Inventory has the switch and the number of days.\n- Your purse: Inventory → Items shows how much money you carry and lets you name it. It is the item of that name.\n- No gathering animations or tools yet.",
           "highlight": false
         }
       ]

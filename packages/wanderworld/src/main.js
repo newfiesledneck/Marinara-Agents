@@ -3041,7 +3041,16 @@ function stepPlaces(dt) {
     showFelled();
     showBeaten();
     core.hud?.setShop(vendorHere()?.title ?? "");
-    core.hud?.setGather(gatherOptions(zone).map((kind) => ({ kind, label: GATHER_KINDS[kind].label })));
+    core.hud?.setGather([
+      ...gatherOptions(zone).map((kind) => ({ kind, label: GATHER_KINDS[kind].label })),
+      // (Something beaten at your feet can be picked up and carried: put down again with the prompt.)
+      ...(core.carrying || core.interior ? [] : core.herd.bodies(core.player.position, 2.6))
+        .slice(0, 1)
+        .map((body) => ({
+          kind: `carry:${body.id}`,
+          label: `Carry the ${(PACK.animals[body.kind] ?? "the creature").replace(/^the /u, "")}`,
+        })),
+    ]);
     core.journalAt = 0.5;
     core.hud?.journal.render(journalData(zone, snapshot, residents, names));
     core.partyChanged = false;
@@ -7381,6 +7390,19 @@ function usable() {
   }
   // What can be gathered here, each a prompt at the thing itself (a key, or a tap on a touch screen); not
   // where it's been used up for now. Foraging and harvesting, which have no one thing, only when stood still.
+  // Carrying something beaten: the prompt puts it down.
+  if (core.carrying)
+    list.push({
+      kind: "thing",
+      label: `Put down the ${core.carrying.what}`,
+      x: core.player.position.x,
+      z: core.player.position.z,
+      y: heightAt(core.player.position.x, core.player.position.z) + 0.35,
+      reach: 3,
+      quiet: true,
+      body: true,
+      act: putDownBody,
+    });
   // The beaten, lying in reach: an animal to harvest, a person to search (once).
   for (const body of core.interior ? [] : core.herd.bodies(core.player.position, 2.6)) {
     const person = !!ANIMALS[body.kind]?.person;
@@ -7929,7 +7951,7 @@ const SWING_LANDS = 0.34;
  */
 function swing() {
   const mode = fightMode();
-  if (!mode || core.downed || core.mode !== "walk" || core.clock < (core.strikeUntil ?? 0)) return;
+  if (!mode || core.downed || core.carrying || core.mode !== "walk" || core.clock < (core.strikeUntil ?? 0)) return;
   // (What's carried is read again now and then, behind the swing: the first of a session may be with bare hands.)
   if (!core.itemsAt || core.clock - core.itemsAt > 15) {
     core.itemsAt = core.clock;
@@ -8089,6 +8111,64 @@ async function tendBody(body, person, what) {
   }
 }
 
+/** Whether the weapon is out (X, or the Combat button): only where fights are in real time, and on their feet. */
+const weaponDrawn = () => !!core.drawn && fighting() && !core.downed && core.mode === "walk";
+
+/** Draws the weapon, or puts it away. Drawn, the camera stays behind the player and turning it turns them. */
+function draw() {
+  if (!fighting()) return;
+  core.drawn = !core.drawn;
+  core.hud?.setDrawn(core.drawn);
+  if (core.drawn) {
+    core.walkTo = null;
+    if (!core.itemsAt) {
+      core.itemsAt = core.clock;
+      void readItems();
+    }
+  }
+}
+
+/** Takes up the beaten creature `id`, lying in reach, to carry it (the chat window's Carry button). */
+function carryBody(id) {
+  if (core.carrying || core.downed || core.mode !== "walk" || core.interior) return;
+  const body = core.herd.bodies(core.player.position, 3).find((entry) => entry.id === id);
+  if (!body || !core.herd.liftBody(id)) return;
+  const what = (PACK.animals[body.kind] ?? "the creature").replace(/^the /u, "");
+  core.carrying = { id, what };
+  core.gesture = "pickUp";
+  core.drawn = false;
+  core.hud?.setDrawn(false);
+  narrate(null, `${personaName()} heaves the ${what} up onto a shoulder.`);
+}
+
+/** Puts down what's being carried, a step in front of the player. */
+function putDownBody() {
+  const load = core.carrying;
+  if (!load) return;
+  core.carrying = null;
+  const at = core.player.position;
+  const spot = {
+    x: at.x + Math.sin(core.player.rotation.y) * 0.9,
+    y: at.y,
+    z: at.z + Math.cos(core.player.rotation.y) * 0.9,
+  };
+  core.space.resolveCollisions(spot, 0.4, true);
+  core.herd.putDown(load.id, spot.x, spot.z);
+  narrate(null, `${personaName()} sets the ${load.what} down.`);
+}
+
+/** Each frame: what's carried rides on the player's shoulder; it's put down if they stop being on their feet outdoors. */
+function carryTick() {
+  if (core.hud && !!core.drawn !== weaponDrawn() && !fighting()) {
+    core.drawn = false; // (fights were switched off, or to another way of fighting)
+    core.hud.setDrawn(false);
+  }
+  if (!core.carrying) return;
+  const at = core.player.position;
+  if (core.mode !== "walk" || core.interior || core.downed || core.swimming) return void putDownBody();
+  if (!core.herd.holdBody(core.carrying.id, at.x, at.y + 1.35, at.z, core.player.rotation.y)) core.carrying = null;
+}
+
 /** How long a dodge's roll takes (seconds), how far it carries, and how long before another. */
 const DODGE_SECONDS = 0.55;
 const DODGE_REACH = 3.2;
@@ -8110,10 +8190,11 @@ function block() {
  */
 function dodge() {
   if (!fighting() || core.downed || core.mode !== "walk" || core.glide || core.air || core.swimming) return;
-  if (core.clock < (core.dodgeAgain ?? 0)) return;
+  if (core.carrying || core.clock < (core.dodgeAgain ?? 0)) return;
   const at = core.player.position;
   const facing = core.player.rotation.y;
-  const way = (core.still ?? 1) === 0 ? facing : facing + Math.PI; // on the move: onward; standing: back
+  // On the move: the way they're going (with a weapon drawn that may be sideways or back); standing: back.
+  const way = (core.still ?? 1) === 0 ? (core.moveWay ?? facing) : facing + Math.PI;
   const to = { x: at.x + Math.sin(way) * DODGE_REACH, y: at.y, z: at.z + Math.cos(way) * DODGE_REACH };
   core.space.resolveCollisions(to, PLAYER_RADIUS, true);
   if (!core.interior && waterAt(to.x, to.z).depth > 0.4) return; // not into the river
@@ -8927,6 +9008,7 @@ function movePlayer(dt, input) {
     if (keyed) core.walkTo = null;
     const walkTo = core.walkTo;
     let speedFactor = input.run ? RUN_SPEED : WALK_SPEED * input.amount;
+    if (core.carrying) speedFactor = Math.min(speedFactor, WALK_SPEED) * 0.7; // (under a load: a slow walk)
     // In the river: swimming in deep water, wading slower where it's shallower.
     const water = core.interior ? null : waterAt(position.x, position.z);
     if (water?.depth > SWIM_DEPTH) speedFactor = input.run ? SWIM_SPRINT : SWIM_SPEED * input.amount;
@@ -8965,7 +9047,9 @@ function movePlayer(dt, input) {
       const edge = (core.world?.size ?? WORLD_SIZE) / 2 - 2;
       position.x = Math.max(-edge, Math.min(edge, position.x));
       position.z = Math.max(-edge, Math.min(edge, position.z));
-      player.rotation.y = approachAngle(player.rotation.y, Math.atan2(moveX, moveZ), 12 * dt);
+      core.moveWay = Math.atan2(moveX, moveZ);
+      // (With a weapon drawn they keep facing where the camera looks, stepping sideways and back: below.)
+      if (!weaponDrawn()) player.rotation.y = approachAngle(player.rotation.y, core.moveWay, 12 * dt);
       // A tap's walk gives up when something is in the way.
       if (core.walkTo) {
         const moved = Math.hypot(position.x - startX, position.z - startZ);
@@ -8973,6 +9057,9 @@ function movePlayer(dt, input) {
         if (core.walkTo.stuck > 0.6) core.walkTo = null;
       }
     }
+    // A weapon drawn: the camera stays behind them, so turning it turns them.
+    if (weaponDrawn() && !core.walkTo && core.clock >= (core.stillUntil ?? 0))
+      player.rotation.y = approachAngle(player.rotation.y, core.cameraYaw + Math.PI, 14 * dt);
   } else if (core.mode === "ride" && core.mount) {
     // Riding: the same stick and keys, moving the animal under them. It walks, gallops with Shift (or
     // the stick right out), turns less sharply than a person, and swims where the water is deep.
@@ -9147,6 +9234,7 @@ function step(dt) {
   if (input?.take("attack")) swing();
   if (input?.take("block")) block();
   if (input?.take("dodge")) dodge();
+  if (input?.take("draw")) draw();
   if (input?.take("rest") && core.settings.restKey) rest();
   if (input?.take("journal")) core.hud?.toggleJournal();
 
@@ -9157,6 +9245,7 @@ function step(dt) {
     savePlace(true, captureThumbnail());
   }
   const speed = movePlayer(dt, read);
+  carryTick();
   core.still = speed < 0.1 ? (core.still ?? 0) + dt : 0; // how long the player has stood still, in seconds
   let lookAt = null;
   if (core.talking) {
@@ -9178,6 +9267,7 @@ function step(dt) {
     act: core.mode === "ride" ? (stepping ? null : "ride") : astride ? "ride" : onGround,
     gesture: core.gesture,
     held: core.gestureHeld ?? null,
+    carry: weaponDrawn() ? weaponOf(core.items ?? []).held : null,
     air: !!core.air && !core.air.mount, // (a rider keeps their seat through the animal's jump)
     lookAt,
     talk: false,
@@ -9441,7 +9531,7 @@ function attach(element) {
           .trim()
           .slice(0, 30),
       }),
-    onGather: (kind) => void gather(kind),
+    onGather: (kind) => (kind.startsWith("carry:") ? carryBody(kind.slice(6)) : void gather(kind)),
     onShop: shopNow,
     onVendors: vendorsNow,
     onVendorKinds: setVendorKinds,
@@ -9632,6 +9722,7 @@ function attach(element) {
     onAttack: swing,
     onBlock: block,
     onDodge: dodge,
+    onDraw: draw,
     onRespawn: respawn,
     onClearBodies: () => {
       const cleared = core.herd.clearBodies();
