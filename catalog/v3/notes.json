@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.85",
+          "date": "2026-11-15",
+          "notes": "- Casting. A spell is a line of your sheet whose description is its rule, written like an item's: \"2 mana. 1d10 fire damage.\" or \"3 mana. 2d6 cold damage. Dexterity save for half.\" or \"Wisdom save or stunned 6 seconds.\" or \"+8 HP.\"\n- Z casts the spell that's ready. Each spell has a button in the chat window, and a touch screen's Combat row has a Cast button.\n- A spell flies at the nearest creature ahead of you. It is a spell attack against AC, or the creature makes a saving throw for half or none. Stunned stops it; frightened sends it running. A healing spell mends you.\n- Inventory → Sheet has a button that adds five spells to begin with. You can rewrite them and add your own.",
+          "highlight": false
+        },
+        {
           "version": "0.6.84",
           "date": "2026-11-15",
           "notes": "- People can be struck, if you allow it: Settings → Inventory → Combat → \"Blows can land on people\", off to begin with.\n- A blow on someone is rolled like any other. They remember it for good and become your enemy (unless you've locked how they see you), and anyone who saw it remembers.\n- At 0 HP they lie out cold for two minutes, then get up. Nobody dies. People don't strike back yet.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.66",
           "date": "2026-11-15",
           "notes": "- Tools. Chopping needs an axe, mining a pickaxe and fishing a rod, carried in your inventory. Anything named for one counts. The tool shows in your hand while you use it. Settings → People → Inventory → \"Gathering needs tools\" turns the need off.\n- Crafting. Inventory → Craft lists what you can make and what each needs. The first axe, pickaxe and rod are made from a fallen branch, flint and plant fibre, which foraging now finds in every season.\n- Also: cooked fish, cord, kindling and a torch, and at higher levels a poultice, a quarterstaff, iron ingots and iron tools.\n- \"Make something new\" saves your own recipe: say what goes in, name and describe what comes of it.\n- An axe or a pickaxe says what it does as a weapon. A fishing rod doesn't.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.65",
-          "date": "2026-11-15",
-          "notes": "- Gathering is acted out. Your character swings at the tree, works at the rock, casts a line, reaches to pick, or bends to harvest, where before they stood still.\n- The fishing, mining and picking motions come from the paid tier of Universal Animation Library 2.\n- With \"Animation\" set to Built-in in Graphics, there is no gathering motion.\n- No axe, pick or rod shows in the hand yet.\n- The tall thick conifers added in 0.6.6 were blue. They are dark green now.",
           "highlight": false
         }
       ]

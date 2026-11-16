@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.6.85 — 2026-11-15
+
+- Casting. A spell is a line of your sheet whose description is its rule, written like an item's: "2 mana. 1d10 fire damage." or "3 mana. 2d6 cold damage. Dexterity save for half." or "Wisdom save or stunned 6 seconds." or "+8 HP."
+- Z casts the spell that's ready. Each spell has a button in the chat window, and a touch screen's Combat row has a Cast button.
+- A spell flies at the nearest creature ahead of you. It is a spell attack against AC, or the creature makes a saving throw for half or none. Stunned stops it; frightened sends it running. A healing spell mends you.
+- Inventory → Sheet has a button that adds five spells to begin with. You can rewrite them and add your own.
+
 ## 0.6.84 — 2026-11-15
 
 - People can be struck, if you allow it: Settings → Inventory → Combat → "Blows can land on people", off to begin with.

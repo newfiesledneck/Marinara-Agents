@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.6.84, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.6.85, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, an AI assistant that changes a world on request, and the
@@ -494,7 +494,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.6.84: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.6.85: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -690,7 +690,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.6.84, 2026-11-14)
+## Outstanding (as of 0.6.85, 2026-11-14)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -1021,9 +1021,13 @@ weaponDrawn`): the player keeps facing where the camera looks and steps sideways
        _In (0.6.84):_ people as targets, a setting that's off to begin with (`main.js landOnPerson`,
        `npcs.js knockOut`): rolled against `pack.js foes.person`; a lasting memory for them, a memory
        for whoever saw, an enemy's relationship unless it's locked; out cold at 0 HP, then up again.
-       _Not yet:_ people striking back; casting, spells, saving throws in use, and
-       effects; the 5e
-       ruleset as a source.
+       _In (0.6.85):_ casting (`combat.js spellIn / spellStrike`, `main.js cast`): a spell is a line
+       of the sheet whose description is its rule (mana, damage, a saving throw for half or none, an
+       effect: stunned or frightened, healing); Z or a Cast button casts the ready one at the nearest
+       creature ahead; five spells in `pack.js spells` to begin with, the player's own beside them.
+       _Not yet:_ people and creatures casting or striking back at range; spells on people; more
+       effects (poison, burning, slowed) and effects on the player; the 5e ruleset as a source of
+       creatures' numbers and spells; fights indoors.
   6. _Discovery._ Two switches: the map dark until explored (names hidden with it), and names hidden
      alone. Chests and things to find, filled by the model or from built-in lists.
      - _Things that happen to you_ (a mimic, grasping vines): told in a pop-up with "Continue as a

@@ -109,6 +109,7 @@ const CLIPS = {
   fall: { name: "Death01", pack: 1, fps: 15 },
   block: { name: "Sword_Block", pack: 2, fps: 15 },
   dodge: { name: "Roll", pack: 1, fps: 20 },
+  cast: { name: "Spell_Simple_Shoot", pack: 1, fps: 20 },
 };
 
 async function load(path) {
