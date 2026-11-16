@@ -724,7 +724,12 @@ export function createHerd() {
     const shown = [];
     for (const beast of beasts) {
       if (!beast.group) continue;
-      // One that's been beaten lies where it fell for a while, then is gone (until the world is opened again).
+      // One beaten on an earlier day, not yet due back (setBeaten).
+      if (beast.away) {
+        beast.group.visible = false;
+        continue;
+      }
+      // One that's been beaten lies where it fell for a while, then is gone (until it's due back).
       if (beast.down !== undefined) {
         // (`view.bodySeconds`: how long, from the player's settings; 0 leaves it until it's taken or cleared.)
         const lies = view.bodySeconds ?? BODY_SECONDS;
@@ -793,7 +798,7 @@ export function createHerd() {
     foes(at, reach) {
       return beasts
         .filter((beast) => beast.group?.visible && !beast.owned && !beast.ridden && beast.down === undefined)
-        .filter((beast) => Math.hypot(beast.x - at.x, beast.z - at.z) < reach)
+        .filter((beast) => !beast.away && Math.hypot(beast.x - at.x, beast.z - at.z) < reach)
         .map((beast) => ({
           id: beast.id,
           kind: beast.kind,
@@ -835,10 +840,35 @@ export function createHerd() {
       }
       return { hp: beast.hp, max: beast.max, down: beast.hp <= 0 };
     },
+    /**
+     * Which are beaten and not yet due back (their ids, from the world's save): they're not about. One no
+     * longer listed is whole again, back where it lives. Cheap to call often.
+     */
+    setBeaten(ids) {
+      const away = new Set(ids);
+      for (const beast of beasts) {
+        if (away.has(beast.id)) {
+          if (beast.down === undefined || beast.gone) beast.away = true; // (one still lying there lies on)
+        } else if (beast.away || (beast.gone && beast.down !== undefined && beast.counted)) {
+          beast.away = false;
+          beast.gone = false;
+          beast.down = undefined;
+          beast.hp = undefined;
+          beast.searched = false;
+          beast.angry = false;
+          beast.counted = false;
+          beast.temper = undefined;
+          beast.x = beast.home.x;
+          beast.z = beast.home.z;
+          if (beast.group) beast.group.rotation.z = 0;
+        }
+        if (away.has(beast.id)) beast.counted = true;
+      }
+    },
     /** The beaten lying within `reach` of `at`: [{ id, kind, x, z, searched }]. */
     bodies(at, reach) {
       return beasts
-        .filter((beast) => beast.down !== undefined && !beast.gone && beast.group)
+        .filter((beast) => beast.down !== undefined && !beast.gone && !beast.away && beast.group)
         .filter((beast) => Math.hypot(beast.x - at.x, beast.z - at.z) < reach)
         .map((beast) => ({ id: beast.id, kind: beast.kind, x: beast.x, z: beast.z, searched: !!beast.searched }));
     },
@@ -873,7 +903,7 @@ export function createHerd() {
     /** The animals within `reach` of `at` that can be ridden: [{ id, kind, x, z, back }]. */
     mounts(at, reach) {
       return beasts
-        .filter((beast) => beast.group && !beast.ridden && rideable(beast) && beast.down === undefined)
+        .filter((beast) => beast.group && !beast.ridden && rideable(beast) && beast.down === undefined && !beast.away)
         .filter((beast) => Math.hypot(beast.x - at.x, beast.z - at.z) < reach)
         .map((beast) => ({
           id: beast.id,

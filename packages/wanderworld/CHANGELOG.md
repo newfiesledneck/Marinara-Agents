@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.6.82 — 2026-11-15
+
+- Two more ways to fight, in Settings → Inventory → Combat. A narrated moment: when a creature gets to you, or you press Attack with one in reach, the game rolls one exchange of blows at once and the AI tells it as rolled. A scene: the meeting opens a scene chat, and the creatures let you be while you play it.
+- A defeat can have a cost: a quarter of your money, or your experience toward the next level. Nothing, to begin with.
+- What you beat stays gone for two days (a setting), then is back where it lives. Before, everything was back whenever the world was opened.
+
 ## 0.6.81 — 2026-11-15
 
 - The prompts for Chop wood, Mine, Fish and the rest sit at ground level, at the thing itself.

@@ -343,6 +343,8 @@ export function checkWorld(raw) {
     gathered: isRecord(raw.gathered) ? raw.gathered : {},
     // Trees chopped at or felled: { "region|number": { cut, day } } (gather.js chopTree).
     trees: isRecord(raw.trees) ? raw.trees : {},
+    // The creatures beaten, and the day each was: { "<region>|<its id>": day } (main.js showBeaten).
+    beaten: isRecord(raw.beaten) ? raw.beaten : {},
     // The player's own recipes (craft.js checks them when they're read).
     recipes: Array.isArray(raw.recipes) ? raw.recipes : [],
     // Each vendor: { [zone id]: { kinds (once set by hand), stock, period, stocked } } (vendor.js).
