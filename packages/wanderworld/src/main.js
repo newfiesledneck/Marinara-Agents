@@ -145,7 +145,9 @@ import {
 } from "./schedules.js";
 import { mistyMorning, seasonOn, WEATHER_LOOK, weatherAt } from "./weather.js";
 import {
+  assignVendors,
   checkTrades,
+  checkVendorCounts,
   haggled,
   haggleOutcome,
   offerAfter,
@@ -156,6 +158,7 @@ import {
   tradeKinds,
   tradeSign,
   vendorKinds,
+  vendorNeeds,
 } from "./vendor.js";
 import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolBonus, toolFor, TOOLS } from "./craft.js";
 import {
@@ -587,6 +590,13 @@ function buildWorld(seed, place = null) {
   useHousing();
   // A new world's lore links up first (it may give the player a home to start at); the loading screen waits.
   core.linking = core.save?.lorePending ? linkLore() : null;
+  // Its vendors counted out as New world or Regenerate asked, once its places have their names.
+  if (own && core.save.vendorsPending) {
+    const world = core.world;
+    void Promise.resolve(core.linking)
+      .catch(() => null)
+      .then(() => core.world === world && countVendorsOut());
+  }
   const boardSpot = core.world.noticeboard;
   core.board = boardSpot
     ? createNoticeboard({
@@ -1316,6 +1326,7 @@ async function createNewWorld({
   cast = null,
   persona = null,
   setup = null, // the AI's setup, as the menu reviewed it (planNewWorld)
+  vendorCounts = null,
   writeLore = false,
   newPeople = 0,
   ages = null,
@@ -1336,7 +1347,9 @@ async function createNewWorld({
   save.loreKeys = setup?.loreKeys ?? {};
   save.loreNames = setup?.loreNames ?? {};
   // Built with at least what the lorebooks name (a cave brings mountains with it); random past that.
-  save.needs = await worldNeeds(save);
+  save.vendorCounts = checkVendorCounts(vendorCounts, PACK.vendors.kinds);
+  save.vendorsPending = Object.keys(save.vendorCounts).length > 0;
+  save.needs = vendorNeeds(await worldNeeds(save), save.vendorCounts);
   const shape = await loreShape(save);
   choices = withShape(choices, shape);
   save.season = shape.season ?? "";
@@ -1393,9 +1406,11 @@ function choicesOf(landscape) {
  * Builds the world on screen afresh from its New world choices with this version's land, keeping its
  * people, relationships, party, notes, lore and names. `reshuffle` also gives it a new seed (a new town
  * layout and land); its setup still stands: each place's name, lore and groups move to the same kind of
- * place in the new layout (zones.js `remapZones`). The player starts again at the square.
+ * place in the new layout (zones.js `remapZones`). The player starts again at the square. `changes`: New
+ * world's choices to build it with now ({ settlement: "city", farms: "two" }; what isn't named stays).
+ * `vendorCounts`: how many of each trade it's to have (null: as it was told before).
  */
-async function regenerateWorld(reshuffle = false, size = null, newSeed = null) {
+async function regenerateWorld(reshuffle = false, size = null, newSeed = null, changes = {}, vendorCounts = null) {
   const save = core.save;
   if (!save) return;
   if (save.region !== HOME_REGION) {
@@ -1403,24 +1418,39 @@ async function regenerateWorld(reshuffle = false, size = null, newSeed = null) {
     return;
   }
   savePlace(true);
-  const choices = core.save.choices ?? choicesOf(core.save.landscape);
+  const changed = Object.keys(changes ?? {}).length > 0;
+  const choices = { ...(core.save.choices ?? choicesOf(core.save.landscape)), ...changes };
   const seed = reshuffle ? (newSeed ?? `world-${Date.now().toString(36)}`) : core.save.seed;
-  // What its lorebooks need now (they may have grown since), on top of its land.
-  const needs = await worldNeeds(core.save);
+  const counts = checkVendorCounts(vendorCounts ?? core.save.vendorCounts, trades());
+  // What its lorebooks need now (they may have grown since) and its vendors, on top of its land.
+  const needs = vendorNeeds(await worldNeeds(core.save), counts);
   if (core.save?.id !== save.id) return; // another world was opened meanwhile
   const worldSize = size && Object.hasOwn(WORLD_SIZES, size) ? size : core.save.worldSize;
   // (A world made with its size among its choices is built for the size it's given now: one of everything
   // needs a Massive one.)
-  const sized = choices.size || choices.everything ? { ...choices, size: worldSize } : choices;
-  const land = core.save.choices || reshuffle ? landscapeWith(hashString(seed), sized) : core.save.landscape;
+  const sized = size || choices.size || choices.everything ? { ...choices, size: worldSize } : choices;
+  const land = core.save.choices || reshuffle || changed ? landscapeWith(hashString(seed), sized) : core.save.landscape;
   const landscape = landscapeNeeds(checkLandscape(land, hashString(seed)), needs, hashString(seed));
-  const next = { ...core.save, seed, landscape, choices: sized, needs, worldSize, place: null };
-  if (reshuffle && core.zones) {
+  const next = {
+    ...core.save,
+    seed,
+    landscape,
+    choices: core.save.choices || changed ? sized : core.save.choices,
+    needs,
+    worldSize,
+    place: null,
+    vendorCounts: counts,
+    vendorsPending: true,
+  };
+  // (More shops for its vendors, or other needs, take the place of houses: its places move then too.)
+  const built = JSON.stringify(needs) !== JSON.stringify(core.save.needs ?? {});
+  if ((reshuffle || changed || built) && core.zones) {
     // The setup stays: every place's name, lore and groups go to the same kind of place in the new layout.
-    const built = createWorld(hashString(seed), landscape, needs, worldSize);
-    const map = remapZones(core.zones, buildZones(built.layout, hashString(seed)));
-    built.dispose();
-    Object.assign(next, carrySetup({ ...core.save, groups: core.save.groups ?? null }, map), { waitingPlacements: [] });
+    const made = createWorld(hashString(seed), landscape, needs, worldSize);
+    const map = remapZones(core.zones, buildZones(made.layout, hashString(seed)));
+    made.dispose();
+    Object.assign(next, carrySetup({ ...core.save, groups: core.save.groups ?? null }, map));
+    if (reshuffle) next.waitingPlacements = [];
   }
   core.saves.write(next);
   // Drop the world in memory so playing builds it again from the save.
@@ -1440,14 +1470,28 @@ function previewNewWorld(canvas, seed, choices, needs = {}) {
 }
 
 /** Regenerate's preview: this world rebuilt as asked (its own layout, or a new one from `seed`). */
-function previewRegenerate(canvas, { reshuffle, size, seed }) {
+function previewRegenerate(canvas, { reshuffle, size, seed, changes = {} }) {
   const save = core.save;
   if (!save) return;
   const used = reshuffle ? seed : save.seed;
-  const choices = save.choices ?? choicesOf(save.landscape);
-  const land = save.choices || reshuffle ? landscapeWith(hashString(used), choices) : save.landscape;
+  const worldSize = size ?? save.worldSize;
+  const changed = Object.keys(changes).length > 0;
+  const base = { ...(save.choices ?? choicesOf(save.landscape)), ...changes };
+  const choices = size || base.size || base.everything ? { ...base, size: worldSize } : base;
+  const land = save.choices || reshuffle || changed ? landscapeWith(hashString(used), choices) : save.landscape;
   const landscape = landscapeNeeds(checkLandscape(land, hashString(used)), save.needs, hashString(used));
-  drawMap(canvas, previewMap(hashString(used), landscape, size ?? save.worldSize));
+  drawMap(canvas, previewMap(hashString(used), landscape, worldSize));
+}
+
+/** What Regenerate starts from: this world's choices, its size, and how many of each trade it was told to have. */
+function regenerateNow() {
+  const all = trades();
+  return {
+    choices: core.save?.choices ?? choicesOf(core.save?.landscape),
+    size: core.save?.worldSize ?? "normal",
+    counts: checkVendorCounts(core.save?.vendorCounts, all),
+    kinds: Object.entries(all).map(([id, kind]) => ({ id, label: kind.label })),
+  };
 }
 
 /** The Journal's map of the region you're in: the places by name, you, and where each edge leads. */
@@ -3553,7 +3597,7 @@ function socialTick(dt) {
 
 // ── How many animals, and which ──────────────────────────────────────────────
 
-/** What Settings → Animals says, as the herd takes it: how many of each sort, and the kinds there are none of. */
+/** What Settings → Creatures says, as the herd takes it: how many of each sort, and the kinds there are none of. */
 function herdOptions() {
   const s = core.settings;
   // Where the lore keeps the world's own animals out of (ww:animals:none): everywhere, the country, or
@@ -3608,7 +3652,7 @@ function animalAllowed(kind) {
   return !off.includes(kind) && (core.settings.loreAnimals || counts[SORT_OF[kind]] > 0);
 }
 
-/** Counts the world's animals out again after a change in Settings → Animals. */
+/** Counts the world's animals out again after a change in Settings → Creatures. */
 function restockHerd() {
   if (!core.world) return;
   if (core.mount) {
@@ -9489,10 +9533,51 @@ function vendorsNow() {
   };
 }
 
+/**
+ * Sets vendors' trades so the world has as many of each as New world or Regenerate asked for
+ * (`vendorCounts`; vendor.js assignVendors). Trades set by hand stand, and are counted; ones set here
+ * before are worked out again.
+ */
+function countVendorsOut() {
+  if (!core.save || !core.zones) return;
+  const all = trades();
+  const vendors = { ...core.save.vendors };
+  for (const [id, entry] of Object.entries(vendors)) {
+    if (!entry?.auto) continue;
+    const { kinds: _kinds, auto: _auto, ...rest } = entry;
+    vendors[id] = rest;
+  }
+  const listed = [
+    ...core.zones.zones
+      .filter((zone) => zone.kind === "building")
+      .map((zone) => ({
+        zone,
+        name: core.save.names?.[zone.id] ?? zone.name,
+        flexible: zone.buildingKind === "shop",
+      })),
+    ...stalls().map((stall) => ({ zone: { kind: "stall", id: stall.id }, name: "", flexible: true })),
+  ]
+    .map(({ zone, name, flexible }) => ({
+      id: zone.id,
+      flexible,
+      fixed: Array.isArray(vendors[zone.id]?.kinds),
+      kinds: vendorKinds(zone, name, vendors[zone.id], all),
+    }))
+    .filter((vendor) => vendor.kinds.length);
+  const set = assignVendors(listed, checkVendorCounts(core.save.vendorCounts, all), all);
+  for (const [id, kinds] of Object.entries(set)) {
+    const { stock: _stock, period: _period, stocked: _stocked, ...rest } = vendors[id] ?? {};
+    vendors[id] = { ...rest, kinds, auto: true };
+  }
+  core.save = { ...core.save, vendors, vendorsPending: false };
+  core.saves.write(core.save);
+  void redressStalls();
+}
+
 /** Sets a vendor's trades by hand (`kinds`: a list, empty for "doesn't trade"), or back to its own with null. */
 function setVendorKinds(id, kinds) {
   if (!core.save) return;
-  const { kinds: _was, ...rest } = core.save.vendors?.[id] ?? {};
+  const { kinds: _was, auto: _auto, ...rest } = core.save.vendors?.[id] ?? {};
   const all = trades();
   const next = kinds === null ? rest : { ...rest, kinds: kinds.filter((kind) => Object.hasOwn(all, kind)) };
   core.save = { ...core.save, vendors: { ...core.save.vendors, [id]: next } };
@@ -10541,6 +10626,7 @@ function attach(element) {
     onSetting: changeSetting,
     onRegenerate: regenerateWorld,
     onRegeneratePreview: previewRegenerate,
+    onRegenerateNow: regenerateNow,
     onCheckKeywords: () => void checkKeywords(),
     onEditPerson: (id) => {
       const person = personData(id);
@@ -10652,6 +10738,7 @@ function attach(element) {
       onCreate: createNewWorld,
       onSetup: planNewWorld,
       preview: previewNewWorld,
+      trades: () => Object.entries(PACK.vendors.kinds).map(([id, kind]) => ({ id, label: kind.label })),
       // Everyone New world can choose from: personas, characters, the Engine's character folders, and
       // who's chosen now (the last world's cast and persona).
       // New world starts empty: nobody from another world (each world keeps its own cast); the persona box

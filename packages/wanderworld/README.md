@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.92)
+## What it does now (0.6.93)
 
 ### The world
 
@@ -112,9 +112,14 @@ whole: don't play one world in two browsers at the same moment.
   work, day, how they see you and how they stand toward others; people made from entries with no card;
   and your own entry (`ww:you`), whose lore is always active and can give you a home (you start at
   your front door). The full list is under [Lorebook keywords](#lorebook-keywords).
-- **Regenerate this world** (Settings) rebuilds it from its setup with this version's land and the
-  lorebooks' current needs, keeping its people, relationships, lore, groups and homes; optionally a new
-  town layout, with every name and link moved to the same kind of place.
+- **Regenerate this world** (Settings → World → Places) rebuilds it from its setup with this version's
+  land and the lorebooks' current needs, keeping its people, relationships, lore, groups and homes. It
+  asks what New world asks about the land (hills, mountains, river, settlement, layout, walls, market,
+  streets, world size, more settlements, farms, landmarks, places out in the country), each starting as
+  it is, so a world can be made bigger or given more places; a map shows the result before you agree.
+  Optionally a new town layout too. Every name and link moves to the same kind of place.
+- **How many vendors:** New world and Regenerate take an "at least" and an "at most" for each trade.
+  Shops are built to reach the least; any over the most sell something else, or shut.
 
 ### AI (the server part)
 
@@ -288,9 +293,9 @@ only walk about.
   **Sum up old memories** also has a button where memories are set: in Settings → People → Memory, in
   Settings → Token use, and in each person's window in Journal → Edit people (for that person alone).
 - **Settings that explain themselves:** Menu → Settings is in sections (Display, Controls, World, People,
-  Animals, AI, Token use, then AI assistant, Help and Credits), and a section with a lot in it has tabs of
+  Creatures, AI, Token use, then AI assistant, Help and Credits), and a section with a lot in it has tabs of
   its own (Display: Graphics, On screen, Sound; World: Time and weather, Places; People: Around you,
-  Relationships, Memory, Genders, Inventory; Animals: How many, Kinds, Behaviour; AI: Writing, Scenes,
+  Relationships, Memory, Genders, Inventory; Creatures: How many, Kinds, Behaviour; AI: Writing, Scenes,
   Pictures, Connections). Each section and tab opens with a
   line on what it is for, each setting says what On and Off do, and a setting that depends on another sits
   under it and goes faint while that one is off. Someone's window in Journal → Edit people is in tabs too
@@ -422,7 +427,7 @@ only walk about.
   and nobody else's, so it can't know what someone across town was told. Someone you said something
   to may come over within a few days to bring it up. Their window in Journal → Edit people shows and
   clears it; Settings → People → Memory switches it off.
-- **How many animals:** Settings → Animals has a slider for each sort (stray dogs, farm animals, peaceful
+- **How many animals:** Settings → Creatures has a slider for each sort (stray dogs, farm animals, peaceful
   wild animals, hostile ones, monsters): that many of the world's own, 0 for none. What a lorebook asks
   for and anyone's own dog or horse are still there at 0, unless that's turned off. Each kind also has
   a switch: off, there are none of it anywhere, whatever else says. "Most in the settlement" keeps the
@@ -465,7 +470,7 @@ only walk about.
   [docs/PERFORMANCE.md](docs/PERFORMANCE.md)), trees and rocks, shadows, a frame rate limit (and slower drawing while a picture is painted), detail on or off, walk and run speed,
   camera speed and direction, time of day and time speed, how often places are told (the wait between
   them and the visits before a place is told again), sound, confrontations, people coming up to you,
-  what the HUD shows, an (i) beside every option that explains it, and Regenerate this world.
+  what the HUD shows, an (i) before every option that explains it, and Regenerate this world.
 - A place you're beside counts with the one you're in (Settings → World → Places): on a river's bank,
   by a pond's shore, at the foot of the mountains, at a cave's mouth, beside a road or near a place out
   in the country, its lore is active too and prompts say so ("in Whisperwood, near the bank of the

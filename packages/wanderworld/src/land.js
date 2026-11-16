@@ -850,3 +850,132 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
     bridgeHalfWidth: BRIDGE_HALF_WIDTH,
   };
 }
+
+/**
+ * What New world and Regenerate let you choose about the land and the settlement: [key, label,
+ * [[value, label]]] (`landscapeWith` reads the values).
+ */
+export const LAND_CHOICES = [
+  [
+    "hills",
+    "Hills",
+    [
+      ["flat", "Flat"],
+      ["gentle", "Gentle"],
+      ["rolling", "Rolling"],
+      ["rugged", "Rugged"],
+    ],
+  ],
+  [
+    "mountains",
+    "Mountains",
+    [
+      ["none", "None"],
+      ["one", "On one side"],
+      ["two", "On two sides"],
+      ["three", "On three sides"],
+    ],
+  ],
+  [
+    "river",
+    "River",
+    [
+      ["yes", "Yes"],
+      ["no", "No"],
+    ],
+  ],
+  [
+    "settlement",
+    "Settlement",
+    [
+      ["hamlet", "A hamlet"],
+      ["village", "A village"],
+      ["town", "A town"],
+      ["city", "A city"],
+    ],
+  ],
+  [
+    "layout",
+    "Layout",
+    [
+      ["grid", "A grid of streets"],
+      ["crossroads", "A crossroads"],
+      ["street", "Along one street"],
+      ["ring", "Round the market"],
+      ["scattered", "Scattered houses, no streets"],
+      ["pond", "Round a pond, houses at the edge"],
+      ["quarters", "Four quarters and a green"],
+    ],
+  ],
+  [
+    "walls",
+    "Walls",
+    [
+      ["no", "None"],
+      ["yes", "Walls and gates"],
+    ],
+  ],
+  [
+    "marketAt",
+    "Market",
+    [
+      ["middle", "In the middle"],
+      ["side", "Off to one side"],
+    ],
+  ],
+  [
+    "roads",
+    "Streets",
+    [
+      ["cobble", "Cobbled, with sidewalks"],
+      ["dirt", "Dirt paths"],
+    ],
+  ],
+  [
+    "size",
+    "World size",
+    [
+      ["small", "Small"],
+      ["normal", "Normal"],
+      ["large", "Large"],
+      ["huge", "Huge"],
+      ["massive", "Massive"],
+    ],
+  ],
+  [
+    "towns",
+    "More settlements",
+    [
+      ["none", "None"],
+      ["one", "A hamlet"],
+      ["two", "Two hamlets"],
+    ],
+  ],
+  [
+    "farms",
+    "Farms",
+    [
+      ["none", "None"],
+      ["one", "One farm"],
+      ["two", "Two farms"],
+    ],
+  ],
+  [
+    "landmarks",
+    "Landmarks",
+    [
+      ["none", "None"],
+      ["few", "A few (ruins, a watchtower…)"],
+      ["several", "Several"],
+    ],
+  ],
+  [
+    "places",
+    "Out in the country",
+    [
+      ["none", "Nothing"],
+      ["few", "A few places"],
+      ["several", "Several places"],
+    ],
+  ],
+];

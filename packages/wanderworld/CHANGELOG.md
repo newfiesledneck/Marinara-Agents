@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.6.93 — 2026-11-15
+
+- Regenerate this world asks what New world asks about the land: hills, mountains, river, the settlement and its layout, walls, market, streets, world size, more settlements, farms, landmarks and places out in the country. Each starts as it is. Change any and the map shows the result, so a world can be made bigger or given more places.
+- Vendors in New world and Regenerate: an "at least" and an "at most" for each trade. Shops are built to reach the least; any over the most sell something else, or shut. Trades set by hand are counted and left alone.
+- Settings → Animals is now Settings → Creatures.
+- The (i) sits before each setting's name, so the names line up. New world's explanations have an (i) each too.
+
 ## 0.6.92 — 2026-11-15
 
 - Settings are shorter to read. Each setting has an (i) beside its name: point at it to see what the setting does, or tap it to keep the line open.

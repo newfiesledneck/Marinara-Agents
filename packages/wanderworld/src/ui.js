@@ -54,3 +54,81 @@ export const HEADING = `font:700 16px ${SERIF};color:${INK};`;
 
 /** A pinned note's paper (kit/generic/art/note): aged, with darkened edges. */
 export const NOTE_PAPER = `background:#ead9b4 url("${ART}note.webp") center/cover;color:#2e2112;`;
+
+/**
+ * How many of each trade a world has, for New world and Regenerate: a row a trade (`kinds`: [{ id, label }])
+ * with "at least" and "at most" (0 to 12; empty is no say), starting from `counts`. { node, value() }:
+ * `value()` is { [id]: { min, max } } for the trades with a say (`max` null where it was left empty).
+ */
+export function vendorCountsEditor(kinds, counts = {}) {
+  const node = document.createElement("div");
+  node.style.cssText =
+    "display:grid;grid-template-columns:1fr auto auto;gap:5px 8px;align-items:center;font-size:13px;";
+  const small = (text) => {
+    const span = document.createElement("span");
+    span.style.cssText = "font-size:11px;opacity:0.7;text-align:center;";
+    span.textContent = text;
+    return span;
+  };
+  if (kinds.length) node.append(small(""), small("At least"), small("At most"));
+  const fields = kinds.map(({ id, label }) => {
+    const name = document.createElement("span");
+    name.textContent = label;
+    const box = (now, placeholder, what) => {
+      const input = document.createElement("input");
+      Object.assign(input, { type: "number", min: "0", max: "12", step: "1", inputMode: "numeric", placeholder });
+      input.setAttribute("aria-label", `${label}: ${what}`);
+      input.style.cssText = `${INK_INPUT}width:64px;text-align:center;`;
+      if (Number.isInteger(now) && now > 0) input.value = String(now);
+      return input;
+    };
+    const least = box(counts[id]?.min, "0", "at least");
+    const most = box(counts[id]?.max ?? null, "Any", "at most");
+    if (counts[id]?.max === 0) most.value = "0";
+    node.append(name, least, most);
+    return { id, least, most };
+  });
+  const whole = (input) => {
+    const typed = Math.round(Number(input.value));
+    return input.value.trim() !== "" && Number.isFinite(typed) ? Math.min(12, Math.max(0, typed)) : null;
+  };
+  return {
+    node,
+    value: () =>
+      Object.fromEntries(
+        fields
+          .map(({ id, least, most }) => [id, { min: whole(least) ?? 0, max: whole(most) }])
+          .filter(([, entry]) => entry.min > 0 || entry.max !== null),
+      ),
+  };
+}
+
+/**
+ * An [i] before a label or a line, there while Show explanations is off: `explain` shows while the pointer is
+ * over it, and a tap or click keeps it open until the next one.
+ */
+export function infoButton(explain) {
+  const node = document.createElement("button");
+  node.type = "button";
+  node.textContent = "i";
+  node.setAttribute("data-wanderworld-info", "");
+  node.setAttribute("aria-label", "What this does");
+  node.setAttribute("aria-expanded", "false");
+  node.style.cssText =
+    "flex:none;align-items:center;justify-content:center;width:22px;height:22px;margin-right:6px;padding:0;border-radius:50%;border:1px solid currentColor;background:none;color:inherit;opacity:0.6;font:italic 700 12px Georgia,serif;cursor:pointer;vertical-align:middle;";
+  let kept = false;
+  const show = (on) => {
+    explain.toggleAttribute("data-open", on);
+    node.setAttribute("aria-expanded", String(on));
+    node.style.opacity = on ? "1" : "0.6";
+  };
+  node.addEventListener("click", (event) => {
+    event.preventDefault(); // it sits in the setting's label: a tap mustn't flip the setting
+    event.stopPropagation();
+    kept = !kept;
+    show(kept);
+  });
+  node.addEventListener("pointerenter", (event) => event.pointerType === "mouse" && show(true));
+  node.addEventListener("pointerleave", (event) => event.pointerType === "mouse" && show(kept));
+  return node;
+}

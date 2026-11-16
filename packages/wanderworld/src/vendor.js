@@ -137,6 +137,83 @@ export function vendorKinds(zone, name, saved, kinds) {
   return known(DEFAULT_KINDS[zone.buildingKind] ?? []);
 }
 
+// ── How many of each trade (New world, Regenerate) ───────────────────────────
+
+/** The trades that have a building of their own kind; the rest are shops and market stalls. */
+const TRADE_BUILDING = { smith: "smithy", tavern: "tavern" };
+
+/**
+ * How many vendors of each trade a world is to have, checked: { [trade]: { min, max } }, each 0 to 12,
+ * `max` null for no limit and never under `min`. A trade with no say is left out.
+ */
+export function checkVendorCounts(raw, kinds) {
+  const whole = (value) => (Number.isInteger(value) && value >= 0 ? Math.min(12, value) : null);
+  const out = {};
+  for (const [id, entry] of Object.entries(raw && typeof raw === "object" ? raw : {})) {
+    if (!Object.hasOwn(kinds, id) || !entry || typeof entry !== "object") continue;
+    const min = whole(entry.min) ?? 0;
+    const most = whole(entry.max);
+    const max = most === null ? null : Math.max(min, most);
+    if (min > 0 || max !== null) out[id] = { min, max };
+  }
+  return out;
+}
+
+/**
+ * What a world must have built (`needs`, as its lore gives them) for the least of each trade to fit: a
+ * smithy for each smith, a tavern for each tavern, and a shop for each of the rest (twelve at most).
+ */
+export function vendorNeeds(needs = {}, counts = {}) {
+  const out = { ...needs };
+  let shops = 0;
+  for (const [id, { min }] of Object.entries(counts)) {
+    const building = TRADE_BUILDING[id];
+    if (building) out[building] = Math.max(out[building] ?? 0, min);
+    else shops += min;
+  }
+  if (shops) out.shop = Math.max(out.shop ?? 0, Math.min(12, shops));
+  return Object.fromEntries(Object.entries(out).filter(([, count]) => count > 0));
+}
+
+/**
+ * Who trades as what so the world has as many of each trade as `counts` says. `vendors`: every one there
+ * is, in order, [{ id, kinds (its trades as they'd be), flexible (a shop or a stall: it can take any trade),
+ * fixed (set by hand: left alone, but counted) }]. Over a trade's most, the last of them give it up; under
+ * its least, a shop or stall with nothing takes it, then one whose own trade can spare it. A shop or stall
+ * left with nothing takes the trade with room there are fewest of, else it shuts. Returns only what changes: { [id]: kinds }.
+ */
+export function assignVendors(vendors, counts, kinds) {
+  const list = vendors.map((vendor) => ({ ...vendor, kinds: [...vendor.kinds], was: vendor.kinds.join(",") }));
+  const have = (id) => list.filter((vendor) => vendor.kinds.includes(id)).length;
+  const least = (id) => counts[id]?.min ?? 0;
+  const most = (id) => counts[id]?.max ?? Infinity;
+  for (const id of Object.keys(counts)) {
+    for (let i = list.length - 1; i >= 0 && have(id) > most(id); i--) {
+      const vendor = list[i];
+      if (!vendor.fixed && vendor.kinds.includes(id)) vendor.kinds = vendor.kinds.filter((kind) => kind !== id);
+    }
+  }
+  const spare = (vendor) => vendor.kinds.every((kind) => have(kind) > least(kind));
+  for (const id of Object.keys(counts)) {
+    while (have(id) < least(id)) {
+      const free = list.filter((vendor) => vendor.flexible && !vendor.fixed && !vendor.kinds.includes(id));
+      const taker = free.find((vendor) => !vendor.kinds.length) ?? free.findLast(spare);
+      if (!taker) break;
+      taker.kinds = [id];
+    }
+  }
+  const open = Object.keys(kinds).filter((id) => !TRADE_BUILDING[id]);
+  for (const vendor of list) {
+    if (!vendor.flexible || vendor.fixed || vendor.kinds.length || !vendor.was) continue;
+    // (The one there are fewest of, so they don't all turn to the same thing.)
+    const [pick] = open.filter((id) => have(id) < most(id)).sort((a, b) => have(a) - have(b));
+    if (pick) vendor.kinds = [pick];
+  }
+  return Object.fromEntries(
+    list.filter((vendor) => vendor.kinds.join(",") !== vendor.was).map((vendor) => [vendor.id, vendor.kinds]),
+  );
+}
+
 /**
  * What a vendor's sign says when it hasn't a name of its own: its trades ("Apothecary", "Smith & Tailor").
  * "" when it has none.

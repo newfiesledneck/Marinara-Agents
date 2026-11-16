@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.93",
+          "date": "2026-11-15",
+          "notes": "- Regenerate this world asks what New world asks about the land: hills, mountains, river, the settlement and its layout, walls, market, streets, world size, more settlements, farms, landmarks and places out in the country. Each starts as it is. Change any and the map shows the result, so a world can be made bigger or given more places.\n- Vendors in New world and Regenerate: an \"at least\" and an \"at most\" for each trade. Shops are built to reach the least; any over the most sell something else, or shut. Trades set by hand are counted and left alone.\n- Settings → Animals is now Settings → Creatures.\n- The (i) sits before each setting's name, so the names line up. New world's explanations have an (i) each too.",
+          "highlight": false
+        },
+        {
           "version": "0.6.92",
           "date": "2026-11-15",
           "notes": "- Settings are shorter to read. Each setting has an (i) beside its name: point at it to see what the setting does, or tap it to keep the line open.\n- Show explanations (Settings → Display → On screen) now starts off. Turn it on to have every line on show at once, as before, in Settings, the Journal and New world. It is turned off once on a device that already had it on.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.74",
           "date": "2026-11-15",
           "notes": "- Gathering has a prompt at the thing itself: stand at a tree, a boulder or the water's edge and it names what you can do (Chop wood, Mine, Fish). Press E, or tap it on a touch screen. Foraging and harvesting prompt when you stand still. The chat window's buttons are still there.\n- Your character turns to the tree, the rock or the water before swinging or casting.\n- A felled tree leaves a stump until it grows back.\n- A mined boulder is drawn smaller until it has had its days.\n- A market stall whose trade you change is dressed for the new one at once. Before, it showed after reopening the world.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.73",
-          "date": "2026-11-15",
-          "notes": "- Settings has an Inventory section of its own, in four parts: Items, Sheet, Gathering and Shops. These settings were listed under People → Inventory, a tab that could not be opened, so until now they could only be reached where they were repeated elsewhere.\n- A level gained does something: your most HP rises by 4 and your Constitution modifier, your most mana by 2, and your HP is restored. The chat says so.\n- Settings → World → Time and weather has a Season choice, like the weather's: the world's own, or one you pick to hold.\n- Better tools gather better. A tool whose description says \"+2 gathering\" adds 2 to the roll. The smith's iron axe and pickaxe have it, and the general store has a jointed fishing rod that does.\n- Things you add to the sheet have a description you can edit. Your ticked stats are told to scenes as well.",
           "highlight": false
         }
       ]
