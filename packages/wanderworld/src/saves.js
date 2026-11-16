@@ -355,6 +355,10 @@ export function checkWorld(raw) {
     recipes: Array.isArray(raw.recipes) ? raw.recipes : [],
     // Each vendor: { [zone id]: { kinds (once set by hand), stock, period, stocked } } (vendor.js).
     vendors: isRecord(raw.vendors) ? raw.vendors : {},
+    // How many of each trade the world is to have ({ [trade]: { min, max } }, vendor.js checkVendorCounts),
+    // from New world or Regenerate, and whether its vendors are still to be counted out to match.
+    vendorCounts: isRecord(raw.vendorCounts) ? raw.vendorCounts : {},
+    vendorsPending: raw.vendorsPending === true,
     // Trades as this world has them: a setting's trade with its guidance rewritten, and the player's own
     // (vendor.js checkTrades reads them).
     trades: isRecord(raw.trades) ? raw.trades : {},

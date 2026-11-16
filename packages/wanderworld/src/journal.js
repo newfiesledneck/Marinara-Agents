@@ -861,7 +861,7 @@ export function createJournal(panelCss, handlers, shows = () => true) {
     body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Animals in this world"));
     body.append(
       explain(
-        "Off: this world uses Menu → Settings → Animals, like every other. On: the numbers below are this world's alone. 0 is none of that sort.",
+        "Off: this world uses Menu → Settings → Creatures, like every other. On: the numbers below are this world's alone. 0 is none of that sort.",
       ),
     );
     {

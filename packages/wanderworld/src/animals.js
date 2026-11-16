@@ -194,7 +194,7 @@ export const COATS = {
 };
 
 /**
- * Which sort each kind is, for how many of each a world has (Settings → Animals): strays about the
+ * Which sort each kind is, for how many of each a world has (Settings → Creatures): strays about the
  * settlement, the farms' animals, the country's that keep their distance, the country's that would
  * attack, and monsters (none with a body yet).
  */

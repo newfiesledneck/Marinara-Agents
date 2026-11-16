@@ -184,4 +184,41 @@ assert.deepEqual([offerAfter(10, 0.9), offerAfter(10, 1.1), offerAfter(0, 0.8), 
   );
 }
 
+// How many of each trade (New world, Regenerate): the counts checked, what they need built, who takes what.
+{
+  const { assignVendors, checkVendorCounts, vendorNeeds } = await import("../packages/wanderworld/src/vendor.js");
+  const counts = checkVendorCounts(
+    { smith: { min: 2, max: 1 }, apothecary: { min: 0, max: 0 }, tailor: { min: 2 }, madeUp: { min: 3 }, general: {} },
+    kinds,
+  );
+  assert.deepEqual(counts, {
+    smith: { min: 2, max: 2 },
+    apothecary: { min: 0, max: 0 },
+    tailor: { min: 2, max: null },
+  });
+  assert.deepEqual(vendorNeeds({ tavern: 2, cave: 1 }, counts), { tavern: 2, cave: 1, smithy: 2, shop: 2 });
+  const town = [
+    { id: "building:1", kinds: ["smith"], flexible: false, fixed: false },
+    { id: "building:2", kinds: ["general"], flexible: true, fixed: false },
+    { id: "building:3", kinds: ["apothecary"], flexible: true, fixed: false },
+    { id: "building:4", kinds: ["apothecary"], flexible: true, fixed: true },
+    { id: "stall:0", kinds: ["produce"], flexible: true, fixed: false },
+    { id: "stall:1", kinds: ["produce"], flexible: true, fixed: false },
+  ];
+  const set = assignVendors(town, { apothecary: { min: 0, max: 0 }, tailor: { min: 2, max: null } }, kinds);
+  const after = town.map((vendor) => set[vendor.id] ?? vendor.kinds);
+  const count = (id) => after.filter((list) => list.includes(id)).length;
+  assert.equal(count("tailor"), 2, "the least of a trade is made up from shops and stalls");
+  assert.equal(count("apothecary"), 1, "over the most, they give the trade up: all but the one set by hand");
+  assert.deepEqual(after[0], ["smith"], "a smithy stays a smithy");
+  assert.ok(!set["building:4"], "a vendor set by hand is never changed");
+  assert.deepEqual(assignVendors(town, {}, kinds), {}, "no say: nothing changes");
+  const shut = assignVendors(
+    [{ id: "stall:0", kinds: ["produce"], flexible: true, fixed: false }],
+    Object.fromEntries(Object.keys(kinds).map((id) => [id, { min: 0, max: 0 }])),
+    kinds,
+  );
+  assert.deepEqual(shut, { "stall:0": [] }, "with no trade allowed, it shuts");
+}
+
 console.log("ok: vendors");

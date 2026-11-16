@@ -3,6 +3,8 @@
 // world with a thumbnail, when it was last played, and Rename and Delete.
 import { INK_INPUT, INK_SMALL, PARCHMENT_EDGED, SERIF, STONE, WOOD } from "./ui.js";
 import { mapCanvas, randomSeed } from "./map.js";
+import { LAND_CHOICES } from "./land.js";
+import { infoButton, vendorCountsEditor } from "./ui.js";
 
 const FONT = "system-ui,sans-serif";
 // The menu's card is parchment, its choices wooden boards with cream lettering.
@@ -154,130 +156,7 @@ export function createMenu(layer, handlers, art = null) {
       "div",
       "display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;font-size:13px;",
     );
-    for (const [key, label, options] of [
-      [
-        "hills",
-        "Hills",
-        [
-          ["flat", "Flat"],
-          ["gentle", "Gentle"],
-          ["rolling", "Rolling"],
-          ["rugged", "Rugged"],
-        ],
-      ],
-      [
-        "mountains",
-        "Mountains",
-        [
-          ["none", "None"],
-          ["one", "On one side"],
-          ["two", "On two sides"],
-          ["three", "On three sides"],
-        ],
-      ],
-      [
-        "river",
-        "River",
-        [
-          ["yes", "Yes"],
-          ["no", "No"],
-        ],
-      ],
-      [
-        "settlement",
-        "Settlement",
-        [
-          ["hamlet", "A hamlet"],
-          ["village", "A village"],
-          ["town", "A town"],
-          ["city", "A city"],
-        ],
-      ],
-      [
-        "layout",
-        "Layout",
-        [
-          ["grid", "A grid of streets"],
-          ["crossroads", "A crossroads"],
-          ["street", "Along one street"],
-          ["ring", "Round the market"],
-          ["scattered", "Scattered houses, no streets"],
-          ["pond", "Round a pond, houses at the edge"],
-          ["quarters", "Four quarters and a green"],
-        ],
-      ],
-      [
-        "walls",
-        "Walls",
-        [
-          ["no", "None"],
-          ["yes", "Walls and gates"],
-        ],
-      ],
-      [
-        "marketAt",
-        "Market",
-        [
-          ["middle", "In the middle"],
-          ["side", "Off to one side"],
-        ],
-      ],
-      [
-        "roads",
-        "Streets",
-        [
-          ["cobble", "Cobbled, with sidewalks"],
-          ["dirt", "Dirt paths"],
-        ],
-      ],
-      [
-        "size",
-        "World size",
-        [
-          ["small", "Small"],
-          ["normal", "Normal"],
-          ["large", "Large"],
-          ["huge", "Huge"],
-          ["massive", "Massive"],
-        ],
-      ],
-      [
-        "towns",
-        "More settlements",
-        [
-          ["none", "None"],
-          ["one", "A hamlet"],
-          ["two", "Two hamlets"],
-        ],
-      ],
-      [
-        "farms",
-        "Farms",
-        [
-          ["none", "None"],
-          ["one", "One farm"],
-          ["two", "Two farms"],
-        ],
-      ],
-      [
-        "landmarks",
-        "Landmarks",
-        [
-          ["none", "None"],
-          ["few", "A few (ruins, a watchtower…)"],
-          ["several", "Several"],
-        ],
-      ],
-      [
-        "places",
-        "Out in the country",
-        [
-          ["none", "Nothing"],
-          ["few", "A few places"],
-          ["several", "Several places"],
-        ],
-      ],
-    ]) {
+    for (const [key, label, options] of LAND_CHOICES) {
       const select = element("select", `${INPUT}padding:5px 8px;`);
       for (const [value, text] of [["surprise", key === "size" ? "Auto" : "Surprise me"], ...options]) {
         const option = element("option", "", text);
@@ -293,10 +172,16 @@ export function createMenu(layer, handlers, art = null) {
       if (key === "size") select.addEventListener("change", () => syncEverything());
     }
     // The world's setting in words, its lorebooks, and how their entries are linked to places.
-    /** An explanation line (hidden with Menu → Settings → Show explanations off). */
+    /**
+     * An explanation line. With Menu → Settings → Show explanations off it is behind an (i) of its own:
+     * shown while pointed at, kept open by a tap. `line` is the words, for one written again later.
+     */
     const explainLine = (text) => {
-      const node = element("div", "font:11px system-ui;opacity:0.7;line-height:1.35;", text);
-      node.setAttribute("data-wanderworld-explain", "");
+      const line = element("div", "flex:1;min-width:0;font:11px system-ui;opacity:0.7;line-height:1.35;", text);
+      line.setAttribute("data-wanderworld-explain", "");
+      const node = element("div", "display:flex;align-items:flex-start;");
+      node.append(infoButton(line), line);
+      node.line = line;
       return node;
     };
     // One of everything: only a Massive world has the room, so only there is it offered.
@@ -315,6 +200,8 @@ export function createMenu(layer, handlers, art = null) {
       ),
     );
     everything.append(everythingBox, everythingWords);
+    // Vendors: how many of each trade the settlement has, at least and at most.
+    const vendorBox = vendorCountsEditor(handlers.trades?.() ?? []);
     function syncEverything() {
       const massive = choices.size === "massive";
       everything.style.display = massive ? "flex" : "none";
@@ -526,6 +413,7 @@ export function createMenu(layer, handlers, art = null) {
       name: name.value.trim(),
       seed: seed.value.trim() || previewSeed,
       choices,
+      vendorCounts: vendorBox.value(),
       setting: setting.value.trim(),
       lorebooks: [...lorebooks],
       loreLinking: linking.value,
@@ -652,16 +540,16 @@ export function createMenu(layer, handlers, art = null) {
       void (async () => {
         const up = await handlers.aiStatus?.();
         if (!up) {
-          status.textContent =
+          status.line.textContent =
             "Wanderworld isn't fully loaded yet: restart the Engine (needed once after installing or updating Wanderworld). Until then the AI can't be used; the world still works without it.";
           return;
         }
-        status.textContent = "Choose which of your Engine connections does what.";
+        status.line.textContent = "Choose which of your Engine connections does what.";
         try {
           const found = await handlers.connections?.();
           for (const { kind, fill } of lists) fill(found?.[kind] ?? []);
         } catch (error) {
-          status.textContent = `Couldn't read your connections: ${error?.message ?? error}`;
+          status.line.textContent = `Couldn't read your connections: ${error?.message ?? error}`;
         }
       })();
     }
@@ -683,7 +571,7 @@ export function createMenu(layer, handlers, art = null) {
       const write = () => {
         const total = now.genderMale + now.genderFemale + now.genderCustom;
         const of = (value) => Math.round((value / total) * 100);
-        split.textContent = total
+        split.line.textContent = total
           ? `Now: ${of(now.genderMale)}% male, ${of(now.genderFemale)}% female, ${of(now.genderCustom)}% ${now.genderName || "custom"}.`
           : "All three are at 0, so it's half male and half female.";
       };
@@ -746,6 +634,11 @@ export function createMenu(layer, handlers, art = null) {
           ),
           pickers,
           everything,
+          small("Vendors"),
+          explainLine(
+            "How many of each trade the settlement has. At least: shops are built to make up the number. At most: any over it sell something else, or shut. Leave both empty for whatever the town comes with. You can change any vendor later in Menu → Settings → World → Vendors.",
+          ),
+          vendorBox.node,
           preview,
           reroll,
           small("Seed"),

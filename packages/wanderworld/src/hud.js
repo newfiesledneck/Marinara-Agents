@@ -12,8 +12,20 @@ import { BARE, COLOUR_FIELD, EXTRAS, HAIR_COLOURS, HAIRSTYLES, HEIGHTS, OUTFITS,
 import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
 import { SETTINGS } from "./settings.js";
+import { LAND_CHOICES } from "./land.js";
 import { kindWords, SHEET_KINDS, xpNeeded } from "./sheet.js";
-import { INK_BUTTON, INK_INPUT, INK_SMALL, INK_SOFT, NOTE_PAPER, PARCHMENT, PARCHMENT_EDGED, SERIF } from "./ui.js";
+import {
+  INK_BUTTON,
+  INK_INPUT,
+  INK_SMALL,
+  INK_SOFT,
+  NOTE_PAPER,
+  PARCHMENT,
+  PARCHMENT_EDGED,
+  infoButton,
+  SERIF,
+  vendorCountsEditor,
+} from "./ui.js";
 
 const CHIP = "background:rgba(10,14,20,0.62);color:#f3f5f7;border-radius:8px;padding:4px 10px;";
 const BUTTON = `${CHIP}font:600 13px system-ui,sans-serif;border:0;cursor:pointer;pointer-events:auto;`;
@@ -955,45 +967,25 @@ export function createHud(root, handlers) {
     imageStyle:
       "The look of pictures, from the Engine's style profiles. The style's own words are put in the prompt ({style} in Illustrate's template, or at the end if the template leaves it out) and what it keeps out is sent with it. Engine default is your default profile in the Engine. Auto and No style add no words.",
   };
-  /**
-   * An [i] beside a label, there while Show explanations is off: `explain` shows while the pointer is
-   * over it, and a tap or click keeps it open until the next one.
-   */
-  const info = (explain) => {
-    const node = document.createElement("button");
-    node.type = "button";
-    node.textContent = "i";
-    node.setAttribute("data-wanderworld-info", "");
-    node.setAttribute("aria-label", "What this does");
-    node.setAttribute("aria-expanded", "false");
-    node.style.cssText =
-      "flex:none;align-items:center;justify-content:center;width:22px;height:22px;margin-left:6px;padding:0;border-radius:50%;border:1px solid currentColor;background:none;color:inherit;opacity:0.6;font:italic 700 12px Georgia,serif;cursor:pointer;vertical-align:middle;";
-    let kept = false;
-    const show = (on) => {
-      explain.toggleAttribute("data-open", on);
-      node.setAttribute("aria-expanded", String(on));
-      node.style.opacity = on ? "1" : "0.6";
-    };
-    node.addEventListener("click", (event) => {
-      event.preventDefault(); // it sits in the setting's label: a tap mustn't flip the setting
-      event.stopPropagation();
-      kept = !kept;
-      show(kept);
-    });
-    node.addEventListener("pointerenter", (event) => event.pointerType === "mouse" && show(true));
-    node.addEventListener("pointerleave", (event) => event.pointerType === "mouse" && show(kept));
-    return node;
-  };
+  const info = infoButton; // the [i] before a label (ui.js)
   const explainers = []; // descriptions that state what other settings are set to
   const dependents = []; // rows that only matter while another setting is on: [{ nodes, under }]
   const row = (label, control, name = null, under = "") => {
     const element = document.createElement("label");
     element.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;";
     const text = document.createElement("span");
+    text.style.cssText = "display:flex;align-items:center;min-width:0;";
     text.textContent = label;
     element.append(text, control);
     add(element);
     const nodes = [element];
+    // (A setting with nothing to explain keeps the [i]'s room, so the names line up.)
+    if (!(name && EXPLAIN[name])) {
+      const gap = document.createElement("span");
+      gap.setAttribute("data-wanderworld-info", "");
+      gap.style.cssText = "flex:none;width:22px;margin-right:6px;";
+      text.prepend(gap);
+    }
     if (name && EXPLAIN[name]) {
       const explain = document.createElement("div");
       explain.setAttribute("data-wanderworld-explain", "");
@@ -1003,7 +995,7 @@ export function createHud(root, handlers) {
       const write = (settings) => (explain.textContent = typeof about === "function" ? about(settings) : about);
       write(Object.fromEntries(Object.entries(SETTINGS).map(([key, setting]) => [key, setting.value])));
       if (typeof about === "function") explainers.push(write);
-      text.append(info(explain));
+      text.prepend(info(explain));
       add(explain);
       nodes.push(explain);
     }
@@ -1153,7 +1145,7 @@ export function createHud(root, handlers) {
     about.style.cssText = "font-size:11px;opacity:0.75;line-height:1.35;margin:-2px 0 2px;";
     about.textContent =
       "Press an action's button, then the key you want for it. A key another action has is swapped with it. Esc cancels. The arrow keys (look round), + and - (zoom), Esc, Enter and Tab can't be given away. These are kept for this device.";
-    head.append(info(about));
+    head.prepend(info(about));
     const list = document.createElement("div");
     list.style.cssText = "display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;font-size:12px;";
     let listening = null; // the listener while a button waits for its key
@@ -1348,7 +1340,7 @@ export function createHud(root, handlers) {
   toggle("haggling", "Haggling", "vendors");
   at("Inventory", "Combat");
   intro(
-    "Fighting what would attack you: wolves, monsters and outlaws. It uses your character sheet (HP, AC, Strength), so the sheet has to be on. How hostile creatures behave when you're near is in Settings → Animals → Behaviour.",
+    "Fighting what would attack you: wolves, monsters and outlaws. It uses your character sheet (HP, AC, Strength), so the sheet has to be on. How hostile creatures behave when you're near is in Settings → Creatures → Behaviour.",
   );
   choice(
     "fights",
@@ -1401,12 +1393,12 @@ export function createHud(root, handlers) {
     row("Name of the custom gender", name, "genderName");
   }
   // Animals: how many of each sort a world has of its own, and each kind on or off altogether.
-  heading("Animals", "Which animals and monsters live in your worlds, how many, and how they act.", [
+  heading("Creatures", "Which animals and monsters live in your worlds, how many, and how they act.", [
     "How many",
     "Kinds",
     "Behaviour",
   ]);
-  at("Animals", "How many");
+  at("Creatures", "How many");
   // In groups, each with a line on what it's for and what wins over what, so it isn't a wall of switches.
   const group = (title, note) => {
     const head = document.createElement("div");
@@ -1416,7 +1408,7 @@ export function createHud(root, handlers) {
     about.setAttribute("data-wanderworld-explain", "");
     about.style.cssText = "font-size:11px;opacity:0.75;line-height:1.35;margin:-2px 0 2px;";
     about.textContent = note;
-    head.append(info(about));
+    head.prepend(info(about));
     add(head, about);
   };
   /** A row of small switches side by side (one for each kind), kept like any other setting. */
@@ -1453,7 +1445,7 @@ export function createHud(root, handlers) {
     "Animals a lorebook places (ww:monster:wolf:pack5), and anyone's own dog or horse, are extra to the numbers above.",
   );
   toggle("loreAnimals", "They appear even when their sort is at 0");
-  at("Animals", "Behaviour");
+  at("Creatures", "Behaviour");
   toggle("keepApart", "People and animals keep out of one another");
   group(
     "How hostile ones behave",
@@ -1464,7 +1456,7 @@ export function createHud(root, handlers) {
     threaten: "Square up to you",
     attack: "Come for you",
   });
-  at("Animals", "Kinds");
+  at("Creatures", "Kinds");
   group(
     "Which kinds there are",
     "Off, there are none of that kind anywhere. This beats everything else: the numbers above, a lorebook, and ownership.",
@@ -1671,7 +1663,7 @@ export function createHud(root, handlers) {
     const warning = document.createElement("div");
     warning.style.cssText = "font-size:12px;line-height:1.4;";
     warning.textContent =
-      "This builds this world again from its setup, with everything this version adds. Your people, relationships, party, notes and lore stay; you start again at the square. It can't be undone.";
+      "This builds this world again from its setup, with everything this version adds. Change anything below to build it differently: bigger, another kind of settlement, more places out in the country. Your people, relationships, party, notes and lore stay; you start again at the square. It can't be undone.";
     const label = document.createElement("label");
     label.style.cssText = "display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;";
     const reshuffle = document.createElement("input");
@@ -1682,36 +1674,84 @@ export function createHud(root, handlers) {
         "A new town layout too (names, lore and groups move to the same kind of place: the tavern stays the tavern)",
       ),
     );
-    // Its size can change too (keeping it, or Small … Massive).
-    const sizeRow = document.createElement("label");
-    sizeRow.style.cssText = "display:flex;gap:6px;align-items:center;font-size:12px;";
-    const size = document.createElement("select");
-    size.style.cssText = "font:12px system-ui,sans-serif;border-radius:6px;border:0;padding:2px 4px;";
-    for (const [value, text] of [
-      ["keep", "Keep its size"],
-      ["small", "Small"],
-      ["normal", "Normal"],
-      ["large", "Large"],
-      ["huge", "Huge"],
-      ["massive", "Massive"],
-    ]) {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = text;
-      size.append(option);
+    // What New world asks about the land and the settlement, each as it is unless changed here.
+    const now = handlers.onRegenerateNow?.() ?? { choices: {}, size: "normal", counts: {}, kinds: [] };
+    const changes = {};
+    const pickers = document.createElement("div");
+    pickers.style.cssText =
+      "display:grid;grid-template-columns:auto 1fr;gap:5px 8px;align-items:center;font-size:12px;";
+    for (const [key, text, options] of LAND_CHOICES) {
+      const select = document.createElement("select");
+      select.style.cssText =
+        "font:12px system-ui,sans-serif;border-radius:6px;border:0;padding:4px;min-width:0;width:100%;";
+      const has = key === "size" ? now.size : now.choices?.[key];
+      const known = options.find(([value]) => value === has)?.[1];
+      for (const [value, words] of [["keep", known ? `As it is (${known})` : "As it is"], ...options]) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = words;
+        select.append(option);
+      }
+      select.setAttribute("aria-label", text);
+      select.addEventListener("change", () => {
+        if (select.value === "keep") delete changes[key];
+        else changes[key] = select.value;
+        syncEverything();
+        redraw();
+      });
+      const name = document.createElement("span");
+      name.textContent = text;
+      pickers.append(name, select);
     }
-    sizeRow.append(document.createTextNode("World size"), size);
+    // One of everything: only a Massive world has the room.
+    const everything = document.createElement("label");
+    everything.style.cssText = "display:none;gap:6px;align-items:center;font-size:12px;cursor:pointer;";
+    const everythingBox = document.createElement("input");
+    everythingBox.type = "checkbox";
+    everythingBox.checked = now.choices?.everything === "yes";
+    everythingBox.addEventListener("change", () => {
+      changes.everything = everythingBox.checked ? "yes" : "no";
+      redraw();
+    });
+    everything.append(
+      everythingBox,
+      document.createTextNode("At least one of every kind of place (Massive worlds only)"),
+    );
+    function syncEverything() {
+      const massive = (changes.size ?? now.size) === "massive";
+      everything.style.display = massive ? "flex" : "none";
+      if (!massive && everythingBox.checked) {
+        everythingBox.checked = false;
+        changes.everything = "no";
+      }
+    }
+    syncEverything();
+    // Vendors: how many of each trade, at least and at most.
+    const vendorsHead = document.createElement("div");
+    vendorsHead.style.cssText = "font-weight:700;font-size:12px;margin-top:4px;";
+    vendorsHead.textContent = "Vendors: how many of each trade";
+    const vendorsAbout = document.createElement("div");
+    vendorsAbout.setAttribute("data-wanderworld-explain", "");
+    vendorsAbout.style.cssText = "font-size:11px;opacity:0.75;line-height:1.35;";
+    vendorsAbout.textContent =
+      "At least: shops are built to make up the number (they take the place of houses). At most: any over it sell something else, or shut. Trades you set by hand under Vendors stand, and are counted. Empty: no say.";
+    vendorsHead.prepend(info(vendorsAbout));
+    const vendorBox = vendorCountsEditor(now.kinds, now.counts);
+    const asked = () => {
+      const { size: newSize = null, ...land } = changes;
+      return { size: newSize, land };
+    };
     // The map of what it will be: its own layout, or a new one (Reroll picks another).
     let seed = randomSeed();
     const map = mapCanvas(320, 240);
     const redraw = () =>
       handlers.onRegeneratePreview?.(map, {
         reshuffle: reshuffle.checked,
-        size: size.value === "keep" ? null : size.value,
+        size: asked().size,
         seed,
+        changes: asked().land,
       });
     reshuffle.addEventListener("change", redraw);
-    size.addEventListener("change", redraw);
     const reroll = button("Reroll", "Another new layout", () => {
       seed = randomSeed();
       reshuffle.checked = true;
@@ -1720,7 +1760,7 @@ export function createHud(root, handlers) {
     reroll.style.cssText = INK_BUTTON;
     const yes = button("Regenerate", "Rebuild this world now", () => {
       drawRegenerate(false);
-      handlers.onRegenerate(reshuffle.checked, size.value === "keep" ? null : size.value, seed);
+      handlers.onRegenerate(reshuffle.checked, asked().size, seed, asked().land, vendorBox.value());
     });
     yes.style.cssText = DANGER;
     const no = button("Cancel", "Keep the world as it is", () => drawRegenerate(false));
@@ -1728,7 +1768,18 @@ export function createHud(root, handlers) {
     const buttons = document.createElement("div");
     buttons.style.cssText = "display:flex;gap:6px;";
     buttons.append(yes, no);
-    regenerate.replaceChildren(warning, label, sizeRow, map, reroll, buttons);
+    regenerate.replaceChildren(
+      warning,
+      label,
+      pickers,
+      everything,
+      vendorsHead,
+      vendorsAbout,
+      vendorBox.node,
+      map,
+      reroll,
+      buttons,
+    );
     redraw();
   };
   drawRegenerate(false);
