@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.00 — 2026-11-16
+
+- Creatures act out their attacks. Bandits swing their swords, and witches and wizards cast, with the same animations people use. Animals and monsters lunge at you when they strike (their models have no attack animations yet).
+- Casting with nothing in front of you turns you to the nearest enemy the spell can reach, then casts. A bow does the same. Peaceful animals are never picked.
+
 ## 0.6.99 — 2026-11-16
 
 - By turns: a fight starts when a creature begins coming for you, not when it hits. Its Stealth is rolled against your passive Perception; if you miss it, you lose your first turn.

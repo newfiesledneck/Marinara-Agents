@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.00",
+          "date": "2026-11-16",
+          "notes": "- Creatures act out their attacks. Bandits swing their swords, and witches and wizards cast, with the same animations people use. Animals and monsters lunge at you when they strike (their models have no attack animations yet).\n- Casting with nothing in front of you turns you to the nearest enemy the spell can reach, then casts. A bow does the same. Peaceful animals are never picked.",
+          "highlight": true
+        },
+        {
           "version": "0.6.99",
           "date": "2026-11-16",
           "notes": "- By turns: a fight starts when a creature begins coming for you, not when it hits. Its Stealth is rolled against your passive Perception; if you miss it, you lose your first turn.\n- Movement is a circle on the ground: anywhere within nine metres of where your turn began, and back. Clicking to walk no longer goes past it.\n- Dash, Disengage and Dodge buttons on the bar. Leaving a creature's reach gives it an opportunity attack unless you Disengaged.\n- An optional class of your own (Inventory → Sheet): Second Wind, Action Surge, Cunning Action, Rage, Extra Attack.\n- Actions, bonus actions, attacks and metres per turn can be set by hand in Settings → Inventory → Combat.\n- Creatures shoot and cast on their turns.\n- The bar no longer covers notices.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.81",
           "date": "2026-11-15",
           "notes": "- The prompts for Chop wood, Mine, Fish and the rest sit at ground level, at the thing itself.\n- Keys: Ctrl by itself turns running on or off (Shift still runs while held). With combat on, F swings, Q blocks and R dodges. E stays for using and gathering.\n- On a touch screen a Combat button swaps Run, Sit and Jump for Attack, Block and Dodge, and back.\n- Block: for about a second, an attack on you is rolled twice and the worse roll counts. Dodge: a roll of a few steps, and nothing lands on you mid-roll.\n- A third choice for defeat: stay down where you fell while the chat and narration go on, with a Respawn button at the top.\n- Undefeatable (Settings → Inventory → Combat) holds HP, mana and your other resources at their most.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.80",
-          "date": "2026-11-15",
-          "notes": "- What you beat can be seen to. Stand at an animal and the prompt says Harvest: hide, meat and the like go into your inventory, and the body goes. At an outlaw it says Search: you take what they carried, coins among it.\n- What a creature gives can be sold. The new things have a worth at shops.\n- Settings → Inventory → Combat sets how many minutes the beaten lie where they fell (0 keeps them), and has a button that clears them all.",
           "highlight": false
         }
       ]

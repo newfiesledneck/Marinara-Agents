@@ -20,6 +20,7 @@ const FLEE_TO = 26; // and this far
 const WADE = 0.3; // metres of water an animal will walk into
 const THREAT_FROM = 16; // metres from the player at which a hostile animal squares up to them
 const BODY_SECONDS = 180; // how long one that's been beaten lies where it fell
+const LUNGE_SECONDS = 0.4; // how long a lunge takes, there and back
 const HUNT_FROM = 22; // and from which, let attack, it comes for them
 const THREAT_EVERY = 45; // seconds between the game being told of one squaring up
 /**
@@ -515,12 +516,25 @@ export function createHerd() {
     // (A flyer keeps off the ground, more so the bigger it is; in deep water the others float.)
     const size = beast.scale ?? 1;
     const up = (ANIMALS[beast.kind].fly ?? 0) * size;
+    // (A lunge: half a pace forward and back again, for the ones with no clip of their own for an attack.)
+    const through = beast.lungeAt === undefined ? 1 : (clock - beast.lungeAt) / LUNGE_SECONDS;
+    const lunge = through >= 0 && through < 1 ? Math.sin(through * Math.PI) * 0.55 * size : 0;
     beast.group.position.set(
-      beast.x,
-      afloatAt(beast.x, beast.z, (ANIMALS[beast.kind].back || 0.6) * size) + up,
-      beast.z,
+      beast.x + Math.sin(beast.angle) * lunge,
+      afloatAt(beast.x, beast.z, (ANIMALS[beast.kind].back || 0.6) * size) + up + lunge * 0.25,
+      beast.z + Math.cos(beast.angle) * lunge,
     );
     beast.group.rotation.y = beast.angle;
+  }
+
+  /**
+   * `beast` acts out an attack: one built as a person is swings what it carries, or casts ("strike" | "cast");
+   * any other lunges when it strikes. ponytail: the animals' and monsters' kit has no attack clips (only idle,
+   * walk and gallop were baked); bake them from the packs in scripts/build-wanderworld-animals.mjs to replace the lunge.
+   */
+  function actOut(beast, name) {
+    if (beast.animal?.act) beast.animal.act(name);
+    else if (name === "strike") beast.lungeAt = clock;
   }
 
   /** Somewhere to go: a dry, open spot within its range of home. */
@@ -610,6 +624,7 @@ export function createHerd() {
     beast.cool = Math.max(0, (beast.cool ?? 0) - dt);
     if (mode === "attack" && beast.cool <= 0) {
       if (distance < 1.5) {
+        actOut(beast, "strike");
         events.push({
           type: "attack",
           target: player.id ?? null, // (a companion's id when it's them it went for)
@@ -640,6 +655,7 @@ export function createHerd() {
       ) {
         // It has something for a distance (`view.ranged`: how far, by kind): it shoots or casts from where it
         // stands, then keeps off till it's ready again. (Now and then it runs in all the same.)
+        actOut(beast, "cast");
         events.push({
           type: "attack",
           ranged: true,
@@ -983,6 +999,11 @@ export function createHerd() {
       if (!beast?.held) return;
       beast.march = { x, z };
       beast.face = { x: faceX, z: faceZ };
+    },
+    /** `id` acts out an attack ("strike" | "cast"): for one that main.js rolls itself, on its turn in a fight by turns. */
+    act(id, name) {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (beast?.group && beast.down === undefined) actOut(beast, name);
     },
     /** `id` moves at half its pace for `seconds`. */
     slow(id, seconds) {
