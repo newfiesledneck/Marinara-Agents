@@ -760,6 +760,24 @@ export function createHerd() {
         continue;
       }
       const far = Math.hypot(player.x - beast.x, player.z - beast.z) > NEAR;
+      // In a fight by turns it waits for its turn; on it, it goes where it's sent (hold, march).
+      if (beast.held && !far) {
+        beast.group.visible = true;
+        if (beast.march) {
+          const left = Math.hypot(beast.march.x - beast.x, beast.march.z - beast.z);
+          if (left > 0.3) toward(beast, beast.march.x, beast.march.z, ANIMALS[beast.kind].gallop, dt);
+          else beast.march = null;
+        }
+        if (!beast.march) beast.speed = 0;
+        if (beast.face) {
+          const heading = Math.atan2(beast.face.x - beast.x, beast.face.z - beast.z);
+          beast.angle +=
+            Math.atan2(Math.sin(heading - beast.angle), Math.cos(heading - beast.angle)) * Math.min(1, dt * 6);
+        }
+        place(beast);
+        beast.animal.update(dt, beast.speed, {});
+        continue;
+      }
       // Stunned (a spell): it stands where it is until it wears off.
       if ((beast.stunUntil ?? 0) > clock && !far) {
         beast.group.visible = true;
@@ -838,6 +856,8 @@ export function createHerd() {
           hp: beast.hp,
           max: beast.max,
           hostile: beast.angry || (ANIMALS[beast.kind].hostile && tempers[beast.kind] !== "tame"),
+          fled: beast.temper === "timid", // (it has had enough, and runs)
+          stunned: (beast.stunUntil ?? 0) > clock,
           room: (ANIMALS[beast.kind].back > 0 ? 0.75 : 0.45) * (beast.scale ?? 1),
         }));
     },
@@ -894,6 +914,24 @@ export function createHerd() {
         }
         if (away.has(beast.id)) beast.counted = true;
       }
+    },
+    /** Which are in a fight by turns (their ids): they wait for their turn. None: every one is let go. */
+    hold(ids) {
+      const held = new Set(ids);
+      for (const beast of beasts) {
+        beast.held = held.has(beast.id) && beast.down === undefined;
+        if (!beast.held) {
+          beast.march = null;
+          beast.face = null;
+        }
+      }
+    },
+    /** On its turn, a held one goes to (x, z), then turns to (faceX, faceZ). */
+    march(id, x, z, faceX, faceZ) {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (!beast?.held) return;
+      beast.march = { x, z };
+      beast.face = { x: faceX, z: faceZ };
     },
     /** `id` can do nothing for `seconds`. */
     stun(id, seconds) {

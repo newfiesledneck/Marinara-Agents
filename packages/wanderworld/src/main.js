@@ -159,11 +159,15 @@ import {
 } from "./vendor.js";
 import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolBonus, toolFor, TOOLS } from "./craft.js";
 import {
+  TURN_MOVE,
   foeNerve,
   foeOf,
   foeStrike,
   foeWords,
+  initiativeOrder,
   playerStrike,
+  slotFor,
+  slotsAt,
   spellCost,
   spellIn,
   spellRule,
@@ -177,7 +181,7 @@ import {
   witOf,
 } from "./combat.js";
 import { createSpellFx, spellColour } from "./spellfx.js";
-import { SRD_CLASSES, SRD_SPELLS } from "./srd.js";
+import { SRD_CLASSES, SRD_SLOTS, SRD_SPELLS } from "./srd.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
   applyChanges,
@@ -188,6 +192,7 @@ import {
   entryNamed,
   entryOf,
   gainXp,
+  modifier,
   rollDice,
   sheetList,
   sheetWords,
@@ -1796,6 +1801,10 @@ function sleepIn(camp, length) {
         fixed ? "(You rest. Time is standing still: Settings → World.)" : pickLine(PACK.sleep, `${core.clock}`, words),
       );
       // (A sleep restores HP and mana in full, where resting restores at all.)
+      if (core.save && Object.keys(core.save.slotsUsed ?? {}).length) {
+        core.save = { ...core.save, slotsUsed: {} }; // (spell slots come back with a sleep)
+        core.saves.write(core.save);
+      }
       if (core.settings.sheet && core.settings.restRestores) {
         setSheet(toppedUp(sheetNow()));
         core.hud?.refreshInventory?.();
@@ -7963,8 +7972,10 @@ function takeSheetAnswer(saveId, answer) {
  */
 const fightMode = () =>
   core.settings.sheet && core.save && core.settings.fights !== "off" ? core.settings.fights : "";
-/** Whether blows are struck and taken in real time. */
-const fighting = () => fightMode() === "realtime";
+/** Whether blows are struck and taken by the player's own hand: in real time, or by turns. */
+const fighting = () => fightMode() === "realtime" || fightMode() === "turns";
+/** Whether fights go by turns. */
+const byTurns = () => fightMode() === "turns";
 
 /** How far a blow reaches from the player's middle (metres), and how wide of straight ahead (radians). */
 const SWING_REACH = 1.9;
@@ -7987,6 +7998,13 @@ function swing() {
     void readItems();
   }
   const weapon = weaponOf(core.items ?? []);
+  // By turns: an Attack is a turn's action; outside a fight, a swing at something starts one.
+  if (mode === "turns") {
+    if (!core.battle) {
+      const first = blowTarget();
+      if (first && !first.person) return void battleStart(first.id);
+    } else if (!battleSpend("action")) return;
+  }
   core.gesture = weapon.name ? "strike" : "punch";
   core.gestureHeld = weapon.held;
   const seconds = gestureSeconds(core.gesture) || 1;
@@ -7997,7 +8015,7 @@ function swing() {
     const foe = blowTarget();
     if (!foe) return;
     if (foe.person) return void landOnPerson(foe, weapon);
-    if (mode === "realtime") return void landOn(foe, weapon);
+    if (mode === "realtime" || mode === "turns") return void landOn(foe, weapon);
     const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
     encounter(foe, what, "player");
   });
@@ -8091,9 +8109,23 @@ function cast(id = null) {
   core.readySpell = chosen.id;
   const { spell, name } = chosen;
   const sheet = sheetNow();
-  if (valueOf(sheet, "mana") < spell.cost)
+  // By turns: a spell is a turn's action (or its bonus action), and outside a fight one cast at something starts it.
+  if (byTurns() && !core.battle && !(spell.heal && !spell.damage)) {
+    const first = blowTarget(spell.range, SPELL_ARC, false);
+    if (first) return void battleStart(first.id);
+  }
+  // What it's cast with: a spell slot (by turns, with slots on), else mana.
+  const slotted = byTurns() && core.settings.srdSlots && spell.level >= 0;
+  const slot = slotted ? slotFor(spell.level, slotsNow(), core.save.slotsUsed) : -1;
+  if (slotted && slot === 0)
+    return void core.hud?.setNotice(`No spell slot left for ${name} (level ${spell.level}). A sleep gives them back.`);
+  if (!slotted && valueOf(sheet, "mana") < spell.cost)
     return void core.hud?.setNotice(`Not enough mana for ${name} (${spell.cost}). Sitting down brings it back.`);
-  if (spell.cost > 0) setSheet(applyChanges(sheet, [{ stat: "mana", by: -spell.cost }]).sheet);
+  if (core.battle && !battleSpend(spell.bonus ? "bonus" : "action")) return;
+  if (slotted && slot > 0) {
+    core.save = { ...core.save, slotsUsed: { ...core.save.slotsUsed, [slot]: (core.save.slotsUsed?.[slot] ?? 0) + 1 } };
+    core.saves.write(core.save);
+  } else if (!slotted && spell.cost > 0) setSheet(applyChanges(sheet, [{ stat: "mana", by: -spell.cost }]).sheet);
   core.gesture = "cast";
   core.castUntil = core.clock + 1.1;
   const who = personaName();
@@ -8160,6 +8192,244 @@ function spellOnFoe(foe, who, name, spell, wit) {
   if (struck.down) foeBeaten(foe, stats);
 }
 
+// ── Fights by turns ──
+
+/** The spell slots the player has (the SRD's, for a full caster of their level). */
+const slotsNow = () => slotsAt(valueOf(sheetNow(), "level"), SRD_SLOTS);
+/** Whether it's the player's turn in the fight going on. */
+const battleMine = () => !!core.battle && core.battle.order[core.battle.at]?.kind === "player";
+
+/**
+ * Takes the player's action or bonus action for this turn (`which`: "action" | "bonus"). False, with a
+ * word why, when it isn't their turn or it's spent.
+ */
+function battleSpend(which) {
+  const battle = core.battle;
+  if (!battle) return true;
+  if (!battleMine()) {
+    core.hud?.setNotice("It isn't your turn yet.");
+    return false;
+  }
+  if (!battle[which]) {
+    core.hud?.setNotice(
+      which === "bonus"
+        ? "You've used your bonus action this turn."
+        : "You've used your action this turn. End your turn (T).",
+    );
+    return false;
+  }
+  battle[which] = false;
+  return true;
+}
+
+/** The creatures that would be in a fight begun at the creature `id`: it, and every hostile one near the player. */
+function battleFoes(id) {
+  const at = core.player.position;
+  return core.herd
+    .foes(at, 20)
+    .filter((foe) => !foe.fled && (foe.id === id || (foe.hostile && Math.hypot(foe.x - at.x, foe.z - at.z) < 16)));
+}
+
+/**
+ * A fight by turns begins (a creature came at the player, or they swung or cast at one): everyone in it
+ * rolls initiative, those creatures wait for their turns, and the order is told.
+ */
+function battleStart(id) {
+  if (core.battle || !byTurns() || core.downed || core.interior) return;
+  const foes = battleFoes(id);
+  if (!foes.length) return;
+  const sheet = sheetNow();
+  const what = (foe) => (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const sides = [
+    { id: "player", kind: "player", name: personaName(), bonus: modifier(valueOf(sheet, "dexterity")) },
+    ...fightingAllies().map((person) => ({
+      id: person.id,
+      kind: "ally",
+      name: nameFor(person.id, person.name),
+      bonus: 1,
+    })),
+    ...foes.map((foe, i) => ({
+      id: foe.id,
+      kind: "foe",
+      name: foes.filter((other) => other.kind === foe.kind).length > 1 ? `${what(foe)} ${i + 1}` : what(foe),
+      bonus: Math.floor(foeOf(foe.kind, PACK.foes, foe.scale).attack / 2),
+    })),
+  ];
+  const rolled = initiativeOrder(sides);
+  const order = rolled.map((entry) => ({ ...sides.find((side) => side.id === entry.id), total: entry.total }));
+  core.battle = {
+    order,
+    at: -1,
+    round: 1,
+    move: 0,
+    action: false,
+    bonus: false,
+    wait: 0.6,
+    step: "next",
+    dodging: false,
+  };
+  core.herd.hold(foes.map((foe) => foe.id));
+  core.walkTo = null;
+  narrate(null, `A fight. Initiative: ${order.map((entry) => `${entry.name} ${entry.total}`).join(", ")}.`);
+}
+
+/** A creature comes at the player while fights go by turns: it starts a fight, or joins the one going on. */
+function battleJoin(id) {
+  if (!core.battle) return void battleStart(id);
+  if (core.battle.order.some((entry) => entry.id === id)) return;
+  const foe = core.herd.foes(core.player.position, 30).find((entry) => entry.id === id);
+  if (!foe) return;
+  const name = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  core.battle.order.push({ id, kind: "foe", name, total: 0 });
+  core.herd.hold(core.battle.order.filter((entry) => entry.kind === "foe").map((entry) => entry.id));
+  narrate(null, `A ${name} joins the fight.`);
+}
+
+/** The fight is over: what waited is let go, and `words` say how it ended. */
+function battleEnd(words) {
+  if (!core.battle) return;
+  core.battle = null;
+  core.herd.hold([]);
+  core.herd.calm();
+  core.hud?.setBattle(null);
+  if (words) narrate(null, words);
+}
+
+/** The player ends their turn (T, or the bar's button). */
+function endTurn() {
+  if (!battleMine()) return;
+  core.battle.step = "next";
+  core.battle.wait = 0.2;
+}
+
+/**
+ * A fight by turns, each frame (`moved`: how far the player went this frame). On the player's turn it waits
+ * for them: nine metres to move, an action, a bonus action, then End turn. A creature on its turn goes for
+ * whoever is nearest, as far as a turn allows, and attacks if it gets there. A companion does what their
+ * class would (allyActs), from where they stand. The fight ends when no creature in it is left standing,
+ * or the player goes down.
+ */
+function battleTick(dt, moved) {
+  const battle = core.battle;
+  if (!battle) return;
+  if (!byTurns() || core.interior || !core.save) return void battleEnd("");
+  if (core.downed) return void battleEnd("");
+  const at = core.player.position;
+  // Who of the creatures is still in it: on its feet, not run off, not left far behind.
+  const about = new Map(core.herd.foes(at, 45).map((foe) => [foe.id, foe]));
+  const before = battle.order.length;
+  battle.order = battle.order.filter((entry, i) => {
+    const stays = entry.kind !== "foe" || (about.has(entry.id) && !about.get(entry.id).fled);
+    if (!stays && i <= battle.at) battle.at -= 1;
+    return stays;
+  });
+  if (battle.order.length !== before)
+    core.herd.hold(battle.order.filter((entry) => entry.kind === "foe").map((entry) => entry.id));
+  if (!battle.order.some((entry) => entry.kind === "foe")) return void battleEnd("The fight is over.");
+  const allies = new Map(fightingAllies().map((person) => [person.id, person]));
+  if (battleMine()) battle.move = Math.max(0, battle.move - moved);
+  const current = battle.order[battle.at];
+  battle.wait -= dt;
+  if (battle.wait <= 0 && battle.step === "next") {
+    // On to whoever is next (a companion who's down, or gone, is passed over).
+    do {
+      battle.at += 1;
+      if (battle.at >= battle.order.length) {
+        battle.at = 0;
+        battle.round += 1;
+      }
+    } while (battle.order[battle.at].kind === "ally" && !allies.has(battle.order[battle.at].id));
+    const next = battle.order[battle.at];
+    battle.step = next.kind === "player" ? "mine" : "move";
+    if (next.kind === "player") {
+      battle.move = TURN_MOVE;
+      battle.action = true;
+      battle.bonus = true;
+      battle.dodging = false;
+    }
+    battle.wait = 0.5;
+  } else if (battle.wait <= 0 && current?.kind === "foe") {
+    const foe = about.get(current.id);
+    // Whom it goes for: the player or a companion, whoever is nearest.
+    const targets = [
+      { id: null, x: at.x, z: at.z },
+      ...[...allies.values()].map((person) => ({ id: person.id, x: person.position.x, z: person.position.z })),
+    ];
+    const target = targets.reduce((best, entry) =>
+      Math.hypot(entry.x - foe.x, entry.z - foe.z) < Math.hypot(best.x - foe.x, best.z - foe.z) ? entry : best,
+    );
+    const far = Math.hypot(target.x - foe.x, target.z - foe.z);
+    const reach = 1.2 + foe.room;
+    if (battle.step === "move") {
+      if (foe.stunned) {
+        battle.step = "next";
+        battle.wait = 0.6;
+      } else {
+        const go = Math.max(0, Math.min(TURN_MOVE, far - reach));
+        const way = far > 0.01 ? { x: (target.x - foe.x) / far, z: (target.z - foe.z) / far } : { x: 0, z: 0 };
+        core.herd.march(foe.id, foe.x + way.x * go, foe.z + way.z * go, target.x, target.z);
+        battle.step = "act";
+        battle.wait = Math.min(2.4, 0.5 + go / 5);
+      }
+    } else {
+      if (far <= reach + 0.9) {
+        const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+        const event = { kind: foe.kind, scale: foe.scale, x: foe.x, z: foe.z, target: target.id };
+        if (target.id) allyAttacked(event, what);
+        else foeAttacks(event, what);
+      }
+      battle.step = "next";
+      battle.wait = 0.9;
+    }
+  } else if (battle.wait <= 0 && current?.kind === "ally") {
+    const person = allies.get(current.id);
+    const foes = battle.order
+      .filter((entry) => entry.kind === "foe")
+      .map((entry) => about.get(entry.id))
+      .filter(Boolean);
+    if (battle.step === "move" && person && foes.length) {
+      // They close with the nearest (as far as a turn allows) or keep their distance, as their class would.
+      const from = person.position;
+      const foe = foes.reduce((best, entry) =>
+        Math.hypot(entry.x - from.x, entry.z - from.z) < Math.hypot(best.x - from.x, best.z - from.z) ? entry : best,
+      );
+      const caster = spellsOfClass(classOf(person.id)).attack.length > 0;
+      const far = Math.hypot(foe.x - from.x, foe.z - from.z);
+      const go = caster ? 0 : Math.max(0, Math.min(TURN_MOVE, far - (1.5 + foe.room)));
+      if (go > 0.3)
+        core.crowd.fightTo(
+          person.id,
+          from.x + ((foe.x - from.x) / far) * go,
+          from.z + ((foe.z - from.z) / far) * go,
+          2.2,
+        );
+      battle.step = "act";
+      battle.wait = Math.min(2.2, 0.4 + go / 4);
+    } else {
+      const hp = entryOf(sheetNow(), "hp");
+      if (person && foes.length) allyActs(person, foes, !!hp && hp.value < hp.max / 2);
+      battle.step = "next";
+      battle.wait = 1;
+    }
+  }
+  // The bar along the top.
+  const slots = core.settings.srdSlots ? slotsNow() : null;
+  core.hud?.setBattle({
+    round: battle.round,
+    order: battle.order.map((entry, i) => ({ name: entry.name, kind: entry.kind, current: i === battle.at })),
+    mine: battleMine(),
+    move: Math.round(battle.move * 10) / 10,
+    action: battle.action,
+    bonus: battle.bonus,
+    slots: slots
+      ? Object.entries(slots)
+          .filter(([, have]) => have > 0)
+          .map(([level, have]) => `L${level} ${have - (core.save.slotsUsed?.[level] ?? 0)}/${have}`)
+          .join(" ")
+      : "",
+  });
+}
+
 // ── Hotkeys ──
 
 /**
@@ -8221,8 +8491,10 @@ async function hotkey(key) {
           .toLowerCase() === what.toLowerCase(),
     );
     if (!item) return void core.hud?.setNotice(`You have no ${what}.`);
-    if (kind === "use") await itemAction(item.id, "use");
-    else await itemAction(item.id, String(item.location ?? "").startsWith("equipped:") ? "unequip" : "equip");
+    if (kind === "use") {
+      if (core.battle && !battleSpend("action")) return;
+      await itemAction(item.id, "use");
+    } else await itemAction(item.id, String(item.location ?? "").startsWith("equipped:") ? "unequip" : "equip");
     core.itemsAt = core.clock; // (what's in hand may have changed: the next swing reads it fresh)
     core.hud?.refreshInventory?.();
   } catch (error) {
@@ -8272,7 +8544,7 @@ const ALLY_REACH = 3.2; // metres within which a companion's weapon lands
  * Nothing attacks them, and they have no HP of their own yet.
  */
 function alliesTick(dt) {
-  if (!fighting() || !core.settings.partyFights || core.downed || core.interior) return;
+  if (fightMode() !== "realtime" || !core.settings.partyFights || core.downed || core.interior) return;
   core.alliesAt = (core.alliesAt ?? 0) - dt;
   if (core.alliesAt > 0) return;
   core.alliesAt = 0.4;
@@ -8709,6 +8981,7 @@ const DODGE_REACH = 3.2;
 
 /** A block (Q, or the Block button): for as long as its clip, attacks on the player are rolled twice, the worse counting. */
 function block() {
+  if (byTurns()) return void dodge(); // (by turns, guarding is the Dodge action)
   if (!fighting() || core.downed || core.mode !== "walk" || core.clock < (core.blockAgain ?? 0)) return;
   const seconds = gestureSeconds("block") || 1;
   core.gesture = "block";
@@ -8723,6 +8996,16 @@ function block() {
  * if they're standing. Nothing lands on them while they roll.
  */
 function dodge() {
+  // By turns, Dodge is an action: until their next turn, every attack on them is rolled twice, the worse counting.
+  if (byTurns()) {
+    if (!core.battle || !battleSpend("action")) return;
+    core.battle.dodging = true;
+    core.gesture = "block";
+    return void narrate(
+      null,
+      `${personaName()} takes the Dodge action: attacks on them are rolled twice until their next turn.`,
+    );
+  }
   if (!fighting() || core.downed || core.mode !== "walk" || core.glide || core.air || core.swimming) return;
   if (core.carrying || core.clock < (core.dodgeAgain ?? 0)) return;
   const at = core.player.position;
@@ -8752,7 +9035,12 @@ function foeAttacks(event, what) {
   const sheet = sheetNow();
   const worn = wornBonuses(sheet, core.items ?? []);
   const stats = foeOf(event.kind, PACK.foes, event.scale);
-  const result = foeStrike({ foe: stats, sheet, worn, guarded: core.clock < (core.blockUntil ?? 0) });
+  const result = foeStrike({
+    foe: stats,
+    sheet,
+    worn,
+    guarded: core.clock < (core.blockUntil ?? 0) || !!core.battle?.dodging,
+  });
   let after = sheet;
   if (result.hit) {
     after = applyChanges(sheet, [{ stat: "hp", by: -result.damage }]).sheet;
@@ -9543,6 +9831,8 @@ function movePlayer(dt, input) {
     const walkTo = core.walkTo;
     let speedFactor = input.run ? RUN_SPEED : WALK_SPEED * input.amount;
     if (core.carrying) speedFactor = Math.min(speedFactor, WALK_SPEED) * 0.7; // (under a load: a slow walk)
+    // (A fight by turns: only on their own turn, and only as far as a turn allows.)
+    if (core.battle && !(battleMine() && core.battle.move > 0)) speedFactor = 0;
     // In the river: swimming in deep water, wading slower where it's shallower.
     const water = core.interior ? null : waterAt(position.x, position.z);
     if (water?.depth > SWIM_DEPTH) speedFactor = input.run ? SWIM_SPRINT : SWIM_SPEED * input.amount;
@@ -9769,6 +10059,7 @@ function step(dt) {
   if (input?.take("block")) block();
   if (input?.take("dodge")) dodge();
   if (input?.take("draw")) draw();
+  if (input?.take("endTurn")) endTurn();
   if (input?.take("cast")) cast();
   for (const digit of "1234567890") if (input?.take(`hot${digit}`)) void hotkey(digit);
   if (input?.take("rest") && core.settings.restKey) rest();
@@ -9782,6 +10073,7 @@ function step(dt) {
   }
   const speed = movePlayer(dt, read);
   carryTick();
+  battleTick(dt, speed * dt);
   core.spellFx?.update(dt);
   restTick(dt);
   alliesTick(dt);
@@ -9888,6 +10180,11 @@ function step(dt) {
     for (const event of core.herd.takeEvents()) {
       const what = (PACK.animals[event.kind] ?? "the animal").replace(/^the /u, "");
       // With fighting on, an attack is rolled against the player's AC and told as what was rolled.
+      // By turns: something coming at them starts a fight (or joins the one going on); nothing lands yet.
+      if (event.type === "attack" && byTurns()) {
+        battleJoin(event.id);
+        continue;
+      }
       if (event.type === "attack" && fighting()) {
         if (event.target) allyAttacked(event, what);
         else foeAttacks(event, what);
@@ -10268,6 +10565,8 @@ function attach(element) {
     onBlock: block,
     onDodge: dodge,
     onDraw: draw,
+    onEndTurn: endTurn,
+    onFlee: () => battleEnd("You break off the fight."),
     onCast: cast,
     onHotkey: (key) => void hotkey(key),
     hotkeys: async () => {

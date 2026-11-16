@@ -849,7 +849,7 @@ export function createHud(root, handlers) {
     sheetTrack:
       "The AI reads what was narrated and changes your sheet to match: HP lost to a bite, mana spent on a spell, experience for something done. It answers with a short list of changes, which the game checks against your sheet, and a note in the chat says what changed. After moments: read each time something is narrated. It shares the inventory tracker's AI call when that is on, and is one more call when it isn't. After moments and replies: also after each reply in a conversation. Off: only you and the game's own rules (using an item) change it.",
     fights:
-      "Off: nothing can be hurt, and hostile creatures only see you off. Real time: F swings, Q blocks, R dodges and X draws your weapon or puts it away. With it drawn the view stays behind you, turning the view turns you, and you step sideways and back without turning away (on a touch screen the Combat button by your thumb swaps Run, Sit and Jump for Attack, Block and Dodge; the chat window has the three too). A block lasts a moment: an attack on you while it does is rolled twice and the worse roll counts. A dodge rolls you a few steps, and nothing lands on you while you roll. You swing wherever you face, standing or on the move, and whatever animal is in front of you and in reach when the blow lands takes it. Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A hostile creature you strike fights back, its attacks rolled the same way against your AC; a peaceful one runs. No AI call is made: the game rolls and tells what was rolled. A narrated moment: nothing is swung in real time. When a creature gets to you, or you press Attack with one in reach, the game rolls one exchange (its attack and yours) and, with AI moments on, the AI tells it as rolled; then the creature holds off a few seconds before the next. A scene: the same meeting opens a scene chat instead, with your stats sent to it, and the creatures let you be while you play it out.",
+      "Off: nothing can be hurt, and hostile creatures only see you off. Real time: F swings, Q blocks, R dodges and X draws your weapon or puts it away. With it drawn the view stays behind you, turning the view turns you, and you step sideways and back without turning away (on a touch screen the Combat button by your thumb swaps Run, Sit and Jump for Attack, Block and Dodge; the chat window has the three too). A block lasts a moment: an attack on you while it does is rolled twice and the worse roll counts. A dodge rolls you a few steps, and nothing lands on you while you roll. You swing wherever you face, standing or on the move, and whatever animal is in front of you and in reach when the blow lands takes it. Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A hostile creature you strike fights back, its attacks rolled the same way against your AC; a peaceful one runs. No AI call is made: the game rolls and tells what was rolled. By turns: a fight stops the clock for those in it. Everyone rolls initiative (a d20 plus Dexterity's modifier for you) and acts in that order. On your turn you may move nine metres, take one action (Attack, Cast a spell, Dodge, or use something you carry) and one bonus action (a spell cast as one), then end your turn; a bar at the top shows whose turn it is and what you have left. Companions and creatures take their turns by the same rules. A narrated moment: nothing is swung in real time. When a creature gets to you, or you press Attack with one in reach, the game rolls one exchange (its attack and yours) and, with AI moments on, the AI tells it as rolled; then the creature holds off a few seconds before the next. A scene: the same meeting opens a scene chat instead, with your stats sent to it, and the creatures let you be while you play it out.",
     defeatCost:
       "Taken when you get up after a defeat, however you get up. A quarter of your money (rounded up) is gone, or the experience you had toward your next level. Never a level, and never an item.",
     beatenDays:
@@ -858,6 +858,8 @@ export function createHud(root, handlers) {
       "How long something you've beaten lies where it fell before it goes. 0 keeps it until you harvest it or clear it with the button below. While it lies there you can harvest an animal (hide, meat and the like go into your inventory, and the body goes) or search an outlaw (what they carried; the body stays).",
     defeat:
       "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and what beat you has drawn off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Stay down until you choose: you lie where you fell while the chat and the narration go on, and a Respawn button at the top gets you up at home whenever you like. Nothing is lost either way, and nobody dies for good.",
+    srdSlots:
+      "Only where combat is By turns. Off: a spell costs its level in mana, as in real time. On: a spell is cast with a spell slot of its level or higher, as the 5e SRD has it, and mana is left alone. You have the slots of a full caster of your level (two first-level slots at level 1, three at level 2, four and two second-level at level 3, and so on up to third-level slots), and a sleep gives them back. Cantrips need neither.",
     partyFights:
       "On: in real-time combat the people travelling with you join in. Each has a class from the 5e SRD (Inventory → Sheet → Your companions), which gives them a weapon and spells: they strike what comes within reach, cast at what doesn't, and one who can heal mends you when you're below half your HP. Their rolls are told in the chat like yours. They move with the fight: one who strikes closes with a creature and works round it, one who casts keeps a few paces off. Creatures go for them as well as for you; each has HP from their class, and at 0 is out of the fight for a while, then up again. Off: they stand by, and nothing goes for them.",
     fightPeople:
@@ -1319,7 +1321,7 @@ export function createHud(root, handlers) {
   choice(
     "fights",
     "Combat",
-    { off: "Off", realtime: "Real time", moment: "A narrated moment", scene: "A scene" },
+    { off: "Off", realtime: "Real time", turns: "By turns", moment: "A narrated moment", scene: "A scene" },
     "sheet",
   );
   choice(
@@ -1338,6 +1340,7 @@ export function createHud(root, handlers) {
   toggle("restRestores", "Resting restores HP and mana", "sheet");
   toggle("fightPeople", "Blows can land on people", "sheet");
   toggle("partyFights", "Your companions fight beside you", "sheet");
+  toggle("srdSlots", "Fights by turns use spell slots", "sheet");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
   number("beatenDays", "Days before the beaten are about again", "sheet");
   {
@@ -3618,6 +3621,13 @@ export function createHud(root, handlers) {
     `${PARCHMENT}position:absolute;left:50%;top:22%;transform:translateX(-50%);display:none;flex-direction:column;gap:8px;` +
     "max-width:min(420px,calc(100% - 24px));padding:12px 14px;border-radius:10px;pointer-events:auto;font-size:13px;line-height:1.4;";
   layer.append(confront);
+  // A fight by turns: who's in it and in what order, whose turn it is, and what the player has left (setBattle).
+  const battleBar = document.createElement("div");
+  battleBar.setAttribute("data-wanderworld-ui", "");
+  battleBar.style.cssText =
+    "position:absolute;left:50%;top:calc(46px + env(safe-area-inset-top, 0px));transform:translateX(-50%);max-width:min(560px,calc(100% - 16px));display:none;flex-direction:column;gap:5px;padding:7px 10px;border-radius:10px;background:rgba(10,14,20,0.78);color:#fff;font:13px system-ui,sans-serif;pointer-events:auto;";
+  let battleKey = "null";
+  layer.append(battleBar);
   const respawn = button("Respawn", "Get up: you wake at home, with half your HP", () => handlers.onRespawn?.());
   respawn.style.cssText +=
     "position:absolute;left:50%;top:calc(52px + env(safe-area-inset-top, 0px));transform:translateX(-50%);padding:10px 18px;font-size:14px;background:#96422e;display:none;";
@@ -3829,7 +3839,7 @@ export function createHud(root, handlers) {
       // Fighting's buttons: only with fighting on. On a touch screen the Combat button swaps them in for
       // Run, Sit and Jump, so the row stays short; in the chat window they sit beside Jump and Sit.
       const fight = !!fighting && !resting && combatOn;
-      const realtime = fighting === "realtime"; // (Block and Dodge are real time's; the others only have Attack)
+      const realtime = fighting === "realtime" || fighting === "turns"; // (Block and Dodge are these two's; the others only have Attack)
       combatToggle.style.display = resting ? "none" : show(fighting);
       strike.style.display = show(fight);
       for (const control of [guard, roll]) control.style.display = show(fight && realtime);
@@ -4210,6 +4220,40 @@ export function createHud(root, handlers) {
       }
       nodes.push(line, actions, sceneNote);
       sceneBody.replaceChildren(...nodes);
+    },
+    /**
+     * A fight by turns, shown along the top: { round, order: [{ name, current, kind }], mine, move, action,
+     * bonus, slots } (`mine`: it's the player's turn; `slots`: "1st 2/2 · 2nd 0/0" or ""); null: no fight.
+     */
+    setBattle(state) {
+      const key = JSON.stringify(state);
+      if (key === battleKey) return;
+      battleKey = key;
+      battleBar.style.display = state ? "flex" : "none";
+      if (!state) return;
+      const order = document.createElement("div");
+      order.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;justify-content:center;";
+      for (const entry of state.order) {
+        const chip = document.createElement("span");
+        chip.textContent = entry.name;
+        chip.style.cssText = `padding:2px 7px;border-radius:9px;font-size:11px;background:${entry.current ? "#c9a15a" : "rgba(255,255,255,0.12)"};color:${entry.current ? "#1a1408" : entry.kind === "foe" ? "#ffb4a0" : "#fff"};${entry.current ? "font-weight:700;" : ""}`;
+        order.append(chip);
+      }
+      const line = document.createElement("div");
+      line.style.cssText = "font-size:12px;text-align:center;";
+      line.textContent = state.mine
+        ? `Round ${state.round} · Your turn · Move ${state.move.toFixed(1)} m · Action ${state.action ? "ready" : "used"} · Bonus ${state.bonus ? "ready" : "used"}${state.slots ? ` · Slots ${state.slots}` : ""}`
+        : `Round ${state.round} · ${state.order.find((entry) => entry.current)?.name ?? ""}'s turn`;
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:6px;justify-content:center;";
+      const end = button("End turn", "End your turn", () => handlers.onEndTurn?.());
+      end.style.cssText += `padding:6px 14px;font-size:13px;background:#2e6f3a;display:${state.mine ? "" : "none"};`;
+      const flee = button("Leave the fight", "Break off: the fight ends, and what you fought lets you go", () =>
+        handlers.onFlee?.(),
+      );
+      flee.style.cssText += "padding:6px 10px;font-size:12px;";
+      row.append(end, flee);
+      battleBar.replaceChildren(order, line, row);
     },
     /** The hotkeys that are set: [{ key, label }]. A button each in the chat window (none hides the row). */
     setHotbar(slots) {

@@ -222,6 +222,7 @@ export function spellRule(spell) {
   if (spell.sure) parts.push("Always hits");
   if (spell.save && spell.effect) parts.push(`${spell.save.attribute} save or ${spell.effect} 8 seconds`);
   else if (spell.save) parts.push(`${spell.save.attribute} save for ${spell.save.onSave === "half" ? "half" : "none"}`);
+  if (spell.bonus) parts.push("Bonus action");
   if (!spell.heal) parts.push(`Range ${spell.range}`);
   return `${parts.join(". ")}.`;
 }
@@ -252,6 +253,8 @@ export function spellIn(entry) {
     type: damage?.[2]?.toLowerCase() ?? "",
     heal: heal ? heal[1].replace(/\s+/gu, "") : null,
     sure: /\balways hits\b/iu.test(text),
+    level: Number(/\blevel\s+(\d)\b/iu.exec(text)?.[1] ?? (/\bcantrip\b/iu.test(text) ? 0 : -1)),
+    bonus: /\bbonus action\b/iu.test(text),
     save: save ? { attribute: save[1].toLowerCase(), onSave: /\bhalf\b/iu.test(text) ? "half" : "none" } : null,
     effect: effect ? { name, kind: EFFECTS[name], seconds: Number(effect[2] ?? 6) } : null,
     range: Number(SPELL_RANGE.exec(text)?.[1] ?? SPELL_REACH),
@@ -344,4 +347,50 @@ export function spellWords({ who, name, what, spell, result, left, max, named = 
   if (result.damage <= 0) return told;
   if (left <= 0) return `${told} ${named ? what : `The ${what}`} goes down.`;
   return `${told} ${named ? `${what} has` : "It has"} ${left} of ${max} HP left.`;
+}
+
+// ── Fights by turns ──────────────────────────────────────────────────────────
+
+/** How far someone may move in one turn (metres: the SRD's thirty feet). */
+export const TURN_MOVE = 9;
+
+/**
+ * The order of a fight by turns: each of `entries` ([{ id, bonus }]) rolls a d20 and adds its bonus, the
+ * highest going first (a tie to the higher bonus, then to whoever was listed first). [{ id, roll, total }].
+ */
+export function initiativeOrder(entries, random = Math.random) {
+  return entries
+    .map((entry, listed) => {
+      const roll = 1 + Math.floor(random() * 20);
+      return { id: entry.id, roll, total: roll + (entry.bonus ?? 0), bonus: entry.bonus ?? 0, listed };
+    })
+    .sort((a, b) => b.total - a.total || b.bonus - a.bonus || a.listed - b.listed)
+    .map(({ id, roll, total }) => ({ id, roll, total }));
+}
+
+/**
+ * The spell slots a caster of `level` has: { 1: n, 2: n, 3: n } from the ruleset's step tables (srd.js
+ * SRD_SLOTS: for each slot level, [[from this caster level, this many], …]).
+ */
+export function slotsAt(level, tables) {
+  const slots = {};
+  for (const [slot, table] of Object.entries(tables ?? {})) {
+    let have = 0;
+    for (const [from, many] of table) if (level >= from) have = many;
+    slots[slot] = have;
+  }
+  return slots;
+}
+
+/**
+ * The slot a spell of `level` is cast with: the lowest of that level or higher with one left (`slots`:
+ * what they have; `used`: what's spent of each), or 0 when there is none. A cantrip needs none (-1).
+ */
+export function slotFor(level, slots, used = {}) {
+  if (level <= 0) return -1;
+  for (const slot of Object.keys(slots)
+    .map(Number)
+    .sort((a, b) => a - b))
+    if (slot >= level && (slots[slot] ?? 0) - (used[slot] ?? 0) > 0) return slot;
+  return 0;
 }

@@ -40,6 +40,7 @@ export const KEY_ACTIONS = [
   ["dodge", "Dodge", "r"],
   ["draw", "Draw or put away a weapon", "x"],
   ["cast", "Cast the ready spell", "z"],
+  ["endTurn", "End your turn (fights by turns)", "t"],
 ];
 export const DEFAULT_KEYS = Object.fromEntries(KEY_ACTIONS.map(([action, , key]) => [action, key]));
 /** The number keys are the hotkeys (what each does is the player's: the Inventory window's Hotkeys tab). */
