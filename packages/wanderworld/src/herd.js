@@ -572,9 +572,34 @@ export function createHerd() {
           z: beast.z,
         });
         // (In a fight it comes again sooner than when it's only seeing someone off.)
-        beast.cool = view.combat || beast.angry ? 2.2 + beast.random() * 2.6 : 6 + beast.random() * 4;
+        if (view.combat || beast.angry) {
+          // What it does next is its own choice, with chance in it: come again at once, stay on them,
+          // circle for an opening, or draw off a way.
+          const choice = beast.random();
+          beast.cool = beast.random() < 0.2 ? 0.9 : 2 + beast.random() * 2.4;
+          beast.stance = choice < 0.5 ? "press" : choice < 0.8 ? "circle" : "back";
+          beast.side = beast.random() < 0.5 ? 1 : -1;
+        } else {
+          beast.cool = 6 + beast.random() * 4;
+          beast.stance = "back";
+        }
         face();
       } else toward(beast, player.x, player.z, facts.gallop, dt);
+      return true;
+    }
+    // In a fight, between its attacks: close on them, or going round them, unless it chose to draw off.
+    if (
+      mode === "attack" &&
+      (view.combat || beast.angry) &&
+      beast.stance &&
+      beast.stance !== "back" &&
+      distance > 0.01
+    ) {
+      const ring = beast.stance === "press" ? 1.9 : 2.9;
+      const round = Math.atan2(-dx, -dz) + beast.side * (beast.stance === "press" ? 0.35 : 0.7);
+      const spot = { x: player.x + Math.sin(round) * ring, z: player.z + Math.cos(round) * ring };
+      if (Math.hypot(spot.x - beast.x, spot.z - beast.z) > 0.5) toward(beast, spot.x, spot.z, facts.walk * 1.5, dt);
+      else face();
       return true;
     }
     // Squared up to them (or drawn off after a lunge): about six metres off, giving ground if they come on.
@@ -758,14 +783,13 @@ export function createHerd() {
         loaded: !!beast.group,
       })),
     /**
-     * Those within `reach` of `at` that can be fought: the hostile ones and any that's been struck; never
-     * someone's own, one being ridden, or one already beaten. [{ id, kind, scale, x, z, hp, max }] (`hp`
-     * and `max` once it has been struck).
+     * Those within `reach` of `at` that a blow can land on: any animal but someone's own, one being ridden,
+     * or one already beaten. [{ id, kind, scale, x, z, hp, max, hostile, room }] (`hp` and `max` once it has
+     * been struck; `hostile`: it would fight; `room`: about how far its body reaches from its middle).
      */
     foes(at, reach) {
       return beasts
         .filter((beast) => beast.group?.visible && !beast.owned && !beast.ridden && beast.down === undefined)
-        .filter((beast) => beast.angry || beast.hp !== undefined || temperOf(beast) === "hostile")
         .filter((beast) => Math.hypot(beast.x - at.x, beast.z - at.z) < reach)
         .map((beast) => ({
           id: beast.id,
@@ -775,6 +799,8 @@ export function createHerd() {
           z: beast.z,
           hp: beast.hp,
           max: beast.max,
+          hostile: beast.angry || (ANIMALS[beast.kind].hostile && tempers[beast.kind] !== "tame"),
+          room: (ANIMALS[beast.kind].back > 0 ? 0.75 : 0.45) * (beast.scale ?? 1),
         }));
     },
     /**

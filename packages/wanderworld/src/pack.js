@@ -490,6 +490,17 @@ const BEASTS = {
 const FOES = {
   default: { hp: 6, ac: 11, attack: 2, damage: "1d4", xp: 5, verb: "strikes" },
   wolf: { hp: 11, ac: 13, attack: 4, damage: "2d4", xp: 15, verb: "snaps" },
+  // (The peaceful ones run when struck; these are for one that's cornered, or that lore has made hostile.)
+  deer: { hp: 8, ac: 13, attack: 2, damage: "1d4", xp: 5, verb: "kicks out" },
+  stag: { hp: 13, ac: 13, attack: 4, damage: "1d6+1", xp: 10, verb: "lowers its antlers" },
+  fox: { hp: 5, ac: 13, attack: 3, damage: "1d4", xp: 4, verb: "snaps" },
+  horse: { hp: 19, ac: 10, attack: 4, damage: "2d4+2", xp: 10, verb: "kicks out" },
+  donkey: { hp: 11, ac: 10, attack: 2, damage: "1d4+2", xp: 5, verb: "kicks out" },
+  cow: { hp: 15, ac: 10, attack: 3, damage: "1d6+2", xp: 5, verb: "butts" },
+  bull: { hp: 19, ac: 10, attack: 5, damage: "1d8+3", xp: 12, verb: "charges" },
+  alpaca: { hp: 9, ac: 10, attack: 2, damage: "1d4", xp: 4, verb: "kicks out" },
+  husky: { hp: 8, ac: 12, attack: 3, damage: "1d6", xp: 5, verb: "snaps" },
+  shiba: { hp: 5, ac: 12, attack: 2, damage: "1d4", xp: 3, verb: "snaps" },
   slime: { hp: 8, ac: 8, attack: 2, damage: "1d6", xp: 8, verb: "lunges" },
   skeleton: { hp: 13, ac: 13, attack: 4, damage: "1d6+2", xp: 15, verb: "swings" },
   spider: { hp: 7, ac: 12, attack: 4, damage: "1d6", xp: 10, verb: "bites" },

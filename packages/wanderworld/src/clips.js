@@ -205,6 +205,20 @@ function copyPose(to, from) {
 }
 
 /** Blends `from` towards `to` by `amount` (0 keeps `from`), in place. */
+/** The bones above the hips: what a swing moves while the legs go on walking. */
+const UPPER = BONES.map((name, bone) => (/^hips$|Leg$|Foot$|Toes$/u.test(name) ? -1 : bone)).filter(
+  (bone) => bone >= 0,
+);
+/** Blends only the body above the hips toward `to` (the hips and legs stay as they are). */
+function blendUpper(from, to, amount) {
+  if (amount <= 0) return from;
+  for (const bone of UPPER) from.rotations[bone].slerp(to.rotations[bone], Math.min(1, amount));
+  return from;
+}
+/** Gestures made on the move as well as standing (fighting), and how far through one a new one may begin. */
+const MOVING_GESTURES = new Set(["strike", "punch", "hurt"]);
+const FOLLOW_FROM = 0.55;
+
 function blend(from, to, amount) {
   if (amount <= 0) return from;
   for (let bone = 0; bone < COUNT; bone++) from.rotations[bone].slerp(to.rotations[bone], Math.min(1, amount));
@@ -541,7 +555,13 @@ export function createClipPlayer({ present, offset, legLength }) {
     }
 
     // A gesture made once (reaching out, picking something up), standing.
-    if (made && GESTURES.has(made) && !gesture) {
+    // (A blow can follow a blow before the last has quite played out; being hit breaks into a swing.)
+    const follows =
+      gesture &&
+      MOVING_GESTURES.has(made) &&
+      MOVING_GESTURES.has(gesture) &&
+      (made === "hurt" ? gesture !== "hurt" : gestureTime >= CLIPS[gesture].duration * FOLLOW_FROM);
+    if (made && GESTURES.has(made) && (!gesture || follows)) {
       gesture = made;
       gestureTime = 0;
     }
@@ -554,11 +574,11 @@ export function createClipPlayer({ present, offset, legLength }) {
           smoothstep(0, 0.15, gestureTime),
           1 - smoothstep(clip.duration - 0.25, clip.duration, gestureTime),
         );
-        blend(
-          out,
-          sample(clip, gestureTime / clip.duration, poses.c),
-          amount * (1 - moving) * (seat === "none" ? 1 : 0),
-        );
+        const made = sample(clip, gestureTime / clip.duration, poses.c);
+        const standing = seat === "none" ? 1 : 0;
+        blend(out, made, amount * (1 - moving) * standing);
+        // (On the move, a fighting gesture is the body above the hips; the legs keep walking.)
+        if (MOVING_GESTURES.has(gesture)) blendUpper(out, made, amount * moving * standing);
       }
     }
 

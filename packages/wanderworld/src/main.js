@@ -7368,23 +7368,7 @@ function usable() {
   }
   // What can be gathered here, each a prompt at the thing itself (a key, or a tap on a touch screen); not
   // where it's been used up for now. Foraging and harvesting, which have no one thing, only when stood still.
-  // What can be fought, in reach: an Attack prompt over it, with its HP once it's been struck.
-  const foes = fighting() && !core.interior && !core.downed ? core.herd.foes(core.player.position, 3.4) : [];
-  for (const foe of foes) {
-    const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
-    list.push({
-      kind: "thing",
-      label: `Attack the ${what}${foe.max ? ` (${foe.hp}/${foe.max} HP)` : ""}`,
-      x: foe.x,
-      z: foe.z,
-      y: 1.3 * Math.min(2, foe.scale),
-      reach: 3,
-      quiet: true, // (its own swing, not a hand held out)
-      act: () => void attack(foe.id),
-    });
-  }
-  // (With something to fight in reach, that comes before anything to gather.)
-  const gatherable = foes.length ? [] : gatherTargets(null, true);
+  const gatherable = gatherTargets(null, true);
   const atThing = gatherable.some((target) => target.face); // a tree, a rock or the water comes first
   for (const target of gatherable) {
     if (!target.face && (atThing || (core.still ?? 0) < 0.6)) continue;
@@ -7891,33 +7875,65 @@ function takeSheetAnswer(saveId, answer) {
 /** Whether there's fighting: Settings → Inventory → Combat is "Real time", with the character sheet on. */
 const fighting = () => core.settings.fights === "realtime" && !!core.settings.sheet && !!core.save;
 
+/** How far a blow reaches from the player's middle (metres), and how wide of straight ahead (radians). */
+const SWING_REACH = 1.9;
+const SWING_ARC = 1.15;
+/** How far through its clip a swing lands. */
+const SWING_LANDS = 0.34;
+
 /**
- * The player swings at the creature `id` (the Attack prompt): turned to it, the swing acted out, an attack
- * roll against its AC, and what came of it told. One swing at a time, each as long as its clip. What they
- * fight with is the weapon they carry (combat.js weaponOf), or their hands; without Quartermaster, their hands.
+ * The player swings (F, or the Attack button): wherever they face, standing or on the move, with the weapon
+ * they carry (combat.js weaponOf) or their hands. Nothing is aimed at: when the blow lands, whatever is in
+ * front of them and in reach takes it (`landBlow`). A swing can follow a swing a little before its clip ends.
  */
-async function attack(id) {
+function swing() {
   if (!fighting() || core.downed || core.mode !== "walk" || core.clock < (core.strikeUntil ?? 0)) return;
-  core.strikeUntil = core.clock + 0.5; // (till the swing below sets its own length)
-  // (What's carried is read again now and then, not at every swing.)
+  // (What's carried is read again now and then, behind the swing: the first of a session may be with bare hands.)
   if (!core.itemsAt || core.clock - core.itemsAt > 15) {
     core.itemsAt = core.clock;
-    await readItems();
+    void readItems();
   }
-  const at = core.player.position;
-  const foe = core.herd.foes(at, 3.6).find((entry) => entry.id === id);
-  if (!foe || !fighting() || core.downed) return;
   const weapon = weaponOf(core.items ?? []);
-  core.player.rotation.y = Math.atan2(foe.x - at.x, foe.z - at.z);
   core.gesture = weapon.name ? "strike" : "punch";
   core.gestureHeld = weapon.held;
-  core.strikeUntil = core.clock + (gestureSeconds(core.gesture) || 1);
+  const seconds = gestureSeconds(core.gesture) || 1;
+  core.strikeUntil = core.clock + seconds * 0.6;
+  const saveId = core.save?.id;
+  later(seconds * SWING_LANDS, () => {
+    if (core.save?.id === saveId && fighting() && !core.downed) landBlow(weapon);
+  });
+}
+
+/**
+ * A swing lands: the nearest animal in front of the player and in reach takes an attack roll against its
+ * AC, and what came of it is told. Nothing there: nothing happens, and nothing is said. A hostile one
+ * that's struck fights back (unless it has had enough); a peaceful one runs.
+ */
+function landBlow(weapon) {
+  const at = core.player.position;
+  const facing = core.player.rotation.y;
+  let foe = null;
+  let nearest = Infinity;
+  for (const entry of core.interior ? [] : core.herd.foes(at, SWING_REACH + 2.5)) {
+    const dx = entry.x - at.x;
+    const dz = entry.z - at.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance > SWING_REACH + entry.room) continue;
+    // (One right on top of them is hit whichever way they face.)
+    const off = Math.abs(Math.atan2(Math.sin(Math.atan2(dx, dz) - facing), Math.cos(Math.atan2(dx, dz) - facing)));
+    if (distance > entry.room + 0.5 && off > SWING_ARC) continue;
+    if (distance < nearest) {
+      nearest = distance;
+      foe = entry;
+    }
+  }
+  if (!foe) return;
   const sheet = sheetNow();
   const stats = foeOf(foe.kind, PACK.foes, foe.scale);
   const result = playerStrike({ sheet, worn: wornBonuses(sheet, core.items ?? []), weapon, foe: stats });
-  const before = foe.hp ?? stats.hp;
-  const after = Math.max(0, before - result.damage);
-  const struck = core.herd.strike(id, result.damage, stats.hp, result.hit ? foeNerve(after, stats.hp) : "fight");
+  const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
+  const nerve = !foe.hostile ? "flee" : result.hit ? foeNerve(after, stats.hp) : "fight";
+  const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
   if (!struck) return;
   const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
   const told = strikeWords({ who: personaName(), what, weapon, result, left: struck.hp, max: struck.max });
@@ -8891,6 +8907,7 @@ function step(dt) {
   }
   if (input?.take("use")) use();
   if (input?.take("jump")) jump();
+  if (input?.take("attack")) swing();
   if (input?.take("rest") && core.settings.restKey) rest();
   if (input?.take("journal")) core.hud?.toggleJournal();
 
@@ -8940,6 +8957,7 @@ function step(dt) {
   core.hud?.setThumbs(
     onGround ?? (core.mode === "sit" ? "seat" : core.mode === "ride" ? "ride" : ""),
     core.mode === "walk" || core.mode === "sit" || core.mode === "ride",
+    fighting() && !core.downed,
   );
 
   // The town lives on while the player is indoors: doors, people, the clock. An open door stays open
@@ -9358,6 +9376,7 @@ function attach(element) {
       use();
     },
     onJump: jump,
+    onAttack: swing,
     onRest: rest,
     onRun: (on) => core.input?.setRun(on),
     maxPeople: MAX_PEOPLE,

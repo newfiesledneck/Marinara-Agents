@@ -848,7 +848,7 @@ export function createHud(root, handlers) {
     sheetTrack:
       "The AI reads what was narrated and changes your sheet to match: HP lost to a bite, mana spent on a spell, experience for something done. It answers with a short list of changes, which the game checks against your sheet, and a note in the chat says what changed. After moments: read each time something is narrated. It shares the inventory tracker's AI call when that is on, and is one more call when it isn't. After moments and replies: also after each reply in a conversation. Off: only you and the game's own rules (using an item) change it.",
     fights:
-      "Off: nothing can be hurt, and hostile creatures only see you off. Real time: near a hostile creature a prompt says Attack (press E, or tap it). Each swing is an attack roll: a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A creature you strike fights back, its attacks rolled the same way against your AC. No AI call is made: the game rolls and tells what was rolled. A scene and a narrated moment are to come as other ways to fight.",
+      "Off: nothing can be hurt, and hostile creatures only see you off. Real time: F swings (on a touch screen, the Attack button by your thumb; there is one in the chat window too). You swing wherever you face, standing or on the move, and whatever animal is in front of you and in reach when the blow lands takes it. Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A hostile creature you strike fights back, its attacks rolled the same way against your AC; a peaceful one runs. No AI call is made: the game rolls and tells what was rolled. A scene and a narrated moment are to come as other ways to fight.",
     defeat:
       "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and what beat you has drawn off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Nothing is lost either way, and nobody dies for good.",
     gathering:
@@ -2973,6 +2973,7 @@ export function createHud(root, handlers) {
   let sleepCard = null; // the tent's card, while it's open (openSleep)
   const wanted = { jump: true, rest: true, run: true, chat: true, place: true }; // Settings: the thumb's buttons, the chat window's, the place line
   const jump = button("Jump", "Jump", () => handlers.onJump());
+  const strike = button("Attack", "Swing at whatever is in front of you", () => handlers.onAttack?.());
   const rest = button("Sit", "Sit down on the ground; again to lie down", () => handlers.onRest());
   let runOn = false;
   const run = button("Run", "Run until this is tapped again", () => {
@@ -2984,18 +2985,19 @@ export function createHud(root, handlers) {
   run.setAttribute("aria-pressed", "false");
   const THUMB = "padding:10px 12px;font-size:13px;white-space:nowrap;flex:0 0 auto;";
   for (const control of [run, rest, jump]) control.style.cssText += `${THUMB}display:${touch ? "" : "none"};`;
+  strike.style.cssText += `${THUMB}display:none;`;
   use.style.cssText += `${THUMB}flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;display:none;`;
   const thumbs = document.createElement("div");
   thumbs.style.cssText =
     "position:absolute;left:8px;right:8px;bottom:calc(10px + env(safe-area-inset-bottom, 0px));display:flex;gap:6px;justify-content:flex-end;align-items:center;";
-  thumbs.append(run, rest, jump, use);
+  thumbs.append(run, rest, jump, strike, use);
 
   const hint = document.createElement("div");
   const hintText = document.createElement("div");
   hintText.style.flex = "1";
   hintText.textContent = touch
     ? "Stick to walk: push it all the way, or tap Run, to run · or tap the ground to walk there · drag to look · pinch to zoom · tap someone or something to use it"
-    : "WASD walk · Shift run · Space jump · C sit · drag or arrows to look · scroll to zoom · E or click to use · Esc to leave";
+    : "WASD walk · Shift run · Space jump · C sit · drag or arrows to look · scroll to zoom · E or click to use · F to swing (with combat on) · Esc to leave";
   // Read once, it can go: its × turns off Settings → Display → On screen → Controls hint.
   const hintClose = button("×", "Hide this (Settings → Display → On screen brings it back)", () =>
     handlers.onSetting("hint", false),
@@ -3162,8 +3164,10 @@ export function createHud(root, handlers) {
   const chatRest = button("Sit", "Sit down on the ground, then lie down, then get up (C)", () =>
     chatRest.textContent.startsWith("Get ") ? handlers.onUse() : handlers.onRest(),
   );
-  for (const control of [chatJump, chatRest]) control.style.cssText += "padding:4px 10px;font-size:12px;";
-  moves.append(chatJump, chatRest);
+  const chatStrike = button("Attack", "Swing at whatever is in front of you (F)", () => handlers.onAttack?.());
+  for (const control of [chatJump, chatRest, chatStrike]) control.style.cssText += "padding:4px 10px;font-size:12px;";
+  chatStrike.style.display = "none";
+  moves.append(chatJump, chatRest, chatStrike);
   const petMoves = document.createElement("div");
   petMoves.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
   const sendHome = (role) => {
@@ -3553,9 +3557,12 @@ export function createHud(root, handlers) {
      * (walking), "ground", "lie", "seat" (on a bench) or "ride" (on a horse: Jump only); hidden when
      * `shown` is false.
      */
-    setThumbs(resting, shown) {
+    setThumbs(resting, shown, fighting = false) {
       const show = (want) => (shown && touch && want ? "" : "none");
       const riding = resting === "ride";
+      // (Attack: only with fighting on, and on your feet.)
+      strike.style.display = resting ? "none" : show(fighting);
+      chatStrike.style.display = fighting && !resting ? "" : "none";
       jump.style.display = resting && !riding ? "none" : show(wanted.jump);
       run.style.display = resting && !riding ? "none" : show(wanted.run);
       rest.style.display = resting === "lie" || resting === "seat" || riding ? "none" : show(wanted.rest);
