@@ -196,11 +196,11 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   assert.deepEqual(SRD_CLASSES.fighter, { name: "Fighter", hitDie: 10, weapon: { name: "Longsword", damage: "1d8" } });
   const srd = (name) => SRD_SPELLS.find((spell) => spell.name === name);
   assert.equal(spellRule(srd("Fire Bolt")), "Cantrip. 1d10 fire damage. Range 24.");
-  assert.equal(spellRule(srd("Burning Hands")), "Level 1. 2 mana. 3d6 fire damage. Dexterity save for half. Range 5.");
-  assert.equal(spellRule(srd("Magic Missile")), "Level 1. 2 mana. 1d4+1 force damage. Always hits. Range 24.");
-  assert.equal(spellRule(srd("Hold Person")), "Level 2. 3 mana. Wisdom save or paralyzed 8 seconds. Range 18.");
-  assert.equal(spellRule(srd("Cure Wounds")), "Level 1. 2 mana. +1d8 HP.");
-  assert.deepEqual([spellCost(0), spellCost(1), spellCost(3)], [0, 2, 4]);
+  assert.equal(spellRule(srd("Burning Hands")), "Level 1. 1 mana. 3d6 fire damage. Dexterity save for half. Range 5.");
+  assert.equal(spellRule(srd("Magic Missile")), "Level 1. 1 mana. 1d4+1 force damage. Always hits. Range 24.");
+  assert.equal(spellRule(srd("Hold Person")), "Level 2. 2 mana. Wisdom save or paralyzed 8 seconds. Range 18.");
+  assert.equal(spellRule(srd("Cure Wounds")), "Level 1. 1 mana. +1d8 HP.");
+  assert.deepEqual([spellCost(0), spellCost(1), spellCost(3)], [0, 1, 3]);
   // Every one of them reads back as what it was written from.
   for (const spell of SRD_SPELLS) {
     const read = spellIn({ about: spellRule(spell) });

@@ -202,8 +202,11 @@ const SPELL_EFFECT = new RegExp(
 
 /** How far a spell reaches when its description doesn't say (metres). */
 export const SPELL_REACH = 14;
-/** What a spell of `level` costs in mana: a cantrip (level 0) nothing, the rest a point more than their level. */
-export const spellCost = (level) => (level > 0 ? level + 1 : 0);
+/**
+ * What a spell of `level` costs in mana: its level. A cantrip (level 0) costs nothing, a first-level spell
+ * one, and so on: the level of the spell slot it would take, so mana and slots agree.
+ */
+export const spellCost = (level) => Math.max(0, Math.round(level) || 0);
 
 /**
  * A spell's rule as its description says it, for one taken from the SRD (srd.js): "Cantrip. 1d10 fire

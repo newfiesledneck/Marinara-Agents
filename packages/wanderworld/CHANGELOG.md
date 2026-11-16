@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.6.89 — 2026-11-15
+
+- Hotkeys. The number keys 1 to 0 each do what you set in Inventory → Hotkeys: cast one particular spell, use up something you carry, or put on and take off something that has a slot in Quartermaster (a weapon, armour, clothing). The ones you've set are buttons in the chat window too.
+- A spell costs its level in mana: 1 for a first-level spell, 2 for a second, 3 for a third. Cantrips cost none. Spells already on your sheet keep the cost written in them; edit the number, or add the spell again.
+- With a weapon drawn, stepping sideways and backwards has its own animations. Before, the forward walk played while you slid.
+
 ## 0.6.88 — 2026-11-15
 
 - You can set your own keys. With a keyboard, Settings → Controls → Keys has a button for each action: press it, then the key you want. A key another action has is swapped with it. "Reset keys" puts them back.

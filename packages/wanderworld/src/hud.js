@@ -2507,6 +2507,7 @@ export function createHud(root, handlers) {
       ["items", "Items"],
       ["craft", "Craft"],
       ["sheet", "Sheet"],
+      ["hotkeys", "Hotkeys"],
       ["quartermaster", "Quartermaster"],
     ]) {
       const tab = inkSmall(label, () => {
@@ -2521,7 +2522,53 @@ export function createHud(root, handlers) {
     const body = piece("display:flex;flex-direction:column;gap:5px;font-size:12px;line-height:1.4;");
     if (inventoryNote) body.append(debugNote(inventoryNote));
     if (inventoryTab === "sheet") drawSheet(body);
-    else if (inventoryTab === "quartermaster") {
+    else if (inventoryTab === "hotkeys") {
+      // The number keys, each with what it does: a spell to cast, something to use, something to put on or take off.
+      body.append(debugNote("Reading…"));
+      inventoryPanel.replaceChildren(tabs, body);
+      const answer = await Promise.resolve(handlers.hotkeys?.()).catch(() => null);
+      if (drawn !== inventoryDrawn) return;
+      body.replaceChildren(
+        debugNote(
+          "Each number key does one thing of your choosing: casts a spell from your sheet, uses up something you carry (a potion, food), or puts something on and takes it off again (a weapon, armour, clothing). Only things with a slot in Quartermaster can be put on: give an item its slot in the Quartermaster tab. On a touch screen, and with a mouse, the same are buttons in the chat window.",
+        ),
+      );
+      for (const key of "1234567890") {
+        const row = piece("display:flex;align-items:center;gap:6px;");
+        const choose = document.createElement("select");
+        choose.style.cssText = `${INK_INPUT}padding:2px 4px;flex:1;min-width:0;`;
+        choose.setAttribute("aria-label", `What ${key} does`);
+        const groups = new Map();
+        const none = document.createElement("option");
+        none.value = "";
+        none.textContent = "Nothing";
+        choose.append(none);
+        const now = answer?.slots?.[key] ?? "";
+        for (const option of answer?.options ?? []) {
+          if (!groups.has(option.group)) {
+            const group = document.createElement("optgroup");
+            group.label = option.group;
+            groups.set(option.group, group);
+            choose.append(group);
+          }
+          const node = document.createElement("option");
+          node.value = option.value;
+          node.textContent = option.label;
+          groups.get(option.group).append(node);
+        }
+        // (Something set that isn't there any more, an item used up or a spell deleted, is still shown as set.)
+        if (now && ![...choose.options].some((option) => option.value === now)) {
+          const gone = document.createElement("option");
+          gone.value = now;
+          gone.textContent = `${now.slice(now.indexOf(":") + 1)} (not there now)`;
+          choose.append(gone);
+        }
+        choose.value = now;
+        choose.addEventListener("change", () => handlers.onSetHotkey?.(key, choose.value));
+        row.append(piece("font-weight:700;width:14px;", key), choose);
+        body.append(row);
+      }
+    } else if (inventoryTab === "quartermaster") {
       body.append(
         debugNote(
           "Quartermaster's own window: slots, outfits, item pictures, hidden items and everything else it does. It is the same sheet as the Items tab, so a change in either shows in both.",
@@ -2934,7 +2981,7 @@ export function createHud(root, handlers) {
     body.append(
       piece("font-weight:700;margin-top:6px;", "Add a spell from the 5e SRD"),
       debugNote(
-        'These are the SRD\'s spells of level 0 to 3 that a fight here can play. A cantrip costs no mana; a spell costs one more than its level. Once added it is yours: its description is its rule, and you can rewrite it. Your own spells are written the same way: "2 mana. 1d10 fire damage. Range 20." is an attack roll; "Dexterity save for half" asks the target for a saving throw; "Always hits" needs no roll; "Wisdom save or paralyzed 8 seconds" leaves an effect (stunned, paralyzed, restrained and incapacitated hold the target; frightened sends it running); "+1d8 HP" heals you. No mana named makes it a cantrip. A spell with none of these is only told to the AI.',
+        'These are the SRD\'s spells of level 0 to 3 that a fight here can play. A cantrip costs no mana; a spell costs its level in mana (1 for a first-level spell, 2 for a second). Once added it is yours: its description is its rule, and you can rewrite it. Your own spells are written the same way: "2 mana. 1d10 fire damage. Range 20." is an attack roll; "Dexterity save for half" asks the target for a saving throw; "Always hits" needs no roll; "Wisdom save or paralyzed 8 seconds" leaves an effect (stunned, paralyzed, restrained and incapacitated hold the target; frightened sends it running); "+1d8 HP" heals you. No mana named makes it a cantrip. A spell with none of these is only told to the AI.',
       ),
       spellForm,
     );
@@ -3362,6 +3409,10 @@ export function createHud(root, handlers) {
   for (const control of [chatJump, chatRest, ...chatFight]) control.style.cssText += "padding:4px 10px;font-size:12px;";
   for (const control of chatFight) control.style.display = "none";
   moves.append(chatJump, chatRest, ...chatFight);
+  // The hotkeys that are set, a button each (setHotbar): what the number keys do, for a tap or a click.
+  const hotRow = document.createElement("div");
+  hotRow.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
+  let hotKey = "";
   // The spells that can be cast, a button each (setSpells).
   const spellRow = document.createElement("div");
   spellRow.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
@@ -3447,6 +3498,7 @@ export function createHud(root, handlers) {
     moves,
     shopRow,
     gatherRow,
+    hotRow,
     spellRow,
     petMoves,
     commands,
@@ -4158,6 +4210,22 @@ export function createHud(root, handlers) {
       }
       nodes.push(line, actions, sceneNote);
       sceneBody.replaceChildren(...nodes);
+    },
+    /** The hotkeys that are set: [{ key, label }]. A button each in the chat window (none hides the row). */
+    setHotbar(slots) {
+      const key = slots.map((slot) => `${slot.key}:${slot.label}`).join("|");
+      if (key === hotKey) return;
+      hotKey = key;
+      hotRow.replaceChildren(
+        ...slots.map((slot) => {
+          const control = button(`${slot.key} ${slot.label}`, `${slot.label} (the ${slot.key} key)`, () =>
+            handlers.onHotkey?.(slot.key),
+          );
+          control.style.cssText += "padding:4px 10px;font-size:12px;";
+          return control;
+        }),
+      );
+      hotRow.style.display = slots.length ? "flex" : "none";
     },
     /**
      * The spells that can be cast: [{ id, name, cost }], and which is ready. A button each in the chat

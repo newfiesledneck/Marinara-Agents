@@ -347,6 +347,8 @@ export function checkWorld(raw) {
     beaten: isRecord(raw.beaten) ? raw.beaten : {},
     // The class chosen for someone, where one was: { [their id]: an SRD class's id } (main.js classOf).
     classes: isRecord(raw.classes) ? raw.classes : {},
+    // What each number key does: { "1": "spell:<a sheet line's id>" | "use:<an item's name>" | "equip:<an item's name>" }.
+    hotkeys: isRecord(raw.hotkeys) ? raw.hotkeys : {},
     // The player's own recipes (craft.js checks them when they're read).
     recipes: Array.isArray(raw.recipes) ? raw.recipes : [],
     // Each vendor: { [zone id]: { kinds (once set by hand), stock, period, stocked } } (vendor.js).

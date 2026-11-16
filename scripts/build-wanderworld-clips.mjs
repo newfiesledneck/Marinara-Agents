@@ -110,6 +110,13 @@ const CLIPS = {
   block: { name: "Sword_Block", pack: 2, fps: 15 },
   dodge: { name: "Roll", pack: 1, fps: 20 },
   cast: { name: "Spell_Simple_Shoot", pack: 1, fps: 20 },
+  // Stepping sideways and back, a weapon drawn: played in place, at the pace they're going.
+  walkLeft: { name: "Walk_L_Loop", pack: 2, fps: 20 },
+  walkRight: { name: "Walk_R_Loop", pack: 2, fps: 20 },
+  walkBack: { name: "Walk_Bwd_Loop", pack: 2, fps: 20 },
+  jogLeft: { name: "Jog_Left_Loop", pack: 1, fps: 24 },
+  jogRight: { name: "Jog_Right_Loop", pack: 1, fps: 24 },
+  jogBack: { name: "Jog_Bwd_Loop", pack: 1, fps: 24 },
 };
 
 async function load(path) {
