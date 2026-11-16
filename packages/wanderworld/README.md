@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.01)
+## What it does now (0.7.02)
 
 ### The world
 
@@ -596,6 +596,10 @@ every roll, and no AI call is made in a real-time fight.
   rogues among your companions shoot too, as do people fighting back. Creatures the SRD gives a
   bow or spells use them from a distance (a setting): a bandit's light crossbow, a wizard's Fire
   Bolt and Magic Missile.
+- **Weapons and armour by the SRD**: a thing's description is its stats, or (a setting) its name
+  is: anything called a sword, a knife, an axe or a bow is that SRD weapon, and armour likewise.
+  Armour sets your AC and limits Dexterity, attacks add a proficiency bonus, and creatures resist
+  or can't bear some kinds of damage. The smith sells SRD weapons and armour.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.

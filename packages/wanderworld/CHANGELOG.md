@@ -1,5 +1,14 @@
 # Wanderworld release notes
 
+## 0.7.02 — 2026-11-16
+
+- Weapons and armour by the 5e SRD. New setting, "An item's description is its stats": on, a thing does what its description says; off, its name decides (sword, knife, dagger, axe, hammer, bow and the rest link to that SRD weapon, and armour and shields likewise).
+- Armour you wear sets your AC and limits how much Dexterity counts. With none, AC is 10 plus your Dexterity modifier.
+- Attacks and spells add a proficiency bonus that grows with level. Finesse weapons use the better of Strength and Dexterity.
+- Kinds of damage matter: a skeleton takes a blunt blow twice over, a slime resists fire, fire can't hurt a dragon.
+- The smith sells SRD weapons and armour.
+- All of it is in Settings → Inventory → 5e rules, each with its own switch.
+
 ## 0.7.01 — 2026-11-16
 
 - Fixed: with "Stay down until you choose", the Respawn button could vanish and leave you lying there for good. It now stays up for as long as you're down, and works whatever else has happened meanwhile.

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.02",
+          "date": "2026-11-16",
+          "notes": "- Weapons and armour by the 5e SRD. New setting, \"An item's description is its stats\": on, a thing does what its description says; off, its name decides (sword, knife, dagger, axe, hammer, bow and the rest link to that SRD weapon, and armour and shields likewise).\n- Armour you wear sets your AC and limits how much Dexterity counts. With none, AC is 10 plus your Dexterity modifier.\n- Attacks and spells add a proficiency bonus that grows with level. Finesse weapons use the better of Strength and Dexterity.\n- Kinds of damage matter: a skeleton takes a blunt blow twice over, a slime resists fire, fire can't hurt a dragon.\n- The smith sells SRD weapons and armour.\n- All of it is in Settings → Inventory → 5e rules, each with its own switch.",
+          "highlight": false
+        },
+        {
           "version": "0.7.01",
           "date": "2026-11-16",
           "notes": "- Fixed: with \"Stay down until you choose\", the Respawn button could vanish and leave you lying there for good. It now stays up for as long as you're down, and works whatever else has happened meanwhile.\n- Settings → Debug has a Respawn button of its own, for getting unstuck: it puts you at your door, on your feet. If you weren't beaten it costs nothing.",
@@ -307,12 +313,6 @@
           "version": "0.6.83",
           "date": "2026-11-15",
           "notes": "- X draws your weapon or puts it away (real-time combat). On a touch screen the Combat button does it. Drawn, the view stays behind you: turning the view turns you, and you step sideways and backwards without turning away. The weapon stays in your hand.\n- A dodge goes the way you are moving, sideways and back too.\n- What you beat can be carried. Stand at it and the chat window has a Carry button. You walk slowly under it, and the prompt puts it down.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.82",
-          "date": "2026-11-15",
-          "notes": "- Two more ways to fight, in Settings → Inventory → Combat. A narrated moment: when a creature gets to you, or you press Attack with one in reach, the game rolls one exchange of blows at once and the AI tells it as rolled. A scene: the meeting opens a scene chat, and the creatures let you be while you play it.\n- A defeat can have a cost: a quarter of your money, or your experience toward the next level. Nothing, to begin with.\n- What you beat stays gone for two days (a setting), then is back where it lives. Before, everything was back whenever the world was opened.",
           "highlight": false
         }
       ]

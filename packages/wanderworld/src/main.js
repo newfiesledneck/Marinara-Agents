@@ -169,9 +169,11 @@ import {
   foeOf,
   foeStrike,
   foeWords,
+  gearWorn,
   initiativeOrder,
   personWords,
   playerStrike,
+  proficiency,
   rolledTwice,
   slotFor,
   slotsAt,
@@ -208,7 +210,6 @@ import {
   toppedUp,
   useItem,
   valueOf,
-  wornBonuses,
 } from "./sheet.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import {
@@ -7965,7 +7966,7 @@ function setSheet(sheet) {
 function sheetTold() {
   if (!core.save || !core.settings.sheet || !core.settings.sheetTold) return "";
   const sheet = sheetNow();
-  return sheetWords(sheet, wornBonuses(sheet, core.items ?? []));
+  return sheetWords(sheet, wornNow(sheet));
 }
 /** Quartermaster's items for the sheet being played, read again (kept in `core.items` for the bonuses). */
 async function readItems() {
@@ -8033,6 +8034,14 @@ const fightMode = () =>
 const fighting = () => fightMode() === "realtime" || fightMode() === "turns";
 /** Whether fights go by turns. */
 const byTurns = () => fightMode() === "turns";
+/** Whether an item's description is its stats (else its name links it to the SRD's weapon or armour). */
+const byDesc = () => core.settings.gearByDescription !== false;
+/** What's worn adds up to, by the gear rules that are on (combat.js gearWorn). */
+const wornNow = (sheet = sheetNow()) =>
+  gearWorn(sheet, core.items ?? [], { byDescription: byDesc(), rules: !!core.settings.srdModifiers });
+/** The player's proficiency bonus on an attack (none with the SRD's modifiers off), and in a spell's attack and DC. */
+const profNow = () => (core.settings.srdModifiers ? proficiency(valueOf(sheetNow(), "level")) : 0);
+const spellProf = () => profNow() || 2;
 
 /** How far a blow reaches from the player's middle (metres), and how wide of straight ahead (radians). */
 const SWING_REACH = 1.9;
@@ -8054,10 +8063,10 @@ function swing() {
     core.itemsAt = core.clock;
     void readItems();
   }
-  const weapon = weaponOf(core.items ?? []);
+  const weapon = weaponOf(core.items ?? [], byDesc());
   // A bow, a crossbow or a sling they carry is shot when nothing is in reach of a swing: at whatever is
   // ahead within its range, or (with it equipped) at nothing at all.
-  const bow = bowOf(core.items ?? []);
+  const bow = bowOf(core.items ?? [], byDesc());
   if (bow && !blowTarget()) faceEnemy(bow.range); // (nothing in reach of a swing: the bow turns to the nearest enemy)
   const near = blowTarget();
   const far = bow && !near ? blowTarget(bow.range, SPELL_ARC, true) : null;
@@ -8202,7 +8211,7 @@ function cast(id = null) {
     const at = core.player.position;
     const scene = core.space.scene;
     const now = sheetNow();
-    const wit = witOf(now, wornBonuses(now, core.items ?? []));
+    const wit = witOf(now, wornNow(now));
     core.hud?.refreshInventory?.();
     if (spell.heal && !spell.damage) {
       const mended = Math.max(1, rollDice(spell.heal).total + Math.max(0, wit));
@@ -8302,7 +8311,7 @@ function spellLands(foe, who, name, spell, wit, from) {
 
 function spellOnFoe(foe, who, name, spell, wit, from = null) {
   const stats = foeOf(foe.kind, foeTable(), foe.scale);
-  const result = spellStrike({ wit, spell, foe: stats });
+  const result = spellStrike({ wit, spell, foe: stats, prof: spellProf() });
   const now = core.herd.foes({ x: foe.x, z: foe.z }, 40).find((entry) => entry.id === foe.id) ?? foe;
   const after = Math.max(0, (now.hp ?? stats.hp) - result.damage);
   const kind = result.effect?.kind;
@@ -8907,6 +8916,10 @@ const SRD_FOES = {
     ]),
   ),
 };
+/** The same without what they resist, shrug off or can't bear, for when kinds of damage are switched off. */
+const SRD_FOES_PLAIN = Object.fromEntries(
+  Object.entries(SRD_FOES).map(([kind, { resist: _r, immune: _i, vulnerable: _v, ...rest }]) => [kind, rest]),
+);
 /** How far each kind that can shoot or cast does so from (metres), for herd.js. */
 const RANGED_KINDS = Object.fromEntries(
   Object.entries(SRD_CREATURES)
@@ -8974,7 +8987,7 @@ function foeShoots(event, what) {
           wit: stats.wit ?? 0,
           spell: chosen.spell,
           sheet,
-          worn: wornBonuses(sheet, core.items ?? []),
+          worn: wornNow(sheet),
         });
         const hp = playerStruck(result, event);
         narrate(
@@ -8996,7 +9009,7 @@ function foeShoots(event, what) {
 
 /** What each creature is in a fight: the 5e SRD's numbers (Settings → Inventory → Combat), or the setting pack's own. */
 function foeTable() {
-  return core.settings?.srdCreatures ? SRD_FOES : PACK.foes;
+  return core.settings?.srdCreatures ? (core.settings.damageTypes ? SRD_FOES : SRD_FOES_PLAIN) : PACK.foes;
 }
 
 // ── The party in a fight ──
@@ -9232,7 +9245,7 @@ function allyStrikes(person, foe, weapon) {
 /** A spell lands on a person: their saving throw or the spell attack, and what comes of attacking someone. */
 function spellOnPerson(target, name, spell, wit) {
   const stats = foeOf("person", foeTable());
-  const result = spellStrike({ wit, spell, foe: stats });
+  const result = spellStrike({ wit, spell, foe: stats, prof: spellProf() });
   const left = personHurt(target, result.damage, stats);
   narrate(
     null,
@@ -9321,7 +9334,7 @@ const OUT_SECONDS = 120;
 function landOnPerson(target, weapon) {
   const sheet = sheetNow();
   const stats = foeOf("person", foeTable());
-  const result = playerStrike({ sheet, worn: wornBonuses(sheet, core.items ?? []), weapon, foe: stats });
+  const result = playerStrike({ sheet, worn: wornNow(sheet), weapon, foe: stats, prof: profNow() });
   const left = personHurt(target, result.damage, stats);
   narrate(
     null,
@@ -9430,7 +9443,7 @@ function personActs(person, far, spells) {
           wit: ALLY_WIT,
           spell: chosen.spell,
           sheet,
-          worn: wornBonuses(sheet, core.items ?? []),
+          worn: wornNow(sheet),
         });
         const hp = playerStruck(result, from);
         narrate(null, castAtWords({ name, spell: chosen.name, who, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
@@ -9452,7 +9465,7 @@ function personActs(person, far, spells) {
     const result = foeStrike({
       foe: { attack: ALLY_ATTACK, damage: weapon.damage, damageBonus: 2 },
       sheet,
-      worn: wornBonuses(sheet, core.items ?? []),
+      worn: wornNow(sheet),
       guarded: core.clock < (core.blockUntil ?? 0),
     });
     const hp = playerStruck(result, from);
@@ -9504,7 +9517,7 @@ function playerStruck(result, from) {
 function landOn(foe, weapon) {
   const sheet = sheetNow();
   const stats = foeOf(foe.kind, foeTable(), foe.scale);
-  const swung = () => playerStrike({ sheet, worn: wornBonuses(sheet, core.items ?? []), weapon, foe: stats });
+  const swung = () => playerStrike({ sheet, worn: wornNow(sheet), weapon, foe: stats, prof: profNow() });
   const result = marked(foe.id) ? rolledTwice(swung, true) : swung(); // (marked by a spell: the better of two)
   if (core.battle?.raging && result.hit && !weapon.range) result.damage += 2; // (a barbarian's Rage)
   const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
@@ -9537,7 +9550,7 @@ function encounter(foe, what, first) {
     );
   }
   core.encounterAt = core.clock + 6;
-  const weapon = weaponOf(core.items ?? []);
+  const weapon = weaponOf(core.items ?? [], byDesc());
   const target = core.herd.foes(core.player.position, 6).find((entry) => entry.id === foe.id);
   let down = false;
   if (first === "player" && target) down = landOn(target, weapon);
@@ -9677,7 +9690,7 @@ function block() {
   if (!fighting() || core.downed || core.mode !== "walk" || core.clock < (core.blockAgain ?? 0)) return;
   const seconds = gestureSeconds("block") || 1;
   core.gesture = "block";
-  core.gestureHeld = weaponOf(core.items ?? []).held;
+  core.gestureHeld = weaponOf(core.items ?? [], byDesc()).held;
   core.blockUntil = core.clock + seconds;
   core.blockAgain = core.clock + seconds + 0.3;
   core.strikeUntil = Math.max(core.strikeUntil ?? 0, core.clock + seconds * 0.7); // (no swing from behind a guard)
@@ -9725,7 +9738,7 @@ function foeAttacks(event, what, with_ = null) {
       `The ${what} ${(foeTable()[event.kind] ?? foeTable().default).verb} at ${who}, who rolls clear.`,
     );
   const sheet = sheetNow();
-  const worn = wornBonuses(sheet, core.items ?? []);
+  const worn = wornNow(sheet);
   const stats = { ...foeOf(event.kind, foeTable(), event.scale), ...with_ };
   const result = foeStrike({
     foe: stats,
@@ -9970,7 +9983,7 @@ async function gather(kind) {
   core.gatherUntil = core.clock + (gestureSeconds(core.gesture) || 1.5);
   const sheet = sheetNow();
   const attribute = GATHER_KINDS[kind].attribute;
-  const score = valueOf(sheet, attribute) + (wornBonuses(sheet, core.items ?? [])[attribute] ?? 0);
+  const score = valueOf(sheet, attribute) + (wornNow(sheet)[attribute] ?? 0);
   const got = gatherRoll(
     kind,
     score,
@@ -10367,7 +10380,7 @@ async function haggle() {
   const day = core.social?.day ?? 0;
   if (core.save.vendors?.[vendor.id]?.haggle?.day === day) throw new Error("You've haggled here today already.");
   const sheet = sheetNow();
-  const check = checkRoll(entryNamed(sheet, "charisma"), wornBonuses(sheet, core.items ?? []).charisma ?? 0);
+  const check = checkRoll(entryNamed(sheet, "charisma"), wornNow(sheet).charisma ?? 0);
   const outcome = haggleOutcome(check.total);
   keepVendor(vendor.id, { haggle: { day, factor: outcome.factor } });
   const who = personaName();
@@ -10467,7 +10480,7 @@ function rollCommand(which, rest) {
     return void core.hud?.setNotice(
       'Name one of your sheet\'s numbered lines: "/check strength", "/check fishing to land the pike".',
     );
-  const check = checkRoll(entry, wornBonuses(sheet, core.items ?? [])[entry.id] ?? 0);
+  const check = checkRoll(entry, wornNow(sheet)[entry.id] ?? 0);
   const sum = `${check.total} (rolled ${check.roll}${check.add ? `, ${check.add > 0 ? "+" : ""}${check.add}` : ""})`;
   narrate(null, `${who} makes a ${entry.name} check: ${sum}.`);
   const trying = typed
@@ -10853,7 +10866,7 @@ function step(dt) {
     act: core.mode === "ride" ? (stepping ? null : "ride") : astride ? "ride" : onGround,
     gesture: core.gesture,
     held: core.gestureHeld ?? null,
-    carry: weaponDrawn() ? weaponOf(core.items ?? []).held : null,
+    carry: weaponDrawn() ? weaponOf(core.items ?? [], byDesc()).held : null,
     // (Weapon drawn and on the move: which way they're stepping, from the way they face.)
     strafe:
       weaponDrawn() && (core.still ?? 1) === 0 && !core.glide ? (core.moveWay ?? 0) - core.player.rotation.y : null,
@@ -11124,7 +11137,7 @@ function attach(element) {
     // The Inventory window: the sheet, and Quartermaster's items with something to do with each.
     onSheet: () => {
       const sheet = sheetNow();
-      return { sheet, worn: wornBonuses(sheet, core.items ?? []), slots: slotsShown() };
+      return { sheet, worn: wornNow(sheet), slots: slotsShown() };
     },
     onSheetChange: (change) => setSheet(changeSheet(sheetNow(), change)),
     onItems: async () => {

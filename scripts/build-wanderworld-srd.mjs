@@ -47,6 +47,17 @@ const CONDITIONS = {
   guided: "marked",
   prone: "prone",
 };
+/** The conditions a creature's blow can leave on whoever it hits, that a fight here plays. */
+const PLAYER_CONDITIONS = {
+  prone: "prone",
+  poisoned: "poisoned",
+  grappled: "grappled",
+  restrained: "restrained",
+  frightened: "frightened",
+  blinded: "blinded",
+  paralyzed: "paralyzed",
+  stunned: "stunned",
+};
 /** Which of a spell's conditions is played, when it leaves several: the first of these it has. */
 const CONDITION_ORDER = [...new Set(Object.values(CONDITIONS))];
 /** How long a condition lasts here: an instant one (knocked prone) a moment, one round six seconds, longer ones twelve. */
@@ -223,6 +234,76 @@ for (const [kind, id] of Object.entries(CREATURE_OF)) {
     damage: `${diceOf(attack)}${flat}`,
     dex: sheet.initiativeModifier ?? 0,
   };
+  const made = creatures[kind];
+  // What its blow is (slashing, piercing, …) and what it shrugs off or can't bear.
+  const type = attack.damage?.type ?? attack.damage?.plus?.[0]?.type;
+  if (type) made.type = type;
+  for (const [ours, theirs] of [
+    ["resist", "resist"],
+    ["immune", "immune"],
+    ["vulnerable", "vulnerable"],
+  ])
+    if (Array.isArray(sheet[theirs]) && sheet[theirs].length) made[ours] = sheet[theirs];
+  // Its saving throws and what it notices and hides with, where the SRD gives them.
+  const saves = sheet.saves ?? {};
+  made.saves = Object.fromEntries(
+    Object.entries(SAVES)
+      .filter(([id]) => Number.isInteger(saves[id]))
+      .map(([id, name]) => [name.toLowerCase(), saves[id]]),
+  );
+  if (!Object.keys(made.saves).length) delete made.saves;
+  if (Number.isInteger(sheet.checks?.stealth)) made.stealth = sheet.checks.stealth;
+  if (Number.isInteger(sheet.checks?.perception)) made.perception = sheet.checks.perception;
+  // What comes with its blow: more damage of another kind (venom, fire) with a save for half, and a
+  // condition on a failed save (a wolf's bite knocks prone) or outright (a frog's bite holds).
+  const more = attack.damage?.dice ? attack.damage?.plus?.[0] : null;
+  if (more?.dice)
+    made.rider = {
+      damage: more.dice,
+      type: more.type ?? "",
+      ...(more.save
+        ? {
+            save: {
+              attribute: SAVES[more.save.save].toLowerCase(),
+              dc: more.save.difficulty,
+              onSave: more.save.onSuccess === "half" ? "half" : "none",
+            },
+          }
+        : {}),
+    };
+  const laid = (attack.applies ?? []).find((entry) => PLAYER_CONDITIONS[entry.condition]);
+  if (laid)
+    made.inflict = {
+      condition: PLAYER_CONDITIONS[laid.condition],
+      ...(attack.save
+        ? { save: { attribute: SAVES[attack.save.save].toLowerCase(), dc: attack.save.difficulty } }
+        : {}),
+      ...(laid.escapeDc ? { escape: laid.escapeDc } : {}),
+    };
+  // How many blows its Multiattack is, of this attack.
+  const multi = (sheet.actions ?? []).find((action) => Array.isArray(action.sequence));
+  const times = multi?.sequence.reduce((sum, step) => sum + (Number(step.times) || 1), 0) ?? 0;
+  if (times > 1) made.multi = Math.min(4, times);
+  // Pack Tactics: the better of two rolls with one of its own beside what it attacks.
+  if ((sheet.attackModes ?? []).some((mode) => mode.mode === "advantage" && mode.allyAdjacent)) made.pack = true;
+  // A breath (or the like): an area with a save, back on a roll of the die each round.
+  const breath = (sheet.actions ?? []).find((action) => action.area && action.save && action.recharge);
+  if (breath?.damage?.dice)
+    made.breath = {
+      name: breath.name,
+      damage: breath.damage.dice,
+      type: breath.damage.type ?? "",
+      save: { attribute: SAVES[breath.save.save].toLowerCase(), dc: breath.save.difficulty, onSave: "half" },
+      reach: Math.max(3, Math.round(breath.area.size * 0.3)),
+      recharge: breath.recharge.from ?? 5,
+    };
+  // How it behaves, where the ruleset says: whom it goes for, and how brave it is.
+  const behavior = sheet.behavior ?? {};
+  if (behavior.targets?.length) made.targets = behavior.targets[0];
+  if (behavior.temperament) made.temperament = behavior.temperament;
+  if (sheet.mind === "mindless") made.temperament = "mindless";
+  if (sheet.loot) made.loot = sheet.loot;
+  if (typeof entry.filters?.challenge === "number") made.cr = entry.filters.challenge;
   // What it has for a distance: a bow or a crossbow before something thrown.
   const far = attacks.filter((action) => action.range?.normal);
   const shot = far.find((action) => !action.reach) ?? far[0];
@@ -249,6 +330,63 @@ if (Object.keys(creatures).length < 15)
     `Too few creatures came through (${Object.keys(creatures).length}): has the catalog's shape changed?`,
   );
 
+// The weapon table: what each does, its kind of damage and its properties. And armour: what it makes of
+// Armor Class and how much of Dexterity still counts. Prices are the SRD's, in gold pieces.
+const gear = new Map(read("equipment.json").map((entry) => [entry.id, entry]));
+const weaponTable = {};
+for (const entry of read("weapons.json")) {
+  const row = entry.rows?.[0]?.values ?? {};
+  const has = (name) => (entry.filters?.properties ?? []).some((property) => property.toLowerCase().startsWith(name));
+  if (!row.damage || !/^\d*d\d+$/u.test(row.damage)) continue;
+  const ranged = /ranged/iu.test(entry.filters?.category ?? "");
+  const [what, sort] = entry.label.split(", ");
+  const made = {
+    name: sort ? `${sort[0].toUpperCase()}${sort.slice(1)} ${what.toLowerCase()}` : what,
+    damage: row.damage,
+    type: row.damage_type ?? "",
+  };
+  const two = /Versatile: (\d*d\d+)/u.exec(entry.summary ?? "")?.[1];
+  if (two) made.versatile = two;
+  if (has("finesse")) made.finesse = true;
+  if (has("light")) made.light = true;
+  if (has("heavy")) made.heavy = true;
+  if (has("two-handed")) made.two = true;
+  if (has("reach")) made.reach = true;
+  if (ranged) made.range = metres(row.range);
+  else if (has("thrown")) made.thrown = metres(row.range);
+  if (/martial/iu.test(entry.filters?.category ?? "")) made.martial = true;
+  const cost = gear.get(entry.id)?.item?.cost;
+  if (cost?.amount)
+    made.cost = Math.max(1, Math.round(cost.amount * ({ cp: 0.01, sp: 0.1, gp: 1, pp: 10 }[cost.unit] ?? 1)));
+  weaponTable[entry.id] = made;
+}
+const armourTable = {};
+for (const entry of gear.values()) {
+  const item = entry.item ?? {};
+  if (!item.tags?.includes("mundane")) continue;
+  const cost = item.cost?.amount
+    ? Math.max(1, Math.round(item.cost.amount * ({ cp: 0.01, sp: 0.1, gp: 1, pp: 10 }[item.cost.unit] ?? 1)))
+    : 0;
+  if (item.category === "shield" && item.stats?.ac_bonus)
+    armourTable[entry.id] = { name: entry.label, kind: "shield", bonus: item.stats.ac_bonus, cost };
+  if (item.category !== "armor" || !item.stats?.ac_base) continue;
+  const kind = ["light", "medium", "heavy"].find((sort) => item.tags.includes(`${sort}_armor`));
+  if (!kind) continue;
+  armourTable[entry.id] = {
+    name: entry.label,
+    kind,
+    ac: item.stats.ac_base,
+    // (How much of the Dexterity modifier still counts: all of it in light armour, two in medium, none in heavy.)
+    dex: kind === "light" ? 9 : kind === "medium" ? (item.stats.dex_cap ?? 2) : 0,
+    ...(item.worn?.skills?.includes("stealth") ? { noisy: true } : {}),
+    cost,
+  };
+}
+if (Object.keys(weaponTable).length < 30 || Object.keys(armourTable).length < 10)
+  throw new Error(
+    `Too little gear came through (${Object.keys(weaponTable).length} weapons, ${Object.keys(armourTable).length} armours).`,
+  );
+
 const text = `// Generated by scripts/build-wanderworld-srd.mjs from packages/ruleset-5e-2014 (its spell, class and weapon
 // catalogs). Do not edit by hand: change the script, or the ruleset package, and run it again.
 //
@@ -262,7 +400,7 @@ const text = `// Generated by scripts/build-wanderworld-srd.mjs from packages/ru
 
 /** The credit this material needs, shown in Help → Credits. */
 export const SRD_CREDIT =
-  "Spells, classes, class weapons and creatures' numbers include material from the System Reference Document 5.1 by Wizards of the Coast LLC (https://dnd.wizards.com/resources/systems-reference-document), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode), by way of the Open5e API project. Adapted: only names, levels, dice, damage types, saving throws, conditions, areas, ranges and creatures' hit points, Armor Class and attacks are kept. Not affiliated with or endorsed by Wizards of the Coast.";
+  "Spells, classes, weapons, armour and creatures' numbers include material from the System Reference Document 5.1 by Wizards of the Coast LLC (https://dnd.wizards.com/resources/systems-reference-document), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode), by way of the Open5e API project. Adapted: only names, levels, dice, damage types, saving throws, conditions, areas, ranges, weapons' and armour's numbers and creatures' hit points, Armor Class, attacks, saving throws and what they resist are kept. Not affiliated with or endorsed by Wizards of the Coast.";
 
 /**
  * The SRD's spells of level 0 (cantrips) to 3 that a fight here can play: { name, level, classes, range
@@ -284,6 +422,20 @@ export const SRD_CLASSES = ${JSON.stringify(classes)};
  * spells (names from SRD_SPELLS) and wit (what its casting adds) }.
  */
 export const SRD_CREATURES = ${JSON.stringify(creatures)};
+
+/**
+ * The SRD's weapons: { [id]: { name, damage (dice), type (slashing | piercing | bludgeoning), and where it
+ * has them versatile (its dice in two hands), finesse, light, heavy, two (two-handed), reach, range (metres:
+ * it's shot), thrown (metres), martial, cost (gold pieces) } }.
+ */
+export const SRD_WEAPONS = ${JSON.stringify(weaponTable)};
+
+/**
+ * The SRD's armour and shield: { [id]: { name, kind (light | medium | heavy | shield), ac (what Armor Class
+ * starts from in it), dex (how much of the Dexterity modifier still counts), noisy (it hinders Stealth),
+ * bonus (a shield's), cost (gold pieces) } }.
+ */
+export const SRD_ARMOUR = ${JSON.stringify(armourTable)};
 `;
 writeFileSync(OUT, text);
 console.log(`wrote ${OUT}: ${spells.length} spells, ${Object.keys(classes).length} classes`);
