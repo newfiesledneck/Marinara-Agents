@@ -871,7 +871,7 @@ export function createHud(root, handlers) {
     defeat:
       "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and what beat you has drawn off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Stay down until you choose: you lie where you fell while the chat and the narration go on, and a Respawn button at the top gets you up at home whenever you like. Nothing is lost either way, and nobody dies for good.",
     srdSlots:
-      "Only where combat is By turns. Off: a spell costs its level in mana, as in real time. On: a spell is cast with a spell slot of its level or higher, as the 5e SRD has it, and mana is left alone. You have the slots of a full caster of your level (two first-level slots at level 1, three at level 2, four and two second-level at level 3, and so on up to third-level slots), and a sleep gives them back. Cantrips need neither.",
+      "Only where combat is By turns. Off: a spell costs its level in mana, as in real time. On: a spell is cast with a spell slot of its level or higher, as the 5e SRD has it, and mana is left alone; your sheet and the spell buttons then show spell slots where mana was. You have the slots of a full caster of your level (two first-level slots at level 1, three at level 2, four and two second-level at level 3, and so on up to third-level slots), and a sleep gives them back. Cantrips need neither.",
     srdCreatures:
       "On: a creature's HP, AC, attack and damage are those of the 5e SRD creature it is taken as: a wolf is the SRD's wolf (11 HP, AC 13, +4 to hit, 2d4+2), a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage. Cattle, the alpaca and the shiba have nothing close in the SRD and keep the game's own numbers, as they all do with this off. People fight by their class either way. Experience for a win is the game's own.",
     partyFights:
@@ -2882,7 +2882,7 @@ export function createHud(root, handlers) {
     }
   }
   function drawSheet(body) {
-    const { sheet, worn } = handlers.onSheet?.() ?? { sheet: { entries: [] }, worn: {} };
+    const { sheet, worn, slots = null } = handlers.onSheet?.() ?? { sheet: { entries: [] }, worn: {} };
     const change = (next) => {
       handlers.onSheetChange?.(next);
       void drawInventory();
@@ -2987,7 +2987,26 @@ export function createHud(root, handlers) {
       const entries = sheet.entries.filter((entry) => entry.kind === kind && entry.on);
       if (!entries.length) continue;
       body.append(piece("font-weight:700;margin-top:4px;", kindWords(kind)));
-      for (const entry of entries) body.append(...sheetRow(entry));
+      for (const entry of entries) {
+        // Where spells are cast with spell slots, they stand in mana's place.
+        if (slots && entry.id === "mana") {
+          const row = piece("display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
+          row.title =
+            "Spells are cast with spell slots in fights by turns, so slots are shown in place of mana. A sleep gives them back.";
+          row.append(
+            piece("flex:1;min-width:0;", "Spell slots"),
+            ...slots.map((slot) =>
+              piece(
+                `padding:1px 6px;border-radius:6px;border:1px solid ${INK_SOFT};font-size:12px;`,
+                `Level ${slot.level}: ${slot.left} of ${slot.have}`,
+              ),
+            ),
+          );
+          body.append(row);
+          continue;
+        }
+        body.append(...sheetRow(entry));
+      }
     }
     // Add your own.
     body.append(piece("font-weight:700;margin-top:6px;", "Add your own"));
@@ -4367,15 +4386,15 @@ export function createHud(root, handlers) {
      * window (casting one makes it the ready one), and the touch screen's Cast button names the ready one.
      */
     setSpells(spells, readyId) {
-      const key = `${spells.map((spell) => `${spell.id}:${spell.name}:${spell.cost}`).join("|")}>${readyId}`;
+      const key = `${spells.map((spell) => `${spell.id}:${spell.name}:${spell.cost}:${spell.slotted ? spell.slot : ""}`).join("|")}>${readyId}`;
       if (key === spellsKey) return;
       spellsKey = key;
       spellsShown = spells;
       spellRow.replaceChildren(
         ...spells.map((spell) => {
           const control = button(
-            `${spell.name}${spell.cost ? ` (${spell.cost})` : ""}`,
-            `Cast ${spell.name}${spell.cost ? `: ${spell.cost} mana` : ""}${spell.id === readyId ? " (the ready one)" : ""}`,
+            `${spell.name}${spell.slotted ? (spell.slot ? ` (L${spell.slot})` : "") : spell.cost ? ` (${spell.cost})` : ""}`,
+            `Cast ${spell.name}${spell.slotted ? (spell.slot ? `: a level ${spell.slot} spell slot` : "") : spell.cost ? `: ${spell.cost} mana` : ""}${spell.id === readyId ? " (the ready one)" : ""}`,
             () => handlers.onCast?.(spell.id),
           );
           control.style.cssText += `padding:4px 10px;font-size:12px;${spell.id === readyId ? "outline:1px solid #c9a15a;" : ""}`;

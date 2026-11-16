@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.6.97",
+          "date": "2026-11-15",
+          "notes": "- Spells leave more than damage, as the 5e SRD has them. Thunderwave shoves back whatever fails its save. Fireball and other area spells catch everything near the target. Ray of Frost slows, Sleep and Grease drop a creature where it stands, Blindness and Vicious Mockery spoil its attacks, Guiding Bolt and Faerie Fire make your blows on it surer, Charm Person and Calm Emotions stop it fighting until it's hurt, and Vampiric Touch gives you back half of what it deals.\n- 53 SRD spells can be added, up from 40. A spell already on your sheet keeps its old rule; add it again for the new one.\n- Your own spells can use the same words (\"Pushed 3 m\", \"Area 6\", \"Slowed 6 seconds\").\n- With \"Fights by turns use spell slots\" on, your sheet and the spell buttons show spell slots where mana was.",
+          "highlight": false
+        },
+        {
           "version": "0.6.96",
           "date": "2026-11-15",
           "notes": "- Creatures fight with the 5e SRD's numbers: HP, AC, what they add to an attack, their damage, and their initiative in fights by turns. A wolf is the SRD's wolf, a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage.\n- Cattle, the alpaca and the shiba have nothing close in the SRD and keep the game's own numbers. People fight by their class. Experience for a win is unchanged.\n- \"Creatures use the 5e SRD's numbers\" (Settings → Inventory → Combat) is on to begin with; off brings back the game's own numbers.",
@@ -307,12 +313,6 @@
           "version": "0.6.78",
           "date": "2026-11-15",
           "notes": "- Combat, the first part: fighting in real time. Off to begin with: Settings → Inventory → Combat.\n- Near a hostile creature a prompt says Attack (press E, or tap it). Each swing is a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. A 20 on the die is a critical hit.\n- A weapon is any item whose description gives its damage (\"Weapon: 1d8 damage, +1 to attack\"). Without one you use your fists.\n- A creature you strike fights back, its attacks rolled against your AC. One badly hurt may run. Beating one earns experience.\n- At 0 HP you go down, then come to where you fell with 1 HP or wake at home with half (a setting).\n- No AI call is made in a fight. The chat tells every roll.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.77",
-          "date": "2026-11-15",
-          "notes": "- The six costumes are gone: the Look card no longer has \"Dressed as\" (king, farmer, the two adventurers, witch, hooded rogue). They were blockier than everything else in the world. Anyone you had dressed in one is back in their own clothes, with their outfit, pieces and hairstyle as they were before.\n- The package is about 2.5 MB smaller.",
           "highlight": false
         }
       ]

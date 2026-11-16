@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.6.97 — 2026-11-15
+
+- Spells leave more than damage, as the 5e SRD has them. Thunderwave shoves back whatever fails its save. Fireball and other area spells catch everything near the target. Ray of Frost slows, Sleep and Grease drop a creature where it stands, Blindness and Vicious Mockery spoil its attacks, Guiding Bolt and Faerie Fire make your blows on it surer, Charm Person and Calm Emotions stop it fighting until it's hurt, and Vampiric Touch gives you back half of what it deals.
+- 53 SRD spells can be added, up from 40. A spell already on your sheet keeps its old rule; add it again for the new one.
+- Your own spells can use the same words ("Pushed 3 m", "Area 6", "Slowed 6 seconds").
+- With "Fights by turns use spell slots" on, your sheet and the spell buttons show spell slots where mana was.
+
 ## 0.6.96 — 2026-11-15
 
 - Creatures fight with the 5e SRD's numbers: HP, AC, what they add to an attack, their damage, and their initiative in fights by turns. A wolf is the SRD's wolf, a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage.

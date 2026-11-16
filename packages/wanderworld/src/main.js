@@ -171,6 +171,7 @@ import {
   initiativeOrder,
   personWords,
   playerStrike,
+  rolledTwice,
   slotFor,
   slotsAt,
   spellAtPlayer,
@@ -3121,7 +3122,14 @@ function stepPlaces(dt) {
     {
       const spells = fighting() ? spellsNow() : [];
       core.hud?.setSpells(
-        spells.map((entry) => ({ id: entry.id, name: entry.name, cost: entry.spell.cost })),
+        spells.map((entry) => ({
+          id: entry.id,
+          name: entry.name,
+          cost: entry.spell.cost,
+          // (Where spells take spell slots, the slot's level stands where the mana would.)
+          slot: slotsShown() && entry.spell.level > 0 ? entry.spell.level : 0,
+          slotted: !!slotsShown() && entry.spell.level >= 0,
+        })),
         readySpell(spells)?.id ?? "",
       );
     }
@@ -8210,7 +8218,14 @@ function cast(id = null) {
       then: () => {
         if (core.save?.id !== saveId) return;
         if (foe.person) return void spellOnPerson(foe, name, spell, wit);
-        spellOnFoe(foe, who, name, spell, wit);
+        const dealt = spellLands(foe, who, name, spell, wit, { x: at.x, z: at.z });
+        // (One that drains: half of what it dealt comes back to the caster.)
+        if (spell.drain && dealt > 1) {
+          setSheet(applyChanges(sheetNow(), [{ stat: "hp", by: Math.floor(dealt / 2) }]).sheet);
+          const hp = entryOf(sheetNow(), "hp");
+          narrate(null, `${who} is mended by it: +${Math.floor(dealt / 2)} HP (${hp?.value ?? 0} of ${hp?.max ?? 0}).`);
+          core.hud?.refreshInventory?.();
+        }
       },
     });
   });
@@ -8220,29 +8235,78 @@ function cast(id = null) {
  * A spell cast by `who` lands on a creature: its saving throw or the spell attack (`wit`: the caster's
  * modifier), its HP, what it does about it, an effect that holds it or sends it running, and all of it told.
  */
-function spellOnFoe(foe, who, name, spell, wit) {
+/** What a spell has left on a creature for a while: { hinder, mark } (each the clock time it wears off), by its id. */
+function foeFx(id) {
+  core.foeFx ??= new Map();
+  if (!core.foeFx.has(id)) core.foeFx.set(id, {});
+  return core.foeFx.get(id);
+}
+/** Whether a creature is hindered (its attacks rolled twice, the worse counting) or marked (attacks on it, the better). */
+const hindered = (id) => (core.foeFx?.get(id)?.hinder ?? 0) > core.clock;
+const marked = (id) => (core.foeFx?.get(id)?.mark ?? 0) > core.clock;
+
+/**
+ * A spell lands on a creature, and on every other within its area of that one (each rolls for itself).
+ * `from`: where it was cast from ({ x, z }; what it pushes, it pushes away from there). Returns the damage dealt in all.
+ */
+function spellLands(foe, who, name, spell, wit, from) {
+  let dealt = spellOnFoe(foe, who, name, spell, wit, from);
+  if (spell.area > 0) {
+    spellFx().burst(core.space.scene, chest(foe.x, foe.z, 0.5), colourOf(spell), 1 + spell.area * 0.4);
+    for (const other of core.herd.foes({ x: foe.x, z: foe.z }, spell.area + foe.room))
+      if (other.id !== foe.id) dealt += spellOnFoe(other, who, name, spell, wit, from);
+  }
+  return dealt;
+}
+
+function spellOnFoe(foe, who, name, spell, wit, from = null) {
   const stats = foeOf(foe.kind, foeTable(), foe.scale);
   const result = spellStrike({ wit, spell, foe: stats });
   const now = core.herd.foes({ x: foe.x, z: foe.z }, 40).find((entry) => entry.id === foe.id) ?? foe;
   const after = Math.max(0, (now.hp ?? stats.hp) - result.damage);
-  const flees = result.effect?.kind === "flee";
-  const nerve = !foe.hostile || flees ? "flee" : result.damage > 0 ? foeNerve(after, stats.hp) : "fight";
+  const kind = result.effect?.kind;
+  const nerve = !foe.hostile || kind === "flee" ? "flee" : result.damage > 0 ? foeNerve(after, stats.hp) : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
-  if (!struck) return;
-  if (result.effect?.kind === "hold" && !struck.down) {
-    core.herd.stun(foe.id, result.effect.seconds);
-    spellFx().ring(core.space.scene, chest(now.x, now.z, 0.15), colourOf(spell), result.effect.seconds, 0.8 + foe.room);
+  if (!struck) return 0;
+  if (!struck.down) {
+    const seconds = result.effect?.seconds ?? 0;
+    if (result.push > 0 && from) core.herd.push(foe.id, from.x, from.z, result.push);
+    if (kind === "hold") core.herd.stun(foe.id, seconds);
+    if (kind === "slow") core.herd.slow(foe.id, seconds);
+    if (kind === "calm") core.herd.soothe(foe.id, seconds);
+    if (kind === "hinder") foeFx(foe.id).hinder = core.clock + seconds;
+    if (kind === "mark") foeFx(foe.id).mark = core.clock + seconds;
+    // (A ring round it for as long as it lasts, where it stands now.)
+    if (kind && kind !== "flee") {
+      const at = core.herd.foes({ x: now.x, z: now.z }, 12).find((entry) => entry.id === foe.id) ?? now;
+      spellFx().ring(core.space.scene, chest(at.x, at.z, 0.15), colourOf(spell), seconds, 0.8 + foe.room);
+    }
   }
   const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
   const told = spellWords({ who, name, what, spell, result, left: struck.hp, max: struck.max });
   narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
   if (struck.down) foeBeaten(foe, stats);
+  return result.damage;
 }
 
 // ── Fights by turns ──
 
 /** The spell slots the player has (the SRD's, for a full caster of their level). */
 const slotsNow = () => slotsAt(valueOf(sheetNow(), "level"), SRD_SLOTS);
+/**
+ * The spell slots to show in place of mana: [{ level, left, have }] where spells are cast with them (combat
+ * by turns, with "Fights by turns use spell slots" on), else null.
+ */
+function slotsShown() {
+  if (!core.save || fightMode() !== "turns" || !core.settings.srdSlots) return null;
+  return Object.entries(slotsNow())
+    .filter(([, have]) => have > 0)
+    .map(([level, have]) => ({
+      level: Number(level),
+      have,
+      left: Math.max(0, have - (core.save.slotsUsed?.[level] ?? 0)),
+    }));
+}
 /** Whether it's the player's turn in the fight going on. */
 const battleMine = () => !!core.battle && core.battle.order[core.battle.at]?.kind === "player";
 
@@ -8666,10 +8730,8 @@ function allyAttacked(event, what) {
   const name = nameFor(person.id, person.name);
   const stats = foeOf(event.kind, foeTable(), event.scale);
   const ac = foeTable().ally.ac;
-  const result = {
-    ...attackRoll({ bonus: stats.attack, ac, damage: stats.damage, damageBonus: stats.damageBonus ?? 0 }),
-    ac,
-  };
+  const roll = () => attackRoll({ bonus: stats.attack, ac, damage: stats.damage, damageBonus: stats.damageBonus ?? 0 });
+  const result = { ...(hindered(event.id) ? rolledTwice(roll, false) : roll()), ac, hindered: hindered(event.id) };
   const health = allyHp(person.id);
   if (result.hit) {
     health.hp = Math.max(0, health.hp - result.damage);
@@ -8750,7 +8812,7 @@ function allyActs(person, foes, hurt) {
     const saveId = core.save?.id;
     spellFx().bolt(scene, chest(from.x, from.z), chest(foe.x, foe.z, 0.7), colourOf(chosen.spell), {
       then: () => {
-        if (core.save?.id === saveId) spellOnFoe(foe, name, chosen.name, chosen.spell, ALLY_WIT);
+        if (core.save?.id === saveId) spellLands(foe, name, chosen.name, chosen.spell, ALLY_WIT, from);
       },
     });
     return true;
@@ -8792,6 +8854,11 @@ function spellOnPerson(target, name, spell, wit) {
   if (result.effect?.kind === "hold" && left > 0) {
     core.crowd.knockOut(target.id, result.effect.seconds);
     spellFx().ring(core.space.scene, chest(target.x, target.z, 0.15), colourOf(spell), result.effect.seconds, 1);
+  }
+  // (Charmed or calmed, they leave off fighting and take it as no attack at all.)
+  if (result.effect?.kind === "calm") {
+    if (core.angry?.delete(target.id)) narrate(null, `${target.name} lets it go.`);
+    return;
   }
   personAttacked(target, `cast ${name} at me`, `cast ${name} at ${target.name}`, result.damage > 0, left);
 }
@@ -8999,7 +9066,8 @@ function playerStruck(result, from) {
 function landOn(foe, weapon) {
   const sheet = sheetNow();
   const stats = foeOf(foe.kind, foeTable(), foe.scale);
-  const result = playerStrike({ sheet, worn: wornBonuses(sheet, core.items ?? []), weapon, foe: stats });
+  const swung = () => playerStrike({ sheet, worn: wornBonuses(sheet, core.items ?? []), weapon, foe: stats });
+  const result = marked(foe.id) ? rolledTwice(swung, true) : swung(); // (marked by a spell: the better of two)
   const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
   const nerve = !foe.hostile ? "flee" : result.hit ? foeNerve(after, stats.hp) : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
@@ -9225,6 +9293,7 @@ function foeAttacks(event, what) {
     sheet,
     worn,
     guarded: core.clock < (core.blockUntil ?? 0) || !!core.battle?.dodging,
+    hindered: hindered(event.id),
   });
   const hp = playerStruck(result, event);
   narrate(null, foeWords({ who, what, verb: stats.verb, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
@@ -10571,7 +10640,7 @@ function attach(element) {
     // The Inventory window: the sheet, and Quartermaster's items with something to do with each.
     onSheet: () => {
       const sheet = sheetNow();
-      return { sheet, worn: wornBonuses(sheet, core.items ?? []) };
+      return { sheet, worn: wornBonuses(sheet, core.items ?? []), slots: slotsShown() };
     },
     onSheetChange: (change) => setSheet(changeSheet(sheetNow(), change)),
     onItems: async () => {

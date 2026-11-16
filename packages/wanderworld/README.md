@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.6.96)
+## What it does now (0.6.97)
 
 ### The world
 
@@ -575,6 +575,13 @@ every roll, and no AI call is made in a real-time fight.
   companions), which gives them a weapon and spells. They strike what comes within reach, cast at
   what doesn't, and a healer mends you below half your HP. They move with the fight, creatures
   go for them as well as for you, and one at 0 HP is out of the fight for a while.
+- **What spells leave**: a spell's rule says what it does besides damage, taken from the SRD:
+  held (paralyzed, restrained, incapacitated, asleep, prone), frightened, slowed, blinded or
+  hindered (its attacks rolled twice, the worse counting), marked (your blows on it rolled twice,
+  the better counting), charmed or calmed (it stops fighting until hurt), pushed back (Thunderwave),
+  an area that catches everything near the target (Fireball), and healing the caster for half
+  (Vampiric Touch). 53 SRD spells of level 0 to 3 can be added. With spell slots on, the sheet and
+  the spell buttons show slots where mana was.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.
