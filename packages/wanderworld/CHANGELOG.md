@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.6.87 — 2026-11-15
+
+- Your companions fight beside you in real-time combat. Each has a class from the 5e SRD, which gives them a weapon and spells: they strike what comes within reach, cast at what doesn't, and a healer mends you when you're below half your HP.
+- Inventory → Sheet → Your companions sets each one's class. Until you choose, each has one of their own.
+- Their rolls are told in the chat like yours. Nothing attacks them yet, and they have no HP of their own.
+- Settings → Inventory → Combat → "Your companions fight beside you" turns it off.
+
 ## 0.6.86 — 2026-11-15
 
 - Spells come from the 5e SRD and from you, and nowhere else. Inventory → Sheet lists 40 SRD spells of level 0 to 3 to add from. The five spells made up for 0.6.85 are gone from the game; any on your sheet stay as your own.

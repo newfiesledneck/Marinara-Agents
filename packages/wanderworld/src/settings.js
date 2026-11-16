@@ -168,6 +168,8 @@ export const SETTINGS = {
   restRestores: { value: true },
   // Whether a blow can land on a person (the townsfolk, your companions, anyone with a name).
   fightPeople: { value: false },
+  // Whether the party joins a real-time fight (each by their class: main.js alliesTick).
+  partyFights: { value: true },
   // How many minutes something beaten lies where it fell (0: until it's harvested or cleared).
   bodyMinutes: { value: 3, min: 0, max: 120 },
   /** How many of the world's days a felled tree takes to stand again (0: it never does). */

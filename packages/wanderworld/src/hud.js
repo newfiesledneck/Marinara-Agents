@@ -857,6 +857,8 @@ export function createHud(root, handlers) {
       "How long something you've beaten lies where it fell before it goes. 0 keeps it until you harvest it or clear it with the button below. While it lies there you can harvest an animal (hide, meat and the like go into your inventory, and the body goes) or search an outlaw (what they carried; the body stays).",
     defeat:
       "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and what beat you has drawn off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Stay down until you choose: you lie where you fell while the chat and the narration go on, and a Respawn button at the top gets you up at home whenever you like. Nothing is lost either way, and nobody dies for good.",
+    partyFights:
+      "On: in real-time combat the people travelling with you join in. Each has a class from the 5e SRD (Inventory → Sheet → Your companions), which gives them a weapon and spells: they strike what comes within reach, cast at what doesn't, and one who can heal mends you when you're below half your HP. Their rolls are told in the chat like yours. Nothing attacks them, and they have no HP of their own yet. Off: they stand by.",
     fightPeople:
       "Off: a swing passes people by, and only animals, monsters and outlaws can be struck. On: a blow can land on anyone in front of you, your companions too. It's rolled like any other. Whoever you strike remembers it for good and becomes your enemy, anyone who sees it remembers, and at 0 HP they are out cold for a couple of minutes, then get up. Nobody dies. People don't strike back yet.",
     restRestores:
@@ -1270,6 +1272,7 @@ export function createHud(root, handlers) {
   toggle("undefeatable", "Undefeatable", "sheet");
   toggle("restRestores", "Resting restores HP and mana", "sheet");
   toggle("fightPeople", "Blows can land on people", "sheet");
+  toggle("partyFights", "Your companions fight beside you", "sheet");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
   number("beatenDays", "Days before the beaten are about again", "sheet");
   {
@@ -2870,6 +2873,32 @@ export function createHud(root, handlers) {
       ),
       spellForm,
     );
+    // The party, each with a class: what they fight with and what they cast.
+    const companions = handlers.companions?.() ?? [];
+    if (companions.length) {
+      body.append(
+        piece("font-weight:700;margin-top:6px;", "Your companions"),
+        debugNote(
+          "Each companion has a class from the 5e SRD, which gives them a weapon and spells. In real-time combat they fight beside you: they strike what's in reach, cast at what isn't, and a healer mends you when you're badly hurt. Choose a class here; until you do, each has one of their own.",
+        ),
+      );
+      for (const member of companions) {
+        const row = piece("display:flex;align-items:center;gap:6px;");
+        const choose = document.createElement("select");
+        choose.style.cssText = `${INK_INPUT}padding:2px 4px;`;
+        choose.setAttribute("aria-label", `${member.name}'s class`);
+        for (const option of handlers.classList?.() ?? []) {
+          const node = document.createElement("option");
+          node.value = option.id;
+          node.textContent = option.label;
+          node.selected = option.id === member.classId;
+          choose.append(node);
+        }
+        choose.addEventListener("change", () => handlers.onSetClass?.(member.id, choose.value));
+        row.append(piece("flex:1;min-width:0;", member.name), choose);
+        body.append(row);
+      }
+    }
     // What's switched off, folded away at the bottom: tick one to bring it back.
     const unused = sheet.entries.filter((entry) => !entry.on);
     if (unused.length) {
