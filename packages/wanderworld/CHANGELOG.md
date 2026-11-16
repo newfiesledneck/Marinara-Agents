@@ -1,5 +1,15 @@
 # Wanderworld release notes
 
+## 0.6.86 — 2026-11-15
+
+- Spells come from the 5e SRD and from you, and nowhere else. Inventory → Sheet lists 40 SRD spells of level 0 to 3 to add from. The five spells made up for 0.6.85 are gone from the game; any on your sheet stay as your own.
+- Cantrips cost no mana. A spell costs one more than its level.
+- Spells have ranges, some need no roll, and healing rolls dice.
+- A spell can be cast at a person, where blows can land on people.
+- Sitting or lying down slowly restores mana and HP; a sleep restores both fully (Settings → Inventory → Sheet).
+- Spells look like something: a bolt with a trail, a burst where it lands, a ring round what's held, motes for mending.
+- Credits name the SRD 5.1 (CC BY 4.0).
+
 ## 0.6.85 — 2026-11-15
 
 - Casting. A spell is a line of your sheet whose description is its rule, written like an item's: "2 mana. 1d10 fire damage." or "3 mana. 2d6 cold damage. Dexterity save for half." or "Wisdom save or stunned 6 seconds." or "+8 HP."

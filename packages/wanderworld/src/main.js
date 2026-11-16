@@ -24,7 +24,6 @@ import {
   Vector3,
   WebGLRenderer,
   Sphere,
-  SphereGeometry,
 } from "three";
 import {
   blobShadow,
@@ -160,19 +159,24 @@ import {
 } from "./vendor.js";
 import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolBonus, toolFor, TOOLS } from "./craft.js";
 import {
-  spellIn,
-  spellStrike,
-  spellWords,
   foeNerve,
   foeOf,
   foeStrike,
   foeWords,
   playerStrike,
+  spellCost,
+  spellIn,
+  spellRule,
+  spellStrike,
+  spellWords,
   spoilsOf,
   spoilsWords,
   strikeWords,
   weaponOf,
+  witOf,
 } from "./combat.js";
+import { createSpellFx, spellColour } from "./spellfx.js";
+import { SRD_SPELLS } from "./srd.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
   applyChanges,
@@ -1788,6 +1792,11 @@ function sleepIn(camp, length) {
         null,
         fixed ? "(You rest. Time is standing still: Settings → World.)" : pickLine(PACK.sleep, `${core.clock}`, words),
       );
+      // (A sleep restores HP and mana in full, where resting restores at all.)
+      if (core.settings.sheet && core.settings.restRestores) {
+        setSheet(toppedUp(sheetNow()));
+        core.hud?.refreshInventory?.();
+      }
       later(0.6, () => core.hud?.setFade(false));
     });
   });
@@ -8035,8 +8044,7 @@ function foeBeaten(foe, stats) {
 
 // ── Spells ──
 
-/** How far a spell reaches (metres), and how wide of straight ahead it can be cast (radians). */
-const SPELL_REACH = 14;
+/** How wide of straight ahead a spell can be cast (radians). */
 const SPELL_ARC = 0.6;
 
 /** The spells on the sheet that do something by rule: [{ id, name, spell }] (combat.js spellIn). */
@@ -8049,10 +8057,19 @@ function spellsNow() {
 /** The spell that Z and the Cast button cast: the last one cast, else the first. */
 const readySpell = (spells) => spells.find((entry) => entry.id === core.readySpell) ?? spells[0] ?? null;
 
+/** The colour a spell is seen in: its kind of damage's, or mending's, or its effect's. */
+const colourOf = (spell) =>
+  spellColour(spell.damage ? spell.type : spell.heal ? "heal" : spell.effect?.kind === "flee" ? "fear" : "hold");
+/** The world's spell effects (spellfx.js), made when first needed. */
+const spellFx = () => (core.spellFx ??= createSpellFx());
+/** Chest height at (x, z), for where a bolt leaves and lands. */
+const chest = (x, z, up = 1.2) => ({ x, y: (core.interior ? core.player.position.y : heightAt(x, z)) + up, z });
+
 /**
  * Casts a spell (Z, the Cast button, or a spell's own button in the chat window): the one given, else the
- * one that's ready. It costs its mana whatever comes of it. One that heals mends the caster; the rest fly
- * at the nearest creature ahead and in reach, which takes a spell attack or makes its saving throw.
+ * one that's ready. It costs its mana whatever comes of it (a cantrip costs none). One that heals mends the
+ * caster; the rest fly at the nearest creature (or person, where blows can land on people) ahead and in
+ * the spell's range, which takes a spell attack or makes its saving throw as the bolt lands.
  */
 function cast(id = null) {
   if (!fighting() || core.downed || core.carrying || core.mode !== "walk" || core.clock < (core.castUntil ?? 0)) return;
@@ -8060,80 +8077,112 @@ function cast(id = null) {
   const chosen = (id && spells.find((entry) => entry.id === id)) || readySpell(spells);
   if (!chosen)
     return void core.hud?.setNotice(
-      'You have no spell to cast. Inventory → Sheet → "Add this setting\'s spells" gives you some, or add your own.',
+      "You have no spell to cast. Inventory → Sheet has a list of the 5e SRD's to add from, and you can write your own.",
     );
   core.readySpell = chosen.id;
   const { spell, name } = chosen;
-  let sheet = sheetNow();
+  const sheet = sheetNow();
   if (valueOf(sheet, "mana") < spell.cost)
-    return void core.hud?.setNotice(`Not enough mana for ${name} (${spell.cost}).`);
-  if (spell.cost > 0) {
-    sheet = applyChanges(sheet, [{ stat: "mana", by: -spell.cost }]).sheet;
-    setSheet(sheet);
-  }
+    return void core.hud?.setNotice(`Not enough mana for ${name} (${spell.cost}). Sitting down brings it back.`);
+  if (spell.cost > 0) setSheet(applyChanges(sheet, [{ stat: "mana", by: -spell.cost }]).sheet);
   core.gesture = "cast";
   core.castUntil = core.clock + 1.1;
   const who = personaName();
   const saveId = core.save?.id;
+  const colour = colourOf(spell);
   later(0.25, () => {
     if (core.save?.id !== saveId || core.downed) return;
     const at = core.player.position;
-    if (spell.heal > 0 && !spell.damage) {
-      const mended = applyChanges(sheetNow(), [{ stat: "hp", by: spell.heal }]).sheet;
-      setSheet(mended);
+    const scene = core.space.scene;
+    const now = sheetNow();
+    const wit = witOf(now, wornBonuses(now, core.items ?? []));
+    core.hud?.refreshInventory?.();
+    if (spell.heal && !spell.damage) {
+      const mended = Math.max(1, rollDice(spell.heal).total + Math.max(0, wit));
+      setSheet(applyChanges(now, [{ stat: "hp", by: mended }]).sheet);
       const hp = entryOf(sheetNow(), "hp");
-      narrate(null, `${who} casts ${name}: ${hp?.value ?? 0} of ${hp?.max ?? 0} HP.`);
+      spellFx().motes(scene, chest(at.x, at.z, 0), colour);
+      narrate(null, `${who} casts ${name}: +${mended} HP (${hp?.value ?? 0} of ${hp?.max ?? 0}).`);
       return void core.hud?.refreshInventory?.();
     }
-    const foe = blowTarget(SPELL_REACH, SPELL_ARC, false);
+    const foe = blowTarget(spell.range, SPELL_ARC, true);
     const facing = core.player.rotation.y;
-    const to = foe ?? { x: at.x + Math.sin(facing) * SPELL_REACH, z: at.z + Math.cos(facing) * SPELL_REACH };
-    bolt(
-      at,
-      to,
-      /cold|frost|ice/iu.test(`${name} ${spell.damage ?? ""}`) ? 0x9fd8ff : spell.damage ? 0xffa531 : 0xc9a0ff,
-    );
-    core.hud?.refreshInventory?.();
-    if (!foe) return void narrate(null, `${who} casts ${name}, at nothing.`);
-    const stats = foeOf(foe.kind, PACK.foes, foe.scale);
-    const result = spellStrike({
-      sheet: sheetNow(),
-      worn: wornBonuses(sheetNow(), core.items ?? []),
-      spell,
-      foe: stats,
+    const from = chest(at.x + Math.sin(facing) * 0.5, at.z + Math.cos(facing) * 0.5);
+    const big = 1 + Math.min(1.5, spell.cost * 0.25); // (a greater spell is a greater light)
+    if (!foe) {
+      const far = Math.min(spell.range, 12);
+      const to = chest(at.x + Math.sin(facing) * far, at.z + Math.cos(facing) * far);
+      spellFx().bolt(scene, from, to, colour, { size: big });
+      return void narrate(null, `${who} casts ${name}, at nothing.`);
+    }
+    const to = chest(foe.x, foe.z, foe.person ? 1.2 : 0.7);
+    // What it does is worked out as the bolt lands.
+    spellFx().bolt(scene, from, to, colour, {
+      size: big,
+      then: () => {
+        if (core.save?.id !== saveId) return;
+        if (foe.person) return void spellOnPerson(foe, name, spell, wit);
+        const stats = foeOf(foe.kind, PACK.foes, foe.scale);
+        const result = spellStrike({ wit, spell, foe: stats });
+        const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
+        const flees = result.effect?.kind === "flee";
+        const nerve = !foe.hostile || flees ? "flee" : result.damage > 0 ? foeNerve(after, stats.hp) : "fight";
+        const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
+        if (!struck) return;
+        if (result.effect?.kind === "hold" && !struck.down) {
+          core.herd.stun(foe.id, result.effect.seconds);
+          spellFx().ring(scene, chest(foe.x, foe.z, 0.15), colour, result.effect.seconds, 0.8 + foe.room);
+        }
+        const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+        const told = spellWords({ who, name, what, spell, result, left: struck.hp, max: struck.max });
+        narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
+        if (struck.down) foeBeaten(foe, stats);
+      },
     });
-    const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
-    const frightened = result.effect?.name === "frightened";
-    const nerve = !foe.hostile || frightened ? "flee" : result.damage > 0 ? foeNerve(after, stats.hp) : "fight";
-    const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
-    if (!struck) return;
-    if (result.effect?.name === "stunned" && !struck.down) core.herd.stun(foe.id, result.effect.seconds);
-    const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
-    const told = spellWords({ who, name, what, spell, result, left: struck.hp, max: struck.max });
-    narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
-    if (struck.down) foeBeaten(foe, stats);
   });
 }
 
-/** A spell's bolt, seen: a small light from the caster to where it lands. */
-function bolt(from, to, colour) {
-  const mesh = new Mesh(new SphereGeometry(0.16, 10, 8), new MeshBasicMaterial({ color: colour }));
-  const y = core.player.position.y + 1.25;
-  mesh.position.set(from.x, y, from.z);
-  core.space.scene.add(mesh);
-  (core.bolts ??= []).push({ mesh, fromX: from.x, fromZ: from.z, toX: to.x, toZ: to.z, y, t: 0 });
+/** A spell lands on a person: their saving throw or the spell attack, and what comes of attacking someone. */
+function spellOnPerson(target, name, spell, wit) {
+  const stats = foeOf("person", PACK.foes);
+  const result = spellStrike({ wit, spell, foe: stats });
+  const left = personHurt(target, result.damage, stats);
+  narrate(
+    null,
+    spellWords({ who: personaName(), name, what: target.name, spell, result, left, max: stats.hp, named: true }),
+  );
+  // (Held by it, they drop where they stand for as long as it lasts.)
+  if (result.effect?.kind === "hold" && left > 0) {
+    core.crowd.knockOut(target.id, result.effect.seconds);
+    spellFx().ring(core.space.scene, chest(target.x, target.z, 0.15), colourOf(spell), result.effect.seconds, 1);
+  }
+  personAttacked(target, `cast ${name} at me`, `cast ${name} at ${target.name}`, result.damage > 0, left);
 }
-function boltTick(dt) {
-  if (!core.bolts?.length) return;
-  core.bolts = core.bolts.filter((one) => {
-    one.t += dt / 0.22;
-    one.mesh.position.set(one.fromX + (one.toX - one.fromX) * one.t, one.y, one.fromZ + (one.toZ - one.fromZ) * one.t);
-    if (one.t < 1) return true;
-    one.mesh.removeFromParent();
-    one.mesh.geometry.dispose();
-    one.mesh.material.dispose();
-    return false;
-  });
+
+/**
+ * Resting (Settings → Inventory → Sheet): sitting or lying down, on the ground or on anything, a point of
+ * mana comes back every few seconds and a point of HP a little slower, until both are full.
+ */
+function restTick(dt) {
+  if (!core.save || !core.settings.sheet || !core.settings.restRestores || core.mode !== "sit" || core.downed)
+    return void (core.rested = 0);
+  const before = core.rested ?? 0;
+  core.rested = before + dt;
+  const mana = Math.floor(core.rested / 4) - Math.floor(before / 4);
+  const hp = Math.floor(core.rested / 6) - Math.floor(before / 6);
+  if (!mana && !hp) return;
+  const sheet = sheetNow();
+  const short = (id) => {
+    const entry = entryOf(sheet, id);
+    return entry?.on !== false && "max" in (entry ?? {}) && entry.value < entry.max;
+  };
+  const changes = [
+    ...(mana && short("mana") ? [{ stat: "mana", by: mana }] : []),
+    ...(hp && short("hp") ? [{ stat: "hp", by: hp }] : []),
+  ];
+  if (!changes.length) return;
+  setSheet(applyChanges(sheet, changes).sheet);
+  core.hud?.refreshInventory?.();
 }
 
 /** How long someone knocked out lies there (seconds). */
@@ -8148,22 +8197,39 @@ function landOnPerson(target, weapon) {
   const sheet = sheetNow();
   const stats = foeOf("person", PACK.foes);
   const result = playerStrike({ sheet, worn: wornBonuses(sheet, core.items ?? []), weapon, foe: stats });
-  core.peopleHp ??= new Map();
-  const left = Math.max(0, (core.peopleHp.get(target.id) ?? stats.hp) - result.damage);
-  core.peopleHp.set(target.id, left > 0 ? left : Math.ceil(stats.hp / 2)); // (they come round with half)
-  const who = personaName();
-  narrate(null, strikeWords({ who, what: target.name, weapon, result, left, max: stats.hp, named: true }));
-  // What comes of it, hit or miss: an attack is an attack.
+  const left = personHurt(target, result.damage, stats);
+  narrate(
+    null,
+    strikeWords({ who: personaName(), what: target.name, weapon, result, left, max: stats.hp, named: true }),
+  );
   const with_ = weapon.name ? ` with ${/^[aeiou]/iu.test(weapon.name) ? "an" : "a"} ${weapon.name.toLowerCase()}` : "";
-  recall([target.id], `${who} attacked me${with_}${result.hit ? " and hurt me" : ""}`, false, "saw", true);
+  personAttacked(target, `attacked me${with_}`, `attacked ${target.name}${with_}`, result.hit, left);
+}
+
+/** `target` (a person) takes `damage`: what HP they have left (kept for the session; they come round with half). */
+function personHurt(target, damage, stats) {
+  core.peopleHp ??= new Map();
+  const left = Math.max(0, (core.peopleHp.get(target.id) ?? stats.hp) - damage);
+  core.peopleHp.set(target.id, left > 0 ? left : Math.ceil(stats.hp / 2));
+  return left;
+}
+
+/**
+ * What comes of attacking someone, hit or miss (an attack is an attack): they remember it for good
+ * (`mine`: "attacked me with an axe"), whoever saw remembers (`seen`: "attacked Mira with an axe"), they
+ * are the player's enemy from then on unless how they see the player is locked, and at 0 HP they're out cold.
+ */
+function personAttacked(target, mine, seen, hurt, left) {
+  const who = personaName();
+  recall([target.id], `${who} ${mine}${hurt ? " and hurt me" : ""}`, false, "saw", true);
   recall(
     inSight().filter((id) => id !== target.id),
-    `${who} attacked ${target.name}${with_}`,
+    `${who} ${seen}`,
     false,
     "saw",
   );
   if (!core.relations.get(target.id, PLAYER_ID)?.locked)
-    setRelation(target.id, PLAYER_ID, { kind: "enemy", level: result.hit ? 85 : 60, role: "" });
+    setRelation(target.id, PLAYER_ID, { kind: "enemy", level: hurt ? 85 : 60, role: "" });
   if (left <= 0 && core.crowd.knockOut(target.id, OUT_SECONDS))
     narrate(null, `${target.name} lies where they fell, out cold.`);
 }
@@ -9414,7 +9480,8 @@ function step(dt) {
   }
   const speed = movePlayer(dt, read);
   carryTick();
-  boltTick(dt);
+  core.spellFx?.update(dt);
+  restTick(dt);
   core.still = speed < 0.1 ? (core.still ?? 0) + dt : 0; // how long the player has stood still, in seconds
   let lookAt = null;
   if (core.talking) {
@@ -9893,11 +9960,19 @@ function attach(element) {
     onDodge: dodge,
     onDraw: draw,
     onCast: cast,
-    onAddSpells: () => {
-      let sheet = sheetNow();
-      for (const spell of PACK.spells)
-        sheet = changeSheet(sheet, { add: { kind: "spell", name: spell.name, about: spell.about } });
-      setSheet(sheet);
+    // The SRD's spells, for the sheet's picker, and one of them put on the sheet with its rule written out.
+    spellList: () =>
+      SRD_SPELLS.map((spell) => ({
+        name: spell.name,
+        level: spell.level,
+        cost: spellCost(spell.level),
+        classes: spell.classes.join(", "),
+        rule: spellRule(spell),
+      })),
+    onAddSpell: (name) => {
+      const spell = SRD_SPELLS.find((entry) => entry.name === name);
+      if (spell)
+        setSheet(changeSheet(sheetNow(), { add: { kind: "spell", name: spell.name, about: spellRule(spell) } }));
     },
     onRespawn: respawn,
     onClearBodies: () => {

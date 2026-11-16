@@ -185,41 +185,79 @@ assert.equal(
 );
 assert.equal(foeOf("person", PACK.foes).hp, 10);
 
-// Spells: a description is its rule.
+// Spells: a description is its rule; the ones offered are the SRD's.
 {
-  const { spellIn, spellStrike, spellWords } = await import("../packages/wanderworld/src/combat.js");
-  assert.deepEqual(spellIn({ about: "A dart of flame. 2 mana. 1d10 fire damage." }), {
-    cost: 2,
-    damage: "1d10",
-    heal: 0,
-    save: null,
-    effect: null,
-  });
+  const { spellCost, spellIn, spellRule, spellStrike, spellWords, witOf } =
+    await import("../packages/wanderworld/src/combat.js");
+  const { SRD_CLASSES, SRD_CREDIT, SRD_SPELLS } = await import("../packages/wanderworld/src/srd.js");
+  assert.equal(PACK.spells, undefined, "the setting pack has no spells of its own");
+  assert.match(SRD_CREDIT, /System Reference Document 5\.1[\s\S]*CC BY 4\.0/u);
+  assert.equal(Object.keys(SRD_CLASSES).length, 12);
+  assert.deepEqual(SRD_CLASSES.fighter, { name: "Fighter", hitDie: 10, weapon: { name: "Longsword", damage: "1d8" } });
+  const srd = (name) => SRD_SPELLS.find((spell) => spell.name === name);
+  assert.equal(spellRule(srd("Fire Bolt")), "Cantrip. 1d10 fire damage. Range 24.");
+  assert.equal(spellRule(srd("Burning Hands")), "Level 1. 2 mana. 3d6 fire damage. Dexterity save for half. Range 5.");
+  assert.equal(spellRule(srd("Magic Missile")), "Level 1. 2 mana. 1d4+1 force damage. Always hits. Range 24.");
+  assert.equal(spellRule(srd("Hold Person")), "Level 2. 3 mana. Wisdom save or paralyzed 8 seconds. Range 18.");
+  assert.equal(spellRule(srd("Cure Wounds")), "Level 1. 2 mana. +1d8 HP.");
+  assert.deepEqual([spellCost(0), spellCost(1), spellCost(3)], [0, 2, 4]);
+  // Every one of them reads back as what it was written from.
+  for (const spell of SRD_SPELLS) {
+    const read = spellIn({ about: spellRule(spell) });
+    assert.ok(read, `${spell.name} does something by rule`);
+    assert.equal(read.cost, spellCost(spell.level), `${spell.name}'s mana`);
+    assert.equal(read.damage, spell.damage ?? null, `${spell.name}'s damage`);
+    assert.equal(read.heal, spell.heal ?? null, `${spell.name}'s healing`);
+    assert.equal(read.save?.attribute, spell.save?.attribute.toLowerCase(), `${spell.name}'s save`);
+    assert.equal(read.effect?.name, spell.effect, `${spell.name}'s effect`);
+    assert.equal(read.sure, !!spell.sure);
+    if (!spell.heal) assert.equal(read.range, spell.range, `${spell.name}'s range`);
+  }
+  const fire = spellIn({ about: spellRule(srd("Fire Bolt")) });
+  assert.deepEqual([fire.cost, fire.type, fire.range], [0, "fire", 24]);
   const frost = spellIn({ about: "3 mana. 2d6 cold damage. Dexterity save for half." });
-  assert.deepEqual([frost.damage, frost.save], ["2d6", { attribute: "dexterity", onSave: "half" }]);
-  const daze = spellIn({ about: "2 mana. Wisdom save or stunned 6 seconds." });
-  assert.deepEqual([daze.save.onSave, daze.effect], ["none", { name: "stunned", seconds: 6 }]);
-  assert.equal(spellIn({ about: "Knits a wound. 3 mana. +8 HP." }).heal, 8);
+  assert.deepEqual([frost.damage, frost.save, frost.range], ["2d6", { attribute: "dexterity", onSave: "half" }, 14]);
+  const hold = spellIn({ about: spellRule(srd("Hold Person")) });
+  assert.deepEqual(hold.effect, { name: "paralyzed", kind: "hold", seconds: 8 });
+  assert.equal(spellIn({ about: "Wisdom save or frightened." }).effect.kind, "flee");
+  assert.equal(spellIn({ about: "Knits a wound. 3 mana. +8 HP." }).heal, "8");
   assert.equal(spellIn({ about: "Makes a small light." }), null, "a spell that's only words");
-  for (const spell of PACK.spells) assert.ok(spellIn(spell), `${spell.name} does something by rule`);
-  const mage = changeSheet(checkSheet(null), { set: "intelligence", field: "value", value: 16 }); // +3
+  const mage = changeSheet(checkSheet(null), { set: "intelligence", field: "value", value: 16 });
+  const wit = witOf(mage);
+  assert.equal(wit, 3);
   // A spell attack: 9 + 2 + 3 = 14 against AC 13.
-  const hit = spellStrike({ sheet: mage, spell: spellIn(PACK.spells[0]), foe: wolf }, dice([9, 20], [7, 10]));
+  const hit = spellStrike({ wit, spell: fire, foe: wolf }, dice([9, 20], [7, 10]));
   assert.deepEqual([hit.hit, hit.total, hit.against, hit.damage], [true, 14, "AC 13", 7]);
   // A saving throw against DC 13: the wolf's 10 + 2 falls short and takes it all; 11 + 2 saves for half.
-  const failed = spellStrike({ sheet: mage, spell: frost, foe: wolf }, dice([10, 20], [4, 6], [5, 6]));
+  const failed = spellStrike({ wit, spell: frost, foe: wolf }, dice([10, 20], [4, 6], [5, 6]));
   assert.deepEqual([failed.saved, failed.against, failed.damage], [false, "DC 13", 9]);
-  const saved = spellStrike({ sheet: mage, spell: frost, foe: wolf }, dice([11, 20], [4, 6], [5, 6]));
+  const saved = spellStrike({ wit, spell: frost, foe: wolf }, dice([11, 20], [4, 6], [5, 6]));
   assert.deepEqual([saved.saved, saved.damage], [true, 4]);
+  // One that always hits just rolls its damage.
+  const missile = spellStrike(
+    { wit, spell: spellIn({ about: spellRule(srd("Magic Missile")) }), foe: wolf },
+    dice([3, 4]),
+  );
+  assert.deepEqual([missile.hit, missile.sure, missile.damage], [true, true, 4]);
   // An effect lands only on a failed save.
-  assert.deepEqual(spellStrike({ sheet: mage, spell: daze, foe: wolf }, dice([3, 20])).effect, {
-    name: "stunned",
-    seconds: 6,
-  });
-  assert.equal(spellStrike({ sheet: mage, spell: daze, foe: wolf }, dice([19, 20])).effect, null);
+  assert.equal(spellStrike({ wit, spell: hold, foe: wolf }, dice([3, 20])).effect.name, "paralyzed");
+  assert.equal(spellStrike({ wit, spell: hold, foe: wolf }, dice([19, 20])).effect, null);
   assert.equal(
     spellWords({ who: "Zoey", name: "Frost burst", what: "wolf", spell: frost, result: saved, left: 7, max: 11 }),
     "Zoey casts Frost burst at the wolf (its dexterity save: 13 against DC 13): it saves, for 4. It has 7 of 11 HP left.",
+  );
+  assert.equal(
+    spellWords({
+      who: "Zoey",
+      name: "Magic Missile",
+      what: "Mira",
+      named: true,
+      spell: { sure: true },
+      result: missile,
+      left: 6,
+      max: 10,
+    }),
+    "Zoey casts Magic Missile at Mira: it strikes home, for 4. Mira has 6 of 10 HP left.",
   );
 }
 
