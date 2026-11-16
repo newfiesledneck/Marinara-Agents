@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.7.06 — 2026-11-16
+
+- Inventory → Sheet has a build, from the 5e SRD: a race (its ability bonuses and speed), a fighting style, a background and the skills you're proficient in.
+- Classes do more. Saving throws add proficiency where the class is trained. A rogue has Sneak Attack, Uncanny Dodge and Evasion; a monk Martial Arts, Ki and an unarmoured AC; a barbarian Rage by level and Reckless Attack; a paladin Lay on Hands and Divine Smite; a bard Bardic Inspiration; a cleric Turn Undead; a sorcerer Font of Magic. Casters cast with their class's ability.
+- What a class can call on works in real time too: from the Sheet tab, a number key, or the bar in a fight by turns.
+- Short rests spend hit dice to heal. A sleep is a long rest.
+
 ## 0.7.05 — 2026-11-16
 
 - Spells go to the ninth level: 94 of the 5e SRD's can be added from Inventory → Sheet, up from 53. Spell slots go to the ninth level too.

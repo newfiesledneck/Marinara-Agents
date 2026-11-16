@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.05)
+## What it does now (0.7.06)
 
 ### The world
 
@@ -608,6 +608,9 @@ every roll, and no AI call is made in a real-time fight.
   or lose their nerve as the ruleset says, and pick whom to go for.
 - **Spells to the ninth level**: 94 of the SRD's, growing with your level or the slot they're cast
   from, each kind with a look of its own (cone, beam, volley, light from above, touch).
+- **A build from the SRD**: race, class, fighting style, background and skills, with what each class
+  has by level (Sneak Attack, Ki, Rage, Lay on Hands, Divine Smite and more), usable in real time
+  and by turns, and short and long rests with hit dice.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.

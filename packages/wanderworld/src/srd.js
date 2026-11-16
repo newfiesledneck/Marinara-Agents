@@ -985,35 +985,167 @@ export const SRD_SLOTS = {
   ],
 };
 
-/** The SRD's classes: { [id]: { name, hitDie, weapon: { name, damage }, ranged?: { name, damage, range (metres) } } }. */
+/**
+ * The SRD's classes: { [id]: { name, hitDie, weapon: { name, damage }, saves (the two saving throws it's
+ * proficient in), skills: { count, from }, and where it has them ranged { name, damage, range (metres) },
+ * casting (the ability it casts with) and unarmored (what its AC adds to Dexterity with no armour on) } }.
+ */
 export const SRD_CLASSES = {
-  barbarian: { name: "Barbarian", hitDie: 12, weapon: { name: "Greataxe", damage: "1d12" } },
-  bard: { name: "Bard", hitDie: 8, weapon: { name: "Rapier", damage: "1d8" } },
-  cleric: { name: "Cleric", hitDie: 8, weapon: { name: "Mace", damage: "1d6" } },
-  druid: { name: "Druid", hitDie: 8, weapon: { name: "Quarterstaff", damage: "1d6" } },
+  barbarian: {
+    name: "Barbarian",
+    hitDie: 12,
+    weapon: { name: "Greataxe", damage: "1d12" },
+    saves: ["strength", "constitution"],
+    skills: { count: 2, from: ["animal_handling", "athletics", "intimidation", "nature", "perception", "survival"] },
+    unarmored: "constitution",
+  },
+  bard: {
+    name: "Bard",
+    hitDie: 8,
+    weapon: { name: "Rapier", damage: "1d8" },
+    saves: ["dexterity", "charisma"],
+    skills: {
+      count: 3,
+      from: [
+        "acrobatics",
+        "animal_handling",
+        "arcana",
+        "athletics",
+        "deception",
+        "history",
+        "insight",
+        "intimidation",
+        "investigation",
+        "medicine",
+        "nature",
+        "perception",
+        "performance",
+        "persuasion",
+        "religion",
+        "sleight_of_hand",
+        "stealth",
+        "survival",
+      ],
+    },
+    casting: "charisma",
+  },
+  cleric: {
+    name: "Cleric",
+    hitDie: 8,
+    weapon: { name: "Mace", damage: "1d6" },
+    saves: ["wisdom", "charisma"],
+    skills: { count: 2, from: ["history", "insight", "medicine", "persuasion", "religion"] },
+    casting: "wisdom",
+  },
+  druid: {
+    name: "Druid",
+    hitDie: 8,
+    weapon: { name: "Quarterstaff", damage: "1d6" },
+    saves: ["intelligence", "wisdom"],
+    skills: {
+      count: 2,
+      from: ["arcana", "animal_handling", "insight", "medicine", "nature", "perception", "religion", "survival"],
+    },
+    casting: "wisdom",
+  },
   fighter: {
     name: "Fighter",
     hitDie: 10,
     weapon: { name: "Longsword", damage: "1d8" },
+    saves: ["strength", "constitution"],
+    skills: {
+      count: 2,
+      from: [
+        "acrobatics",
+        "animal_handling",
+        "athletics",
+        "history",
+        "insight",
+        "intimidation",
+        "perception",
+        "survival",
+      ],
+    },
     ranged: { name: "Light crossbow", damage: "1d8", range: 24 },
   },
-  monk: { name: "Monk", hitDie: 8, weapon: { name: "Quarterstaff", damage: "1d6" } },
-  paladin: { name: "Paladin", hitDie: 10, weapon: { name: "Longsword", damage: "1d8" } },
+  monk: {
+    name: "Monk",
+    hitDie: 8,
+    weapon: { name: "Quarterstaff", damage: "1d6" },
+    saves: ["strength", "dexterity"],
+    skills: { count: 2, from: ["acrobatics", "athletics", "history", "insight", "religion", "stealth"] },
+    unarmored: "wisdom",
+  },
+  paladin: {
+    name: "Paladin",
+    hitDie: 10,
+    weapon: { name: "Longsword", damage: "1d8" },
+    saves: ["wisdom", "charisma"],
+    skills: { count: 2, from: ["athletics", "insight", "intimidation", "medicine", "persuasion", "religion"] },
+    casting: "charisma",
+  },
   ranger: {
     name: "Ranger",
     hitDie: 10,
     weapon: { name: "Shortsword", damage: "1d6" },
+    saves: ["strength", "dexterity"],
+    skills: {
+      count: 3,
+      from: ["animal_handling", "athletics", "insight", "investigation", "nature", "perception", "stealth", "survival"],
+    },
+    casting: "wisdom",
     ranged: { name: "Longbow", damage: "1d8", range: 24 },
   },
   rogue: {
     name: "Rogue",
     hitDie: 8,
     weapon: { name: "Shortsword", damage: "1d6" },
+    saves: ["dexterity", "intelligence"],
+    skills: {
+      count: 4,
+      from: [
+        "acrobatics",
+        "athletics",
+        "deception",
+        "insight",
+        "intimidation",
+        "investigation",
+        "perception",
+        "performance",
+        "persuasion",
+        "sleight_of_hand",
+        "stealth",
+      ],
+    },
     ranged: { name: "Shortbow", damage: "1d6", range: 24 },
   },
-  sorcerer: { name: "Sorcerer", hitDie: 6, weapon: { name: "Dagger", damage: "1d4" } },
-  warlock: { name: "Warlock", hitDie: 8, weapon: { name: "Dagger", damage: "1d4" } },
-  wizard: { name: "Wizard", hitDie: 6, weapon: { name: "Quarterstaff", damage: "1d6" } },
+  sorcerer: {
+    name: "Sorcerer",
+    hitDie: 6,
+    weapon: { name: "Dagger", damage: "1d4" },
+    saves: ["constitution", "charisma"],
+    skills: { count: 2, from: ["arcana", "deception", "insight", "intimidation", "persuasion", "religion"] },
+    casting: "charisma",
+  },
+  warlock: {
+    name: "Warlock",
+    hitDie: 8,
+    weapon: { name: "Dagger", damage: "1d4" },
+    saves: ["wisdom", "charisma"],
+    skills: {
+      count: 2,
+      from: ["arcana", "deception", "history", "intimidation", "investigation", "nature", "religion"],
+    },
+    casting: "charisma",
+  },
+  wizard: {
+    name: "Wizard",
+    hitDie: 6,
+    weapon: { name: "Quarterstaff", damage: "1d6" },
+    saves: ["intelligence", "wisdom"],
+    skills: { count: 2, from: ["arcana", "history", "insight", "investigation", "medicine", "religion"] },
+    casting: "intelligence",
+  },
 };
 
 /**
@@ -1038,6 +1170,7 @@ export const SRD_CREATURES = {
     pack: true,
     targets: "wounded",
     cr: 0.25,
+    kin: "beast",
   },
   deer: {
     name: "Deer",
@@ -1051,6 +1184,7 @@ export const SRD_CREATURES = {
     stealth: 3,
     perception: 2,
     cr: 0,
+    kin: "beast",
   },
   stag: {
     name: "Elk",
@@ -1064,6 +1198,7 @@ export const SRD_CREATURES = {
     stealth: 0,
     perception: 0,
     cr: 0.25,
+    kin: "beast",
   },
   fox: {
     name: "Jackal",
@@ -1079,6 +1214,7 @@ export const SRD_CREATURES = {
     pack: true,
     targets: "wounded",
     cr: 0,
+    kin: "beast",
   },
   horse: {
     name: "Riding Horse",
@@ -1092,6 +1228,7 @@ export const SRD_CREATURES = {
     stealth: 0,
     perception: 0,
     cr: 0.25,
+    kin: "beast",
   },
   donkey: {
     name: "Mule",
@@ -1105,6 +1242,7 @@ export const SRD_CREATURES = {
     stealth: 0,
     perception: 0,
     cr: 0.125,
+    kin: "beast",
   },
   husky: {
     name: "Mastiff",
@@ -1119,6 +1257,7 @@ export const SRD_CREATURES = {
     perception: 3,
     inflict: { condition: "prone", save: { attribute: "strength", dc: 11 } },
     cr: 0.125,
+    kin: "beast",
   },
   slime: {
     name: "Gray Ooze",
@@ -1134,6 +1273,7 @@ export const SRD_CREATURES = {
     perception: -2,
     rider: { damage: "2d6", type: "acid" },
     cr: 0.5,
+    kin: "ooze",
   },
   skeleton: {
     name: "Skeleton",
@@ -1151,6 +1291,7 @@ export const SRD_CREATURES = {
     temperament: "mindless",
     loot: "treasure_low",
     cr: 0.25,
+    kin: "undead",
     ranged: { name: "Shortbow", attack: 4, damage: "1d6+2", range: 24 },
   },
   spider: {
@@ -1166,6 +1307,7 @@ export const SRD_CREATURES = {
     perception: 3,
     rider: { damage: "2d6", type: "poison", save: { attribute: "constitution", dc: 11, onSave: "half" } },
     cr: 0.25,
+    kin: "beast",
   },
   rat: {
     name: "Giant Rat",
@@ -1180,6 +1322,7 @@ export const SRD_CREATURES = {
     perception: 0,
     pack: true,
     cr: 0.125,
+    kin: "beast",
   },
   snake: {
     name: "Poisonous Snake",
@@ -1193,6 +1336,7 @@ export const SRD_CREATURES = {
     stealth: 3,
     perception: 0,
     cr: 0.125,
+    kin: "beast",
   },
   bat: {
     name: "Giant Bat",
@@ -1206,6 +1350,7 @@ export const SRD_CREATURES = {
     stealth: 3,
     perception: 1,
     cr: 0.25,
+    kin: "beast",
   },
   wasp: {
     name: "Giant Wasp",
@@ -1220,6 +1365,7 @@ export const SRD_CREATURES = {
     perception: 0,
     rider: { damage: "3d6", type: "poison", save: { attribute: "constitution", dc: 11, onSave: "half" } },
     cr: 0.5,
+    kin: "beast",
   },
   frog: {
     name: "Giant Frog",
@@ -1234,6 +1380,7 @@ export const SRD_CREATURES = {
     perception: 2,
     inflict: { condition: "grappled", escape: 11 },
     cr: 0.25,
+    kin: "beast",
   },
   dragon: {
     name: "Red Dragon Wyrmling",
@@ -1259,6 +1406,7 @@ export const SRD_CREATURES = {
     targets: "casters",
     loot: "treasure_low",
     cr: 4,
+    kin: "dragon",
   },
   bandit: {
     name: "Bandit",
@@ -1273,6 +1421,7 @@ export const SRD_CREATURES = {
     perception: 0,
     loot: "treasure_low",
     cr: 0.125,
+    kin: "humanoid",
     ranged: { name: "Light Crossbow", attack: 3, damage: "1d8+1", range: 24 },
   },
   witch: {
@@ -1287,6 +1436,7 @@ export const SRD_CREATURES = {
     temperament: "fanatical",
     loot: "treasure_low",
     cr: 2,
+    kin: "humanoid",
     ranged: { name: "Dagger", attack: 4, damage: "1d4+2", range: 6 },
     spells: ["Sacred Flame", "Inflict Wounds", "Spiritual Weapon"],
     wit: 1,
@@ -1302,6 +1452,7 @@ export const SRD_CREATURES = {
     targets: "casters",
     loot: "treasure_mid",
     cr: 6,
+    kin: "humanoid",
     ranged: { name: "Dagger", attack: 5, damage: "1d4+2", range: 6 },
     spells: ["Fire Bolt", "Magic Missile"],
     wit: 3,
@@ -1328,6 +1479,7 @@ export const SRD_CREATURES = {
     temperament: "cruel",
     loot: "treasure_low",
     cr: 1,
+    kin: "fiend",
   },
   puglin: {
     name: "Goblin",
@@ -1344,6 +1496,7 @@ export const SRD_CREATURES = {
     temperament: "cowardly",
     loot: "treasure_low",
     cr: 0.25,
+    kin: "humanoid",
     ranged: { name: "Shortbow", attack: 4, damage: "1d6+2", range: 24 },
   },
 };
@@ -1463,3 +1616,92 @@ export const SRD_ARMOUR = {
   "splint-armor": { name: "Splint Armor", kind: "heavy", ac: 17, dex: 0, noisy: true, cost: 200 },
   "studded-leather-armor": { name: "Studded Leather Armor", kind: "light", ac: 12, dex: 9, cost: 45 },
 };
+
+/**
+ * The SRD's races: { [id]: { name, add ({ [ability]: how much it adds }), speed (metres a turn), dark (it has
+ * darkvision), skills (ids it's proficient in) } }. One with subraces is its SRD subrace.
+ */
+export const SRD_RACES = {
+  dragonborn: { name: "Dragonborn", add: { strength: 2, charisma: 1 }, speed: 9 },
+  dwarf: { name: "Hill Dwarf", add: { constitution: 2, wisdom: 1 }, speed: 7.5, dark: true },
+  elf: { name: "High Elf", add: { dexterity: 2, intelligence: 1 }, speed: 9, dark: true, skills: ["perception"] },
+  gnome: { name: "Rock Gnome", add: { intelligence: 2, constitution: 1 }, speed: 7.5, dark: true },
+  "half-elf": { name: "Half-Elf", add: { charisma: 2 }, speed: 9, dark: true },
+  "half-orc": {
+    name: "Half-Orc",
+    add: { strength: 2, constitution: 1 },
+    speed: 9,
+    dark: true,
+    skills: ["intimidation"],
+  },
+  halfling: { name: "Lightfoot Halfling", add: { dexterity: 2, charisma: 1 }, speed: 7.5 },
+  human: {
+    name: "Human",
+    add: { strength: 1, dexterity: 1, constitution: 1, intelligence: 1, wisdom: 1, charisma: 1 },
+    speed: 9,
+  },
+  tiefling: { name: "Tiefling", add: { intelligence: 1, charisma: 2 }, speed: 9, dark: true },
+};
+
+/** The SRD's skills: [{ id, name, ability }]. */
+export const SRD_SKILLS = [
+  { id: "acrobatics", name: "Acrobatics", ability: "dexterity" },
+  { id: "animal_handling", name: "Animal Handling", ability: "wisdom" },
+  { id: "arcana", name: "Arcana", ability: "intelligence" },
+  { id: "athletics", name: "Athletics", ability: "strength" },
+  { id: "deception", name: "Deception", ability: "charisma" },
+  { id: "history", name: "History", ability: "intelligence" },
+  { id: "insight", name: "Insight", ability: "wisdom" },
+  { id: "intimidation", name: "Intimidation", ability: "charisma" },
+  { id: "investigation", name: "Investigation", ability: "intelligence" },
+  { id: "medicine", name: "Medicine", ability: "wisdom" },
+  { id: "nature", name: "Nature", ability: "intelligence" },
+  { id: "perception", name: "Perception", ability: "wisdom" },
+  { id: "performance", name: "Performance", ability: "charisma" },
+  { id: "persuasion", name: "Persuasion", ability: "charisma" },
+  { id: "religion", name: "Religion", ability: "intelligence" },
+  { id: "sleight_of_hand", name: "Sleight of Hand", ability: "dexterity" },
+  { id: "stealth", name: "Stealth", ability: "dexterity" },
+  { id: "survival", name: "Survival", ability: "wisdom" },
+];
+
+/** The SRD's fighting styles: { [id]: { name, about, classes (ids that may take it) } }. */
+export const SRD_STYLES = {
+  archery: {
+    name: "Archery",
+    about: "You gain a +2 bonus to attack rolls you make with ranged weapons.",
+    classes: ["fighter", "ranger"],
+  },
+  defense: {
+    name: "Defense",
+    about: "While you are wearing armor, you gain a +1 bonus to AC.",
+    classes: ["fighter", "paladin", "ranger"],
+  },
+  dueling: {
+    name: "Dueling",
+    about:
+      "When you are wielding a melee weapon in one hand and no other weapons, you gain a +2 bonus to damage rolls with that weapon.",
+    classes: ["fighter", "paladin", "ranger"],
+  },
+  "great-weapon-fighting": {
+    name: "Great Weapon Fighting",
+    about:
+      "When you roll a 1 or 2 on a damage die for an attack you make with a melee weapon that you are wielding with two hands, you can reroll the die and must use the new roll, even if the new roll is a 1 or a 2. The weapon must have the two-handed or versatile property for you to gain this benefit.",
+    classes: ["fighter", "paladin"],
+  },
+  protection: {
+    name: "Protection",
+    about:
+      "When a creature you can see attacks a target other than you that is within 5 feet of you, you can use your reaction to impose disadvantage on the attack roll. You must be wielding a shield.",
+    classes: ["fighter", "paladin"],
+  },
+  "two-weapon-fighting": {
+    name: "Two-Weapon Fighting",
+    about:
+      "When you engage in two-weapon fighting, you can add your ability modifier to the damage of the second attack.",
+    classes: ["fighter", "ranger"],
+  },
+};
+
+/** The SRD's backgrounds: { [id]: { name, skills (ids it's proficient in) } }. */
+export const SRD_BACKGROUNDS = { acolyte: { name: "Acolyte", skills: ["insight", "religion"] } };

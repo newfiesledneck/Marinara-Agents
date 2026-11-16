@@ -197,12 +197,19 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   assert.equal(PACK.spells, undefined, "the setting pack has no spells of its own");
   assert.match(SRD_CREDIT, /System Reference Document 5\.1[\s\S]*CC BY 4\.0/u);
   assert.equal(Object.keys(SRD_CLASSES).length, 12);
-  assert.deepEqual(SRD_CLASSES.fighter, {
-    name: "Fighter",
-    hitDie: 10,
-    weapon: { name: "Longsword", damage: "1d8" },
-    ranged: { name: "Light crossbow", damage: "1d8", range: 24 },
-  });
+  {
+    const { name, hitDie, weapon, ranged, saves } = SRD_CLASSES.fighter;
+    assert.deepEqual(
+      { name, hitDie, weapon, ranged, saves },
+      {
+        name: "Fighter",
+        hitDie: 10,
+        weapon: { name: "Longsword", damage: "1d8" },
+        ranged: { name: "Light crossbow", damage: "1d8", range: 24 },
+        saves: ["strength", "constitution"],
+      },
+    );
+  }
   const srd = (name) => SRD_SPELLS.find((spell) => spell.name === name);
   assert.equal(spellRule(srd("Fire Bolt")), "Cantrip. 1d10 fire damage. Grows with level. Range 24.");
   assert.equal(

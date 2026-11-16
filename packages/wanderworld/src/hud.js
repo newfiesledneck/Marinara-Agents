@@ -2980,7 +2980,7 @@ export function createHud(root, handlers) {
         entry.id === "ac" && worn.acTotal !== undefined
           ? ` (${worn.acTotal} as you stand${worn.armour ? `, in ${worn.armour.name.toLowerCase()}` : ""}${worn.shield ? ", with a shield" : ""})`
           : typeof worn[entry.id] === "number" && worn[entry.id]
-            ? ` (${worn[entry.id] > 0 ? "+" : ""}${worn[entry.id]} worn)`
+            ? ` (${worn[entry.id] > 0 ? "+" : ""}${worn[entry.id]} from race and gear)`
             : "";
       row.append(on, piece("flex:1;min-width:0;", `${entry.name}${bonus}`));
       if (!entry.on) {
@@ -3178,12 +3178,117 @@ export function createHud(root, handlers) {
         node.selected = option.id === mine;
         choose.append(node);
       }
-      choose.addEventListener("change", () => handlers.onSetClass?.("player", choose.value));
+      choose.addEventListener("change", () => {
+        handlers.onSetClass?.("player", choose.value);
+        void drawInventory();
+      });
       row.append(piece("flex:1;min-width:0;font-weight:700;", "Your class"), choose);
       body.append(
         row,
         debugNote(
           "Optional, and only for fights by turns. A class from the 5e SRD gives you what it gives by level: a fighter Second Wind (a bonus action: +1d10 + your level HP, once between sleeps), Action Surge from level 2 (one more action, once between sleeps) and more attacks for an Attack action from level 5; a rogue Cunning Action from level 2 (Dash or Disengage as a bonus action); a barbarian Rage (a bonus action, twice between sleeps: +2 damage with what you swing, and half damage from weapons, teeth and claws, for the rest of the fight). Barbarians, monks, paladins and rangers also attack twice from level 5. Settings → Inventory → Combat has the numbers, if you'd rather set them yourself.",
+        ),
+      );
+    }
+    // The rest of the build, the SRD's: race, fighting style, background, skills, what the class can call on, and resting.
+    const build = handlers.build?.();
+    if (build) {
+      const small = (label, title, onClick) => {
+        const node = document.createElement("button");
+        node.type = "button";
+        node.textContent = label;
+        node.title = title;
+        node.style.cssText = INK_SMALL;
+        node.addEventListener("click", onClick);
+        return node;
+      };
+      const pick = (label, value, options, field) => {
+        const row = piece("display:flex;align-items:center;gap:6px;");
+        const choose = document.createElement("select");
+        choose.style.cssText = `${INK_INPUT}padding:2px 4px;max-width:62%;`;
+        choose.setAttribute("aria-label", label);
+        for (const option of [{ id: "", label: "None" }, ...options]) {
+          const node = document.createElement("option");
+          node.value = option.id;
+          node.textContent = option.label;
+          node.selected = option.id === value;
+          choose.append(node);
+        }
+        choose.addEventListener("change", () => {
+          handlers.onBuild?.(field, choose.value);
+          void drawInventory();
+        });
+        row.append(piece("flex:1;min-width:0;", label), choose);
+        return row;
+      };
+      body.append(pick("Race", build.race, build.races, "race"));
+      if (build.styles.length) body.append(pick("Fighting style", build.style, build.styles, "style"));
+      body.append(pick("Background", build.background, build.backgrounds, "background"));
+      if (build.skillList.length) {
+        body.append(
+          piece("margin-top:4px;", `Skills you're proficient in (${build.skills.length} of ${build.skillCount})`),
+        );
+        const wrap = piece("display:flex;flex-wrap:wrap;gap:2px 10px;");
+        for (const skill of build.skillList) {
+          const label = document.createElement("label");
+          label.style.cssText = "display:flex;align-items:center;gap:4px;font-size:12px;";
+          const tick = document.createElement("input");
+          tick.type = "checkbox";
+          tick.checked = build.skills.includes(skill.id);
+          tick.disabled = !tick.checked && build.skills.length >= build.skillCount;
+          tick.addEventListener("change", () => {
+            handlers.onBuild?.(
+              "skills",
+              tick.checked ? [...build.skills, skill.id] : build.skills.filter((id) => id !== skill.id),
+            );
+            void drawInventory();
+          });
+          label.append(tick, skill.label);
+          wrap.append(label);
+        }
+        body.append(wrap);
+      }
+      if (build.given.length) body.append(debugNote(`From your race and background: ${build.given.join(", ")}.`));
+      if (build.abilities.length) {
+        body.append(piece("margin-top:4px;font-weight:700;", "What your class can call on"));
+        const wrap = piece("display:flex;flex-wrap:wrap;gap:5px;");
+        for (const ability of build.abilities)
+          wrap.append(
+            small(
+              `${ability.name}${ability.left === null ? "" : ` (${ability.left})`}`,
+              `${ability.about}${ability.left === null ? "" : ` ${ability.left} of ${ability.max} left; back after a ${ability.per} rest.`}`,
+              () => {
+                handlers.onAbility?.(ability.id);
+                void drawInventory();
+              },
+            ),
+          );
+        body.append(
+          wrap,
+          debugNote(
+            "Hover or hold one for what it does. Each can be put on a number key in the Hotkeys tab; in a fight by turns they're on the bar at the top too.",
+          ),
+        );
+      }
+      const rest = piece("display:flex;align-items:center;gap:6px;margin-top:4px;");
+      rest.append(
+        piece(
+          "flex:1;min-width:0;",
+          `Hit dice: ${build.hitDice.left} of ${build.hitDice.max} (d${build.hitDice.die}) · Proficiency +${build.prof}`,
+        ),
+        small(
+          "Short rest",
+          "An hour's rest: spend hit dice to heal (each a roll of the die plus your Constitution modifier), and get back what a short rest restores. Not with enemies near.",
+          () => {
+            handlers.onShortRest?.();
+            void drawInventory();
+          },
+        ),
+      );
+      body.append(
+        rest,
+        debugNote(
+          "A sleep is a long rest: all your HP, your spell slots and half your hit dice back, and everything your class can call on.",
         ),
       );
     }
@@ -4530,7 +4635,7 @@ export function createHud(root, handlers) {
     },
     /** The conditions on the player: [{ id, label, about, seconds }] (conditions.js conditionChips); none hides them. */
     setConditions(list) {
-      const key = list.map((entry) => `${entry.id}:${entry.seconds}`).join("|");
+      const key = list.map((entry) => `${entry.id}:${entry.seconds}:${entry.label}`).join("|");
       if (key === conditionKey) return;
       conditionKey = key;
       conditionRow.style.display = list.length ? "flex" : "none";
@@ -4539,8 +4644,7 @@ export function createHud(root, handlers) {
           const chip = document.createElement("span");
           chip.textContent = `${entry.label} ${entry.seconds}s`;
           chip.title = entry.about;
-          chip.style.cssText =
-            "padding:3px 9px;border-radius:10px;font:600 12px system-ui,sans-serif;background:rgba(120,30,20,0.86);color:#fff;";
+          chip.style.cssText = `padding:3px 9px;border-radius:10px;font:600 12px system-ui,sans-serif;background:${entry.good ? "rgba(30,90,50,0.86)" : "rgba(120,30,20,0.86)"};color:#fff;`;
           return chip;
         }),
       );

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.06",
+          "date": "2026-11-16",
+          "notes": "- Inventory → Sheet has a build, from the 5e SRD: a race (its ability bonuses and speed), a fighting style, a background and the skills you're proficient in.\n- Classes do more. Saving throws add proficiency where the class is trained. A rogue has Sneak Attack, Uncanny Dodge and Evasion; a monk Martial Arts, Ki and an unarmoured AC; a barbarian Rage by level and Reckless Attack; a paladin Lay on Hands and Divine Smite; a bard Bardic Inspiration; a cleric Turn Undead; a sorcerer Font of Magic. Casters cast with their class's ability.\n- What a class can call on works in real time too: from the Sheet tab, a number key, or the bar in a fight by turns.\n- Short rests spend hit dice to heal. A sleep is a long rest.",
+          "highlight": false
+        },
+        {
           "version": "0.7.05",
           "date": "2026-11-16",
           "notes": "- Spells go to the ninth level: 94 of the 5e SRD's can be added from Inventory → Sheet, up from 53. Spell slots go to the ninth level too.\n- Spells grow as in the SRD. A cantrip rolls its dice again at levels 5, 11 and 17. Cast from a higher spell slot than its own, a spell is the greater for it (Fireball from a fifth-level slot is 10d6).\n- Each kind of spell has its own look: a fan of flame for a cone, a beam for a line or for lightning, three darts for one that can't miss, light from above, a flash for a touch. A shove throws a shockwave over the ground, and motes circle whatever is under a spell.",
@@ -307,12 +313,6 @@
           "version": "0.6.87",
           "date": "2026-11-15",
           "notes": "- Your companions fight beside you in real-time combat. Each has a class from the 5e SRD, which gives them a weapon and spells: they strike what comes within reach, cast at what doesn't, and a healer mends you when you're below half your HP.\n- Inventory → Sheet → Your companions sets each one's class. Until you choose, each has one of their own.\n- Their rolls are told in the chat like yours. Nothing attacks them yet, and they have no HP of their own.\n- Settings → Inventory → Combat → \"Your companions fight beside you\" turns it off.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.86",
-          "date": "2026-11-15",
-          "notes": "- Spells come from the 5e SRD and from you, and nowhere else. Inventory → Sheet lists 40 SRD spells of level 0 to 3 to add from. The five spells made up for 0.6.85 are gone from the game; any on your sheet stay as your own.\n- Cantrips cost no mana. A spell costs one more than its level.\n- Spells have ranges, some need no roll, and healing rolls dice.\n- A spell can be cast at a person, where blows can land on people.\n- Sitting or lying down slowly restores mana and HP; a sleep restores both fully (Settings → Inventory → Sheet).\n- Spells look like something: a bolt with a trail, a burst where it lands, a ring round what's held, motes for mending.\n- Credits name the SRD 5.1 (CC BY 4.0).",
           "highlight": false
         }
       ]
