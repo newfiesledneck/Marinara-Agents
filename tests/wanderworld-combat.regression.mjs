@@ -261,6 +261,35 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   );
 }
 
+// Keys the player sets: only what's changed is kept; a clash leaves the other its own key, or none.
+{
+  const { checkKeys, DEFAULT_KEYS, KEY_ACTIONS, keyAllowed, keyName } =
+    await import("../packages/wanderworld/src/input.js");
+  assert.deepEqual(checkKeys(""), DEFAULT_KEYS);
+  assert.deepEqual(checkKeys("not json"), DEFAULT_KEYS);
+  assert.equal(checkKeys('{"block":"h"}').block, "h");
+  assert.equal(checkKeys({ block: "H" }).block, "h");
+  const swapped = checkKeys({ block: "f", attack: "q" });
+  assert.deepEqual([swapped.block, swapped.attack], ["f", "q"]);
+  const clash = checkKeys({ block: "f" }); // F is Attack's: Block has it now, and Attack has none
+  assert.deepEqual([clash.block, clash.attack], ["f", ""]);
+  assert.equal(checkKeys({ block: "escape" }).block, "q", "Esc can't be given away");
+  assert.equal(checkKeys({ nonsense: "k" }).nonsense, undefined);
+  assert.deepEqual(
+    [keyAllowed("h"), keyAllowed("arrowup"), keyAllowed("tab"), keyAllowed("")],
+    [true, false, false, false],
+  );
+  assert.deepEqual(
+    [keyName(" "), keyName("control"), keyName("h"), keyName("f5"), keyName("")],
+    ["Space", "Ctrl", "H", "F5", "None"],
+  );
+  assert.equal(
+    new Set(KEY_ACTIONS.map(([, , key]) => key)).size,
+    KEY_ACTIONS.length,
+    "no two actions share a key to begin with",
+  );
+}
+
 // A herd's creature takes blows: HP kept, roused by a miss, down at 0, and out of the reckoning after.
 {
   const { createHerd } = await import("../packages/wanderworld/src/herd.js");

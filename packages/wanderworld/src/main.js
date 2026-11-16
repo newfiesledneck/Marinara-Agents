@@ -506,6 +506,7 @@ function gendersNow(save = core.save) {
 
 function applySettings() {
   const { settings } = core;
+  core.input?.setKeys(settings.keys ?? ""); // (the player's own keys: Settings → Controls → Keys)
   // Quartermaster's window closes at a press anywhere outside it, except on one of its own launch
   // buttons. Marked as one, the whole game is left alone, so walking and talking don't close the window.
   // ponytail: this leans on Quartermaster's "qm-launch" class (its dock's outside-press check). If that
@@ -10156,6 +10157,7 @@ function attach(element) {
   });
   core.input = createInput();
   core.input.onRunToggle((on) => core.hud?.setRun(on)); // (Ctrl: the Run button shows it)
+  core.input.setKeys(core.settings?.keys ?? "");
   core.hud.layer.prepend(core.input.stickElement); // under the windows and panels
   core.element.addEventListener("keydown", () => core.sound.unlock());
 

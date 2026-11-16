@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.6.88 — 2026-11-15
+
+- You can set your own keys. With a keyboard, Settings → Controls → Keys has a button for each action: press it, then the key you want. A key another action has is swapped with it. "Reset keys" puts them back.
+- The controls hint names your keys as you have them.
+- The README has a Fighting section, and its credits name the SRD 5.1.
+
 ## 0.6.87 — 2026-11-15
 
 - Your companions fight beside you in real-time combat. Each has a class from the 5e SRD, which gives them a weapon and spells: they strike what comes within reach, cast at what doesn't, and a healer mends you when you're below half your HP.

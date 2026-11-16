@@ -1,6 +1,7 @@
 // The overlay on top of the world: a title bar with the game's buttons (folded into a menu on narrow
 // screens), the People and Settings panels, a performance readout, a clock, the "use" prompt, a controls
 // hint, a status line and a loading screen. Only controls take pointer events; the rest lets touches through.
+import { checkKeys, DEFAULT_KEYS, KEY_ACTIONS, keyAllowed, keyName } from "./input.js";
 import { createAssistant } from "./assistant.js";
 import { createJournal } from "./journal.js";
 import { createIllustrateWindow, floatingFrame } from "./illustrate.js";
@@ -784,7 +785,7 @@ export function createHud(root, handlers) {
     runSpeed: "How fast you run (hold Shift).",
     lookSpeed: "How fast the camera turns when you drag or use the arrow keys.",
     invertLook: "On: dragging up looks down, like a flight stick.",
-    restKey: "On: C sits you down, and again lies you down.",
+    restKey: "On: the Sit key (C, unless you've changed it below) sits you down, and again lies you down.",
     jumpButton: "On a touch screen: a Jump button along the bottom.",
     restButton: "On a touch screen: a Sit button along the bottom. It becomes Lie down once you're sitting.",
     runButton:
@@ -1096,16 +1097,80 @@ export function createHud(root, handlers) {
   toggle("sound", "Sound");
   slider("volume", "Volume", 0.05, (value) => `${Math.round(value * 100)}%`, "sound");
 
+  // The player's keys (input.js), and the controls hint that names them (set once the hint is made).
+  let keyBinds = { ...DEFAULT_KEYS };
+  let updateHint = null;
   heading("Controls", "How you move and look around. The buttons and camera are kept for each device.");
   slider("walkSpeed", "Walk speed", 0.1, times);
   slider("runSpeed", "Run speed", 0.1, times);
   slider("lookSpeed", "Camera turn speed", 0.1, times);
   toggle("invertLook", "Invert up and down");
-  toggle("restKey", "C sits and lies down");
+  toggle("restKey", "The Sit key sits and lies down");
   toggle("jumpButton", "Jump button (touch screens)");
   toggle("restButton", "Sit and lie down button (touch screens)");
   toggle("runButton", "Run button (touch screens)");
   toggle("chatMoves", "Jump and Sit buttons in the chat window");
+  if (!touch) {
+    // Keys: a button for each action; press it, then the key it should have.
+    const head = document.createElement("div");
+    head.style.cssText = "font-weight:700;margin-top:8px;font-size:13px;";
+    head.textContent = "Keys";
+    const about = document.createElement("div");
+    about.setAttribute("data-wanderworld-explain", "");
+    about.style.cssText = "font-size:11px;opacity:0.75;line-height:1.35;margin:-2px 0 2px;";
+    about.textContent =
+      "Press an action's button, then the key you want for it. A key another action has is swapped with it. Esc cancels. The arrow keys (look round), + and - (zoom), Esc, Enter and Tab can't be given away. These are kept for this device.";
+    const list = document.createElement("div");
+    list.style.cssText = "display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;font-size:12px;";
+    let listening = null; // the listener while a button waits for its key
+    const stop = () => {
+      if (listening) window.removeEventListener("keydown", listening, true);
+      listening = null;
+    };
+    const keep = (next) => {
+      // Only what differs from the usual keys is kept.
+      const changed = Object.fromEntries(Object.entries(next).filter(([action, key]) => DEFAULT_KEYS[action] !== key));
+      handlers.onSetting("keys", Object.keys(changed).length ? JSON.stringify(changed) : "");
+    };
+    const draw = (value) => {
+      stop();
+      keyBinds = checkKeys(value);
+      updateHint?.();
+      list.replaceChildren();
+      for (const [action, label] of KEY_ACTIONS) {
+        const name = document.createElement("div");
+        name.textContent = label;
+        const control = button(keyName(keyBinds[action]), `Change the key for: ${label}`, () => {
+          stop();
+          control.textContent = "Press a key…";
+          listening = (event) => {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            const key = String(event.key).toLowerCase();
+            if (key === "escape") return draw(keyBinds);
+            if (!keyAllowed(key)) return void (control.textContent = `${keyName(key)} can't be used. Another?`);
+            const other = Object.keys(keyBinds).find((name) => name !== action && keyBinds[name] === key);
+            // (Listed first, so it's the one that keeps the key should the two ever clash.)
+            const next = { [action]: key, ...keyBinds, [action]: key };
+            if (other) next[other] = keyBinds[action];
+            keep(next);
+            draw(next);
+          };
+          window.addEventListener("keydown", listening, true);
+        });
+        control.style.cssText += "padding:3px 10px;font-size:12px;min-width:64px;";
+        list.append(name, control);
+      }
+    };
+    const reset = button("Reset keys", "Put every key back as it was to begin with", () => {
+      handlers.onSetting("keys", "");
+      draw("");
+    });
+    reset.style.cssText += "align-self:flex-start;padding:3px 10px;font-size:12px;";
+    addField("keys", { set: draw });
+    draw("");
+    add(head, about, list, reset);
+  }
 
   heading("World", "The world itself: its time, its weather, its places and its shops.", [
     "Time and weather",
@@ -3109,7 +3174,14 @@ export function createHud(root, handlers) {
   hintText.style.flex = "1";
   hintText.textContent = touch
     ? "Stick to walk: push it all the way, or tap Run, to run · or tap the ground to walk there · drag to look · pinch to zoom · tap someone or something to use it"
-    : "WASD walk · Shift run (Ctrl keeps it on) · Space jump · C sit · drag or arrows to look · scroll to zoom · E or click to use · with combat on: F swing, Q block, R dodge, X draw, Z cast · Esc to leave";
+    : "";
+  // (With a keyboard, the hint names the keys as the player has them: Settings → Controls → Keys.)
+  updateHint = () => {
+    if (touch) return;
+    const key = (action) => keyName(keyBinds[action]);
+    hintText.textContent = `${["forward", "left", "back", "right"].map(key).join("")} walk · ${key("run")} run (${key("runToggle")} keeps it on) · ${key("jump")} jump · ${key("rest")} sit · drag or arrows to look · scroll to zoom · ${key("use")} or click to use · with combat on: ${key("attack")} swing, ${key("block")} block, ${key("dodge")} dodge, ${key("draw")} draw, ${key("cast")} cast · Esc to leave`;
+  };
+  updateHint();
   // Read once, it can go: its × turns off Settings → Display → On screen → Controls hint.
   const hintClose = button("×", "Hide this (Settings → Display → On screen brings it back)", () =>
     handlers.onSetting("hint", false),
@@ -3272,18 +3344,18 @@ export function createHud(root, handlers) {
   // Jump, and Sit (then Lie down, then Get up): what Space and C do, for a click or a tap.
   const moves = document.createElement("div");
   moves.style.cssText = "display:flex;gap:6px;padding:0 10px 6px;";
-  const chatJump = button("Jump", "Jump (Space)", () => handlers.onJump());
-  const chatRest = button("Sit", "Sit down on the ground, then lie down, then get up (C)", () =>
+  const chatJump = button("Jump", "Jump", () => handlers.onJump());
+  const chatRest = button("Sit", "Sit down on the ground, then lie down, then get up", () =>
     chatRest.textContent.startsWith("Get ") ? handlers.onUse() : handlers.onRest(),
   );
-  const chatStrike = button("Attack", "Swing at whatever is in front of you (F)", () => handlers.onAttack?.());
-  const chatGuard = button("Block", "Block: attacks on you are rolled twice and the worse counts (Q)", () =>
+  const chatStrike = button("Attack", "Swing at whatever is in front of you", () => handlers.onAttack?.());
+  const chatGuard = button("Block", "Block: attacks on you are rolled twice and the worse counts", () =>
     handlers.onBlock?.(),
   );
-  const chatRoll = button("Dodge", "Roll out of the way (R)", () => handlers.onDodge?.());
+  const chatRoll = button("Dodge", "Roll out of the way", () => handlers.onDodge?.());
   const chatDraw = button(
     "Draw",
-    "Draw your weapon, or put it away (X): drawn, the view stays behind you and turning it turns you",
+    "Draw your weapon, or put it away: drawn, the view stays behind you and turning it turns you",
     () => handlers.onDraw?.(),
   );
   const chatFight = [chatDraw, chatStrike, chatGuard, chatRoll];
@@ -4100,7 +4172,7 @@ export function createHud(root, handlers) {
         ...spells.map((spell) => {
           const control = button(
             `${spell.name}${spell.cost ? ` (${spell.cost})` : ""}`,
-            `Cast ${spell.name}${spell.cost ? `: ${spell.cost} mana` : ""}${spell.id === readyId ? " (Z)" : ""}`,
+            `Cast ${spell.name}${spell.cost ? `: ${spell.cost} mana` : ""}${spell.id === readyId ? " (the ready one)" : ""}`,
             () => handlers.onCast?.(spell.id),
           );
           control.style.cssText += `padding:4px 10px;font-size:12px;${spell.id === readyId ? "outline:1px solid #c9a15a;" : ""}`;
