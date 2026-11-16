@@ -179,6 +179,7 @@ import {
   slotsAt,
   spellAtPlayer,
   spellCost,
+  spellGrown,
   spellIn,
   spellRule,
   spellStrike,
@@ -191,7 +192,7 @@ import {
   weaponOf,
   witOf,
 } from "./combat.js";
-import { createSpellFx, spellColour } from "./spellfx.js";
+import { createSpellFx, spellColour, spellLook } from "./spellfx.js";
 import {
   CONDITIONS,
   afflict,
@@ -8464,6 +8465,17 @@ const colourOf = (spell) =>
   spellColour(spell.damage ? spell.type : spell.heal ? "heal" : spell.effect?.kind === "flee" ? "fear" : "hold");
 /** The world's spell effects (spellfx.js), made when first needed. */
 const spellFx = () => (core.spellFx ??= createSpellFx());
+/** A spell on its way from `from` to `to`, as that spell looks (spellfx.js spellLook); `options.then` runs as it lands. */
+function castSeen(spell, scene, from, to, colour, options) {
+  const fx = spellFx();
+  const look = spellLook(spell);
+  if (look === "cone") return void fx.cone(scene, from, to, colour, options);
+  if (look === "beam") return void fx.beam(scene, from, to, colour, { ...options, jagged: spell.type === "lightning" });
+  if (look === "column") return void fx.column(scene, to, colour, options);
+  if (look === "volley") return void fx.volley(scene, from, to, colour, options);
+  if (look === "touch") return void fx.touch(scene, to, colour, options);
+  fx.bolt(scene, from, to, colour, options);
+}
 /** Chest height at (x, z), for where a bolt leaves and lands. */
 const chest = (x, z, up = 1.2) => ({ x, y: (core.interior ? core.player.position.y : heightAt(x, z)) + up, z });
 
@@ -8483,7 +8495,8 @@ function cast(id = null) {
       "You have no spell to cast. Inventory → Sheet has a list of the 5e SRD's to add from, and you can write your own.",
     );
   core.readySpell = chosen.id;
-  const { spell, name } = chosen;
+  const { name } = chosen;
+  let spell = chosen.spell;
   const sheet = sheetNow();
   // Facing nothing, they turn to the nearest enemy the spell reaches, so it isn't cast at the empty air.
   if (!(spell.heal && !spell.damage)) faceEnemy(spell.range);
@@ -8500,6 +8513,11 @@ function cast(id = null) {
   if (!slotted && valueOf(sheet, "mana") < spell.cost)
     return void core.hud?.setNotice(`Not enough mana for ${name} (${spell.cost}). Sitting down brings it back.`);
   if (core.battle && !battleSpend(spell.bonus ? "bonus" : "action")) return;
+  // (From a higher slot than its own it's the greater for it; a cantrip grows with the caster's level.)
+  spell = spellGrown(spell, {
+    slot: slotted ? slot : 0,
+    level: core.settings.srdModifiers ? valueOf(sheet, "level") : 1,
+  });
   if (slotted && slot > 0) {
     core.save = { ...core.save, slotsUsed: { ...core.save.slotsUsed, [slot]: (core.save.slotsUsed?.[slot] ?? 0) + 1 } };
     core.saves.write(core.save);
@@ -8535,12 +8553,12 @@ function cast(id = null) {
     if (!foe) {
       const far = Math.min(spell.range, 12);
       const to = chest(at.x + Math.sin(facing) * far, at.z + Math.cos(facing) * far);
-      spellFx().bolt(scene, from, to, colour, { size: big });
+      castSeen(spell, scene, from, to, colour, { size: big });
       return void narrate(null, `${who} casts ${name}, at nothing.`);
     }
     const to = chest(foe.x, foe.z, foe.person ? 1.2 : 0.7);
     // What it does is worked out as the bolt lands.
-    spellFx().bolt(scene, from, to, colour, {
+    castSeen(spell, scene, from, to, colour, {
       size: big,
       then: () => {
         if (core.save?.id !== saveId) return;
@@ -8639,7 +8657,12 @@ function spellOnFoe(foe, who, name, spell, wit, from = null) {
   if (!struck) return 0;
   if (!struck.down) {
     const seconds = result.effect?.seconds ?? 0;
-    if (result.push > 0 && from) core.herd.push(foe.id, from.x, from.z, result.push);
+    if (result.push > 0 && from) {
+      spellFx().wave(core.space.scene, chest(foe.x, foe.z, 0.15), colourOf(spell), result.push + 1.5);
+      core.herd.push(foe.id, from.x, from.z, result.push);
+    }
+    if (kind && kind !== "flee")
+      spellFx().swirl(core.space.scene, chest(now.x, now.z, 0), colourOf(spell), seconds, 0.8 + foe.room);
     if (kind === "hold") core.herd.stun(foe.id, seconds);
     if (kind === "slow") core.herd.slow(foe.id, seconds);
     if (kind === "calm") core.herd.soothe(foe.id, seconds);
