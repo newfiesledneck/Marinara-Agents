@@ -191,6 +191,7 @@ import {
   spoilsWords,
   strikeWords,
   turnBudget,
+  typedDamage,
   weaponIn,
   weaponOf,
   witOf,
@@ -221,7 +222,16 @@ import {
   lift,
   tickConditions,
 } from "./conditions.js";
-import { SRD_BACKGROUNDS, SRD_CLASSES, SRD_CREATURES, SRD_RACES, SRD_SLOTS, SRD_SPELLS, SRD_STYLES } from "./srd.js";
+import {
+  SRD_BACKGROUNDS,
+  SRD_CLASSES,
+  SRD_CREATURES,
+  SRD_RACES,
+  SRD_SLOTS,
+  SRD_SPELLS,
+  SRD_STYLES,
+  SRD_WEAPONS,
+} from "./srd.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
   applyChanges,
@@ -9840,6 +9850,8 @@ function battleTick(dt, moved) {
       .map((entry) => about.get(entry.id))
       .filter(Boolean);
     if (battle.step === "move" && person && foes.length) {
+      // (A round comes off whatever is on them.)
+      if (core.allyFx?.has(person.id)) core.allyFx.set(person.id, tickConditions(allyFx(person.id), 6));
       // They close with the nearest (as far as a turn allows) or keep their distance, as their class would.
       const from = person.position;
       const foe = foes.reduce((best, entry) =>
@@ -9847,7 +9859,7 @@ function battleTick(dt, moved) {
       );
       const caster = spellsOfPerson(person.id).attack.length > 0;
       const far = Math.hypot(foe.x - from.x, foe.z - from.z);
-      const go = caster ? 0 : Math.max(0, Math.min(TURN_MOVE, far - (1.5 + foe.room)));
+      const go = caster || allyMods(person.id).still ? 0 : Math.max(0, Math.min(TURN_MOVE, far - (1.5 + foe.room)));
       if (go > 0.3)
         core.crowd.fightTo(
           person.id,
@@ -10235,7 +10247,10 @@ function alliesTick(dt) {
   const hp = entryOf(sheetNow(), "hp");
   const hurt = !!hp && hp.on !== false && hp.value < hp.max / 2;
   // (A fight well over: the companions are whole again.)
-  if (!foes.length && core.allyHp?.size && core.clock - (core.fightSeen ?? 0) > 30) core.allyHp.clear();
+  if (!foes.length && core.allyHp?.size && core.clock - (core.fightSeen ?? 0) > 30) {
+    core.allyHp.clear();
+    core.allyUsed?.clear();
+  }
   if (!foes.length && !hurt) return;
   const party = new Set(core.crowd.party().map((member) => member.id));
   if (!party.size) return;
@@ -10269,7 +10284,10 @@ function allyHp(id) {
   core.allyHp ??= new Map();
   if (!core.allyHp.has(id)) {
     // (Their card's most HP where its 5e sheet gives one; else a first-level one of their class.)
-    const max = (core.save?.classes?.[id] ? 0 : cardOf(id)?.hpMax) || SRD_CLASSES[classOf(id)].hitDie + 2;
+    // (Else by their class and level: the die and 2 at first level, half the die and 3 for each level after.)
+    const die = SRD_CLASSES[classOf(id)].hitDie;
+    const max =
+      (core.save?.classes?.[id] ? 0 : cardOf(id)?.hpMax) || die + 2 + (allyLevel(id) - 1) * (Math.floor(die / 2) + 3);
     core.allyHp.set(id, { hp: max, max });
   }
   return core.allyHp.get(id);
@@ -10284,18 +10302,24 @@ function allyAttacked(event, what, with_ = null) {
   const stats = { ...foeOf(event.kind, foeTable(), event.scale), ...with_ };
   const ac = foeTable().ally.ac;
   const roll = () => attackRoll({ bonus: stats.attack, ac, damage: stats.damage, damageBonus: stats.damageBonus ?? 0 });
-  const result = { ...(hindered(event.id) ? rolledTwice(roll, false) : roll()), ac, hindered: hindered(event.id) };
+  // (Down, held or blinded, they're easier to hit: the better of two. A hindered creature: the worse.)
+  const keen = allyMods(person.id).defendAdv;
+  const worse = hindered(event.id);
+  const result = {
+    ...(keen === worse ? roll() : rolledTwice(roll, keen)),
+    ac,
+    hindered: worse && !keen,
+    ...(keen && !worse ? { keen: true } : {}),
+  };
+  if (result.hit && allyUsed(person.id).raging) result.damage = Math.max(1, Math.floor(result.damage / 2)); // (Rage)
   const health = allyHp(person.id);
   if (result.hit) {
     health.hp = Math.max(0, health.hp - result.damage);
     core.crowd.gesture(person.id, "hurt");
   }
   narrate(null, foeWords({ who: name, what, verb: stats.verb, result, left: health.hp, max: health.max }));
-  if (result.hit && health.hp <= 0) {
-    // Out of the fight for a while, then up again with half (nobody dies).
-    health.hp = Math.ceil(health.max / 2);
-    if (core.crowd.knockOut(person.id, 45)) narrate(null, `${name} goes down, out of the fight.`);
-  }
+  if (result.hit && health.hp <= 0) allyDown(person.id, name, health);
+  else if (result.hit && extrasOn() && !with_) allyExtras(person, name, stats, what, health);
   core.fightSeen = core.clock;
 }
 
@@ -10304,6 +10328,7 @@ function allyAttacked(event, what, with_ = null) {
  * one who casts keeps a few paces off and moves along the edge of it. A side of their own each, changed now and then.
  */
 function allyMoves(person, foe, caster) {
+  if (allyMods(person.id).still) return; // (down, or held where they are)
   core.allySide ??= new Map();
   let side = core.allySide.get(person.id);
   if (!side || core.clock > side.until) {
@@ -10327,6 +10352,50 @@ function allyActs(person, foes, hurt) {
   const who = personaName();
   const from = person.position;
   const scene = core.space.scene;
+  // What's on them: one who can't act loses the turn; one who's held strains against it.
+  if (allyMods(person.id).helpless) return true;
+  if (allyFx(person.id).grappled !== undefined && 1 + Math.floor(Math.random() * 20) + 2 >= 11) {
+    core.allyFx.set(person.id, lift(allyFx(person.id), "grappled"));
+    narrate(null, `${name} breaks free.`);
+  }
+  const own = allyHp(person.id);
+  const used = allyUsed(person.id);
+  // A barbarian rages as the fight begins; a fighter takes a Second Wind below half their HP, once a fight.
+  if (classId === "barbarian" && foes.length && !used.raging) {
+    used.raging = true;
+    narrate(null, `${name} rages.`);
+  }
+  if (classId === "fighter" && !used.wind && own.hp < own.max / 2) {
+    used.wind = true;
+    const mended = rollDice("1d10").total + allyLevel(person.id);
+    own.hp = Math.min(own.max, own.hp + mended);
+    narrate(null, `${name} takes a Second Wind: +${mended} HP (${own.hp} of ${own.max}).`);
+    return true;
+  }
+  // A healer gets a dying companion up before anything else.
+  const fallen =
+    spells.heal.length && core.allyDying?.size
+      ? core.crowd
+          .present(core.space)
+          .find(
+            (other) =>
+              core.allyDying.has(other.id) && Math.hypot(other.position.x - from.x, other.position.z - from.z) < 14,
+          )
+      : null;
+  if (fallen) {
+    const chosen = spells.heal[0];
+    const health = allyHp(fallen.id);
+    health.hp = Math.min(health.max, Math.max(1, rollDice(chosen.spell.heal).total + ALLY_WIT));
+    core.allyDying.delete(fallen.id);
+    core.crowd.gesture(person.id, "cast", null, fallen.position.x, fallen.position.z);
+    core.crowd.knockOut(fallen.id, 0.3); // (on their feet again in a moment)
+    spellFx().motes(scene, chest(fallen.position.x, fallen.position.z, 0), colourOf(chosen.spell));
+    narrate(
+      null,
+      `${name} casts ${chosen.name} on ${nameFor(fallen.id, fallen.name)}: up again, with ${health.hp} HP.`,
+    );
+    return true;
+  }
   // A healer mends the player first (not more than once in a while).
   core.allyHealed ??= new Map();
   if (hurt && spells.heal.length && core.clock >= (core.allyHealed.get(person.id) ?? 0)) {
@@ -10363,7 +10432,7 @@ function allyActs(person, foes, hurt) {
     const chosen = castable[Math.floor(Math.random() * castable.length)];
     core.crowd.gesture(person.id, "cast", null, foe.x, foe.z);
     const saveId = core.save?.id;
-    spellFx().bolt(scene, chest(from.x, from.z), chest(foe.x, foe.z, 0.7), colourOf(chosen.spell), {
+    castSeen(chosen.spell, scene, chest(from.x, from.z), chest(foe.x, foe.z, 0.7), colourOf(chosen.spell), {
       then: () => {
         if (core.save?.id === saveId) spellLands(foe, name, chosen.name, chosen.spell, ALLY_WIT, from);
       },
@@ -10390,14 +10459,156 @@ function allyActs(person, foes, hurt) {
   return allyStrikes(person, foe, { name: kind.weapon.name, damage: kind.weapon.damage });
 }
 
-/** A companion's weapon lands (or doesn't) on a creature: rolled, told, and the creature beaten if that's what comes of it. */
-function allyStrikes(person, foe, weapon) {
+/** A companion's level: their card's where its 5e sheet gives one, else the player's own. */
+const allyLevel = (id) =>
+  (core.save?.classes?.[id] ? 0 : cardOf(id)?.level) || Math.max(1, valueOf(sheetNow(), "level"));
+/** What a companion's class has always on at their level (build.js passives). */
+const allyKit = (id) => passives(classOf(id), allyLevel(id));
+/** What a companion adds to an attack roll: their proficiency bonus, and +2 from their best score. */
+const allyAttack = (id) => proficiency(allyLevel(id)) + 2;
+/** The conditions on a companion (conditions.js's { [condition]: seconds left }), and what they add up to. */
+function allyFx(id) {
+  core.allyFx ??= new Map();
+  if (!core.allyFx.has(id)) core.allyFx.set(id, {});
+  return core.allyFx.get(id);
+}
+const allyMods = (id) => conditionMods(core.settings.conditions ? core.allyFx?.get(id) : null);
+/** What a companion has used in this fight: { raging, wind, smite }. Forgotten once the fight is well over. */
+function allyUsed(id) {
+  core.allyUsed ??= new Map();
+  if (!core.allyUsed.has(id)) core.allyUsed.set(id, {});
+  return core.allyUsed.get(id);
+}
+
+/**
+ * A companion is at 0 HP. With death saving throws on they fall, dying, and roll as the player does
+ * (alliesFxTick); else they're out of the fight for a while, then up again with half. Nobody dies.
+ */
+function allyDown(id, name, health) {
+  core.allyFx?.delete(id);
+  if (core.settings.deathSaves) {
+    health.hp = 0;
+    core.allyDying ??= new Map();
+    core.allyDying.set(id, { wins: 0, losses: 0, at: core.clock + 6, name });
+    if (core.crowd.knockOut(id, 900)) narrate(null, `${name} falls, dying.`);
+    return;
+  }
+  health.hp = Math.ceil(health.max / 2);
+  if (core.crowd.knockOut(id, 45)) narrate(null, `${name} goes down, out of the fight.`);
+}
+
+/** What comes with a creature's blow that has landed on a companion: venom and the like, and a condition. */
+function allyExtras(person, name, stats, what, health) {
+  const save = (attribute, dc) => {
+    const trained = allyKit(person.id).saves.includes(attribute) ? proficiency(allyLevel(person.id)) : 0;
+    const total = 1 + Math.floor(Math.random() * 20) + 2 + trained;
+    return { saved: total >= dc, words: `${attribute} save ${total} against DC ${dc}` };
+  };
+  const rider = stats.rider;
+  if (rider) {
+    const full = Math.max(1, rollDice(rider.damage).total);
+    const thrown = rider.save ? save(rider.save.attribute, rider.save.dc) : null;
+    const dealt = !thrown || !thrown.saved ? full : rider.save.onSave === "half" ? Math.floor(full / 2) : 0;
+    health.hp = Math.max(0, health.hp - dealt);
+    narrate(
+      null,
+      `The ${what}'s ${rider.type || "blow"}${thrown ? ` (${name}'s ${thrown.words}, ${thrown.saved ? "made" : "failed"})` : ""}: ${dealt} more. ${name} has ${health.hp} of ${health.max} HP.`,
+    );
+    if (health.hp <= 0) return void allyDown(person.id, name, health);
+  }
+  const laid = stats.inflict;
+  if (!laid || !core.settings.conditions || allyFx(person.id)[laid.condition] !== undefined) return;
+  const thrown = laid.save ? save(laid.save.attribute, laid.save.dc) : null;
+  if (thrown?.saved) return;
+  core.allyFx.set(person.id, afflict(allyFx(person.id), laid.condition, laid.condition === "grappled" ? 12 : 0));
+  const label = CONDITIONS[laid.condition]?.label.toLowerCase() ?? laid.condition;
+  narrate(null, `${name} is ${label}${thrown ? ` (${thrown.words}, failed)` : ""}.`);
+}
+
+/** The companions' conditions run down (outside a fight by turns, where their turn counts them), and the dying roll their death saves. */
+function alliesFxTick(dt) {
+  if (core.allyFx?.size && !core.battle)
+    for (const [id, state] of core.allyFx) core.allyFx.set(id, tickConditions(state, dt));
+  if (!core.allyDying?.size) return;
+  for (const [id, dying] of core.allyDying) {
+    if (core.clock < dying.at) continue;
+    const health = allyHp(id);
+    const thrown = deathSave(dying);
+    const tally = `${thrown.wins} saved, ${thrown.losses} failed`;
+    const told = `${dying.name}'s death save: ${thrown.roll === 20 ? "a 20" : thrown.roll}`;
+    if (thrown.outcome === "up" || thrown.outcome === "stable") {
+      core.allyDying.delete(id);
+      health.hp = 1;
+      core.crowd.knockOut(id, thrown.outcome === "up" ? 0.3 : 30);
+      narrate(
+        null,
+        thrown.outcome === "up"
+          ? `${told}. They're up, with 1 HP.`
+          : `${told}, a success (${tally}). They're stable, and will come round.`,
+      );
+    } else if (thrown.outcome === "beaten") {
+      core.allyDying.delete(id);
+      health.hp = Math.ceil(health.max / 2);
+      core.crowd.knockOut(id, 180);
+      narrate(null, `${told}, a failure (${tally}). They're out cold, and will be a good while coming round.`);
+    } else {
+      core.allyDying.set(id, { ...dying, wins: thrown.wins, losses: thrown.losses, at: core.clock + 6 });
+      narrate(null, `${told}, ${thrown.roll >= 10 ? "a success" : "a failure"} (${tally}).`);
+    }
+  }
+}
+
+/**
+ * A companion's weapon lands (or doesn't) on a creature: rolled, told, and the creature beaten if that's what
+ * comes of it. Their class is in it: proficiency by level, a rogue's Sneak Attack with someone beside the
+ * creature, a paladin's Divine Smite once a fight, a barbarian's Rage, a monk's hands, a Champion's wider
+ * critical, and a second blow from level 5 for those who have Extra Attack (`again`: this is that one).
+ */
+function allyStrikes(person, foe, weapon, again = false) {
   const name = nameFor(person.id, person.name);
   const stats = foeOf(foe.kind, foeTable(), foe.scale);
-  const roll = () => attackRoll({ bonus: ALLY_ATTACK, ac: stats.ac, damage: weapon.damage, damageBonus: 2 });
-  // (Helped by the player: the better of two, once.)
-  const result = buffed("helping") ? rolledTwice(roll, true) : roll();
-  if (buffed("helping")) core.buffs = lift(core.buffs, "helping");
+  const classId = classOf(person.id);
+  const kit = allyKit(person.id);
+  const used = allyUsed(person.id);
+  const melee = !weapon.range;
+  const sides = (dice) => Number(/d(\d+)/u.exec(String(dice))?.[1] ?? 0);
+  const more = [];
+  const beside = [
+    core.player.position,
+    ...fightingAllies()
+      .filter((other) => other.id !== person.id)
+      .map((other) => other.position),
+  ];
+  const sneaks = !!kit.sneak && !again && beside.some((at) => Math.hypot(at.x - foe.x, at.z - foe.z) < 2.5);
+  if (sneaks) more.push(kit.sneak);
+  const smites = classId === "paladin" && allyLevel(person.id) >= 2 && melee && !used.smite;
+  if (smites) more.push(stats.kin === "undead" || stats.kin === "fiend" ? "3d8" : "2d8");
+  const roll = () =>
+    attackRoll({
+      bonus: allyAttack(person.id),
+      ac: stats.ac,
+      damage: melee && sides(kit.martial) > sides(weapon.damage) ? kit.martial : weapon.damage,
+      damageBonus: 2 + (melee && used.raging ? kit.rage : 0),
+      critFrom: kit.critFrom,
+      more,
+    });
+  // (Helped by the player: the better of two, once. Poisoned, frightened, blinded or down: the worse.)
+  const better = buffed("helping");
+  const worse = allyMods(person.id).attackDis;
+  const rolled = better === worse ? roll() : rolledTwice(roll, better);
+  if (better) core.buffs = lift(core.buffs, "helping");
+  // (What it's made of matters to some, as for the player's own.)
+  const type =
+    Object.values(SRD_WEAPONS).find((entry) => entry.name.toLowerCase() === weapon.name.toLowerCase())?.type ?? "";
+  const typed = typedDamage(rolled.damage, type, stats);
+  const result = {
+    ...rolled,
+    damage: typed.damage,
+    how: typed.how,
+    type,
+    ...(worse && !better ? { hampered: true } : {}),
+  };
+  if (smites && result.hit) used.smite = true;
   const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
   const struck = core.herd.strike(
     foe.id,
@@ -10407,7 +10618,7 @@ function allyStrikes(person, foe, weapon) {
   );
   if (!struck) return false;
   const held = weaponIn({ name: weapon.name, description: `${weapon.damage} damage` })?.held ?? "sword";
-  if (!weapon.range) core.crowd.gesture(person.id, "strike", held, foe.x, foe.z);
+  if (melee) core.crowd.gesture(person.id, "strike", held, foe.x, foe.z);
   const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
   const told = strikeWords({
     who: name,
@@ -10417,8 +10628,16 @@ function allyStrikes(person, foe, weapon) {
     left: struck.hp,
     max: struck.max,
   });
-  narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
+  const with_ = result.hit
+    ? [sneaks && "a Sneak Attack", smites && "a Divine Smite"].filter(Boolean).join(" and ")
+    : "";
+  narrate(null, `${struck.down ? `${told} (+${stats.xp} XP)` : told}${with_ ? ` (With ${with_}.)` : ""}`);
   if (struck.down) foeBeaten(foe, stats);
+  // Extra Attack: one more, at the same creature if it still stands.
+  else if (!again && turnBudget(classId, allyLevel(person.id)).attacks > 1) {
+    const still = core.herd.foes({ x: foe.x, z: foe.z }, 6).find((entry) => entry.id === foe.id);
+    if (still) allyStrikes(person, still, weapon, true);
+  }
   return true;
 }
 
@@ -12095,6 +12314,7 @@ function step(dt) {
   alliesTick(dt);
   angryTick();
   conditionsTick(dt);
+  alliesFxTick(dt);
   aimTick();
   // (A persona whose card has a 5e sheet brings it into each world once.)
   if (core.save && core.personas && core.cardSeen !== `${core.save.id}|${core.personaId}`) {
