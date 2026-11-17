@@ -228,7 +228,7 @@ export const SORT_OF = {
 /** How many of each sort a world has when nothing says otherwise, and the most the slider goes to. */
 // (`town`: the most of them that are inside the settlement itself; the rest are put outside it.)
 export const POPULATION = { strays: 2, farm: 12, wild: 12, hostile: 5, monsters: 8, town: 5 };
-export const POPULATION_MAX = { strays: 12, farm: 40, wild: 40, hostile: 30, monsters: 30, town: 20 };
+export const POPULATION_MAX = { strays: 100, farm: 100, wild: 100, hostile: 100, monsters: 100, town: 100 };
 /** The kinds as a player switches them on and off: the two dogs are one ("dog"). */
 export const SWITCHES = {
   dog: ["husky", "shiba"],

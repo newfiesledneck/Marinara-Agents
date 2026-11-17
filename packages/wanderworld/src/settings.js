@@ -272,13 +272,13 @@ export const SETTINGS = {
   // Animals: how many of each sort a world has of its own (0: none of that sort), whether the ones its
   // lore asks for and the ones someone owns are there even so, and each kind on or off altogether
   // (animals.js POPULATION, SWITCHES).
-  animalsStrays: { value: 2, min: 0, max: 12 },
-  animalsFarm: { value: 12, min: 0, max: 40 },
-  animalsWild: { value: 12, min: 0, max: 40 },
-  animalsHostile: { value: 5, min: 0, max: 30 },
-  animalsMonsters: { value: 8, min: 0, max: 30 },
+  animalsStrays: { value: 2, min: 0, max: 100 },
+  animalsFarm: { value: 12, min: 0, max: 100 },
+  animalsWild: { value: 12, min: 0, max: 100 },
+  animalsHostile: { value: 5, min: 0, max: 100 },
+  animalsMonsters: { value: 8, min: 0, max: 100 },
   /** The most of them inside the settlement itself (dogs and horses share it); the rest are outside it. */
-  animalsTown: { value: 5, min: 0, max: 20 },
+  animalsTown: { value: 5, min: 0, max: 100 },
   loreAnimals: { value: true },
   /** People and animals keep out of one another (off: they may walk through each other, as they used to). */
   keepApart: { value: true },

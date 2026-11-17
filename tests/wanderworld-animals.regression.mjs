@@ -514,6 +514,21 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
     const edge = world.layout.townHalf * 1.42 + 60;
     assert.ok(by("deer").filter((deer) => Math.hypot(deer.x, deer.z) < edge).length >= 4, "deer near the last houses");
   }
+  // At the sliders' most, a hundred of each, they're all placed.
+  {
+    const full = herdFor(world, 4242, {
+      counts: { strays: 100, farm: 100, wild: 100, hostile: 100, monsters: 100, town: 100 },
+    });
+    const of = (test) => full.filter(test).length;
+    console.log(
+      `at 100 each: ${full.length} animals, ${of((beast) => beast.kind === "wolf")} wolves, ${of((beast) => ANIMALS[beast.kind].group === "monsters")} monsters`,
+    );
+    assert.equal(
+      of((beast) => beast.kind === "wolf"),
+      100,
+    );
+    assert.ok(of((beast) => ANIMALS[beast.kind].group === "monsters") >= 95, "the monsters too, or all but a few");
+  }
   const horde = herdFor(world, 4242, { counts: { ...none, monsters: 20 } });
   assert.equal(horde.length, 20);
   assert.ok(new Set(horde.map((beast) => beast.kind)).size >= 4, "of several kinds");
