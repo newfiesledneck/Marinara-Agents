@@ -7925,6 +7925,16 @@ function aimInRange(reach, what) {
   return true;
 }
 
+/** How far the nearest creature in the fight is, for an "out of range": ", and the nearest creature is 7.2 m away"; "" with none. */
+function nearestWords() {
+  const at = core.player.position;
+  const inFight = new Set((core.battle?.order ?? []).map((entry) => entry.id));
+  const far = (core.interior ? [] : core.herd.foes(at, 60))
+    .filter((foe) => !foe.fled && (foe.hostile || inFight.has(foe.id)))
+    .reduce((least, foe) => Math.min(least, Math.hypot(foe.x - at.x, foe.z - at.z) - foe.room), Infinity);
+  return Number.isFinite(far) ? `, and the nearest creature is ${Math.max(0, far).toFixed(1)} m away` : "";
+}
+
 /** What's aimed at in a few words, for the bar: "wolf · 4.2 m", "wolf · 12.0 m · out of range". */
 function aimWords() {
   const aim = aimed();
@@ -9333,6 +9343,8 @@ function swing() {
     shot ?? (!core.shape && weapon.thrown ? { ...weapon, range: weapon.thrown, hurled: true, worn: false } : null);
   if (!aimInRange(Math.max(reach, bow?.range ?? 0), bow ? `the ${bow.name.toLowerCase()}` : "a swing")) return;
   if (bow && !blowTarget(reach)) faceEnemy(bow.range); // (nothing in reach of a swing: the bow turns to the nearest enemy)
+  // (By turns they turn to whatever is in reach, so a creature at their side or back counts.)
+  if (core.battle && !blowTarget(reach)) faceEnemy(reach);
   const near = blowTarget(reach);
   const far = bow && !near ? blowTarget(bow.range, SPELL_ARC, true) : null;
   // By turns: an Attack is a turn's action; outside a fight, a swing or a shot at something starts one.
@@ -9340,7 +9352,14 @@ function swing() {
     if (!core.battle) {
       const first = near ?? far;
       if (first && !first.person) return void battleStart(first.id);
-    } else if (!battleAttack()) return;
+    } else {
+      // (With nothing in reach the attack isn't made, and the action is kept.)
+      if (!near && !far)
+        return void core.hud?.setNotice(
+          `Out of range: ${bow ? `the ${bow.name.toLowerCase()} reaches ${bow.range} m` : `a swing reaches ${reach} m`}${nearestWords()}.`,
+        );
+      if (!battleAttack()) return;
+    }
   }
   if (bow && !near && (far || bow.worn)) return void shoot(bow, mode);
   core.gesture = weapon.name ? "strike" : "punch";
@@ -9488,6 +9507,9 @@ function cast(id = null) {
     return void core.hud?.setNotice(`No spell slot left for ${name} (level ${spell.level}). A sleep gives them back.`);
   if (!slotted && valueOf(sheet, "mana") < spell.cost)
     return void core.hud?.setNotice(`Not enough mana for ${name} (${spell.cost}). Sitting down brings it back.`);
+  // By turns, a spell that harms needs something in its range: with nothing there it isn't cast, and costs nothing.
+  if (core.battle && !(spell.heal && !spell.damage) && !blowTarget(spell.range, SPELL_ARC, true))
+    return void core.hud?.setNotice(`Out of range: ${name} reaches ${spell.range} m${nearestWords()}.`);
   if (core.battle && !battleSpend(spell.bonus ? "bonus" : "action")) return;
   // (From a higher slot than its own it's the greater for it; a cantrip grows with the caster's level.)
   spell = spellGrown(spell, {
