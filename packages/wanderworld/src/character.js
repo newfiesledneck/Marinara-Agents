@@ -146,11 +146,18 @@ function heldThing(name) {
           0x9aa0a6,
         ),
       ],
-      // A staff, carried upright at the side: its length lies along the arm (x), a knob at its top.
-      staff: [
-        part(new CylinderGeometry(0.016, 0.02, 1.55, 6).rotateZ(Math.PI / 2).translate(0.05, 0, 0.05), 0x5a3d24),
-        part(new SphereGeometry(0.05, 8, 6).translate(0.85, 0, 0.05), 0x7fd4e8),
-      ],
+      // A staff, carried upright: its foot by the ground, the knob at its top by the head. (Its line in the
+      // hand is measured, not guessed: along the forearm it pointed up and back, as if held backwards. This
+      // one stands upright in a hand at rest and leans a little forward in one that's walking.)
+      staff: (() => {
+        const up = new Vector3(0.35, 0.45, 0.75).normalize();
+        const lean = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), up);
+        const at = (far) => up.clone().multiplyScalar(far).toArray();
+        return [
+          part(new CylinderGeometry(0.016, 0.02, 1.55, 6).applyQuaternion(lean).translate(...at(-0.075)), 0x5a3d24),
+          part(new SphereGeometry(0.05, 8, 6).translate(...at(0.72)), 0x7fd4e8),
+        ];
+      })(),
       // A short sword: a grip, a guard and a blade out the thumb's side.
       sword: [
         part(along(new CylinderGeometry(0.014, 0.014, 0.12, 6)).translate(0, 0, 0), 0x3b2a1c),

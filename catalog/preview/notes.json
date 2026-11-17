@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.16",
+          "date": "2026-11-17",
+          "notes": "- Fixed: witches and wizards carried their staffs pointing up and back, as if held backwards. A staff now stands upright in the hand, its foot by the ground and its knob by the head.",
+          "highlight": false
+        },
+        {
           "version": "0.7.15",
           "date": "2026-11-17",
           "notes": "- An item's block can say more about a weapon: two-handed, versatile 1d10 (its damage in both hands), reach (a swing lands 1.5 m further off), thrown 6 (throw it that many metres at what's out of reach) and heavy.\n- \"+5 Max HP\" in a block raises the most of a stat: while the item is worn, or for good when it's used up.\n- A used-up item can change any number on your sheet, not only HP and mana: \"+1 Souls\" works on a stat of your own with no maximum.\n- The (i) in the Inventory window lists all of it, grouped, and scrolls when it's long.",
@@ -307,12 +313,6 @@
           "version": "0.6.97",
           "date": "2026-11-15",
           "notes": "- Spells leave more than damage, as the 5e SRD has them. Thunderwave shoves back whatever fails its save. Fireball and other area spells catch everything near the target. Ray of Frost slows, Sleep and Grease drop a creature where it stands, Blindness and Vicious Mockery spoil its attacks, Guiding Bolt and Faerie Fire make your blows on it surer, Charm Person and Calm Emotions stop it fighting until it's hurt, and Vampiric Touch gives you back half of what it deals.\n- 53 SRD spells can be added, up from 40. A spell already on your sheet keeps its old rule; add it again for the new one.\n- Your own spells can use the same words (\"Pushed 3 m\", \"Area 6\", \"Slowed 6 seconds\").\n- With \"Fights by turns use spell slots\" on, your sheet and the spell buttons show spell slots where mana was.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.96",
-          "date": "2026-11-15",
-          "notes": "- Creatures fight with the 5e SRD's numbers: HP, AC, what they add to an attack, their damage, and their initiative in fights by turns. A wolf is the SRD's wolf, a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage.\n- Cattle, the alpaca and the shiba have nothing close in the SRD and keep the game's own numbers. People fight by their class. Experience for a win is unchanged.\n- \"Creatures use the 5e SRD's numbers\" (Settings → Inventory → Combat) is on to begin with; off brings back the game's own numbers.",
           "highlight": false
         }
       ]

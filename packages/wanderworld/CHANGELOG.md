@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.7.16 — 2026-11-17
+
+- Fixed: witches and wizards carried their staffs pointing up and back, as if held backwards. A staff now stands upright in the hand, its foot by the ground and its knob by the head.
+
 ## 0.7.15 — 2026-11-17
 
 - An item's block can say more about a weapon: two-handed, versatile 1d10 (its damage in both hands), reach (a swing lands 1.5 m further off), thrown 6 (throw it that many metres at what's out of reach) and heavy.
