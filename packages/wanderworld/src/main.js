@@ -3190,6 +3190,7 @@ function stepPlaces(dt) {
           // (Where spells take spell slots, the slot's level stands where the mana would.)
           slot: slotsShown() && entry.spell.level > 0 ? entry.spell.level : 0,
           slotted: !!slotsShown() && entry.spell.level >= 0,
+          mark: entry.spell.reaction ? "" : costMark(entry.spell.bonus ? "bonus" : "action"),
         })),
         readySpell(spells)?.id ?? "",
       );
@@ -7974,6 +7975,12 @@ function healAlly(aim, amount, spell) {
   narrate(null, `${personaName()} casts ${spell} on ${aim.name}: +${amount} HP (${health.hp} of ${health.max}).`);
 }
 
+/** What something takes of a turn, as a letter for its button where fights go by turns: "A" an action, "B" a bonus action, "" neither. */
+const costMark = (cost) => (byTurns() ? (cost === "bonus" ? "B" : cost === "action" ? "A" : "") : "");
+/** A button's tags after its name: " (B, 1)" for a bonus action with one use left; "" with neither. */
+const tagged = (mark, left) =>
+  ((tags) => (tags.length ? ` (${tags.join(", ")})` : ""))([mark, left === null ? "" : String(left)].filter(Boolean));
+
 /** What there is to do in a fight besides Attack, Block and Dodge, by kind, for the row of buttons (hud.js setActions). */
 function actionGroups() {
   if (!fighting() || core.downed || !core.save) return [];
@@ -7981,7 +7988,7 @@ function actionGroups() {
   const all = abilitiesNow();
   const item = (ability) => ({
     id: ability.id,
-    label: `${ability.name}${ability.left === null ? "" : ` (${ability.left})`}`,
+    label: `${ability.name}${tagged(costMark(ability.cost), ability.left)}`,
     title: ability.about,
     ready: (ability.left === null || ability.left >= Math.max(1, ability.spend)) && !(ability.turns && !core.battle),
   });
@@ -7993,7 +8000,12 @@ function actionGroups() {
       label: "Spells",
       items: spellsNow()
         .filter((entry) => !entry.spell.reaction)
-        .map((entry) => ({ id: `spell:${entry.id}`, label: entry.name, title: `Cast ${entry.name}`, ready: true })),
+        .map((entry) => ({
+          id: `spell:${entry.id}`,
+          label: `${entry.name}${tagged(costMark(entry.spell.bonus ? "bonus" : "action"), null)}`,
+          title: `Cast ${entry.name}`,
+          ready: true,
+        })),
     },
   ];
 }
@@ -8936,6 +8948,14 @@ function buildInfo() {
     abilities: abilitiesNow(),
     hitDice: { die: dice.die, max: dice.max, left: Math.max(0, dice.max - usedOf("hitDice")) },
     prof: profNow() || 2,
+    // (A turn's numbers as they are now, and the spell slots: each can be changed in the Sheet tab.)
+    turn: turnNow(),
+    slots: Object.entries(slotsNow()).map(([slot, have]) => ({
+      level: Number(slot),
+      have,
+      left: Math.max(0, have - (core.save.slotsUsed?.[slot] ?? 0)),
+    })),
+    slotsOn: !!core.settings.srdSlots && core.settings.fights === "turns",
     forms:
       classId === "druid"
         ? wildForms(level).map((kind) => ({
@@ -9690,7 +9710,26 @@ function spellOnFoe(foe, who, name, spell, wit, from = null) {
 // ── Fights by turns ──
 
 /** The spell slots the player has (the SRD's, for a full caster of their level). */
-const slotsNow = () => slotsAt(valueOf(sheetNow(), "level"), SRD_SLOTS);
+const slotsNow = () => {
+  const ruled = slotsAt(valueOf(sheetNow(), "level"), SRD_SLOTS);
+  // (Any the player has set for themselves in the Sheet tab stand in place of the table's.)
+  const own = core.save?.slotsOwn?.[sheetKey()] ?? {};
+  return Object.fromEntries(
+    Object.entries(ruled).map(([slot, have]) => [slot, Number.isFinite(own[slot]) ? own[slot] : have]),
+  );
+};
+/** The player sets how many spell slots of `level` they have (the Sheet tab); the table's own number puts it back to the rules. */
+function setSlots(level, value) {
+  if (!core.save || !(level >= 1 && level <= 9)) return;
+  const ruled = slotsAt(valueOf(sheetNow(), "level"), SRD_SLOTS)[level] ?? 0;
+  const many = Math.max(0, Math.min(20, Math.round(Number(value))));
+  const own = { ...core.save.slotsOwn?.[sheetKey()] };
+  if (!Number.isFinite(many) || many === ruled) delete own[level];
+  else own[level] = many;
+  core.save = { ...core.save, slotsOwn: { ...core.save.slotsOwn, [sheetKey()]: own } };
+  core.saves.write(core.save);
+  core.hud?.refreshInventory?.();
+}
 /**
  * The spell slots to show in place of mana: [{ level, left, have }] where spells are cast with them (combat
  * by turns, with "Fights by turns use spell slots" on), else null.
@@ -9786,17 +9825,23 @@ function battleActs() {
   const action = battle.action > 0;
   const bonus = battle.bonus > 0;
   return [
-    { id: "dash", label: "Dash", title: "An action: you can go twice as far this turn", ready: action, basic: true },
+    {
+      id: "dash",
+      label: "Dash (A)",
+      title: "An action: you can go twice as far this turn",
+      ready: action,
+      basic: true,
+    },
     {
       id: "disengage",
-      label: "Disengage",
+      label: "Disengage (A)",
       title: "An action: moving away draws no opportunity attacks this turn",
       ready: action && !battle.disengaged,
       basic: true,
     },
     {
       id: "dodge",
-      label: "Dodge",
+      label: "Dodge (A)",
       title: "An action: attacks on you are rolled twice, the worse counting, until your next turn",
       ready: action && !battle.dodging,
       basic: true,
@@ -9804,7 +9849,7 @@ function battleActs() {
     // What their class can call on (build.js abilities), each for what it takes of the turn.
     ...abilitiesNow().map((ability) => ({
       id: ability.id,
-      label: `${ability.name}${ability.left === null ? "" : ` (${ability.left})`}`,
+      label: `${ability.name}${tagged(costMark(ability.cost), ability.left)}`,
       title: `${ability.cost === "free" ? "" : ability.cost === "bonus" ? "A bonus action. " : "An action. "}${ability.about}`,
       ready:
         (ability.cost === "free" || (ability.cost === "bonus" ? bonus : action)) &&
@@ -13147,6 +13192,7 @@ function attach(element) {
     onAction: (id) => (String(id).startsWith("spell:") ? cast(String(id).slice(6)) : useAbility(id)),
     onShortRest: shortRest,
     onApplyCard: () => applyCard(true),
+    onSlots: setSlots,
     onBattleAct: battleAct,
     onAddSpell: (name) => {
       const spell = SRD_SPELLS.find((entry) => entry.name === name);

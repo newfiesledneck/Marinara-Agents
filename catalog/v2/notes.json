@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.20",
+          "date": "2026-11-17",
+          "notes": "- By turns, buttons say what they take of your turn: (A) an action, (B) a bonus action. It's on the spell buttons beside the slot level, on the Abilities, Moves and Spells rows, and on the bar's Dash, Disengage and Dodge. Something that takes neither has no letter.\n- Inventory → Sheet shows what each of your turns gives (actions, bonus actions, attacks, metres) and your spell slots by level, each with a box to change it.",
+          "highlight": false
+        },
+        {
           "version": "0.7.19",
           "date": "2026-11-17",
           "notes": "- Fixed: in a fight by turns, casting a spell or attacking with nothing in range still used up your action (and the spell's mana or slot). Now it says \"Out of range\", tells you how far the nearest creature is, and costs nothing.\n- By turns, an attack turns you to a creature that's in reach at your side or behind you, so it counts.",
@@ -1532,12 +1538,6 @@
           "date": "2026-11-16",
           "notes": "- Fixed: with \"Stay down until you choose\", the Respawn button could vanish and leave you lying there for good. It now stays up for as long as you're down, and works whatever else has happened meanwhile.\n- Settings → Debug has a Respawn button of its own, for getting unstuck: it puts you at your door, on your feet. If you weren't beaten it costs nothing.",
           "highlight": false
-        },
-        {
-          "version": "0.7.00",
-          "date": "2026-11-16",
-          "notes": "- Creatures act out their attacks. Bandits swing their swords, and witches and wizards cast, with the same animations people use. Animals and monsters lunge at you when they strike (their models have no attack animations yet).\n- Casting with nothing in front of you turns you to the nearest enemy the spell can reach, then casts. A bow does the same. Peaceful animals are never picked.",
-          "highlight": true
         }
       ]
     },
