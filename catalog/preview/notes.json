@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.21",
+          "date": "2026-11-17",
+          "notes": "- Fight messages show their working. An attack reads \"(Attack roll: 4 + 2 = 6 against AC 16, half cover): a miss\", with the die, what was added and the total. A natural 20 or 1 is said beside it.\n- Damage shows its dice: \"for 7 (Damage: 1d8 (5) + 2 = 7)\", with anything that changed it after (doubled by a weakness, halved by a save, by Rage or by Uncanny Dodge).\n- Saving throws show the same sum against the DC.\n- A spell that can't miss says \"(no roll: it can't miss)\" in place of \"it strikes home\".",
+          "highlight": false
+        },
+        {
           "version": "0.7.20",
           "date": "2026-11-17",
           "notes": "- By turns, buttons say what they take of your turn: (A) an action, (B) a bonus action. It's on the spell buttons beside the slot level, on the Abilities, Moves and Spells rows, and on the bar's Dash, Disengage and Dodge. Something that takes neither has no letter.\n- Inventory → Sheet shows what each of your turns gives (actions, bonus actions, attacks, metres) and your spell slots by level, each with a box to change it.",
@@ -307,12 +313,6 @@
           "version": "0.7.02",
           "date": "2026-11-16",
           "notes": "- Weapons and armour by the 5e SRD. New setting, \"An item's description is its stats\": on, a thing does what its description says; off, its name decides (sword, knife, dagger, axe, hammer, bow and the rest link to that SRD weapon, and armour and shields likewise).\n- Armour you wear sets your AC and limits how much Dexterity counts. With none, AC is 10 plus your Dexterity modifier.\n- Attacks and spells add a proficiency bonus that grows with level. Finesse weapons use the better of Strength and Dexterity.\n- Kinds of damage matter: a skeleton takes a blunt blow twice over, a slime resists fire, fire can't hurt a dragon.\n- The smith sells SRD weapons and armour.\n- All of it is in Settings → Inventory → 5e rules, each with its own switch.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.01",
-          "date": "2026-11-16",
-          "notes": "- Fixed: with \"Stay down until you choose\", the Respawn button could vanish and leave you lying there for good. It now stays up for as long as you're down, and works whatever else has happened meanwhile.\n- Settings → Debug has a Respawn button of its own, for getting unstuck: it puts you at your door, on your feet. If you weren't beaten it costs nothing.",
           "highlight": false
         }
       ]

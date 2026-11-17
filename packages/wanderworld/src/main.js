@@ -202,6 +202,7 @@ import {
   spoilsOf,
   spoilsWords,
   strikeWords,
+  sumWords,
   turnBudget,
   typedDamage,
   weaponIn,
@@ -8359,7 +8360,7 @@ function playerSave(attribute, dc) {
   const roll = attribute === "dexterity" && kitNow().danger ? Math.max(die(), die()) : die();
   const total = roll + modifier(valueOf(sheet, attribute) + (worn[attribute] ?? 0)) + saveBonus(attribute);
   const name = `${attribute[0].toUpperCase()}${attribute.slice(1)}`;
-  return { roll, total, saved: total >= dc, words: `${name} save ${total} against DC ${dc}` };
+  return { roll, total, saved: total >= dc, words: `${name} save: ${sumWords(roll, total)} against DC ${dc}` };
 }
 /**
  * What the player's class adds to a saving throw in `attribute`: their proficiency bonus where the class is
@@ -10603,7 +10604,10 @@ function allyAttacked(event, what, with_ = null) {
     hindered: worse && !keen,
     ...(keen && !worse ? { keen: true } : {}),
   };
-  if (result.hit && allyUsed(person.id).raging) result.damage = Math.max(1, Math.floor(result.damage / 2)); // (Rage)
+  if (result.hit && allyUsed(person.id).raging) {
+    result.damage = Math.max(1, Math.floor(result.damage / 2)); // (Rage)
+    result.detail += ", halved by Rage";
+  }
   const health = allyHp(person.id);
   if (result.hit) {
     health.hp = Math.max(0, health.hp - result.damage);
@@ -10794,7 +10798,7 @@ function allyExtras(person, name, stats, what, health) {
   const save = (attribute, dc) => {
     const trained = allyKit(person.id).saves.includes(attribute) ? proficiency(allyLevel(person.id)) : 0;
     const total = 1 + Math.floor(Math.random() * 20) + 2 + trained;
-    return { saved: total >= dc, words: `${attribute} save ${total} against DC ${dc}` };
+    return { saved: total >= dc, words: `${attribute} save: ${total} against DC ${dc}` };
   };
   const rider = stats.rider;
   if (rider) {
@@ -11500,11 +11504,15 @@ function foeAttacks(event, what, with_ = null) {
     result.damage = 0;
     result.ac += 5;
   }
-  if (buffed("raging") && result.hit) result.damage = Math.floor(result.damage / 2); // (Rage: half from weapons)
+  if (buffed("raging") && result.hit) {
+    result.damage = Math.floor(result.damage / 2); // (Rage: half from weapons)
+    result.detail += ", halved by Rage";
+  }
   // (A rogue's Uncanny Dodge: half of one blow that lands, once every six seconds.)
   if (result.hit && kitNow().uncanny && core.clock >= (core.uncannyAt ?? 0) && !afflicted().helpless) {
     core.uncannyAt = core.clock + 6;
     result.damage = Math.floor(result.damage / 2);
+    result.detail += ", halved by Uncanny Dodge";
   }
   const hp = playerStruck(result, event);
   narrate(null, foeWords({ who, what, verb: stats.verb, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
