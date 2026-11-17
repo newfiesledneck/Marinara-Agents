@@ -3369,6 +3369,49 @@ export function createHud(root, handlers) {
           ),
         );
       }
+      // A turn in a fight by turns, and the spell slots: what they are now, and a box each to change them.
+      const cells = (list) => {
+        const row = piece("display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;");
+        for (const [label, value, onChange] of list) {
+          const cell = piece("display:flex;align-items:center;gap:4px;");
+          cell.append(
+            label,
+            numberBox(value, label, (next) => {
+              onChange(Math.max(0, next));
+              void drawInventory();
+            }),
+          );
+          row.append(cell);
+        }
+        return row;
+      };
+      if (build.turn)
+        body.append(
+          piece("margin-top:4px;font-weight:700;", "Each turn, in a fight by turns"),
+          cells(
+            [
+              ["Actions", build.turn.actions, "turnActions"],
+              ["Bonus actions", build.turn.bonus, "turnBonus"],
+              ["Attacks an action", build.turn.attacks, "turnAttacks"],
+              ["Metres", build.turn.move, "turnMove"],
+            ].map(([label, value, name]) => [label, value, (next) => handlers.onSetting?.(name, next)]),
+          ),
+          explainNote(
+            "What each of your turns gives as things stand: your class, level and race decide. Change a number to have that many. 0 hands it back to the rules.",
+          ),
+        );
+      if (build.slots?.length)
+        body.append(
+          piece("margin-top:4px;font-weight:700;", "Spell slots"),
+          cells(
+            build.slots.map((slot) => [`L${slot.level}`, slot.have, (next) => handlers.onSlots?.(slot.level, next)]),
+          ),
+          explainNote(
+            build.slotsOn
+              ? "How many spell slots of each level you have between sleeps: your level decides, and you can change any of them. Set one to what your level gives and it's the rules' again."
+              : 'How many spell slots of each level you would have. They are used only where fights go by turns with "Fights by turns use spell slots" on (Settings → Inventory → Combat); otherwise spells cost mana.',
+          ),
+        );
       const rest = piece("display:flex;align-items:center;gap:6px;margin-top:4px;");
       rest.append(
         piece(
@@ -4820,15 +4863,21 @@ export function createHud(root, handlers) {
      * window (casting one makes it the ready one), and the touch screen's Cast button names the ready one.
      */
     setSpells(spells, readyId) {
-      const key = `${spells.map((spell) => `${spell.id}:${spell.name}:${spell.cost}:${spell.slotted ? spell.slot : ""}`).join("|")}>${readyId}`;
+      const key = `${spells.map((spell) => `${spell.id}:${spell.name}:${spell.cost}:${spell.slotted ? spell.slot : ""}:${spell.mark ?? ""}`).join("|")}>${readyId}`;
       if (key === spellsKey) return;
       spellsKey = key;
       spellsShown = spells;
       spellRow.replaceChildren(
         ...spells.map((spell) => {
           const control = button(
-            `${spell.name}${spell.slotted ? (spell.slot ? ` (L${spell.slot})` : "") : spell.cost ? ` (${spell.cost})` : ""}`,
-            `Cast ${spell.name}${spell.slotted ? (spell.slot ? `: a level ${spell.slot} spell slot` : "") : spell.cost ? `: ${spell.cost} mana` : ""}${spell.id === readyId ? " (the ready one)" : ""}`,
+            // (Its slot's level or its mana, and by turns what it takes of the turn: A an action, B a bonus action.)
+            `${spell.name}${((tags) => (tags.length ? ` (${tags.join(", ")})` : ""))(
+              [
+                spell.slotted ? (spell.slot ? `L${spell.slot}` : "") : spell.cost ? String(spell.cost) : "",
+                spell.mark ?? "",
+              ].filter(Boolean),
+            )}`,
+            `Cast ${spell.name}${spell.slotted ? (spell.slot ? `: a level ${spell.slot} spell slot` : "") : spell.cost ? `: ${spell.cost} mana` : ""}${spell.mark === "B" ? "; a bonus action" : spell.mark === "A" ? "; an action" : ""}${spell.id === readyId ? " (the ready one)" : ""}`,
             () => handlers.onCast?.(spell.id),
           );
           control.style.cssText += `padding:4px 10px;font-size:12px;${spell.id === readyId ? "outline:1px solid #c9a15a;" : ""}`;

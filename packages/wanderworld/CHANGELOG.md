@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.20 — 2026-11-17
+
+- By turns, buttons say what they take of your turn: (A) an action, (B) a bonus action. It's on the spell buttons beside the slot level, on the Abilities, Moves and Spells rows, and on the bar's Dash, Disengage and Dodge. Something that takes neither has no letter.
+- Inventory → Sheet shows what each of your turns gives (actions, bonus actions, attacks, metres) and your spell slots by level, each with a box to change it.
+
 ## 0.7.19 — 2026-11-17
 
 - Fixed: in a fight by turns, casting a spell or attacking with nothing in range still used up your action (and the spell's mana or slot). Now it says "Out of range", tells you how far the nearest creature is, and costs nothing.
