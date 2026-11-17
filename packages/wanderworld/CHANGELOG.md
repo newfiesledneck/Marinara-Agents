@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.7.21 — 2026-11-17
+
+- Fight messages show their working. An attack reads "(Attack roll: 4 + 2 = 6 against AC 16, half cover): a miss", with the die, what was added and the total. A natural 20 or 1 is said beside it.
+- Damage shows its dice: "for 7 (Damage: 1d8 (5) + 2 = 7)", with anything that changed it after (doubled by a weakness, halved by a save, by Rage or by Uncanny Dodge).
+- Saving throws show the same sum against the DC.
+- A spell that can't miss says "(no roll: it can't miss)" in place of "it strikes home".
+
 ## 0.7.20 — 2026-11-17
 
 - By turns, buttons say what they take of your turn: (A) an action, (B) a bonus action. It's on the spell buttons beside the slot level, on the Abilities, Moves and Spells rows, and on the bar's Dash, Disengage and Dodge. Something that takes neither has no letter.

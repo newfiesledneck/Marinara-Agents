@@ -416,16 +416,40 @@ export function attackRoll(
   const hit = crit || (roll !== 1 && roll + bonus >= ac);
   // (`reroll`: Great Weapon Fighting. One of the weapon's own dice that comes up that or less is rolled
   // again, once, and the new roll stands.)
+  // (Each lot of dice is kept as it fell, for the telling: "1d8 (5)", "2d6 (1→4, 6)" where one was rolled again.)
+  const told = [];
   const own = () => {
     const first = rollDice(damage, random);
     const sides = Number(/d(\d+)/u.exec(String(damage))?.[1] ?? 0);
-    if (!reroll || !sides) return first.total;
-    return first.rolls.reduce(
-      (sum, face) => sum + (face <= reroll ? 1 + Math.floor(random() * sides) - face : 0),
-      first.total,
-    );
+    if (!reroll || !sides) {
+      told.push(diceWords(damage, first.rolls, first.total));
+      return first.total;
+    }
+    let total = first.total;
+    const faces = first.rolls.map((face) => {
+      if (face > reroll) return String(face);
+      const again = 1 + Math.floor(random() * sides);
+      total += again - face;
+      return `${face}→${again}`;
+    });
+    told.push(diceWords(damage, faces, total));
+    return total;
   };
-  const rolled = () => own() + more.reduce((sum, dice) => sum + rollDice(dice, random).total, 0);
+  const extra = (dice) => {
+    const rolled = rollDice(dice, random);
+    told.push(diceWords(dice, rolled.rolls, rolled.total));
+    return rolled.total;
+  };
+  const rolled = () => own() + more.reduce((sum, dice) => sum + extra(dice), 0);
   const dealt = hit ? Math.max(1, rolled() + (crit ? rolled() : 0) + damageBonus) : 0;
-  return { roll, total: roll + bonus, hit, crit, damage: dealt };
+  // (`detail`: the damage as a sum, "1d8 (5) + 2 = 7"; "" on a miss.)
+  const detail = hit
+    ? `${told.join(" + ")}${damageBonus ? ` ${damageBonus < 0 ? "-" : "+"} ${Math.abs(damageBonus)}` : ""} = ${dealt}`
+    : "";
+  return { roll, total: roll + bonus, hit, crit, damage: dealt, detail };
+}
+
+/** Dice as they fell, for the telling: "2d6 (3, 5)"; a plain number is just the number. */
+export function diceWords(dice, faces, total) {
+  return faces.length ? `${String(dice).replace(/\s+/gu, "")} (${faces.join(", ")})` : String(total);
 }

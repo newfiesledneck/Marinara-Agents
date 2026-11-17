@@ -5,7 +5,7 @@
 // player fights with is what they carry, read from its description ("Weapon: 1d8 damage, +1 to attack").
 // This module only works things out: main.js moves the bodies and tells what happened.
 
-import { attackRoll, bonusesIn, modifier, rollDice, statBlock, valueOf } from "./sheet.js";
+import { attackRoll, bonusesIn, diceWords, modifier, rollDice, statBlock, valueOf } from "./sheet.js";
 import { SRD_ARMOUR, SRD_LOOT, SRD_MAGIC, SRD_POTIONS, SRD_WEAPONS } from "./srd.js";
 
 /** Bare hands. */
@@ -536,8 +536,14 @@ export function savingThrow({ score = 10, bonus = 0, dc = 10, damage = 0, onSave
   const roll = 1 + Math.floor(random() * 20);
   const total = roll + modifier(score) + bonus;
   const saved = total >= dc;
-  const full = Math.max(0, rollDice(damage, random).total);
-  return { roll, total, saved, damage: !saved ? full : onSave === "half" ? Math.floor(full / 2) : 0 };
+  const rolled = rollDice(damage, random);
+  const full = Math.max(0, rolled.total);
+  const dealt = !saved ? full : onSave === "half" ? Math.floor(full / 2) : 0;
+  // (`detail`: the damage dice as they fell, and what a save made of them.)
+  const detail = rolled.rolls.length
+    ? `${diceWords(damage, rolled.rolls, full)} = ${full}${saved ? (onSave === "half" ? ", halved by the save" : ", none on a save") : ""}`
+    : "";
+  return { roll, total, saved, damage: dealt, detail };
 }
 
 /**
@@ -553,9 +559,35 @@ export function foeNerve(hp, max, random = Math.random, temperament = "") {
   return left <= 1 / 3 && random() < 0.75 - left ? "flee" : "fight";
 }
 
-/** A roll told in a few words: "14 against AC 12", "a 20", "a 1". */
-const rollWords = (result) =>
-  result.crit ? "a 20 on the die" : result.roll === 1 ? "a 1 on the die" : `${result.total} against AC ${result.ac}`;
+/**
+ * What a blow or a spell dealt, with how it came to that: "for 7 (Damage: 1d8 (5) + 2 = 7)", and where the
+ * target's make changed it, "for 14 (Damage: 1d8 (5) + 2 = 7; doubled: bludgeoning is its weakness)".
+ */
+export function dealtWords(result) {
+  const made = typedWords(result.how, result.type).replace(/^ \(|\)$/gu, "");
+  const inside = [result.detail ? `Damage: ${result.detail}` : "", made].filter(Boolean).join("; ");
+  return `for ${result.damage}${inside ? ` (${inside})` : ""}`;
+}
+
+/** A d20 and what was added to it, as a sum: "9 + 5 = 14", "9 - 1 = 8", "9" with nothing added. */
+export function sumWords(roll, total) {
+  const added = total - roll;
+  return added ? `${roll} ${added < 0 ? "-" : "+"} ${Math.abs(added)} = ${total}` : String(total);
+}
+/**
+ * An attack roll told whole, so the player can see what made it: "Attack roll: 9 + 5 = 14 against AC 12",
+ * with ", a natural 20" (or the roll a wider critical came on) or ", a natural 1" where that's what decided it.
+ */
+const rollWords = (result, against = `AC ${result.ac}`) =>
+  `Attack roll: ${sumWords(result.roll, result.total)} against ${against}${
+    result.crit
+      ? result.roll === 20
+        ? ", a natural 20"
+        : `, a critical on ${result.roll}`
+      : result.roll === 1
+        ? ", a natural 1"
+        : ""
+  }`;
 
 /**
  * The player's swing, told: "You swing your iron axe at the wolf (14 against AC 12): a hit, for 6. It has 5
@@ -571,7 +603,7 @@ export function strikeWords({ who, what, weapon, result, left, max, named = fals
       : "strikes at";
   const start = `${who} ${how} ${whom} (${rollWords(result)}${result.hampered ? ", hampered" : ""}${result.cover ? ", half cover" : ""})`;
   if (!result.hit) return `${start}: a miss.`;
-  const hit = `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}${typedWords(result.how, result.type)}.`;
+  const hit = `${start}: ${result.crit ? "a critical hit" : "a hit"}, ${dealtWords(result)}.`;
   if (left <= 0) return `${hit} ${named ? what : `The ${what}`} goes down.`;
   return `${hit} ${named ? `${what} has` : "It has"} ${left} of ${max} HP left.`;
 }
@@ -580,7 +612,7 @@ export function strikeWords({ who, what, weapon, result, left, max, named = fals
 export function foeWords({ who, what, verb, result, left, max }) {
   const start = `The ${what} ${verb} at ${who} (${rollWords(result)}${result.guarded ? ", blocked" : ""}${result.hindered ? ", hindered" : ""}${result.keen ? ", with advantage" : ""}${result.cover ? ", half cover" : ""})`;
   if (!result.hit) return `${start}: a miss.`;
-  return `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}. ${who} has ${Math.max(0, left)} of ${max} HP.`;
+  return `${start}: ${result.crit ? "a critical hit" : "a hit"}, ${dealtWords(result)}. ${who} has ${Math.max(0, left)} of ${max} HP.`;
 }
 
 /** Someone's blow at the player, told: "Mira swings a mace at Zoey (15 against AC 12): a hit, for 4. Zoey has 9 of 20 HP." */
@@ -588,7 +620,7 @@ export function personWords({ name, who, weapon, result, left, max, shot = false
   const a = /^[aeiou]/iu.test(weapon) ? "an" : "a";
   const start = `${name} ${shot ? "shoots" : "swings"} ${a} ${weapon.toLowerCase()} at ${who} (${rollWords(result)}${result.guarded ? ", blocked" : ""})`;
   if (!result.hit) return `${start}: a miss.`;
-  return `${start}: ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}. ${who} has ${Math.max(0, left)} of ${max} HP.`;
+  return `${start}: ${result.crit ? "a critical hit" : "a hit"}, ${dealtWords(result)}. ${who} has ${Math.max(0, left)} of ${max} HP.`;
 }
 
 /**
@@ -615,11 +647,14 @@ export function spellAtPlayer({ wit = 0, spell, sheet, worn = {}, prof = 2, save
       total: thrown.total,
       against: `DC ${dc}`,
       damage: thrown.damage,
+      detail: thrown.detail,
     };
   }
   if (spell.sure) {
-    const damage = spell.damage ? Math.max(1, rollDice(spell.damage, random).total) : 0;
-    return { hit: true, saved: false, crit: false, sure: true, roll: 0, total: 0, against: "", damage };
+    const fell = spell.damage ? rollDice(spell.damage, random) : null;
+    const damage = fell ? Math.max(1, fell.total) : 0;
+    const detail = fell?.rolls.length ? `${diceWords(spell.damage, fell.rolls, damage)} = ${damage}` : "";
+    return { hit: true, saved: false, crit: false, sure: true, roll: 0, total: 0, against: "", damage, detail };
   }
   const ac = armourOf(sheet, worn);
   const result = attackRoll({ bonus: prof + wit, ac, damage: spell.damage ?? "0" }, random);
@@ -630,16 +665,16 @@ export function spellAtPlayer({ wit = 0, spell, sheet, worn = {}, prof = 2, save
 export function castAtWords({ name, spell, who, result, left, max }) {
   const start = `${name} casts ${spell} at ${who}`;
   const hp = `${who} has ${Math.max(0, left)} of ${max} HP.`;
-  if (result.sure) return `${start}: it strikes for ${result.damage}. ${hp}`;
+  if (result.sure) return `${start} (no roll: it can't miss): ${dealtWords(result)}. ${hp}`;
   if (result.against.startsWith("DC")) {
-    const thrown = `${result.total} against ${result.against}`;
-    if (!result.saved) return `${start} (${who} fails the save, ${thrown}): for ${result.damage}. ${hp}`;
+    const thrown = `${who}'s saving throw: ${sumWords(result.roll, result.total)} against ${result.against}`;
+    if (!result.saved) return `${start} (${thrown}): failed, ${dealtWords(result)}. ${hp}`;
     return result.damage
-      ? `${start} (${who} saves, ${thrown}): half, for ${result.damage}. ${hp}`
-      : `${start} (${who} saves, ${thrown}): nothing comes of it.`;
+      ? `${start} (${thrown}): saved, ${dealtWords(result)}. ${hp}`
+      : `${start} (${thrown}): saved, nothing comes of it.`;
   }
   if (!result.hit) return `${start} (${rollWords(result)}): a miss.`;
-  return `${start} (${rollWords(result)}): ${result.crit ? "a critical hit" : "a hit"}, for ${result.damage}. ${hp}`;
+  return `${start} (${rollWords(result)}): ${result.crit ? "a critical hit" : "a hit"}, ${dealtWords(result)}. ${hp}`;
 }
 
 /**
@@ -842,11 +877,14 @@ function spellRolled({ wit, spell, foe, prof }, random) {
       total: thrown.total,
       against: `DC ${dc}`,
       damage: thrown.damage,
+      detail: thrown.detail,
       effect: thrown.saved ? null : spell.effect,
     };
   }
   if (spell.sure) {
-    const damage = spell.damage ? Math.max(1, rollDice(spell.damage, random).total) : 0;
+    const fell = spell.damage ? rollDice(spell.damage, random) : null;
+    const damage = fell ? Math.max(1, fell.total) : 0;
+    const detail = fell?.rolls.length ? `${diceWords(spell.damage, fell.rolls, damage)} = ${damage}` : "";
     return {
       hit: true,
       saved: false,
@@ -856,6 +894,7 @@ function spellRolled({ wit, spell, foe, prof }, random) {
       total: 0,
       against: "",
       damage,
+      detail,
       effect: spell.effect,
     };
   }
@@ -869,6 +908,7 @@ function spellRolled({ wit, spell, foe, prof }, random) {
     total: result.total,
     against: `AC ${foe.ac}`,
     damage: result.hit && spell.damage ? result.damage : 0,
+    detail: result.hit && spell.damage ? result.detail : "",
     effect: result.hit ? spell.effect : null,
   };
 }
@@ -921,15 +961,17 @@ export function spellWords({ who, name, what, spell, result, left, max, named = 
   const their = named ? "their" : "its";
   const start = `${who} casts ${name} at ${whom}`;
   const rolled = result.sure
-    ? ""
+    ? " (no roll: it can't miss)"
     : spell.save
-      ? ` (${their} ${spell.save.attribute} save: ${result.total} against ${result.against})`
-      : ` (${result.crit ? "a 20 on the die" : `${result.total} against ${result.against}`})`;
+      ? ` (${their} ${spell.save.attribute} save: ${sumWords(result.roll, result.total)} against ${result.against})`
+      : ` (${rollWords(result, result.against)}${result.cover ? ", half cover" : ""})`;
   const parts = [];
-  if (result.sure) parts.push("it strikes home");
-  else if (spell.save) parts.push(result.saved ? (named ? "they save" : "it saves") : named ? "they fail" : "it fails");
+  if (result.sure) {
+    // (Nothing to say of the roll: what it did follows.)
+  } else if (spell.save)
+    parts.push(result.saved ? (named ? "they save" : "it saves") : named ? "they fail" : "it fails");
   else parts.push(result.crit ? "a critical hit" : result.hit ? "a hit" : "a miss");
-  if (result.damage > 0 || result.how) parts.push(`for ${result.damage}${typedWords(result.how, result.type)}`);
+  if (result.damage > 0 || result.how) parts.push(dealtWords(result));
   if (result.effect) parts.push(`${result.effect.name} for ${result.effect.seconds} seconds`);
   if (result.push) parts.push(`pushed back ${result.push} m`);
   const told = `${start}${rolled}: ${parts.join(", ")}.`;

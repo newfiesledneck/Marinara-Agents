@@ -74,6 +74,7 @@ assert.deepEqual(playerStrike({ sheet, weapon: iron, foe: wolf }, dice([10, 20],
   hit: true,
   crit: false,
   damage: 7,
+  detail: "1d8 (5) + 2 = 7",
   how: "",
   type: "slashing",
   ac: 13,
@@ -97,7 +98,7 @@ const guarded = foeStrike({ foe: wolf, sheet, guarded: true }, dice([15, 20], [2
 assert.deepEqual([guarded.roll, guarded.hit, guarded.guarded], [3, false, true]);
 assert.match(
   foeWords({ who: "Zoey", what: "wolf", verb: "snaps", result: guarded, left: 20, max: 20 }),
-  /\(7 against AC 10, blocked\): a miss\.$/u,
+  /\(Attack roll: 3 \+ 4 = 7 against AC 10, blocked\): a miss\.$/u,
 );
 
 // A saving throw: all of it on a failure; half, or none, on a save.
@@ -106,6 +107,7 @@ assert.deepEqual(savingThrow({ score: 14, dc: 13, damage: "2d6" }, dice([10, 20]
   total: 12,
   saved: false,
   damage: 9,
+  detail: "2d6 (4, 5) = 9",
 });
 assert.equal(savingThrow({ score: 14, dc: 12, damage: "2d6" }, dice([10, 20], [4, 6], [5, 6])).damage, 4);
 assert.equal(savingThrow({ score: 14, dc: 12, damage: 9, onSave: "none" }, dice([10, 20])).damage, 0);
@@ -139,7 +141,7 @@ assert.equal(
     left: 4,
     max: 11,
   }),
-  "Zoey swings the iron axe at the wolf (13 against AC 13): a hit, for 7. It has 4 of 11 HP left.",
+  "Zoey swings the iron axe at the wolf (Attack roll: 10 + 3 = 13 against AC 13): a hit, for 7. It has 4 of 11 HP left.",
 );
 assert.equal(
   strikeWords({
@@ -150,7 +152,7 @@ assert.equal(
     left: 0,
     max: 11,
   }),
-  "Zoey strikes at the wolf (a 20 on the die): a critical hit, for 4. The wolf goes down.",
+  "Zoey strikes at the wolf (Attack roll: 20 + 2 = 22 against AC 13, a natural 20): a critical hit, for 4. The wolf goes down.",
 );
 assert.equal(
   foeWords({
@@ -161,7 +163,7 @@ assert.equal(
     left: 20,
     max: 20,
   }),
-  "The wolf snaps at Zoey (7 against AC 10): a miss.",
+  "The wolf snaps at Zoey (Attack roll: 3 + 4 = 7 against AC 10): a miss.",
 );
 assert.match(
   foeWords({
@@ -186,7 +188,7 @@ assert.equal(
     left: 6,
     max: 10,
   }),
-  "Zoey swings the iron axe at Mira (15 against AC 10): a hit, for 4. Mira has 6 of 10 HP left.",
+  "Zoey swings the iron axe at Mira (Attack roll: 12 + 3 = 15 against AC 10): a hit, for 4. Mira has 6 of 10 HP left.",
 );
 assert.equal(foeOf("person", PACK.foes).hp, 10);
 
@@ -306,7 +308,7 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   assert.equal(spellStrike({ wit, spell: hold, foe: wolf }, dice([19, 20])).effect, null);
   assert.equal(
     spellWords({ who: "Zoey", name: "Frost burst", what: "wolf", spell: frost, result: saved, left: 7, max: 11 }),
-    "Zoey casts Frost burst at the wolf (its dexterity save: 13 against DC 13): it saves, for 4. It has 7 of 11 HP left.",
+    "Zoey casts Frost burst at the wolf (its dexterity save: 11 + 2 = 13 against DC 13): it saves, for 4 (Damage: 2d6 (4, 5) = 9, halved by the save). It has 7 of 11 HP left.",
   );
   assert.equal(
     spellWords({
@@ -319,7 +321,7 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
       left: 6,
       max: 10,
     }),
-    "Zoey casts Magic Missile at Mira: it strikes home, for 4. Mira has 6 of 10 HP left.",
+    "Zoey casts Magic Missile at Mira (no roll: it can't miss): for 4 (Damage: 1d4+1 (3) = 4). Mira has 6 of 10 HP left.",
   );
 }
 
@@ -446,7 +448,7 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   );
   assert.match(
     castAtWords({ name: "Odo", spell: "Burning Hands", who: "Zoey", result: saved, left: 4, max: 10 }),
-    /^Odo casts Burning Hands at Zoey \(Zoey saves, \d+ against DC 12\): half, for 6\. Zoey has 4 of 10 HP\.$/u,
+    /^Odo casts Burning Hands at Zoey \(Zoey's saving throw: [\d +=-]+ against DC 12\): saved, for 6 \(Damage: 2d6 \(6, 6\) = 12, halved by the save\)\. Zoey has 4 of 10 HP\.$/u,
   );
   assert.match(
     castAtWords({ name: "Odo", spell: "Hold", who: "Zoey", result: none, left: 4, max: 10 }),
@@ -461,7 +463,7 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
       left: 6,
       max: 10,
     }),
-    "Mira swings a greataxe at Zoey (15 against AC 12, blocked): a hit, for 4. Zoey has 6 of 10 HP.",
+    "Mira swings a greataxe at Zoey (Attack roll: 11 + 4 = 15 against AC 12, blocked): a hit, for 4. Zoey has 6 of 10 HP.",
   );
 }
 
@@ -630,7 +632,7 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   assert.deepEqual([hit.damage, hit.how], [6, "vulnerable"]);
   assert.match(
     strikeWords({ who: "Zoey", what: "skeleton", weapon: club, result: hit, left: 7, max: 13 }),
-    /for 6 \(doubled: bludgeoning is its weakness\)\./u,
+    /for 6 \(Damage: 1d4 \(3\) = 3; doubled: bludgeoning is its weakness\)\./u,
   );
   const { SRD_ARMOUR, SRD_CREATURES, SRD_WEAPONS } = await import("../packages/wanderworld/src/srd.js");
   assert.deepEqual(SRD_CREATURES.skeleton.vulnerable, ["bludgeoning"]);

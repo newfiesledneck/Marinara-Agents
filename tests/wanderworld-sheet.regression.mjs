@@ -145,8 +145,16 @@ assert.deepEqual(attackRoll({ bonus: 5, ac: 30, damage: "1d6", damageBonus: 2 },
   hit: true,
   crit: true,
   damage: 14,
+  detail: "1d6 (6) + 1d6 (6) + 2 = 14",
 });
-assert.deepEqual(attackRoll({ bonus: 50, ac: 5 }, low), { roll: 1, total: 51, hit: false, crit: false, damage: 0 });
+assert.deepEqual(attackRoll({ bonus: 50, ac: 5 }, low), {
+  roll: 1,
+  total: 51,
+  hit: false,
+  crit: false,
+  damage: 0,
+  detail: "",
+});
 const middling = attackRoll({ bonus: 2, ac: 12, damage: "1d4" }, () => 0.5);
 assert.deepEqual([middling.roll, middling.hit, middling.damage], [11, true, 3]);
 
