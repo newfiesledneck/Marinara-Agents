@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.19 — 2026-11-17
+
+- Fixed: in a fight by turns, casting a spell or attacking with nothing in range still used up your action (and the spell's mana or slot). Now it says "Out of range", tells you how far the nearest creature is, and costs nothing.
+- By turns, an attack turns you to a creature that's in reach at your side or behind you, so it counts.
+
 ## 0.7.18 — 2026-11-17
 
 - The Creatures sliders (stray dogs, farm animals, wild animals, wolves, monsters, the town's animals) each go up to 100 now. The counts are for the whole world, so a big map needs a high number to feel lived in.

@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.19",
+          "date": "2026-11-17",
+          "notes": "- Fixed: in a fight by turns, casting a spell or attacking with nothing in range still used up your action (and the spell's mana or slot). Now it says \"Out of range\", tells you how far the nearest creature is, and costs nothing.\n- By turns, an attack turns you to a creature that's in reach at your side or behind you, so it counts.",
+          "highlight": false
+        },
+        {
           "version": "0.7.18",
           "date": "2026-11-17",
           "notes": "- The Creatures sliders (stray dogs, farm animals, wild animals, wolves, monsters, the town's animals) each go up to 100 now. The counts are for the whole world, so a big map needs a high number to feel lived in.",
@@ -1532,12 +1538,6 @@
           "date": "2026-11-16",
           "notes": "- Creatures act out their attacks. Bandits swing their swords, and witches and wizards cast, with the same animations people use. Animals and monsters lunge at you when they strike (their models have no attack animations yet).\n- Casting with nothing in front of you turns you to the nearest enemy the spell can reach, then casts. A bow does the same. Peaceful animals are never picked.",
           "highlight": true
-        },
-        {
-          "version": "0.6.99",
-          "date": "2026-11-16",
-          "notes": "- By turns: a fight starts when a creature begins coming for you, not when it hits. Its Stealth is rolled against your passive Perception; if you miss it, you lose your first turn.\n- Movement is a circle on the ground: anywhere within nine metres of where your turn began, and back. Clicking to walk no longer goes past it.\n- Dash, Disengage and Dodge buttons on the bar. Leaving a creature's reach gives it an opportunity attack unless you Disengaged.\n- An optional class of your own (Inventory → Sheet): Second Wind, Action Surge, Cunning Action, Rage, Extra Attack.\n- Actions, bonus actions, attacks and metres per turn can be set by hand in Settings → Inventory → Combat.\n- Creatures shoot and cast on their turns.\n- The bar no longer covers notices.",
-          "highlight": false
         }
       ]
     },
