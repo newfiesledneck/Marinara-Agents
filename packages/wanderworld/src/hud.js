@@ -114,13 +114,35 @@ const TIME_LABELS = { cycle: "Day and night", day: "Always day", night: "Always 
  * onRest(), onRenameZone(id, name), onZoneLore(id), and `maxPeople`.
  */
 /** Everything a description's block can say, in the fewest words (the Inventory window's (i)). */
-const ITEM_KEYS = `Stats go in [square brackets] in the description. Only what's inside is read.
-Weapon:  [1d8 slashing damage, +1 to attack, Range 24, finesse, light]
-Worn:    [+2 AC, +1 Strength, +1 damage]   (any stat on your sheet, by name)
-Used up: [+15 HP]  [+10 Mana]  [+2d4+2 HP]
-Tool:    [+2 gathering]
-Kinds of damage: acid, bludgeoning, cold, fire, force, lightning, necrotic, piercing, poison, psychic, radiant, slashing, thunder.
-No brackets: the name decides. sword, dagger, axe, bow, …; chain mail, shield, …; Ring of Protection, …; Potion of Healing. A +1 in a name adds 1.`;
+const ITEM_KEYS = `Stats go in [square brackets] in the description. Only what's inside is read. Separate with commas.
+
+WEAPON   [1d8 slashing damage, +1 to attack, finesse]
+ damage  dice, a kind, then "damage":  1d4 · 1d8 · 2d6+1
+ kinds   slashing · piercing · bludgeoning · acid · cold · fire · force · lightning · necrotic · poison · psychic · radiant · thunder
+ to hit  +1 to attack
+ shoots  Range 24  (metres; rolls with Dexterity)
+ traits  finesse  (the better of Strength and Dexterity)
+         light  (can be your off-hand weapon)
+         two-handed  (needs both hands; Great Weapon Fighting counts)
+         versatile 1d10  (does 1d10 when you hold it in both hands, which is whenever you wear no shield)
+         reach  (a swing lands 1.5 m further off)
+         thrown 6  (can be thrown that many metres at what's out of reach)
+         heavy  (halflings and gnomes swing it at a disadvantage)
+
+WORN     [+2 AC, +1 Str, +5 Max HP]
+ +N or -N of any stat:  AC · Str Dex Con Int Wis Cha · one of your own
+ +5 Max HP · +5 Max Mana · the most of any stat that has one
+ +1 to attack · +1 damage
+
+USED UP  [+15 HP]  [+1 Souls]  [+5 Max HP]
+ +N of any number on your sheet, for good: HP and Mana fill up to their most; a stat with no most just goes up
+ +N Max of a stat raises its most, and what's in it
+ rolled:  +2d4+2 HP
+
+TOOL     [+2 gathering]
+ the name says the job:  axe (wood) · pickaxe (rock) · rod (fish)
+
+NO BRACKETS: the name decides.  sword, dagger, axe, bow, …  ·  chain mail, shield, …  ·  Ring of Protection, …  ·  Potion of Healing.  A +1 in a name adds 1.`;
 /** Every lorebook keyword's form, by what it's for (the Lore window's (i)); keywords.js has what each does. */
 const LORE_KEYS = `Each is its own key on an entry: ww:<what>:<value>. Spaces and capitals don't matter. Help has what each does.
 ${[...new Set(KEYWORD_GUIDE.map((entry) => entry.group))]

@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.15",
+          "date": "2026-11-17",
+          "notes": "- An item's block can say more about a weapon: two-handed, versatile 1d10 (its damage in both hands), reach (a swing lands 1.5 m further off), thrown 6 (throw it that many metres at what's out of reach) and heavy.\n- \"+5 Max HP\" in a block raises the most of a stat: while the item is worn, or for good when it's used up.\n- A used-up item can change any number on your sheet, not only HP and mana: \"+1 Souls\" works on a stat of your own with no maximum.\n- The (i) in the Inventory window lists all of it, grouped, and scrolls when it's long.",
+          "highlight": false
+        },
+        {
           "version": "0.7.14",
           "date": "2026-11-17",
           "notes": "- Item stats go in square brackets in a description, and only there: \"A sword with a light blue glow. [1d8 slashing damage]\". Words outside the brackets set nothing. An item with no block goes by its name.\n- What you already carry is converted once in each world: loose stats are moved into a block, so nothing stops working.\n- The inventory tracker is told the format. It may give a new item stats that fit it, and is told never to change a block an item already has. A setting turns this off.\n- Anything the game adds to your bag (bought, made, found) gets the slot it's worn or held in.\n- The Inventory and Lore windows each have one line with an (i) listing every key a description or a lorebook entry can use.\n- The six abilities answer to their short names: /check str, [+2 Dex].",
@@ -307,12 +313,6 @@
           "version": "0.6.96",
           "date": "2026-11-15",
           "notes": "- Creatures fight with the 5e SRD's numbers: HP, AC, what they add to an attack, their damage, and their initiative in fights by turns. A wolf is the SRD's wolf, a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage.\n- Cattle, the alpaca and the shiba have nothing close in the SRD and keep the game's own numbers. People fight by their class. Experience for a win is unchanged.\n- \"Creatures use the 5e SRD's numbers\" (Settings → Inventory → Combat) is on to begin with; off brings back the game's own numbers.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.95",
-          "date": "2026-11-15",
-          "notes": "- People fight back. In real-time combat, someone you strike or cast at turns on you: they close in and swing their class's weapon, or keep off and cast their class's spells. Each go is rolled against your AC or your saving throw and told in the chat. Block and Dodge work against them.\n- They stop at a third of their HP, when you go down, when you get well away, or about 45 seconds after you last went for them.\n- \"People you attack fight back\" is under \"Blows can land on people\" in Settings → Inventory → Combat, and is on to begin with.",
           "highlight": false
         }
       ]

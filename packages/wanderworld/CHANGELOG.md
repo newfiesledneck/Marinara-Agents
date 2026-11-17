@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.7.15 — 2026-11-17
+
+- An item's block can say more about a weapon: two-handed, versatile 1d10 (its damage in both hands), reach (a swing lands 1.5 m further off), thrown 6 (throw it that many metres at what's out of reach) and heavy.
+- "+5 Max HP" in a block raises the most of a stat: while the item is worn, or for good when it's used up.
+- A used-up item can change any number on your sheet, not only HP and mana: "+1 Souls" works on a stat of your own with no maximum.
+- The (i) in the Inventory window lists all of it, grouped, and scrolls when it's long.
+
 ## 0.7.14 — 2026-11-17
 
 - Item stats go in square brackets in a description, and only there: "A sword with a light blue glow. [1d8 slashing damage]". Words outside the brackets set nothing. An item with no block goes by its name.

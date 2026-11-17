@@ -300,9 +300,9 @@ export const ITEM_STATS = `
 ## One more thing: item stats in descriptions
 An item's description may end with a block in square brackets that sets what the item does in the game. Only what is inside the brackets is read; the words before it are free.
 What a block can say, separated by commas:
-- A weapon: "1d8 slashing damage" (dice, then a kind: slashing, piercing, bludgeoning, fire, cold and the like), "+1 to attack", "Range 24" (it shoots; metres), "finesse", "light".
-- Something worn: "+1 AC", "+2 Strength" (any stat, by its name), "+1 damage".
-- Something used up: "+15 HP", "+10 Mana", "+2d4+2 HP".
+- A weapon: "1d8 slashing damage" (dice, then a kind: slashing, piercing, bludgeoning, fire, cold and the like), "+1 to attack", "Range 24" (it shoots; metres), and traits: "finesse", "light", "two-handed", "versatile 1d10" (its dice in both hands), "reach", "thrown 6" (metres), "heavy".
+- Something worn: "+1 AC", "+2 Strength" (any stat, by its name), "+5 Max HP", "+1 damage".
+- Something used up: "+15 HP", "+10 Mana", "+2d4+2 HP", "+1" of any stat for good, "+5 Max HP".
 - A tool: "+2 gathering".
 Like: "A notched blade with a pale blue glow. [1d8 slashing damage, +1 to attack]"
 
