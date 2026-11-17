@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.22 — 2026-11-17
+
+- Illustrate → "What the AI is told" is no longer cut off at 4,000 characters. It now takes about 60,000, so a long instruction with conditions in it is sent whole. The picture template's limit went from 2,000 to 20,000.
+- A world's instructions for scenes go from 1,000 characters to 20,000.
+
 ## 0.7.21 — 2026-11-17
 
 - Fight messages show their working. An attack reads "(Attack roll: 4 + 2 = 6 against AC 16, half cover): a miss", with the die, what was added and the total. A natural 20 or 1 is said beside it.

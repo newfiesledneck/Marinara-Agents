@@ -2333,7 +2333,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
       routes.post("/illustrate", async (request, reply) => {
         const body = isRecord(request.body) ? request.body : {};
         const worldId = idOf(body.worldId);
-        const template = block(body.template, 2000);
+        const template = block(body.template, 20000);
         if (!worldId || !template) return reply.status(400).send({ error: "A world and a prompt template are needed." });
         const facts = isRecord(body.facts) ? body.facts : {};
         const people = (Array.isArray(facts.people) ? facts.people : []).filter(isRecord).slice(0, 8);
@@ -2392,7 +2392,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
               [
                 {
                   role: "system",
-                  content: `${block(body.instruction, 4000) || IMPROVE_INSTRUCTION}${chat ? `\n\n${IMPROVE_CHAT_NOTE}` : ""}`,
+                  content: `${block(body.instruction, 60000) || IMPROVE_INSTRUCTION}${chat ? `\n\n${IMPROVE_CHAT_NOTE}` : ""}`,
                 },
                 { role: "user", content: chat ? `<facts>\n${prompt}\n</facts>\n\n<chat>\n${chat}\n</chat>` : prompt },
               ],
@@ -2571,7 +2571,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const initiator = cast.find((person) => person.id === idOf(body.initiatorId)) ?? cast[0];
         const pov = POVS[body.pov] ? body.pov : "second_person";
         const tense = TENSES[body.tense] ? body.tense : "present";
-        const extra = block(body.instructions, 1000);
+        const extra = block(body.instructions, 20000);
         const system = [
           "You plan a roleplay scene for Marinara Engine, starting from a moment in Wanderworld, a small world the player walks around in. Answer with one JSON object and nothing else.",
           section(
