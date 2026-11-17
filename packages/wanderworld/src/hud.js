@@ -4024,7 +4024,7 @@ export function createHud(root, handlers) {
 
   const explainRule = document.createElement("style");
   explainRule.textContent =
-    ".wanderworld-no-explain [data-wanderworld-explain]:not([data-open]){display:none!important}[data-wanderworld-info]{display:none}.wanderworld-no-explain [data-wanderworld-info]{display:inline-flex}[data-wanderworld-info][data-always]{display:inline-flex}[data-wanderworld-keys]:not([data-open]){display:none}";
+    ".wanderworld-no-explain [data-wanderworld-explain]:not([data-open]){display:none!important}[data-wanderworld-info]{display:none}.wanderworld-no-explain [data-wanderworld-info]{display:inline-flex}[data-wanderworld-info][data-always]{display:inline-flex}[data-wanderworld-info-row]{display:none}.wanderworld-no-explain [data-wanderworld-info-row]{display:flex}[data-wanderworld-keys]:not([data-open]){display:none}";
   layer.append(explainRule);
   // Every explanation has its (i). One written with it has it already; any other (a note in the Journal,
   // the Inventory, someone's card) is given one here as it's drawn: at the start of the line above it where
@@ -4041,9 +4041,33 @@ export function createHud(root, handlers) {
         above.textContent.trim() &&
         above.textContent.length < 90;
       if (plain) above.prepend(control);
-      else node.before(control);
+      else {
+        // (Standing by itself, it goes and comes with what it explains: a part of Settings that isn't the
+        // one open hides its lines, and its (i) with them.)
+        // (With a word beside it, so it isn't a bare (i): what the note is.)
+        const row = document.createElement("div");
+        row.setAttribute("data-wanderworld-info-row", "");
+        row.style.cssText = "align-items:center;font-size:12px;opacity:0.85;";
+        const words = document.createElement("span");
+        words.textContent = node.dataset.intro ? "About these settings" : "About this";
+        row.append(control, words);
+        node.before(row);
+        // (In Settings a line belongs to a section and a sub-tab, and is hidden by an attribute when another
+        // is open: its (i) is marked the same, so showSection hides and shows the two together.)
+        for (const key of ["section", "sub", "intro"])
+          if (node.dataset[key] !== undefined) row.dataset[key] = node.dataset[key];
+        row.toggleAttribute("data-wanderworld-settings-hidden", node.hasAttribute("data-wanderworld-settings-hidden"));
+        const sync = () => void (row.style.display = node.style.display === "none" ? "none" : "");
+        loose.set(node, sync);
+        sync();
+        looseWatch.observe(node, { attributes: true, attributeFilter: ["style"] });
+      }
     }
   };
+  const loose = new WeakMap();
+  const looseWatch = new MutationObserver((changes) => {
+    for (const change of changes) loose.get(change.target)?.();
+  });
   let infoDue = false;
   const infoWatch = new MutationObserver(() => {
     if (infoDue) return;
