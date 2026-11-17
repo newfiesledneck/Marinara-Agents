@@ -135,6 +135,8 @@ export const SETTINGS = {
   // what is worn told to the AI; and its tracker asked what changed after a moment, or after every reply too.
   inventory: { value: true },
   inventoryWorn: { value: true },
+  // Whether the inventory's tracker is told how item stats are written, so a new item it adds may have some (and ones that have them are left alone).
+  trackItemStats: { value: true },
   inventoryTrack: { value: "moments", options: ["off", "moments", "all"] },
   // A scene's chat uses the world's sheet; and Quartermaster's window in Wanderworld's parchment colours.
   inventoryScenes: { value: true },

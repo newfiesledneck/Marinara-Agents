@@ -55,7 +55,7 @@ for (const kind of Object.keys(GATHER_KINDS)) {
 
 // The roll: under 8 nothing, from 18 two; the attribute's modifier counts; foraging follows the season.
 const lists = {
-  fish: [{ name: "Trout", description: "+4 HP" }, { name: "Pike" }],
+  fish: [{ name: "Trout", description: "[+4 HP]" }, { name: "Pike" }],
   forage: { spring: [{ name: "Wild garlic" }], summer: [{ name: "Berries" }] },
 };
 assert.deepEqual(
@@ -64,7 +64,7 @@ assert.deepEqual(
 );
 assert.deepEqual(gatherRoll("fish", 10, lists, "", () => 0.5).found, {
   name: "Trout",
-  description: "+4 HP",
+  description: "[+4 HP]",
   quantity: 1,
 });
 assert.equal(gatherRoll("fish", 10, lists, "", () => 0.999).found.quantity, 2);

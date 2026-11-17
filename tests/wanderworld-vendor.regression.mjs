@@ -156,7 +156,7 @@ assert.deepEqual([offerAfter(10, 0.9), offerAfter(10, 1.1), offerAfter(0, 0.8), 
   assert.deepEqual(
     server.checkStock({
       stock: [
-        { name: "Stimpak", description: "+15 HP when used", price: 20.4, quantity: 3 },
+        { name: "Stimpak", description: "[+15 HP when used]", price: 20.4, quantity: 3 },
         { name: "stimpak", description: "again", price: 5 },
         { name: "", price: 3 },
         { name: "Free lunch", price: "nothing" },
@@ -165,7 +165,7 @@ assert.deepEqual([offerAfter(10, 0.9), offerAfter(10, 1.1), offerAfter(0, 0.8), 
       ],
     }),
     [
-      { name: "Stimpak", description: "+15 HP when used", price: 20, quantity: 3 },
+      { name: "Stimpak", description: "[+15 HP when used]", price: 20, quantity: 3 },
       { name: "Rad-X", description: "", price: 9999, quantity: 9 },
     ],
   );

@@ -94,8 +94,18 @@ export const xpNeeded = (level) => 100 * Math.max(1, level);
 export function entryNamed(sheet, name) {
   return find(sheet, name);
 }
+const SHORT_NAMES = {
+  str: "strength",
+  dex: "dexterity",
+  con: "constitution",
+  int: "intelligence",
+  wis: "wisdom",
+  cha: "charisma",
+};
 function find(sheet, name) {
-  const wanted = words(String(name ?? ""), 60).toLowerCase();
+  const said = words(String(name ?? ""), 60).toLowerCase();
+  // (The six abilities by their short names too: "str" is Strength, "cha" Charisma.)
+  const wanted = SHORT_NAMES[said] ?? said;
   if (!wanted) return null;
   return (
     sheet.entries.find((entry) => entry.id.toLowerCase() === wanted) ??
@@ -201,6 +211,30 @@ export function toppedUp(sheet) {
 // ── Bonuses written in an item's description ─────────────────────────────────
 
 /**
+ * The part of an item's description that sets its stats: what stands in square brackets ("A sword with a
+ * light blue glow. [1d8 slashing damage, +1 to attack]"). Nothing outside them is read, so a description can
+ * say what it likes. Several blocks are read as one; "" when there is none.
+ */
+export const statBlock = (text) =>
+  [...String(text ?? "").matchAll(/\[([^\]]*)\]/gu)].map((match) => match[1]).join(". ");
+
+const STAT_SENTENCE = /(\d{0,2}d\d{1,3}[^.]*\bdamage\b|[+\-−]\s?\d|^\s*(?:Range \d+|Finesse|Weapon:|Tool:|Armou?r:))/iu;
+/**
+ * A description written before stats went in a block, with its stat sentences moved into one at its end:
+ * "A red draught. +15 HP when drunk." is "A red draught. [+15 HP when drunk]". One that has a block already,
+ * or states nothing, comes back as it was.
+ */
+export function bracketed(description) {
+  const text = String(description ?? "").trim();
+  if (!text || text.includes("[")) return text;
+  const parts = text.split(/(?<=\.)\s+/u);
+  const stats = parts.filter((part) => STAT_SENTENCE.test(part));
+  if (!stats.length) return text;
+  const flavour = parts.filter((part) => !STAT_SENTENCE.test(part));
+  return `${flavour.join(" ")}${flavour.length ? " " : ""}[${stats.map((part) => part.replace(/\.$/u, "")).join(". ")}]`;
+}
+
+/**
  * The bonuses a description states: "+2 AC", "+10 HP", "-1 Dexterity", "+2 to attack", "+1 damage".
  * [{ stat: an entry's id, or "attack" | "damage", amount }]. Only what the sheet has, or those two.
  */
@@ -232,14 +266,15 @@ export function wornBonuses(sheet, items) {
   const total = {};
   for (const item of Array.isArray(items) ? items : []) {
     if (typeof item?.location !== "string" || !item.location.startsWith("equipped:")) continue;
-    for (const bonus of bonusesIn(item.description, sheet)) total[bonus.stat] = (total[bonus.stat] ?? 0) + bonus.amount;
+    for (const bonus of bonusesIn(statBlock(item.description), sheet))
+      total[bonus.stat] = (total[bonus.stat] ?? 0) + bonus.amount;
   }
   return total;
 }
 
 /** Using something up: its bonuses to resources (HP, mana, the player's own) are applied once. */
 export function useItem(sheet, description) {
-  const changes = bonusesIn(description, sheet)
+  const changes = bonusesIn(statBlock(description), sheet)
     .filter((bonus) => "max" in (entryOf(sheet, bonus.stat) ?? {}))
     .map((bonus) => ({ stat: bonus.stat, by: bonus.amount }));
   return applyChanges(sheet, changes);

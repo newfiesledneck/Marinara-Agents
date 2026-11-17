@@ -12,6 +12,8 @@ const count = (value, most = 999) => Math.max(1, Math.min(most, Math.round(Numbe
  * The tool each kind of gathering takes, told by an item's name (so one the player made or was given
  * counts), and whether it can be swung as a weapon. Foraging and harvesting are done by hand.
  */
+import { statBlock } from "./sheet.js";
+
 export const TOOLS = {
   chop: { tool: "axe", named: /\b(?:axe|hatchet)\b/iu, need: "an axe", weapon: true },
   mine: { tool: "pick", named: /\bpick(?:axe)?\b/iu, need: "a pickaxe", weapon: true },
@@ -30,7 +32,7 @@ export function toolFor(kind, items) {
  * nothing. So a better tool finds something more often, and two of it more often.
  */
 export function toolBonus(item) {
-  const match = /([+\-−])\s?(\d{1,2})\s*(?:to\s+)?gathering/iu.exec(String(item?.description ?? ""));
+  const match = /([+\-−])\s?(\d{1,2})\s*(?:to\s+)?gathering/iu.exec(statBlock(item?.description));
   return match ? (match[1] === "+" ? 1 : -1) * Number(match[2]) : 0;
 }
 

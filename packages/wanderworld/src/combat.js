@@ -5,7 +5,7 @@
 // player fights with is what they carry, read from its description ("Weapon: 1d8 damage, +1 to attack").
 // This module only works things out: main.js moves the bodies and tells what happened.
 
-import { attackRoll, bonusesIn, modifier, rollDice, valueOf } from "./sheet.js";
+import { attackRoll, bonusesIn, modifier, rollDice, statBlock, valueOf } from "./sheet.js";
 import { SRD_ARMOUR, SRD_LOOT, SRD_MAGIC, SRD_POTIONS, SRD_WEAPONS } from "./srd.js";
 
 /** Bare hands. */
@@ -124,7 +124,7 @@ export function weaponIn(item, byDescription = true) {
 }
 
 function weaponWritten(item) {
-  const text = String(item?.description ?? "");
+  const text = statBlock(item?.description); // (only what's in its square brackets)
   const damage = DAMAGE.exec(text);
   if (!damage) return null;
   const attack = TO_ATTACK.exec(text);
@@ -189,7 +189,7 @@ const POTION_NAMES = Object.values(SRD_POTIONS).sort((a, b) => b.name.length - a
  * Potion of Healing is the SRD's), whichever `byDescription` puts first; "" when it's neither.
  */
 export function potionIn(item, byDescription = true) {
-  const written = POTION_DICE.exec(String(item?.description ?? ""))?.[1].replace(/\s+/gu, "") ?? "";
+  const written = POTION_DICE.exec(statBlock(item?.description))?.[1].replace(/\s+/gu, "") ?? "";
   const name = String(item?.name ?? "").toLowerCase();
   const linked = (name && POTION_NAMES.find((entry) => name.includes(entry.name.toLowerCase()))?.heal) || "";
   return byDescription ? written || linked : linked || written;
@@ -235,7 +235,7 @@ export function lootOf(tier, random = Math.random) {
       const potion = pick(potions);
       found.items.push({
         name: potion.name,
-        description: `A stoppered vial. +${potion.heal} HP when drunk.`,
+        description: `A stoppered vial. [+${potion.heal} HP when drunk]`,
         quantity: 1,
       });
     }
@@ -267,7 +267,7 @@ export function gearWorn(
   const sets = {};
   for (const item of Array.isArray(items) ? items : []) {
     if (typeof item?.location !== "string" || !item.location.startsWith("equipped:")) continue;
-    const stated = bonusesIn(item.description, sheet);
+    const stated = bonusesIn(statBlock(item.description), sheet);
     const linked = rules ? armourIn(item) : null;
     if (linked && !(byDescription && stated.length)) {
       if (linked.kind === "shield") shield = Math.max(shield, linked.bonus + linked.plus);
@@ -372,6 +372,37 @@ export function offhandOf(items, byDescription = true) {
     .filter((weapon) => weapon?.light && !weapon.range)
     .sort((a, b) => mean(b.damage) - mean(a.damage));
   return light.length >= 2 ? { ...light[1], offhand: true } : null;
+}
+
+/** Where a thing is worn or held, by a word in its name, for what a weapon or armour doesn't settle (Quartermaster's slots). */
+const SLOT_WORDS = [
+  [/\b(?:helm|helmet|hat|hood|cap|crown|circlet|headband|coif|mask)\b/iu, "head"],
+  [/\b(?:amulet|necklace|pendant|periapt|scarf|collar|torc)\b/iu, "neck"],
+  [/\b(?:goggles|spectacles|glasses|eyepatch|lenses)\b/iu, "eyes"],
+  [/\bearrings?\b/iu, "ears"],
+  [/\b(?:cloak|cape|mantle|backpack|pack|quiver|wings)\b/iu, "back"],
+  [/\b(?:gloves?|gauntlets?|bracers?|mittens?|vambraces?)\b/iu, "hands"],
+  [/\b(?:boots?|shoes?|sandals?|slippers?|sabatons?)\b/iu, "feet"],
+  [/\b(?:socks|stockings)\b/iu, "socks"],
+  [/\b(?:belt|girdle|sash)\b/iu, "belt"],
+  [/\b(?:greaves|chausses|tassets)\b/iu, "armor_legs"],
+  [/\b(?:trousers|breeches|pants|skirt|hose|leggings|kilt)\b/iu, "clothing_legs"],
+  [/\b(?:robes?|coat|jacket|surcoat|tabard|vest|jerkin)\b/iu, "outerwear_torso"],
+  [/\b(?:shirt|tunic|blouse|dress|gown|doublet|smock)\b/iu, "clothing_torso"],
+  [/\b(?:ring|bracelet|brooch|charm|bangle|anklet)\b/iu, "extra_wearable_1"],
+  [/\b(?:rod|torch|lantern|wand)\b/iu, "weapon_right_hand"],
+];
+/**
+ * The slot something would be put on in (one of Quartermaster's: "weapon_right_hand", "armor_torso", "head",
+ * …), or "" for a thing that isn't worn or held: a weapon in the right hand, a shield in the left, armour
+ * on the body, and the rest by a word in its name (a hat, a cloak, boots, a ring).
+ */
+export function slotOf(item, byDescription = true) {
+  const armour = armourIn(item);
+  if (armour) return armour.kind === "shield" ? "weapon_left_hand" : "armor_torso";
+  if (weaponIn(item, byDescription)) return "weapon_right_hand";
+  const name = String(item?.name ?? "");
+  return SLOT_WORDS.find(([named]) => named.test(name))?.[1] ?? "";
 }
 
 /** What dice come to on average ("2d6+1" is 8). */

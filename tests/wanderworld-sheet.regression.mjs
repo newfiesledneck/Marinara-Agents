@@ -111,13 +111,13 @@ assert.deepEqual(bonusesIn("Costs +5 gold. A +3 mystery. Restores +2 Stamina.", 
   { stat: "own:stamina", amount: 2 },
 ]);
 const worn = wornBonuses(sheet, [
-  { description: "+2 AC", location: "equipped:offhand" },
-  { description: "+1 AC, +2 to attack", location: "equipped:head" },
-  { description: "+5 AC", location: "bag" },
+  { description: "[+2 AC]", location: "equipped:offhand" },
+  { description: "[+1 AC, +2 to attack]", location: "equipped:head" },
+  { description: "[+5 AC]", location: "bag" },
 ]);
 assert.deepEqual(worn, { ac: 3, attack: 2 });
 const hurt = applyChanges(sheet, [{ stat: "hp", to: 5 }]).sheet;
-const drunk = useItem(hurt, "A red potion. +10 HP when drunk. +2 AC");
+const drunk = useItem(hurt, "A red potion. [+10 HP when drunk. +2 AC]");
 assert.deepEqual([valueOf(drunk.sheet, "hp"), valueOf(drunk.sheet, "ac"), drunk.applied.length], [15, 10, 1]);
 
 // In words, for a prompt: only what's on, the worn bonuses counted, the player's own with their descriptions.
