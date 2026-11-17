@@ -1420,6 +1420,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.11",
+          "date": "2026-11-17",
+          "notes": "- Every explanation has its (i) now, not only the ones in Settings: the notes in the Inventory, the Journal and people's cards fold behind an (i) when \"Show explanations\" is off.\n- Aiming. In a fight by turns, or with your weapon drawn, tap a creature or a companion to aim at them: a ring marks them, your attacks and spells go for that creature, and a healing spell mends that companion. If they're too far it says \"Out of range\" and nothing is spent. Tap them again, or yourself, to stop aiming.\n- A row of things to do in a fight: Abilities, Moves and (on a phone) Spells each open to their own buttons, with a Back. It's in the chat window, and above the fighting buttons on a touch screen.\n- Phone layout: the bar in a fight by turns is much shorter, and the buttons along the bottom wrap and no longer run off the screen.",
+          "highlight": false
+        },
+        {
           "version": "0.7.10",
           "date": "2026-11-16",
           "notes": "- Spells that creatures cast at you look like the spell they are (a beam, light from above, a volley), as yours do.\n- A condition landing on you shows as a ring round you for a moment.\n- The apothecary sells the SRD's Potion of Healing (2d4+2) and Potion of Greater Healing (4d4+4).\n- By turns, a dragon with its breath ready uses it from as far as it reaches, and no longer has to close with you first.\n- Help → Credits names everything now taken from the 5e SRD.",
@@ -1531,12 +1537,6 @@
           "version": "0.6.92",
           "date": "2026-11-15",
           "notes": "- Settings are shorter to read. Each setting has an (i) beside its name: point at it to see what the setting does, or tap it to keep the line open.\n- Show explanations (Settings → Display → On screen) now starts off. Turn it on to have every line on show at once, as before, in Settings, the Journal and New world. It is turned off once on a device that already had it on.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.91",
-          "date": "2026-11-15",
-          "notes": "- A fourth way to fight: By turns (Settings → Inventory → Combat). A fight stops the clock for those in it, everyone rolls initiative, and they act in that order.\n- On your turn you may move nine metres, take one action (Attack, Cast, Dodge, or use something by its hotkey) and one bonus action, then end your turn with T or the button. A bar along the top shows the order and what you have left.\n- Companions and creatures take their turns by the same rules.\n- \"Fights by turns use spell slots\": a spell takes a spell slot of its level or higher, as the 5e SRD has it, and mana is left alone. A sleep gives the slots back. Off, a spell costs its level in mana, as in real time.",
           "highlight": false
         }
       ]

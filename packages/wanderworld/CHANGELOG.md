@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.7.11 — 2026-11-17
+
+- Every explanation has its (i) now, not only the ones in Settings: the notes in the Inventory, the Journal and people's cards fold behind an (i) when "Show explanations" is off.
+- Aiming. In a fight by turns, or with your weapon drawn, tap a creature or a companion to aim at them: a ring marks them, your attacks and spells go for that creature, and a healing spell mends that companion. If they're too far it says "Out of range" and nothing is spent. Tap them again, or yourself, to stop aiming.
+- A row of things to do in a fight: Abilities, Moves and (on a phone) Spells each open to their own buttons, with a Back. It's in the chat window, and above the fighting buttons on a touch screen.
+- Phone layout: the bar in a fight by turns is much shorter, and the buttons along the bottom wrap and no longer run off the screen.
+
 ## 0.7.10 — 2026-11-16
 
 - Spells that creatures cast at you look like the spell they are (a beam, light from above, a volley), as yours do.

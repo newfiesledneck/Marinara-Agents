@@ -112,6 +112,7 @@ export function infoButton(explain) {
   node.type = "button";
   node.textContent = "i";
   node.setAttribute("data-wanderworld-info", "");
+  explain?.setAttribute?.("data-info", ""); // (it has its (i): hud.js gives one to any that hasn't)
   node.setAttribute("aria-label", "What this does");
   node.setAttribute("aria-expanded", "false");
   node.style.cssText =

@@ -2005,6 +2005,12 @@ export function createHud(root, handlers) {
     node.textContent = text;
     return node;
   };
+  /** A note that explains something: behind an (i) when explanations are folded away. */
+  const explainNote = (text) => {
+    const node = debugNote(text);
+    node.setAttribute("data-wanderworld-explain", "");
+    return node;
+  };
   const debugWords = (title, text) => {
     const head = document.createElement("div");
     head.style.cssText = "font-weight:600;margin-top:6px;";
@@ -2978,7 +2984,7 @@ export function createHud(root, handlers) {
       return input;
     };
     body.append(
-      debugNote(
+      explainNote(
         "Your character in this world. Untick what you don't use: only ticked lines are told to the AI. Add your own stats, skills, feats and spells at the bottom, each with a few words saying what it is.",
       ),
     );
@@ -3059,7 +3065,7 @@ export function createHud(root, handlers) {
       when.value = sheetSettings.sheetTrack ?? "off";
       when.addEventListener("change", () => handlers.onSetting("sheetTrack", when.value));
       keeps.append(piece("flex:1;", "The AI updates your sheet"), when);
-      const about = debugNote(
+      const about = explainNote(
         "With updating on, the AI reads what was narrated and changes these numbers to match (one more AI call each time). Which model does it: Settings → AI → Connections → Trackers use.",
       );
       about.setAttribute("data-wanderworld-explain", "");
@@ -3143,7 +3149,7 @@ export function createHud(root, handlers) {
     });
     form.append(kind, name, value, most, about, add);
     body.append(
-      debugNote(
+      explainNote(
         'Fill in "Max" for a line that reads like 2/40 (Collected cars 2/40). Leave it empty for a plain number (Fame 15).',
       ),
     );
@@ -3174,7 +3180,7 @@ export function createHud(root, handlers) {
     spellForm.append(spellPick, spellAdd);
     body.append(
       piece("font-weight:700;margin-top:6px;", "Add a spell from the 5e SRD"),
-      debugNote(
+      explainNote(
         'These are the SRD\'s spells of level 0 to 3 that a fight here can play. A cantrip costs no mana; a spell costs its level in mana (1 for a first-level spell, 2 for a second). Once added it is yours: its description is its rule, and you can rewrite it. Your own spells are written the same way: "2 mana. 1d10 fire damage. Range 20." is an attack roll; "Dexterity save for half" asks the target for a saving throw; "Always hits" needs no roll; "Wisdom save or paralyzed 8 seconds" leaves an effect (stunned, paralyzed, restrained and incapacitated hold the target; frightened sends it running); "+1d8 HP" heals you. No mana named makes it a cantrip. A spell with none of these is only told to the AI.',
       ),
       spellForm,
@@ -3200,7 +3206,7 @@ export function createHud(root, handlers) {
       row.append(piece("flex:1;min-width:0;font-weight:700;", "Your class"), choose);
       body.append(
         row,
-        debugNote(
+        explainNote(
           "Optional, and only for fights by turns. A class from the 5e SRD gives you what it gives by level: a fighter Second Wind (a bonus action: +1d10 + your level HP, once between sleeps), Action Surge from level 2 (one more action, once between sleeps) and more attacks for an Attack action from level 5; a rogue Cunning Action from level 2 (Dash or Disengage as a bonus action); a barbarian Rage (a bonus action, twice between sleeps: +2 damage with what you swing, and half damage from weapons, teeth and claws, for the rest of the fight). Barbarians, monks, paladins and rangers also attack twice from level 5. Settings → Inventory → Combat has the numbers, if you'd rather set them yourself.",
         ),
       );
@@ -3307,7 +3313,7 @@ export function createHud(root, handlers) {
           );
         body.append(
           wrap,
-          debugNote(
+          explainNote(
             "Hover or hold one for what it does. Each can be put on a number key in the Hotkeys tab; in a fight by turns they're on the bar at the top too.",
           ),
         );
@@ -3329,7 +3335,7 @@ export function createHud(root, handlers) {
       );
       body.append(
         rest,
-        debugNote(
+        explainNote(
           "A sleep is a long rest: all your HP, your spell slots and half your hit dice back, and everything your class can call on.",
         ),
       );
@@ -3339,7 +3345,7 @@ export function createHud(root, handlers) {
     if (companions.length) {
       body.append(
         piece("font-weight:700;margin-top:6px;", "Your companions"),
-        debugNote(
+        explainNote(
           "Each companion has a class from the 5e SRD, which gives them a weapon and spells. In real-time combat they fight beside you: they strike what's in reach, cast at what isn't, and a healer mends you when you're badly hurt. Choose a class here; until you do, each has one of their own.",
         ),
       );
@@ -3372,7 +3378,7 @@ export function createHud(root, handlers) {
       title.textContent = `Not in use (${unused.length})`;
       const list = piece("display:flex;flex-direction:column;gap:5px;margin-top:4px;");
       list.append(
-        debugNote(
+        explainNote(
           "Switched off: not on your sheet and not told to the AI. Tick one to bring it back. One you added yourself can be deleted here.",
         ),
         ...unused.flatMap(sheetRow),
@@ -3561,8 +3567,13 @@ export function createHud(root, handlers) {
     control.style.cssText += `${THUMB}display:none;`;
   use.style.cssText += `${THUMB}flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;display:none;`;
   const thumbs = document.createElement("div");
+  // (On a narrow screen the buttons wrap upward, never off its edge; the row of things to do in a fight sits
+  // above them, clear of the stick at the left.)
   thumbs.style.cssText =
-    "position:absolute;left:8px;right:8px;bottom:calc(10px + env(safe-area-inset-bottom, 0px));display:flex;gap:6px;justify-content:flex-end;align-items:center;";
+    "display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap-reverse;max-width:100%;";
+  const thumbDock = document.createElement("div");
+  thumbDock.style.cssText =
+    "position:absolute;left:8px;right:8px;bottom:calc(10px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;align-items:flex-end;gap:6px;";
   thumbs.append(combatToggle, run, rest, jump, strike, guard, roll, spellThumb, use);
 
   const hint = document.createElement("div");
@@ -3767,6 +3778,52 @@ export function createHud(root, handlers) {
   spellRow.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
   let spellsKey = "";
   let spellsShown = [];
+  // What a fight offers besides Attack, Block and Dodge (setActions): Abilities, Moves and (on a touch
+  // screen, which has no row of spells) Spells. Each opens to its own buttons, with a Back. In the chat
+  // window, and on a touch screen above the fighting buttons.
+  const actRow = document.createElement("div");
+  actRow.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
+  const actThumbs = document.createElement("div");
+  actThumbs.style.cssText =
+    "display:none;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 150px);";
+  let actGroups = [];
+  let actOpen = "";
+  let actKey = "";
+  let actFight = false;
+  const drawActs = () => {
+    for (const [box, thumb] of [
+      [actRow, false],
+      [actThumbs, true],
+    ]) {
+      const groups = actGroups.filter((group) => group.items.length && (thumb || group.id !== "spells"));
+      const open = groups.find((group) => group.id === actOpen);
+      const make = (label, title, onClick, ready = true) => {
+        const node = button(label, title, onClick);
+        node.style.cssText += thumb ? THUMB : "padding:4px 10px;font-size:12px;";
+        if (!ready) {
+          node.disabled = true;
+          node.style.opacity = "0.45";
+        }
+        return node;
+      };
+      const nodes = open
+        ? [
+            make("‹ Back", "Back to the kinds of things to do", () => {
+              actOpen = "";
+              drawActs();
+            }),
+            ...open.items.map((item) => make(item.label, item.title, () => handlers.onAction?.(item.id), item.ready)),
+          ]
+        : groups.map((group) =>
+            make(`${group.label} ›`, `${group.label}: what you can do`, () => {
+              actOpen = group.id;
+              drawActs();
+            }),
+          );
+      box.replaceChildren(...nodes);
+      box.style.display = nodes.length && (!thumb || (touch && actFight)) ? "flex" : "none";
+    }
+  };
   const petMoves = document.createElement("div");
   petMoves.style.cssText = "display:none;gap:6px;padding:0 10px 6px;flex-wrap:wrap;";
   const sendHome = (role) => {
@@ -3849,6 +3906,7 @@ export function createHud(root, handlers) {
     gatherRow,
     hotRow,
     spellRow,
+    actRow,
     petMoves,
     commands,
     peopleHere,
@@ -3917,6 +3975,34 @@ export function createHud(root, handlers) {
   explainRule.textContent =
     ".wanderworld-no-explain [data-wanderworld-explain]:not([data-open]){display:none!important}[data-wanderworld-info]{display:none}.wanderworld-no-explain [data-wanderworld-info]{display:inline-flex}";
   layer.append(explainRule);
+  // Every explanation has its (i). One written with it has it already; any other (a note in the Journal,
+  // the Inventory, someone's card) is given one here as it's drawn: at the start of the line above it where
+  // that's a plain line, else just before it.
+  const giveInfo = () => {
+    for (const node of layer.querySelectorAll("[data-wanderworld-explain]:not([data-info])")) {
+      const control = infoButton(node);
+      const above = node.previousElementSibling;
+      const plain =
+        above &&
+        !above.hasAttribute("data-wanderworld-explain") &&
+        !above.matches("button,input,select,textarea,details,table,ul,ol,hr") &&
+        !above.querySelector("[data-wanderworld-info]") &&
+        above.textContent.trim() &&
+        above.textContent.length < 90;
+      if (plain) above.prepend(control);
+      else node.before(control);
+    }
+  };
+  let infoDue = false;
+  const infoWatch = new MutationObserver(() => {
+    if (infoDue) return;
+    infoDue = true;
+    queueMicrotask(() => {
+      infoDue = false;
+      giveInfo();
+    });
+  });
+  infoWatch.observe(layer, { childList: true, subtree: true });
   pages.append(
     board,
     top,
@@ -3935,7 +4021,8 @@ export function createHud(root, handlers) {
   );
   // The world's own controls (the prompt over a thing, the row under your thumbs, and the stick, which
   // main.js puts with them) go underneath every window, panel and card: an open one is what gets the tap.
-  layer.prepend(prompt, thumbs);
+  thumbDock.append(actThumbs, thumbs);
+  layer.prepend(prompt, thumbDock);
   layer.append(pages, hint, zoneTitle, status, fade, loading);
   root.append(layer);
   if (touch) top.append(hint);
@@ -3981,7 +4068,7 @@ export function createHud(root, handlers) {
   conditionRow.style.cssText =
     "position:absolute;left:8px;top:calc(92px + env(safe-area-inset-top, 0px));display:none;flex-direction:column;align-items:flex-start;gap:4px;pointer-events:none;max-width:46%;";
   let conditionKey = "";
-  layer.append(conditionRow);
+  layer.prepend(conditionRow); // (under the windows, not over them)
   const respawn = button("Respawn", "Get up: you wake at home, with half your HP", () => handlers.onRespawn?.());
   respawn.style.cssText +=
     "position:absolute;left:50%;top:calc(52px + env(safe-area-inset-top, 0px));transform:translateX(-50%);padding:10px 18px;font-size:14px;background:#96422e;display:none;";
@@ -4193,6 +4280,10 @@ export function createHud(root, handlers) {
       // Fighting's buttons: only with fighting on. On a touch screen the Combat button swaps them in for
       // Run, Sit and Jump, so the row stays short; in the chat window they sit beside Jump and Sit.
       const fight = !!fighting && !resting && combatOn;
+      if (actFight !== (fight && !!shown)) {
+        actFight = fight && !!shown;
+        drawActs();
+      }
       const realtime = fighting === "realtime" || fighting === "turns"; // (Block and Dodge are these two's; the others only have Attack)
       combatToggle.style.display = resting ? "none" : show(fighting);
       strike.style.display = show(fight);
@@ -4603,10 +4694,15 @@ export function createHud(root, handlers) {
       line.textContent = state.mine
         ? `Round ${state.round} · Your turn · Moved ${state.out.toFixed(1)} of ${state.reach} m · ${count(state.action, "action")}${state.attacks ? ` (+${count(state.attacks, "attack")})` : ""} · ${count(state.bonus, "bonus action")}${state.slots ? ` · Slots ${state.slots}` : ""}`
         : `Round ${state.round} · ${state.order.find((entry) => entry.current)?.name ?? ""}'s turn`;
+      // (What's aimed at, with how far it is; none: a word on how to aim.)
+      const aim = document.createElement("div");
+      aim.style.cssText = "font-size:12px;text-align:center;opacity:0.9;";
+      aim.textContent = state.target ? `Target: ${state.target}` : "Tap a creature or a companion to aim at them.";
       // What else a turn can be spent on (Dash, Disengage, Dodge, and a class's own), each a button.
       const acts = document.createElement("div");
       acts.style.cssText = "display:flex;gap:5px;flex-wrap:wrap;justify-content:center;";
-      for (const act of state.acts ?? []) {
+      // (On a touch screen only the three everyone has: the rest are in the row above the fighting buttons.)
+      for (const act of (state.acts ?? []).filter((entry) => !touch || entry.basic)) {
         const node = button(act.label, act.title, () => handlers.onBattleAct?.(act.id));
         node.disabled = !act.ready;
         node.style.cssText += `padding:5px 9px;font-size:12px;${act.ready ? "" : "opacity:0.45;"}`;
@@ -4621,7 +4717,7 @@ export function createHud(root, handlers) {
       );
       flee.style.cssText += "padding:6px 10px;font-size:12px;";
       row.append(end, flee);
-      battleBar.replaceChildren(order, line, ...(acts.childElementCount ? [acts] : []), row);
+      battleBar.replaceChildren(order, line, aim, ...(acts.childElementCount ? [acts] : []), row);
       // (Notices and captions come under the bar, not behind it.)
       const under = battleBar.offsetTop + battleBar.offsetHeight + 6;
       notice.style.top = `${under}px`;
@@ -4666,6 +4762,18 @@ export function createHud(root, handlers) {
       spellRow.style.display = spells.length ? "flex" : "none";
       const ready = spells.find((spell) => spell.id === readyId);
       spellThumb.textContent = ready ? ready.name : "Cast";
+    },
+    /**
+     * What there is to do in a fight besides Attack, Block and Dodge: [{ id, label, items: [{ id, label,
+     * title, ready }] }]. A kind with nothing in it isn't shown; one that's open closes when it empties.
+     */
+    setActions(groups) {
+      const key = JSON.stringify(groups);
+      if (key === actKey) return;
+      actKey = key;
+      actGroups = groups;
+      if (!groups.some((group) => group.id === actOpen && group.items.length)) actOpen = "";
+      drawActs();
     },
     /** Whether the weapon is drawn: the Combat button shows it, and a touch screen's row is the fighting one. */
     setDrawn(on) {
