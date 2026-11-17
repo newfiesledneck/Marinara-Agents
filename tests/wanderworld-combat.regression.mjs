@@ -28,10 +28,10 @@ const dice = (...faces) => {
 
 // A weapon is an item whose description gives its damage.
 assert.deepEqual(
-  weaponIn({ name: "Iron axe", description: "A forged head. Tool: chops wood. Weapon: 1d8 damage, +1 to attack." }),
+  weaponIn({ name: "Iron axe", description: "A forged head. [Tool: chops wood. Weapon: 1d8 damage, +1 to attack]" }),
   { name: "Iron axe", damage: "1d8", attack: 1, held: "axe", range: 0, type: "slashing" },
 );
-assert.deepEqual(weaponIn({ name: "Short sword", description: "Weapon: 1d6 + 1 damage." }), {
+assert.deepEqual(weaponIn({ name: "Short sword", description: "[Weapon: 1d6 + 1 damage]" }), {
   name: "Short sword",
   damage: "1d6+1",
   attack: 0,
@@ -40,14 +40,14 @@ assert.deepEqual(weaponIn({ name: "Short sword", description: "Weapon: 1d6 + 1 d
   type: "piercing",
   light: true,
 });
-assert.equal(weaponIn({ name: "Fishing rod", description: "Tool: catches fish." }), null);
-assert.equal(weaponIn({ name: "Health potion", description: "+15 HP when drunk." }), null);
+assert.equal(weaponIn({ name: "Fishing rod", description: "[Tool: catches fish]" }), null);
+assert.equal(weaponIn({ name: "Health potion", description: "[+15 HP when drunk]" }), null);
 assert.equal(mean("2d6+1"), 8);
 
 // What's equipped comes first; else the best carried; else bare hands.
-const axe = { name: "Stone axe", description: "Weapon: 1d6 damage.", location: "bag" };
-const sword = { name: "Long sword", description: "Weapon: 1d10 damage.", location: "bag" };
-const knife = { name: "Knife", description: "Weapon: 1d4 damage.", location: "equipped:hand" };
+const axe = { name: "Stone axe", description: "[Weapon: 1d6 damage]", location: "bag" };
+const sword = { name: "Long sword", description: "[Weapon: 1d10 damage]", location: "bag" };
+const knife = { name: "Knife", description: "[Weapon: 1d4 damage]", location: "equipped:hand" };
 assert.equal(weaponOf([axe, sword]).name, "Long sword");
 assert.equal(weaponOf([axe, sword, knife]).name, "Knife", "the one in the hand, though a better is carried");
 assert.deepEqual(weaponOf([]), { name: "", damage: "1d2", attack: 0, held: null, type: "bludgeoning" });
@@ -66,7 +66,7 @@ for (const [kind, foe] of Object.entries(PACK.foes)) {
 
 // The player's swing: Strength's modifier and the weapon's bonus on the roll, against the creature's AC.
 let sheet = changeSheet(checkSheet(null), { set: "strength", field: "value", value: 14 }); // +2
-const iron = weaponIn({ name: "Iron axe", description: "Weapon: 1d8 damage, +1 to attack." });
+const iron = weaponIn({ name: "Iron axe", description: "[Weapon: 1d8 damage, +1 to attack]" });
 // 10 on the die +2 +1 = 13 against AC 13: a hit; a 5 on the d8, +2 for Strength.
 assert.deepEqual(playerStrike({ sheet, weapon: iron, foe: wolf }, dice([10, 20], [5, 8])), {
   roll: 10,
@@ -498,11 +498,11 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
 {
   const { bowOf, playerStrike } = await import("../packages/wanderworld/src/combat.js");
   const { SRD_CREATURES } = await import("../packages/wanderworld/src/srd.js");
-  const bow = { name: "Shortbow", description: "A short bow of yew. Weapon: 1d6 damage. Range 24." };
-  const axe = { name: "Iron axe", description: "Weapon: 1d8 damage, +1 to attack." };
+  const bow = { name: "Shortbow", description: "A short bow of yew. [Weapon: 1d6 damage. Range 24]" };
+  const axe = { name: "Iron axe", description: "[Weapon: 1d8 damage, +1 to attack]" };
   assert.equal(weaponIn(bow).range, 24);
-  assert.equal(weaponIn({ name: "Longbow", description: "Weapon: 1d8 damage." }).range, 24, "a bow by its name");
-  assert.equal(weaponIn({ name: "Bowl", description: "Weapon: 1d2 damage." }).range, 0);
+  assert.equal(weaponIn({ name: "Longbow", description: "[Weapon: 1d8 damage]" }).range, 24, "a bow by its name");
+  assert.equal(weaponIn({ name: "Bowl", description: "[Weapon: 1d2 damage]" }).range, 0);
   assert.equal(weaponOf([bow, axe]).name, "Iron axe", "a bow isn't swung");
   assert.equal(weaponOf([bow]).name, "", "with only a bow, a swing is bare hands");
   assert.equal(bowOf([axe]), null);
@@ -578,14 +578,14 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
     ["chain-mail", "leather-armor", "shield", "plate-armor", null, null],
   );
   // The toggle: on, the description wins and the name fills in for one that states nothing; off, the name wins.
-  const odd = { name: "Rusty sword", description: "Weapon: 1d4 damage." };
+  const odd = { name: "Rusty sword", description: "[Weapon: 1d4 damage]" };
   assert.equal(weaponIn(odd, true).damage, "1d4");
   assert.equal(weaponIn(odd, false).damage, "1d8");
   assert.equal(weaponIn(odd, false).type, "slashing");
   const plain = { name: "Hunting knife", description: "Bone-handled." };
   assert.deepEqual([weaponIn(plain, true).damage, weaponIn(plain, true).finesse], ["1d4", true]);
   assert.equal(weaponIn({ name: "Longsword +1", description: "" }).attack, 1);
-  assert.equal(weaponIn({ name: "Odd thing", description: "Weapon: 2d4 fire damage." }, false).type, "fire");
+  assert.equal(weaponIn({ name: "Odd thing", description: "[Weapon: 2d4 fire damage]" }, false).type, "fire");
   assert.equal(weaponIn({ name: "Bread", description: "Tasty." }, false), null);
   // Proficiency by level.
   assert.deepEqual([1, 4, 5, 9, 13, 17, 20].map(proficiency), [2, 2, 3, 4, 5, 6, 6]);
@@ -600,7 +600,7 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   assert.equal(armourOf(nimble, gearWorn(nimble, [on("Leather armor")])), 14);
   assert.equal(armourOf(nimble, gearWorn(nimble, [on("Chain shirt")])), 15, "medium: two of Dexterity at most");
   assert.equal(armourOf(nimble, gearWorn(nimble, [on("Chain mail"), on("Wooden shield")])), 18, "heavy: none of it");
-  assert.equal(armourOf(nimble, gearWorn(nimble, [on("Chain mail"), on("Ring of warding", "+1 AC")])), 17);
+  assert.equal(armourOf(nimble, gearWorn(nimble, [on("Chain mail"), on("Ring of warding", "[+1 AC]")])), 17);
   assert.equal(gearWorn(nimble, [on("Chain mail")]).acTotal, 16);
   assert.equal(
     armourOf(nimble, gearWorn(nimble, [{ ...on("Chain mail"), location: "bag" }])),
@@ -608,7 +608,7 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
     "carried isn't worn",
   );
   // A described thing keeps its description while descriptions are the stats; off, its name decides.
-  const shield = on("Wooden shield", "Limewood boards. +3 AC.");
+  const shield = on("Wooden shield", "[Limewood boards. +3 AC]");
   assert.equal(armourOf(nimble, gearWorn(nimble, [shield], { byDescription: true })), 16);
   assert.equal(armourOf(nimble, gearWorn(nimble, [shield], { byDescription: false })), 15);
   // With the rules off it's the sheet's AC and what's written, as it was.
@@ -716,16 +716,16 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   );
   const strong = changeSheet(plain, { set: "constitution", field: "value", value: 20 });
   assert.equal(gearWorn(strong, [on("Amulet of Health")]).constitution, undefined, "already more than 19");
-  assert.equal(gearWorn(plain, [on("Ring of Protection", "+3 AC")]).ac, 3, "a description that states its own stays");
-  assert.equal(gearWorn(plain, [on("Ring of Protection", "+3 AC")], { byDescription: false }).ac, 1);
+  assert.equal(gearWorn(plain, [on("Ring of Protection", "[+3 AC]")]).ac, 3, "a description that states its own stays");
+  assert.equal(gearWorn(plain, [on("Ring of Protection", "[+3 AC]")], { byDescription: false }).ac, 1);
   assert.match(magicWords(SRD_MAGIC["ring-of-protection"]), /^While worn: Armor Class and saving throws 1 better\.$/u);
   // Potions.
   assert.equal(SRD_POTIONS["potion-of-healing"].heal, "2d4+2");
   assert.equal(potionIn({ name: "Potion of Healing", description: "Red." }), "2d4+2");
-  assert.equal(potionIn({ name: "Tonic", description: "+1d6 + 1 HP when drunk." }), "1d6+1");
-  assert.equal(potionIn({ name: "Potion of Healing", description: "+1d4 HP." }, true), "1d4");
-  assert.equal(potionIn({ name: "Potion of Healing", description: "+1d4 HP." }, false), "2d4+2");
-  assert.equal(potionIn({ name: "Bread", description: "+2 HP." }), "", "a plain number is the description's own");
+  assert.equal(potionIn({ name: "Tonic", description: "[+1d6 + 1 HP when drunk]" }), "1d6+1");
+  assert.equal(potionIn({ name: "Potion of Healing", description: "[+1d4 HP]" }, true), "1d4");
+  assert.equal(potionIn({ name: "Potion of Healing", description: "[+1d4 HP]" }, false), "2d4+2");
+  assert.equal(potionIn({ name: "Bread", description: "[+2 HP]" }), "", "a plain number is the description's own");
   // Pocket treasure: coin most times, now and then a potion.
   assert.ok(SRD_LOOT.treasure_low.entries.some((entry) => entry.potion === "common"));
   assert.deepEqual(lootOf("no such tier"), { coins: 0, items: [] });
@@ -766,6 +766,97 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
     ["shield", "counter"],
   );
   assert.equal(spellIn({ about: "Cantrip. 1d10 fire damage." }).reaction, "");
+}
+
+// Stats are read from a description's square brackets and nowhere else; without them, the name decides.
+{
+  const { slotOf, gearWorn, potionIn } = await import("../packages/wanderworld/src/combat.js");
+  const { bracketed, statBlock, entryNamed } = await import("../packages/wanderworld/src/sheet.js");
+  assert.equal(
+    statBlock("A sword with a light blue glow. [1d8 slashing damage, +1 to attack]"),
+    "1d8 slashing damage, +1 to attack",
+  );
+  assert.equal(statBlock("Nothing of the sort."), "");
+  assert.equal(statBlock("[+1 AC] and [+2 Strength]"), "+1 AC. +2 Strength");
+  // The glow is only a glow: no off-hand weapon comes of the word "light" outside the block.
+  const glowing = {
+    name: "Moonblade",
+    description: "A sword with a light blue glow. [1d8 slashing damage, +1 to attack]",
+  };
+  const read = weaponIn(glowing);
+  assert.deepEqual([read.damage, read.attack, read.type, read.light], ["1d8", 1, "slashing", undefined]);
+  assert.equal(weaponIn({ name: "Moonblade", description: "[1d6 piercing damage, light, finesse]" }).light, true);
+  // Loose stats in a description do nothing now; its name still can.
+  assert.equal(weaponIn({ name: "Odd thing", description: "Weapon: 2d6 damage." }), null);
+  assert.equal(weaponIn({ name: "Old sword", description: "Weapon: 2d6 damage. A light blue glow." }).damage, "1d8");
+  assert.equal(
+    weaponIn({ name: "Old sword", description: "A light blue glow." }).light,
+    undefined,
+    "a longsword isn't light",
+  );
+  const plain = checkSheet(null);
+  const on = (name, description) => ({ name, description, location: "equipped:head" });
+  assert.equal(gearWorn(plain, [on("Lucky hat", "+3 AC, they say.")]).ac, undefined);
+  assert.equal(gearWorn(plain, [on("Lucky hat", "They say it's lucky. [+3 AC]")]).ac, 3);
+  assert.equal(potionIn({ name: "Tonic", description: "Heals +1d6 HP." }), "");
+  assert.equal(potionIn({ name: "Tonic", description: "Bitter. [+1d6 HP]" }), "1d6");
+  // Old descriptions are brought up to it: the stat sentences go into a block, the rest stays as written.
+  assert.equal(bracketed("A red draught. +15 HP when drunk."), "A red draught. [+15 HP when drunk]");
+  assert.equal(
+    bracketed("A forged head. Tool: chops wood, +2 gathering. Weapon: 1d8 damage, +1 to attack."),
+    "A forged head. [Tool: chops wood, +2 gathering. Weapon: 1d8 damage, +1 to attack]",
+  );
+  assert.equal(bracketed("A sword with a light blue glow."), "A sword with a light blue glow.");
+  assert.equal(bracketed("Fine. [+1 AC]"), "Fine. [+1 AC]", "one with a block is left alone");
+  assert.equal(bracketed(""), "");
+  // Every description the setting pack ships that states anything has it in a block.
+  const loose = /(\d{0,2}d\d{1,3}[^.[\]]*\bdamage\b|[+\-−]\s?\d)/u;
+  const walk = (value) => {
+    if (Array.isArray(value)) return value.forEach(walk);
+    if (!value || typeof value !== "object" || value instanceof RegExp) return;
+    if (typeof value.description === "string")
+      assert.ok(!loose.test(value.description.replace(/\[[^\]]*\]/gu, "")), `${value.name}: ${value.description}`);
+    Object.values(value).forEach(walk);
+  };
+  walk(PACK);
+  // Where a thing goes when it's put on.
+  assert.deepEqual(
+    [
+      "Iron axe",
+      "Longsword",
+      "Wooden shield",
+      "Chain mail",
+      "Iron helm",
+      "Wool cloak",
+      "Riding boots",
+      "Silver ring",
+      "Linen shirt",
+      "Bread",
+      "Fishing rod",
+    ].map((name) => slotOf({ name, description: "" })),
+    [
+      "weapon_right_hand",
+      "weapon_right_hand",
+      "weapon_left_hand",
+      "armor_torso",
+      "head",
+      "back",
+      "feet",
+      "extra_wearable_1",
+      "clothing_torso",
+      "",
+      "weapon_right_hand",
+    ],
+  );
+  assert.equal(
+    slotOf({ name: "Odd thing", description: "[1d4 damage]" }),
+    "weapon_right_hand",
+    "a weapon by its block",
+  );
+  // The six abilities answer to their short names.
+  assert.equal(entryNamed(plain, "str").id, "strength");
+  assert.equal(entryNamed(plain, "CHA").id, "charisma");
+  assert.equal(gearWorn(plain, [on("Band", "[+2 Str, +1 int]")]).strength, 2);
 }
 
 console.log("ok: fighting by the rules");

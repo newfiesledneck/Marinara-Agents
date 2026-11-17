@@ -188,9 +188,10 @@ export const STOCK_INSTRUCTION = `You stock the shelves of a shop in a roleplay 
 
 Each thing has a name, one short sentence of description, a price as a whole number of the world's money, and how many are on the shelf (1 to 5). Keep prices in line with the usual prices given.
 
-A description may say what the thing does, and then only in these exact forms, so the game can read them:
-"+N HP when eaten", "+N HP when drunk", "+N HP when used", "+N Mana when drunk", "+N AC", "Weapon: XdY damage", "Tool: chops wood", "Tool: mines rock", "Tool: catches fish".
-Most things need none of them.
+A description may end with a block in square brackets that says what the thing does, so the game can read it. Only what is inside the brackets is read, and only these forms:
+"+N HP when eaten", "+N HP when drunk", "+N HP when used", "+N Mana when drunk", "+N AC", "XdY damage" for a weapon (a kind may go before the word damage: slashing, piercing, bludgeoning), "+N gathering" for a tool.
+Like: "A red draught, warm to the hand. [+15 HP when drunk]"
+Most things need no block.
 
 Answer with JSON only, nothing before or after it:
 {"stock":[{"name":"...","description":"...","price":0,"quantity":1}]}`;
@@ -290,9 +291,31 @@ export function splitSheet(data) {
   return { data: rest, sheet: checkSheetChanges(sheet) };
 }
 
-export function inventoryMessages({ template, context, name, told, sheet = "" }) {
+/**
+ * How item stats are written, added to the inventory tracker's instruction (Settings → Inventory → Items): so
+ * a new item it adds may come with some, and one that has them already is never touched.
+ */
+export const ITEM_STATS = `
+
+## One more thing: item stats in descriptions
+An item's description may end with a block in square brackets that sets what the item does in the game. Only what is inside the brackets is read; the words before it are free.
+What a block can say, separated by commas:
+- A weapon: "1d8 slashing damage" (dice, then a kind: slashing, piercing, bludgeoning, fire, cold and the like), "+1 to attack", "Range 24" (it shoots; metres), "finesse", "light".
+- Something worn: "+1 AC", "+2 Strength" (any stat, by its name), "+1 damage".
+- Something used up: "+15 HP", "+10 Mana", "+2d4+2 HP".
+- A tool: "+2 gathering".
+Like: "A notched blade with a pale blue glow. [1d8 slashing damage, +1 to attack]"
+
+Rules for the block:
+1. An item whose description already has a block keeps that block exactly, character for character. Never change its numbers, reword it, move it, remove it or add a second one, whatever else you do with the item.
+2. When you add an item that is new (found, given, bought, made, taken), you may end its description with a block that fits what it is. Keep the numbers modest and ordinary for the thing: a dagger 1d4, a sword 1d8, a great weapon 2d6, a bow 1d6 or 1d8 with Range 24; a shield +2 AC, a helm +1 AC; a healing draught +2d4+2 HP; food +1 to +5 HP.
+3. Clothing, trinkets, keys, letters and the like usually need no block. Leave it out rather than invent one.
+4. Never add a block to an item that is already carried and has none.`;
+
+export function inventoryMessages({ template, context, name, told, sheet = "", itemStats = false }) {
+  const instruction = itemStats ? template + ITEM_STATS : template;
   return [
-    { role: "system", content: sheet ? template + sheetAlso(sheet) : template },
+    { role: "system", content: sheet ? instruction + sheetAlso(sheet) : instruction },
     {
       role: "user",
       content: `<agent_runtime_context>\n${context}\n</agent_runtime_context>\n\nThe persona is ${name}. The latest message:\n${told}`,
@@ -2474,6 +2497,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           name: text(body.personaName, MAX.name) || "the player",
           told: block(body.text, 8000),
           sheet: block(body.sheet, 6000), // (the character sheet's lines, when its tracker shares this call)
+          itemStats: body.itemStats === true, // (told how item stats are written: the client's setting)
         };
         if (!input.template || !input.told) return reply.status(400).send({ error: "Nothing to read (promptTemplate, text)" });
         try {

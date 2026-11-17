@@ -525,7 +525,7 @@ const FOES = {
  * searched. Each thing: its name, a description, how many (a number or [least, most]) and, for what isn't
  * always there, a chance. `coins`: [least, most] of the world's money. A kind not listed gives nothing.
  */
-const meat = (name, heals) => ({ name, description: `Raw meat, better cooked. +${heals} HP when eaten.` });
+const meat = (name, heals) => ({ name, description: `Raw meat, better cooked. [+${heals} HP when eaten]` });
 const SPOILS = {
   wolf: {
     items: [
@@ -577,15 +577,17 @@ const SPOILS = {
   imp: { items: [{ name: "Imp horn", description: "A small curled horn.", chance: 0.7 }], coins: [0, 5] },
   puglin: { items: [{ name: "Tusk", description: "A yellowed tusk.", chance: 0.7 }], coins: [0, 6] },
   bandit: {
-    items: [{ name: "Knife", description: "A plain belt knife. Weapon: 1d4 damage.", chance: 0.5 }],
+    items: [{ name: "Knife", description: "A plain belt knife. [Weapon: 1d4 damage]", chance: 0.5 }],
     coins: [2, 12],
   },
   witch: {
-    items: [{ name: "Healing herb", description: "A soft-leaved herb for wounds. +5 HP when used.", quantity: [1, 2] }],
+    items: [
+      { name: "Healing herb", description: "A soft-leaved herb for wounds. [+5 HP when used]", quantity: [1, 2] },
+    ],
     coins: [0, 8],
   },
   wizard: {
-    items: [{ name: "Mana potion", description: "A blue draught. +10 Mana when drunk.", chance: 0.6 }],
+    items: [{ name: "Mana potion", description: "A blue draught. [+10 Mana when drunk]", chance: 0.6 }],
     coins: [3, 15],
   },
 };
@@ -672,9 +674,9 @@ const ANIMALS = {
  */
 const GATHER = {
   fish: [
-    { name: "River trout", description: "A fresh fish. +4 HP when eaten." },
-    { name: "Perch", description: "A small striped fish. +3 HP when eaten." },
-    { name: "Pike", description: "A long, toothy fish, enough for two. +6 HP when eaten." },
+    { name: "River trout", description: "A fresh fish. [+4 HP when eaten]" },
+    { name: "Perch", description: "A small striped fish. [+3 HP when eaten]" },
+    { name: "Pike", description: "A long, toothy fish, enough for two. [+6 HP when eaten]" },
     { name: "Old boot", description: "Somebody's boot, a long time in the water." },
   ],
   chop: [
@@ -687,27 +689,27 @@ const GATHER = {
       { name: "Fallen branch", description: "A sound length of fallen wood: a handle, a pole, a start." },
       { name: "Plant fibre", description: "Tough stems that twist into cord." },
       { name: "Flint", description: "A nodule of flint, for sparks and edges." },
-      { name: "Wild garlic", description: "Broad green leaves with a sharp smell. +1 HP when eaten." },
-      { name: "Morel", description: "A honeycombed spring mushroom. +2 HP when eaten." },
-      { name: "Healing herb", description: "A soft-leaved herb for wounds. +5 HP when used." },
+      { name: "Wild garlic", description: "Broad green leaves with a sharp smell. [+1 HP when eaten]" },
+      { name: "Morel", description: "A honeycombed spring mushroom. [+2 HP when eaten]" },
+      { name: "Healing herb", description: "A soft-leaved herb for wounds. [+5 HP when used]" },
     ],
     summer: [
       { name: "Fallen branch", description: "A sound length of fallen wood: a handle, a pole, a start." },
       { name: "Plant fibre", description: "Tough stems that twist into cord." },
       { name: "Flint", description: "A nodule of flint, for sparks and edges." },
-      { name: "Wild berries", description: "A handful of ripe berries. +2 HP when eaten." },
-      { name: "Field mushroom", description: "A plain white mushroom. +2 HP when eaten." },
-      { name: "Healing herb", description: "A soft-leaved herb for wounds. +5 HP when used." },
-      { name: "Bird's egg", description: "A small speckled egg. +2 HP when eaten." },
+      { name: "Wild berries", description: "A handful of ripe berries. [+2 HP when eaten]" },
+      { name: "Field mushroom", description: "A plain white mushroom. [+2 HP when eaten]" },
+      { name: "Healing herb", description: "A soft-leaved herb for wounds. [+5 HP when used]" },
+      { name: "Bird's egg", description: "A small speckled egg. [+2 HP when eaten]" },
     ],
     fall: [
       { name: "Fallen branch", description: "A sound length of fallen wood: a handle, a pole, a start." },
       { name: "Plant fibre", description: "Tough stems that twist into cord." },
       { name: "Flint", description: "A nodule of flint, for sparks and edges." },
-      { name: "Hazelnuts", description: "A pocketful of nuts. +2 HP when eaten." },
-      { name: "Crab apples", description: "Small sour apples. +2 HP when eaten." },
-      { name: "Chanterelle", description: "A golden autumn mushroom. +3 HP when eaten." },
-      { name: "Healing herb", description: "A soft-leaved herb for wounds. +5 HP when used." },
+      { name: "Hazelnuts", description: "A pocketful of nuts. [+2 HP when eaten]" },
+      { name: "Crab apples", description: "Small sour apples. [+2 HP when eaten]" },
+      { name: "Chanterelle", description: "A golden autumn mushroom. [+3 HP when eaten]" },
+      { name: "Healing herb", description: "A soft-leaved herb for wounds. [+5 HP when used]" },
     ],
     // (Winter: nothing grows, but what tools are made of can still be found.)
     winter: [
@@ -724,10 +726,10 @@ const GATHER = {
     { name: "Rough gem", description: "An uncut stone with colour in it." },
   ],
   harvest: [
-    { name: "Turnips", description: "A few turnips. +2 HP when eaten." },
+    { name: "Turnips", description: "A few turnips. [+2 HP when eaten]" },
     { name: "Wheat sheaf", description: "A bound sheaf of wheat, for a miller." },
-    { name: "Apples", description: "Sound eating apples. +3 HP when eaten." },
-    { name: "Cabbage", description: "A firm head of cabbage. +2 HP when eaten." },
+    { name: "Apples", description: "Sound eating apples. [+3 HP when eaten]" },
+    { name: "Cabbage", description: "A firm head of cabbage. [+2 HP when eaten]" },
   ],
   lines: {
     fish: {
@@ -768,7 +770,7 @@ const RECIPES = [
   {
     id: "stone-axe",
     name: "Stone axe",
-    description: "A flint head bound to a branch. Tool: chops wood. Weapon: 1d6 damage.",
+    description: "A flint head bound to a branch. [Tool: chops wood. Weapon: 1d6 damage]",
     needs: [
       { name: "Fallen branch", quantity: 1 },
       { name: "Flint", quantity: 1 },
@@ -778,7 +780,7 @@ const RECIPES = [
   {
     id: "stone-pickaxe",
     name: "Stone pickaxe",
-    description: "Two flints lashed across a branch. Tool: mines rock. Weapon: 1d6 damage.",
+    description: "Two flints lashed across a branch. [Tool: mines rock. Weapon: 1d6 damage]",
     needs: [
       { name: "Fallen branch", quantity: 1 },
       { name: "Flint", quantity: 2 },
@@ -788,7 +790,7 @@ const RECIPES = [
   {
     id: "fishing-rod",
     name: "Fishing rod",
-    description: "A springy branch with a twisted line. Tool: catches fish.",
+    description: "A springy branch with a twisted line. [Tool: catches fish]",
     needs: [
       { name: "Fallen branch", quantity: 1 },
       { name: "Plant fibre", quantity: 2 },
@@ -819,7 +821,7 @@ const RECIPES = [
   {
     id: "cooked-trout",
     name: "Cooked trout",
-    description: "A trout cooked over a fire. +8 HP when eaten.",
+    description: "A trout cooked over a fire. [+8 HP when eaten]",
     needs: [
       { name: "River trout", quantity: 1 },
       { name: "Firewood", quantity: 1 },
@@ -828,7 +830,7 @@ const RECIPES = [
   {
     id: "cooked-perch",
     name: "Cooked perch",
-    description: "A perch cooked over a fire. +6 HP when eaten.",
+    description: "A perch cooked over a fire. [+6 HP when eaten]",
     needs: [
       { name: "Perch", quantity: 1 },
       { name: "Firewood", quantity: 1 },
@@ -837,7 +839,7 @@ const RECIPES = [
   {
     id: "cooked-pike",
     name: "Cooked pike",
-    description: "A pike cooked over a fire, enough for two. +12 HP when eaten.",
+    description: "A pike cooked over a fire, enough for two. [+12 HP when eaten]",
     makes: 2,
     needs: [
       { name: "Pike", quantity: 1 },
@@ -847,7 +849,7 @@ const RECIPES = [
   {
     id: "poultice",
     name: "Herbal poultice",
-    description: "Crushed herbs bound in fibre. +12 HP when used.",
+    description: "Crushed herbs bound in fibre. [+12 HP when used]",
     level: 2,
     needs: [
       { name: "Healing herb", quantity: 2 },
@@ -857,7 +859,7 @@ const RECIPES = [
   {
     id: "staff",
     name: "Quarterstaff",
-    description: "A straight, balanced length of wood. Weapon: 1d6 damage.",
+    description: "A straight, balanced length of wood. [Weapon: 1d6 damage]",
     level: 2,
     needs: [{ name: "Straight branch", quantity: 1 }],
   },
@@ -874,7 +876,7 @@ const RECIPES = [
   {
     id: "iron-axe",
     name: "Iron axe",
-    description: "A forged head on a straight haft. Tool: chops wood, +2 gathering. Weapon: 1d8 damage, +1 to attack.",
+    description: "A forged head on a straight haft. [Tool: chops wood, +2 gathering. Weapon: 1d8 damage, +1 to attack]",
     level: 4,
     needs: [
       { name: "Iron ingot", quantity: 2 },
@@ -884,7 +886,7 @@ const RECIPES = [
   {
     id: "iron-pickaxe",
     name: "Iron pickaxe",
-    description: "A forged pick on a straight haft. Tool: mines rock, +2 gathering. Weapon: 1d8 damage, +1 to attack.",
+    description: "A forged pick on a straight haft. [Tool: mines rock, +2 gathering. Weapon: 1d8 damage, +1 to attack]",
     level: 4,
     needs: [
       { name: "Iron ingot", quantity: 2 },
@@ -922,10 +924,10 @@ const VENDORS = {
         { name: "Sack", description: "A stout cloth sack.", price: 2 },
         { name: "Lantern", description: "A horn-paned lantern.", price: 12 },
         { name: "Candle", description: "A tallow candle.", price: 1 },
-        { name: "Fishing rod", description: "A springy rod with a twisted line. Tool: catches fish.", price: 6 },
+        { name: "Fishing rod", description: "A springy rod with a twisted line. [Tool: catches fish]", price: 6 },
         {
           name: "Jointed fishing rod",
-          description: "A well-made rod in two pieces. Tool: catches fish, +2 gathering.",
+          description: "A well-made rod in two pieces. [Tool: catches fish, +2 gathering]",
           price: 18,
         },
         { name: "Cord", description: "A length of twisted cord.", price: 1 },
@@ -940,84 +942,89 @@ const VENDORS = {
         {
           name: "Iron axe",
           description:
-            "A forged head on a straight haft. Tool: chops wood, +2 gathering. Weapon: 1d8 damage, +1 to attack.",
+            "A forged head on a straight haft. [Tool: chops wood, +2 gathering. Weapon: 1d8 damage, +1 to attack]",
           price: 30,
         },
         {
           name: "Iron pickaxe",
           description:
-            "A forged pick on a straight haft. Tool: mines rock, +2 gathering. Weapon: 1d8 damage, +1 to attack.",
+            "A forged pick on a straight haft. [Tool: mines rock, +2 gathering. Weapon: 1d8 damage, +1 to attack]",
           price: 30,
         },
         {
           name: "Short sword",
-          description: "A plain, well-balanced blade. Weapon: 1d6 damage, +1 to attack.",
+          description: "A plain, well-balanced blade. [Weapon: 1d6 damage, +1 to attack]",
           price: 40,
         },
-        { name: "Dagger", description: "A hand's length of sharp iron. Weapon: 1d4 damage.", price: 15 },
+        { name: "Dagger", description: "A hand's length of sharp iron. [Weapon: 1d4 damage]", price: 15 },
         {
           name: "Shortbow",
-          description: "A short bow of yew, with a quiver of arrows. Weapon: 1d6 damage. Range 24.",
+          description: "A short bow of yew, with a quiver of arrows. [Weapon: 1d6 damage. Range 24]",
           price: 25,
         },
         {
           name: "Light crossbow",
-          description: "A crossbow light enough to span by hand, with bolts. Weapon: 1d8 damage. Range 24.",
+          description: "A crossbow light enough to span by hand, with bolts. [Weapon: 1d8 damage. Range 24]",
           price: 25,
         },
-        { name: "Longsword", description: "A straight, double-edged blade. Weapon: 1d8 slashing damage.", price: 45 },
+        { name: "Longsword", description: "A straight, double-edged blade. [Weapon: 1d8 slashing damage]", price: 45 },
         {
           name: "Greatsword",
-          description: "A blade for both hands, as long as its bearer is tall. Weapon: 2d6 slashing damage.",
+          description: "A blade for both hands, as long as its bearer is tall. [Weapon: 2d6 slashing damage]",
           price: 110,
         },
-        { name: "Rapier", description: "A slim thrusting blade. Weapon: 1d8 piercing damage. Finesse.", price: 60 },
+        { name: "Rapier", description: "A slim thrusting blade. [Weapon: 1d8 piercing damage. Finesse]", price: 60 },
         {
           name: "Warhammer",
-          description: "A square iron head on an ash haft. Weapon: 1d8 bludgeoning damage.",
+          description: "A square iron head on an ash haft. [Weapon: 1d8 bludgeoning damage]",
           price: 40,
         },
         {
           name: "Mace",
-          description: "A flanged iron head on a short haft. Weapon: 1d6 bludgeoning damage.",
+          description: "A flanged iron head on a short haft. [Weapon: 1d6 bludgeoning damage]",
           price: 20,
         },
-        { name: "Spear", description: "An ash shaft with a leaf-shaped head. Weapon: 1d6 piercing damage.", price: 12 },
+        {
+          name: "Spear",
+          description: "An ash shaft with a leaf-shaped head. [Weapon: 1d6 piercing damage]",
+          price: 12,
+        },
         {
           name: "Longbow",
-          description: "A bow as tall as its archer, with a quiver of arrows. Weapon: 1d8 piercing damage. Range 24.",
+          description: "A bow as tall as its archer, with a quiver of arrows. [Weapon: 1d8 piercing damage. Range 24]",
           price: 110,
         },
         {
           name: "Leather armor",
-          description: "Boiled leather shaped to the body. Armour: Armor Class 11 in it, and all of your Dexterity.",
+          description: "Boiled leather shaped to the body. [Armour: Armor Class 11 in it, and all of your Dexterity]",
           price: 30,
         },
         {
           name: "Chain shirt",
           description:
-            "A shirt of riveted rings, worn under the clothes. Armour: Armor Class 13 in it, and up to 2 of your Dexterity.",
+            "A shirt of riveted rings, worn under the clothes. [Armour: Armor Class 13 in it, and up to 2 of your Dexterity]",
           price: 110,
         },
         {
           name: "Scale mail",
           description:
-            "A coat of overlapping iron scales. Armour: Armor Class 14 in it, and up to 2 of your Dexterity.",
+            "A coat of overlapping iron scales. [Armour: Armor Class 14 in it, and up to 2 of your Dexterity]",
           price: 110,
         },
         {
           name: "Chain mail",
           description:
-            "Interlocking rings from neck to knee, over a padded coat. Armour: Armor Class 16 in it; Dexterity adds nothing.",
+            "Interlocking rings from neck to knee, over a padded coat. [Armour: Armor Class 16 in it; Dexterity adds nothing]",
           price: 160,
         },
         {
           name: "Plate armor",
-          description: "Shaped steel plates over the whole body. Armour: Armor Class 18 in it; Dexterity adds nothing.",
+          description:
+            "Shaped steel plates over the whole body. [Armour: Armor Class 18 in it; Dexterity adds nothing]",
           price: 3000,
         },
-        { name: "Wooden shield", description: "Limewood boards rimmed with iron. +2 AC.", price: 20 },
-        { name: "Iron helm", description: "A riveted iron cap. +1 AC.", price: 25 },
+        { name: "Wooden shield", description: "Limewood boards rimmed with iron. [+2 AC]", price: 20 },
+        { name: "Iron helm", description: "A riveted iron cap. [+1 AC]", price: 25 },
         { name: "Iron ingot", description: "Iron smelted out of its ore.", price: 12 },
         { name: "Whetstone", description: "A stone for keeping an edge.", price: 2 },
       ],
@@ -1028,22 +1035,22 @@ const VENDORS = {
       guidance: "Remedies and draughts: healing and mana potions, bandages, herbs, cures for common ills.",
       named: /apothecar|herbal|potion|alchem|healer|physic/iu,
       stock: [
-        { name: "Health potion", description: "A red draught. +15 HP when drunk.", price: 15 },
+        { name: "Health potion", description: "A red draught. [+15 HP when drunk]", price: 15 },
         {
           name: "Potion of Healing",
-          description: "A red liquid that glimmers when shaken. +2d4+2 HP when drunk.",
+          description: "A red liquid that glimmers when shaken. [+2d4+2 HP when drunk]",
           price: 60,
         },
         {
           name: "Potion of Greater Healing",
-          description: "A deeper red, and warm to the hand. +4d4+4 HP when drunk.",
+          description: "A deeper red, and warm to the hand. [+4d4+4 HP when drunk]",
           price: 180,
         },
-        { name: "Mana potion", description: "A blue draught. +10 Mana when drunk.", price: 15 },
-        { name: "Bandages", description: "Clean linen strips. +6 HP when used.", price: 5 },
-        { name: "Herbal poultice", description: "Crushed herbs bound in fibre. +12 HP when used.", price: 9 },
+        { name: "Mana potion", description: "A blue draught. [+10 Mana when drunk]", price: 15 },
+        { name: "Bandages", description: "Clean linen strips. [+6 HP when used]", price: 5 },
+        { name: "Herbal poultice", description: "Crushed herbs bound in fibre. [+12 HP when used]", price: 9 },
         { name: "Antidote", description: "A bitter grey tincture against poisons.", price: 12 },
-        { name: "Healing herb", description: "A soft-leaved herb for wounds. +5 HP when used.", price: 4 },
+        { name: "Healing herb", description: "A soft-leaved herb for wounds. [+5 HP when used]", price: 4 },
         { name: "Smelling salts", description: "A stoppered vial that would wake the dead.", price: 6 },
       ],
       wants: /herb|mushroom|morel|chanterelle|garlic|potion|poultice|berries/iu,
@@ -1058,7 +1065,7 @@ const VENDORS = {
         { name: "Leather boots", description: "Stout boots, already broken in.", price: 9 },
         { name: "Travelling hood", description: "A deep hood with a short cape.", price: 6 },
         { name: "Leather gloves", description: "Supple gloves.", price: 6 },
-        { name: "Leather jerkin", description: "A thick hide jerkin. +1 AC.", price: 22 },
+        { name: "Leather jerkin", description: "A thick hide jerkin. [+1 AC]", price: 22 },
         { name: "Belt pouch", description: "A small pouch for the belt.", price: 4 },
       ],
       wants: /fibre|cord|cloak|shirt|boots|hood|gloves|jerkin|cloth|wool|leather|pouch/iu,
@@ -1068,12 +1075,12 @@ const VENDORS = {
       guidance: "Food and drink to have now or carry: ale, wine, bread, cheese, stew, roast meat.",
       named: /tavern|\binn\b|alehouse|\bpub\b|taproom/iu,
       stock: [
-        { name: "Mug of ale", description: "A mug of the house ale. +1 HP when drunk.", price: 1 },
-        { name: "Bowl of stew", description: "Whatever went in the pot. +6 HP when eaten.", price: 2 },
-        { name: "Loaf of bread", description: "A round brown loaf. +3 HP when eaten.", price: 1 },
-        { name: "Wedge of cheese", description: "Hard yellow cheese. +3 HP when eaten.", price: 2 },
-        { name: "Roast fowl", description: "A whole roast bird. +10 HP when eaten.", price: 4 },
-        { name: "Skin of wine", description: "A skin of red wine. +2 HP when drunk.", price: 3 },
+        { name: "Mug of ale", description: "A mug of the house ale. [+1 HP when drunk]", price: 1 },
+        { name: "Bowl of stew", description: "Whatever went in the pot. [+6 HP when eaten]", price: 2 },
+        { name: "Loaf of bread", description: "A round brown loaf. [+3 HP when eaten]", price: 1 },
+        { name: "Wedge of cheese", description: "Hard yellow cheese. [+3 HP when eaten]", price: 2 },
+        { name: "Roast fowl", description: "A whole roast bird. [+10 HP when eaten]", price: 4 },
+        { name: "Skin of wine", description: "A skin of red wine. [+2 HP when drunk]", price: 3 },
       ],
       wants:
         /trout|perch|pike|fish|berries|apple|turnip|cabbage|egg|nuts|wheat|mushroom|morel|chanterelle|garlic|firewood|kindling/iu,
@@ -1083,13 +1090,13 @@ const VENDORS = {
       guidance: "Fresh food from farms and gardens nearby: vegetables, fruit, eggs, bread, cheese, honey.",
       named: /grocer|produce|fruiter|market garden/iu,
       stock: [
-        { name: "Apples", description: "Sound eating apples. +3 HP when eaten.", price: 2 },
-        { name: "Turnips", description: "A few turnips. +2 HP when eaten.", price: 1 },
-        { name: "Cabbage", description: "A firm head of cabbage. +2 HP when eaten.", price: 1 },
-        { name: "Basket of eggs", description: "Half a dozen eggs. +4 HP when eaten.", price: 3 },
-        { name: "Loaf of bread", description: "A round brown loaf. +3 HP when eaten.", price: 1 },
-        { name: "Pot of honey", description: "A sealed pot of honey. +4 HP when eaten.", price: 5 },
-        { name: "Wedge of cheese", description: "Hard yellow cheese. +3 HP when eaten.", price: 2 },
+        { name: "Apples", description: "Sound eating apples. [+3 HP when eaten]", price: 2 },
+        { name: "Turnips", description: "A few turnips. [+2 HP when eaten]", price: 1 },
+        { name: "Cabbage", description: "A firm head of cabbage. [+2 HP when eaten]", price: 1 },
+        { name: "Basket of eggs", description: "Half a dozen eggs. [+4 HP when eaten]", price: 3 },
+        { name: "Loaf of bread", description: "A round brown loaf. [+3 HP when eaten]", price: 1 },
+        { name: "Pot of honey", description: "A sealed pot of honey. [+4 HP when eaten]", price: 5 },
+        { name: "Wedge of cheese", description: "Hard yellow cheese. [+3 HP when eaten]", price: 2 },
       ],
       wants: /apple|turnip|cabbage|egg|berries|nuts|wheat|mushroom|morel|chanterelle|garlic|trout|perch|pike/iu,
     },

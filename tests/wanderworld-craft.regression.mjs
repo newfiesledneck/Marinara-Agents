@@ -32,9 +32,9 @@ assert.equal(toolFor("forage", bag), null, "done by hand");
 // What a tool adds is what its description says; the setting's iron tools say so, its stone ones don't.
 assert.deepEqual(
   [
-    toolBonus({ description: "Tool: chops wood, +2 gathering." }),
+    toolBonus({ description: "[Tool: chops wood, +2 gathering]" }),
     toolBonus({ description: "A plain axe." }),
-    toolBonus({ description: "-1 to gathering" }),
+    toolBonus({ description: "[-1 to gathering]" }),
     toolBonus(null),
   ],
   [2, 0, -1, 0],
@@ -76,7 +76,7 @@ assert.equal(canCraft({ needs: [{ name: "Gold", quantity: 1 }] }, bag).can, fals
 // The player's own: what was put in and what comes of it, saved; one of the same name replaces the old.
 let own = saveRecipe([], {
   name: "Flint knife",
-  description: "A sharp flake on a grip. +1 to attack.",
+  description: "A sharp flake on a grip. [+1 to attack]",
   makes: 1,
   needs: [
     { name: "Flint", quantity: 1 },

@@ -190,6 +190,7 @@ import {
   proficiency,
   rolledTwice,
   slotFor,
+  slotOf,
   slotsAt,
   spellAtPlayer,
   spellCost,
@@ -248,6 +249,7 @@ import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spo
 import {
   applyChanges,
   attackRoll,
+  bracketed,
   changeSheet,
   checkRoll,
   checkSheet,
@@ -9209,6 +9211,41 @@ function foeBreathes(event, what, stats) {
   if (hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
 }
 
+/**
+ * Adds something to the inventory as the game hands it over (bought, made, found, taken from a body): its
+ * stats in a block at the end of its description, and the slot it's worn or held in, where it has one.
+ */
+function addItem(item) {
+  const description = bracketed(item.description);
+  const slot = slotOf({ ...item, description }, byDesc());
+  return core.inventory.add({ ...item, description, ...(slot ? { defaultSlot: slot } : {}) });
+}
+
+/**
+ * What's carried already, brought up to how items are written now, once in each world: a description that
+ * states its stats loose has them moved into a block (so they go on counting), and anything worn or held
+ * that has no slot is given one. Nothing is reworded, and what can't be changed is left as it is.
+ */
+async function bracketItems() {
+  const saveId = core.save?.id;
+  const items = await readItems().catch(() => []);
+  if (!core.save || core.save.id !== saveId) return;
+  for (const item of items) {
+    const description = bracketed(item.description);
+    const slot = item.defaultSlot ? "" : slotOf({ ...item, description }, byDesc());
+    const fields = {
+      ...(description !== String(item.description ?? "").trim() ? { description } : {}),
+      ...(slot ? { defaultSlot: slot } : {}),
+    };
+    if (Object.keys(fields).length) await core.inventory.change(item.id, fields).catch(() => {});
+  }
+  if (!core.save || core.save.id !== saveId) return;
+  core.save = { ...core.save, bracketed: true };
+  core.saves.write(core.save);
+  await readItems().catch(() => {});
+  core.hud?.refreshInventory?.();
+}
+
 /** Whether an item's description is its stats (else its name links it to the SRD's weapon or armour). */
 const byDesc = () => core.settings.gearByDescription !== false;
 /** What's worn adds up to, by the gear rules that are on (combat.js gearWorn). */
@@ -11186,8 +11223,8 @@ async function tendBody(body, person, what) {
       spoils.items.push(...carried.items);
     }
     const money = purse();
-    for (const item of spoils.items) await core.inventory.add(item);
-    if (spoils.coins > 0) await core.inventory.add({ name: money.name, description: "", quantity: spoils.coins });
+    for (const item of spoils.items) await addItem(item);
+    if (spoils.coins > 0) await addItem({ name: money.name, description: "", quantity: spoils.coins });
     core.herd.tend(body.id, !person);
     await readItems();
     narrate(
@@ -11622,7 +11659,7 @@ async function gather(kind) {
   if (chopped?.down) showFelled();
   if (!got.found) return void narrate(null, `${lines.none.replace("{who}", who)}${felled}`);
   try {
-    await core.inventory.add(got.found);
+    await addItem(got.found);
   } catch (error) {
     return void core.hud?.setNotice(`It couldn't be put in your inventory: ${error?.message ?? error}`);
   }
@@ -11969,7 +12006,7 @@ async function buy(name) {
   if (money.amount < price) throw new Error(`That costs ${price} ${money.name}. You have ${money.amount}.`);
   const coins = items.find((entry) => entry.name.trim().toLowerCase() === money.name.toLowerCase());
   await core.inventory.change(coins.id, money.amount - price > 0 ? { quantity: money.amount - price } : null);
-  await core.inventory.add({ name: item.name, description: item.description, quantity: 1 });
+  await addItem({ name: item.name, description: item.description, quantity: 1 });
   keepVendor(vendor.id, {
     stock: stock.map((entry) => (entry === item ? { ...entry, quantity: entry.quantity - 1 } : entry)),
   });
@@ -11987,7 +12024,7 @@ async function sell(id) {
   if (price <= 0) throw new Error(`${vendor.name} has no use for that.`);
   const money = purse();
   await core.inventory.change(id, (item.quantity ?? 1) > 1 ? { quantity: item.quantity - 1 } : null);
-  await core.inventory.add({ name: money.name, description: "", quantity: price });
+  await addItem({ name: money.name, description: "", quantity: price });
   await readItems();
   narrate(null, `${personaName()} sells ${item.name} at ${vendor.name} for ${price} ${money.name}.`);
 }
@@ -12039,7 +12076,7 @@ async function craftRecipe(recipe) {
   if (!takes) throw new Error(`You don't have everything ${recipe.name} needs.`);
   for (const take of takes)
     await core.inventory.change(take.id, take.quantity > 0 ? { quantity: take.quantity } : null);
-  await core.inventory.add({ name: recipe.name, description: recipe.description, quantity: recipe.makes });
+  await addItem({ name: recipe.name, description: recipe.description, quantity: recipe.makes });
   await readItems();
   earnXp(5);
   core.gesture = "interact";
@@ -12486,6 +12523,11 @@ function step(dt) {
   alliesFxTick(dt);
   aimTick();
   readyTick();
+  // (What's carried is brought up to how items are written now, once in each world.)
+  if (core.save && !core.save.bracketed && core.blockSeen !== core.save.id && core.inventory.ready()) {
+    core.blockSeen = core.save.id;
+    void bracketItems();
+  }
   // (A persona whose card has a 5e sheet brings it into each world once.)
   if (core.save && core.personas && core.cardSeen !== `${core.save.id}|${core.personaId}`) {
     core.cardSeen = `${core.save.id}|${core.personaId}`;

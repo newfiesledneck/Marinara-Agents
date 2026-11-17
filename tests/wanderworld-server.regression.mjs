@@ -1434,6 +1434,14 @@ assert.equal(
   assert.equal(asked[0].content, "PROMPT");
   // One call for both trackers: the sheet's lines and rules are added to Quartermaster's instruction, and
   // its part of the answer is taken out before Quartermaster sees the rest.
+  // Told how item stats are written only when asked to be, and after Quartermaster's own prompt.
+  {
+    const base = { template: "PROMPT", context: "Items:", name: "Zoey", told: "She finds a sword." };
+    assert.equal(server.inventoryMessages(base)[0].content, "PROMPT");
+    const withStats = server.inventoryMessages({ ...base, itemStats: true })[0].content;
+    assert.ok(withStats.startsWith("PROMPT") && withStats.includes("square brackets"));
+    assert.match(withStats, /already has a block keeps that block exactly/u);
+  }
   const joint = server.inventoryMessages({
     template: "PROMPT",
     context: "Items:\n(none)",
@@ -1548,6 +1556,7 @@ assert.equal(
       context: "Items:",
       personaName: "Zoey",
       text: "She buys a hat.",
+      itemStats: true,
       connectionId: null,
     });
     assert.deepEqual(calls.slice(0, 3), [

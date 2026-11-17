@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.14",
+          "date": "2026-11-17",
+          "notes": "- Item stats go in square brackets in a description, and only there: \"A sword with a light blue glow. [1d8 slashing damage]\". Words outside the brackets set nothing. An item with no block goes by its name.\n- What you already carry is converted once in each world: loose stats are moved into a block, so nothing stops working.\n- The inventory tracker is told the format. It may give a new item stats that fit it, and is told never to change a block an item already has. A setting turns this off.\n- Anything the game adds to your bag (bought, made, found) gets the slot it's worn or held in.\n- The Inventory and Lore windows each have one line with an (i) listing every key a description or a lorebook entry can use.\n- The six abilities answer to their short names: /check str, [+2 Dex].",
+          "highlight": false
+        },
+        {
           "version": "0.7.13",
           "date": "2026-11-17",
           "notes": "- Animals and monsters have real attack animations now (a bite, a butt of the head, a slime's lunge, a dragon's breath) in place of the little hop forward.\n- Wild Shape for druids from level 2: take a beast's shape (chosen in Inventory → Sheet), with its HP, AC and bite, until its HP run out or you change back. You're seen as the beast.\n- You can swing, shoot and cast from the saddle. By turns, a horse carries you 18 metres a turn and a donkey 12.\n- Ready: hold your attack, and it goes off at the first creature to come within reach.\n- Great Weapon Fighting rerolls 1s and 2s on the weapon's dice, as the SRD has it.",
@@ -307,12 +313,6 @@
           "version": "0.6.95",
           "date": "2026-11-15",
           "notes": "- People fight back. In real-time combat, someone you strike or cast at turns on you: they close in and swing their class's weapon, or keep off and cast their class's spells. Each go is rolled against your AC or your saving throw and told in the chat. Block and Dodge work against them.\n- They stop at a third of their HP, when you go down, when you get well away, or about 45 seconds after you last went for them.\n- \"People you attack fight back\" is under \"Blows can land on people\" in Settings → Inventory → Combat, and is on to begin with.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.94",
-          "date": "2026-11-15",
-          "notes": "- Journal → World → Animals is now Creatures, to match Settings → Creatures.",
           "highlight": false
         }
       ]

@@ -183,10 +183,11 @@ export function createInventory({ ai, sheet, persona, settings, onReady }) {
           body: { quantity: (held.quantity ?? 1) + quantity },
         });
       } else {
-        await call(pathOf(current, "/items"), {
-          method: "POST",
-          body: { name: item.name, description: item.description ?? "", quantity },
-        });
+        // (With where it's worn or held, when the caller knows: a Quartermaster that refuses the slot gets it without.)
+        const body = { name: item.name, description: item.description ?? "", quantity };
+        const post = (fields) => call(pathOf(current, "/items"), { method: "POST", body: fields });
+        if (item.defaultSlot) await post({ ...body, defaultSlot: item.defaultSlot }).catch(() => post(body));
+        else await post(body);
       }
     },
     /**
@@ -261,6 +262,7 @@ export function createInventory({ ai, sheet, persona, settings, onReady }) {
           personaName: persona().name,
           text: told,
           connectionId,
+          itemStats: settings().trackItemStats !== false,
           ...(also?.sheet ? { sheet: also.sheet } : {}),
         });
         if (also?.sheet) also.take?.(sheetAnswer);

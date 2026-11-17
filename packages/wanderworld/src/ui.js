@@ -107,6 +107,27 @@ export function vendorCountsEditor(kinds, counts = {}) {
  * An [i] before a label or a line, there while Show explanations is off: `explain` shows while the pointer is
  * over it, and a tap or click keeps it open until the next one.
  */
+/**
+ * One line with an (i) that is always there, and what it opens: a short reference (the keys a description
+ * or a lorebook entry can use), folded away until the (i) is pressed or hovered whatever the explanations
+ * setting. { row, detail }: put both where they go, the detail after the row.
+ */
+export function keysLine(text, keys) {
+  const detail = document.createElement("div");
+  detail.setAttribute("data-wanderworld-keys", "");
+  detail.style.cssText =
+    "font:11px/1.45 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;opacity:0.85;padding:4px 0 2px 28px;";
+  detail.textContent = keys;
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;align-items:center;font-size:12px;line-height:1.35;";
+  const control = infoButton(detail);
+  control.setAttribute("data-always", "");
+  const words = document.createElement("span");
+  words.textContent = text;
+  row.append(control, words);
+  return { row, detail };
+}
+
 export function infoButton(explain) {
   const node = document.createElement("button");
   node.type = "button";

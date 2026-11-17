@@ -1,5 +1,14 @@
 # Wanderworld release notes
 
+## 0.7.14 — 2026-11-17
+
+- Item stats go in square brackets in a description, and only there: "A sword with a light blue glow. [1d8 slashing damage]". Words outside the brackets set nothing. An item with no block goes by its name.
+- What you already carry is converted once in each world: loose stats are moved into a block, so nothing stops working.
+- The inventory tracker is told the format. It may give a new item stats that fit it, and is told never to change a block an item already has. A setting turns this off.
+- Anything the game adds to your bag (bought, made, found) gets the slot it's worn or held in.
+- The Inventory and Lore windows each have one line with an (i) listing every key a description or a lorebook entry can use.
+- The six abilities answer to their short names: /check str, [+2 Dex].
+
 ## 0.7.13 — 2026-11-17
 
 - Animals and monsters have real attack animations now (a bite, a butt of the head, a slime's lunge, a dragon's breath) in place of the little hop forward.

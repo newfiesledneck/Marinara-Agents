@@ -23,6 +23,7 @@ import {
   PARCHMENT,
   PARCHMENT_EDGED,
   infoButton,
+  keysLine,
   SERIF,
   vendorCountsEditor,
 } from "./ui.js";
@@ -112,6 +113,25 @@ const TIME_LABELS = { cycle: "Day and night", day: "Always day", night: "Always 
  * onSetBody(id, body), onSetLook(id, look), onSetPet(id, role, pet), lookOf(id), onSetting(name, value), onUse(), onJump(),
  * onRest(), onRenameZone(id, name), onZoneLore(id), and `maxPeople`.
  */
+/** Everything a description's block can say, in the fewest words (the Inventory window's (i)). */
+const ITEM_KEYS = `Stats go in [square brackets] in the description. Only what's inside is read.
+Weapon:  [1d8 slashing damage, +1 to attack, Range 24, finesse, light]
+Worn:    [+2 AC, +1 Strength, +1 damage]   (any stat on your sheet, by name)
+Used up: [+15 HP]  [+10 Mana]  [+2d4+2 HP]
+Tool:    [+2 gathering]
+Kinds of damage: acid, bludgeoning, cold, fire, force, lightning, necrotic, piercing, poison, psychic, radiant, slashing, thunder.
+No brackets: the name decides. sword, dagger, axe, bow, …; chain mail, shield, …; Ring of Protection, …; Potion of Healing. A +1 in a name adds 1.`;
+/** Every lorebook keyword's form, by what it's for (the Lore window's (i)); keywords.js has what each does. */
+const LORE_KEYS = `Each is its own key on an entry: ww:<what>:<value>. Spaces and capitals don't matter. Help has what each does.
+${[...new Set(KEYWORD_GUIDE.map((entry) => entry.group))]
+  .map(
+    (group) =>
+      `${group}:\n${KEYWORD_GUIDE.filter((entry) => entry.group === group)
+        .map((entry) => `  ${entry.write}`)
+        .join("\n")}`,
+  )
+  .join("\n")}`;
+
 export function createHud(root, handlers) {
   const { maxPeople } = handlers;
   const layer = document.createElement("div");
@@ -876,8 +896,10 @@ export function createHud(root, handlers) {
       "On: a creature's HP, AC, attack and damage are those of the 5e SRD creature it is taken as: a wolf is the SRD's wolf (11 HP, AC 13, +4 to hit, 2d4+2), a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage. Cattle, the alpaca and the shiba have nothing close in the SRD and keep the game's own numbers, as they all do with this off. People fight by their class either way. Experience for a win is the game's own.",
     srdModifiers:
       "On: numbers work as in the 5e SRD. Your attacks and spells add a proficiency bonus that grows with your level (+2, +3 from level 5, up to +6). Your AC adds your Dexterity modifier. Armour you wear, known by its name (leather armor, chain shirt, scale mail, chain mail, plate and the rest), sets your AC in place of 10 and limits how much Dexterity counts; a shield adds 2. A finesse weapon (dagger, rapier, shortsword) uses the better of Strength and Dexterity. Off: your sheet's AC plus what worn things say, and no proficiency.",
+    trackItemStats:
+      "On: Quartermaster's tracker is told how item stats are written (in square brackets at the end of a description), so something new that the story hands you can come with stats that fit it. It is told never to change a block an item already has. Off: it's told nothing about stats, and new items get them only from their names.",
     gearByDescription:
-      'On: what an item\'s description says is what it does ("Weapon: 1d8 slashing damage, +1 to attack", "+2 AC"), and only an item whose description states nothing goes by its name. Off: the name decides. Anything with a word such as sword, knife, dagger, axe, hammer, mace, spear, staff, bow or crossbow in its name is that weapon from the 5e SRD, and armour and shields likewise; only an item whose name says nothing goes by its description. A +1 in a name adds 1.',
+      'Stats are written in square brackets at the end of a description: "A notched blade. [1d8 slashing damage, +1 to attack]". Only what is inside the brackets is read. On: an item with a block does what the block says, and one without goes by its name. Off: the name decides first (sword, knife, dagger, axe, hammer, mace, spear, staff, bow, crossbow; armour, shields, worn magic and healing potions by their 5e SRD names), and only an item whose name says nothing goes by its block. A +1 in a name adds 1. Inventory has the list of everything a block can say.',
     damageTypes:
       "On: what a blow or a spell is made of matters to some creatures. A skeleton takes a blunt blow twice over and poison not at all; a slime resists fire, cold and acid; fire can't hurt a dragon or an imp. Off: damage is damage.",
     creatureExtras:
@@ -1346,6 +1368,7 @@ export function createHud(root, handlers) {
   );
   toggle("inventory", "Use Quartermaster for the inventory");
   toggle("inventoryWorn", "Tell the AI what you're wearing", "inventory");
+  toggle("trackItemStats", "The tracker may give new items stats", "inventory");
   choice(
     "inventoryTrack",
     "The AI keeps the inventory up to date",
@@ -2695,6 +2718,11 @@ export function createHud(root, handlers) {
       tab.setAttribute("aria-pressed", String(id === inventoryTab));
       tabs.append(tab);
     }
+    // (One line on every tab: how a description sets what an item does, behind its (i).)
+    const itemKeys = keysLine("Inventory item descriptions can configure item stats.", ITEM_KEYS);
+    const itemHelp = piece("flex:1 0 100%;");
+    itemHelp.append(itemKeys.row, itemKeys.detail);
+    tabs.append(itemHelp);
     const body = piece("display:flex;flex-direction:column;gap:5px;font-size:12px;line-height:1.4;");
     if (inventoryNote) body.append(debugNote(inventoryNote));
     if (inventoryTab === "sheet") drawSheet(body);
@@ -3974,7 +4002,7 @@ export function createHud(root, handlers) {
 
   const explainRule = document.createElement("style");
   explainRule.textContent =
-    ".wanderworld-no-explain [data-wanderworld-explain]:not([data-open]){display:none!important}[data-wanderworld-info]{display:none}.wanderworld-no-explain [data-wanderworld-info]{display:inline-flex}";
+    ".wanderworld-no-explain [data-wanderworld-explain]:not([data-open]){display:none!important}[data-wanderworld-info]{display:none}.wanderworld-no-explain [data-wanderworld-info]{display:inline-flex}[data-wanderworld-info][data-always]{display:inline-flex}[data-wanderworld-keys]:not([data-open]){display:none}";
   layer.append(explainRule);
   // Every explanation has its (i). One written with it has it already; any other (a note in the Journal,
   // the Inventory, someone's card) is given one here as it's drawn: at the start of the line above it where
@@ -4413,7 +4441,8 @@ export function createHud(root, handlers) {
         node.textContent = content;
         return node;
       };
-      const nodes = [text(`Lore here: ${info.place}`, `font:700 15px ${SERIF};`)];
+      const loreKeys = keysLine("Lorebook entries can configure your world by using specific keywords.", LORE_KEYS);
+      const nodes = [text(`Lore here: ${info.place}`, `font:700 15px ${SERIF};`), loreKeys.row, loreKeys.detail];
       if (!info.entries.length)
         nodes.push(
           text(
