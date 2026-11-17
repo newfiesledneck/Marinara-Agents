@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.7.17 — 2026-11-17
+
+- Fixed: Settings showed a column of (i) buttons with nothing beside them. They belonged to the other sections' notes, which were hidden while their buttons were not. An (i) now goes and comes with what it explains.
+
 ## 0.7.16 — 2026-11-17
 
 - Fixed: witches and wizards carried their staffs pointing up and back, as if held backwards. A staff now stands upright in the hand, its foot by the ground and its knob by the head.
