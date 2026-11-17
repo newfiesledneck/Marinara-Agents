@@ -923,7 +923,7 @@ export function createJournal(panelCss, handlers, shows = () => true) {
     );
     instructions.value = world.sceneInstructions ?? "";
     instructions.placeholder = 'e.g. "Slow-burn, cosy, keep it SFW; describe the food"';
-    instructions.maxLength = 1000;
+    instructions.maxLength = 20000;
     instructions.addEventListener("change", () =>
       handlers.onSetSetup({ sceneInstructions: instructions.value.trim() }),
     );
