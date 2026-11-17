@@ -195,7 +195,11 @@ export function createPersonEditor(layer, handlers) {
     show(only ?? shownTab);
   };
   const part = (text) => element("div", "font-weight:600;margin-top:6px;", text);
-  const note = (text) => element("div", `font-size:12px;color:${INK_SOFT};line-height:1.35;`, text);
+  const note = (text) => {
+    const node = element("div", `font-size:12px;color:${INK_SOFT};line-height:1.35;`, text);
+    node.setAttribute("data-wanderworld-explain", ""); // (behind an (i) when explanations are folded away)
+    return node;
+  };
   const field = (label, control) => {
     const row = element("label", "display:flex;gap:8px;align-items:center;flex-wrap:wrap;");
     row.append(element("span", "min-width:120px;", label), control);

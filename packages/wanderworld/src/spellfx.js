@@ -244,6 +244,10 @@ export function createSpellFx() {
     mesh.renderOrder = 5;
     scene.add(mesh);
     return {
+      /** Moves it to (x, y, z): it follows what it's drawn round. */
+      move(x, y, z) {
+        mesh.position.set(x, y, z);
+      },
       remove() {
         mesh.removeFromParent();
         mesh.geometry.dispose();

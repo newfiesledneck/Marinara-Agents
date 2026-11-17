@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.10)
+## What it does now (0.7.11)
 
 ### The world
 
@@ -617,6 +617,8 @@ every roll, and no AI call is made in a real-time fight.
   and beaten creatures that carry money have the ruleset's pocket treasure.
 - **More moves**: Shove, Grapple, Help, Hide and off-hand attacks; Shield and Counterspell as
   reactions that cast themselves; the Grappler feat.
+- **Aiming and a row of things to do**: tap a creature or a companion to aim at them (out of range
+  is said, not spent), and Abilities, Moves and Spells each open from one button in a fight.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.

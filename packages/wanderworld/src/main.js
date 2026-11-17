@@ -3169,6 +3169,7 @@ function stepPlaces(dt) {
         readySpell(spells)?.id ?? "",
       );
     }
+    core.hud?.setActions(actionGroups());
     core.hud?.setShop(vendorHere()?.title ?? "");
     core.hud?.setGather([
       ...gatherOptions(zone).map((kind) => ({ kind, label: GATHER_KINDS[kind].label })),
@@ -7797,6 +7798,163 @@ function toScreen(x, y, z) {
   };
 }
 
+// ── Aiming ──
+
+/** How near a tap has to land to a creature or a companion to aim at them (pixels). */
+const AIM_RADIUS = 46;
+/** Whether a tap on a creature or a companion aims at them: in a fight by turns, or with a weapon drawn. */
+const aiming = () => !!core.battle || weaponDrawn();
+
+/**
+ * A tap at (x, y) on the stage aims at the creature or the companion under it; a tap on what's aimed at
+ * already, or on the player, aims at nothing. Whether the tap was taken.
+ */
+function aimAt(x, y) {
+  const at = core.player.position;
+  let best = null;
+  let nearest = AIM_RADIUS;
+  const consider = (entry, wx, wz, up) => {
+    const screen = toScreen(wx, (core.interior ? at.y : heightAt(wx, wz)) + up, wz);
+    const distance = screen ? Math.hypot(screen.x - x, screen.y - y) : Infinity;
+    if (distance >= nearest) return;
+    nearest = distance;
+    best = entry;
+  };
+  for (const foe of core.interior ? [] : core.herd.foes(at, 45))
+    consider({ kind: "foe", id: foe.id }, foe.x, foe.z, 0.6 * (foe.scale ?? 1));
+  for (const member of core.crowd.party()) {
+    const person = core.crowd.present(core.space).find((entry) => entry.id === member.id);
+    if (person) consider({ kind: "ally", id: person.id }, person.position.x, person.position.z, 1.1);
+  }
+  consider({ kind: "self" }, at.x, at.z, 1.1);
+  if (!best) return false;
+  core.aim = best.kind === "self" || core.aim?.id === best.id ? null : best;
+  return true;
+}
+
+/**
+ * What's aimed at, as it is now: { kind: "foe" | "ally", id, x, z, room, far (metres from the player), name,
+ * and the creature (`foe`) or the companion (`person`) }. null with nothing aimed at, or once it's gone.
+ */
+function aimed() {
+  const aim = core.aim;
+  if (!aim || !core.player) return null;
+  const at = core.player.position;
+  if (aim.kind === "foe") {
+    const foe = core.interior ? null : core.herd.foes(at, 60).find((entry) => entry.id === aim.id);
+    if (!foe) return null;
+    const name = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+    return {
+      kind: "foe",
+      id: foe.id,
+      foe,
+      x: foe.x,
+      z: foe.z,
+      room: foe.room,
+      far: Math.hypot(foe.x - at.x, foe.z - at.z),
+      name,
+    };
+  }
+  const person = core.crowd.present(core.space).find((entry) => entry.id === aim.id);
+  if (!person) return null;
+  const { x, z } = person.position;
+  return {
+    kind: "ally",
+    id: person.id,
+    person,
+    x,
+    z,
+    room: 0.4,
+    far: Math.hypot(x - at.x, z - at.z),
+    name: nameFor(person.id, person.name),
+  };
+}
+
+/** How far what the player fights with reaches: a bow's range if they carry one, else a swing's. */
+const aimReach = () => Math.max(SWING_REACH, bowOf(core.items ?? [], byDesc())?.range ?? 0);
+
+/**
+ * With a creature aimed at: turns the player to it if it's within `reach` metres, and says it's out of range
+ * if it isn't. False only when it's out of range (nothing aimed at is true: the blow goes where they face).
+ */
+function aimInRange(reach, what) {
+  const aim = aimed();
+  if (aim?.kind !== "foe") return true;
+  if (aim.far > reach + aim.room) {
+    core.hud?.setNotice(
+      `Out of range: the ${aim.name} is ${aim.far.toFixed(1)} m away, and ${what} reaches ${reach} m.`,
+    );
+    return false;
+  }
+  const angle = Math.atan2(aim.x - core.player.position.x, aim.z - core.player.position.z);
+  core.player.rotation.y = angle;
+  if (weaponDrawn()) core.cameraYaw = angle + Math.PI;
+  return true;
+}
+
+/** What's aimed at in a few words, for the bar: "wolf · 4.2 m", "wolf · 12.0 m · out of range". */
+function aimWords() {
+  const aim = aimed();
+  if (!aim) return "";
+  const far = `${aim.name} · ${aim.far.toFixed(1)} m`;
+  return aim.kind === "foe" && aim.far > aimReach() + aim.room ? `${far} · out of range` : far;
+}
+
+/** The ring round what's aimed at: red in range, grey out of it, green round a companion. It goes when the aim does. */
+function aimTick() {
+  const aim = fighting() && !core.downed ? aimed() : null;
+  if (!aim) {
+    core.aim = null;
+    core.aimRing?.remove();
+    core.aimRing = null;
+    core.aimKey = "";
+    return;
+  }
+  const colour = aim.kind === "ally" ? 0x7dff9a : aim.far <= aimReach() + aim.room ? 0xff6a5a : 0xb8b8b8;
+  const key = `${aim.id}|${colour}`;
+  const spot = chest(aim.x, aim.z, 0.12);
+  if (core.aimKey !== key) {
+    core.aimRing?.remove();
+    core.aimRing = spellFx().circle(core.space.scene, spot, 0.7 + aim.room, colour);
+    core.aimKey = key;
+  }
+  core.aimRing.move(spot.x, spot.y, spot.z);
+}
+
+/** A healing spell lands on a companion: their HP, and up again if they were down. */
+function healAlly(aim, amount, spell) {
+  const health = allyHp(aim.id);
+  health.hp = Math.min(health.max, health.hp + amount);
+  core.allyDying?.delete(aim.id);
+  if (core.crowd.isOut(aim.id)) core.crowd.knockOut(aim.id, 0.3); // (on their feet again in a moment)
+  spellFx().motes(core.space.scene, chest(aim.x, aim.z, 0), spellColour("heal"));
+  narrate(null, `${personaName()} casts ${spell} on ${aim.name}: +${amount} HP (${health.hp} of ${health.max}).`);
+}
+
+/** What there is to do in a fight besides Attack, Block and Dodge, by kind, for the row of buttons (hud.js setActions). */
+function actionGroups() {
+  if (!fighting() || core.downed || !core.save) return [];
+  const moves = new Set([...MOVES.map((move) => move.id), "offhand"]);
+  const all = abilitiesNow();
+  const item = (ability) => ({
+    id: ability.id,
+    label: `${ability.name}${ability.left === null ? "" : ` (${ability.left})`}`,
+    title: ability.about,
+    ready: (ability.left === null || ability.left >= Math.max(1, ability.spend)) && !(ability.turns && !core.battle),
+  });
+  return [
+    { id: "abilities", label: "Abilities", items: all.filter((ability) => !moves.has(ability.id)).map(item) },
+    { id: "moves", label: "Moves", items: all.filter((ability) => moves.has(ability.id)).map(item) },
+    {
+      id: "spells",
+      label: "Spells",
+      items: spellsNow()
+        .filter((entry) => !entry.spell.reaction)
+        .map((entry) => ({ id: `spell:${entry.id}`, label: entry.name, title: `Cast ${entry.name}`, ready: true })),
+    },
+  ];
+}
+
 /** A click or tap on the world: use (or walk to) what's under it, or walk to that spot on the ground. */
 function tap(clientX, clientY) {
   if (core.mode === "talk" || core.mode === "door" || core.mode === "ride" || !core.camera) return;
@@ -7804,6 +7962,7 @@ function tap(clientX, clientY) {
   const rect = core.stage.getBoundingClientRect();
   const x = clientX - rect.left;
   const y = clientY - rect.top;
+  if (aiming() && aimAt(x, y)) return; // (in a fight, a tap on a creature or a companion aims at them)
   let best = null;
   let bestDistance = TAP_RADIUS;
   for (const thing of usable()) {
@@ -8939,6 +9098,7 @@ function swing() {
   // A bow, a crossbow or a sling they carry is shot when nothing is in reach of a swing: at whatever is
   // ahead within its range, or (with it equipped) at nothing at all.
   const bow = bowOf(core.items ?? [], byDesc());
+  if (!aimInRange(Math.max(SWING_REACH, bow?.range ?? 0), bow ? `the ${bow.name.toLowerCase()}` : "a swing")) return;
   if (bow && !blowTarget()) faceEnemy(bow.range); // (nothing in reach of a swing: the bow turns to the nearest enemy)
   const near = blowTarget();
   const far = bow && !near ? blowTarget(bow.range, SPELL_ARC, true) : null;
@@ -8968,6 +9128,9 @@ function swing() {
 
 /** What a swing would land on: the nearest animal in front of the player and in reach, or null. */
 function blowTarget(reach = SWING_REACH, arc = SWING_ARC, people = true) {
+  // (What's aimed at, when it's in reach, whichever way they face.)
+  const aim = aimed();
+  if (aim?.kind === "foe" && aim.far <= reach + aim.room) return aim.foe;
   const at = core.player.position;
   const facing = core.player.rotation.y;
   let foe = null;
@@ -9069,6 +9232,14 @@ function cast(id = null) {
   if (spell.reaction)
     return void core.hud?.setNotice(`${name} casts itself when it's needed (Settings → Inventory → 5e rules).`);
   const sheet = sheetNow();
+  // Aimed at something: it has to be in the spell's range (a creature for one that harms, a companion for one that mends).
+  if (spell.heal && !spell.damage) {
+    const friend = aimed();
+    if (friend?.kind === "ally" && friend.far > spell.range)
+      return void core.hud?.setNotice(
+        `Out of range: ${friend.name} is ${friend.far.toFixed(1)} m away, and ${name} reaches ${spell.range} m.`,
+      );
+  } else if (!aimInRange(spell.range, name)) return;
   // Facing nothing, they turn to the nearest enemy the spell reaches, so it isn't cast at the empty air.
   if (!(spell.heal && !spell.damage)) faceEnemy(spell.range);
   // By turns: a spell is a turn's action (or its bonus action), and outside a fight one cast at something starts it.
@@ -9112,6 +9283,9 @@ function cast(id = null) {
     core.hud?.refreshInventory?.();
     if (spell.heal && !spell.damage) {
       const mended = Math.max(1, rollDice(spell.heal).total + Math.max(0, wit));
+      // (On the companion aimed at, if one is; else on the caster.)
+      const friend = aimed();
+      if (friend?.kind === "ally" && friend.far <= spell.range) return void healAlly(friend, mended, name);
       setSheet(applyChanges(now, [{ stat: "hp", by: mended }]).sheet);
       const hp = entryOf(sheetNow(), "hp");
       spellFx().motes(scene, chest(at.x, at.z, 0), colour);
@@ -9356,18 +9530,20 @@ function battleActs() {
   const action = battle.action > 0;
   const bonus = battle.bonus > 0;
   return [
-    { id: "dash", label: "Dash", title: "An action: you can go twice as far this turn", ready: action },
+    { id: "dash", label: "Dash", title: "An action: you can go twice as far this turn", ready: action, basic: true },
     {
       id: "disengage",
       label: "Disengage",
       title: "An action: moving away draws no opportunity attacks this turn",
       ready: action && !battle.disengaged,
+      basic: true,
     },
     {
       id: "dodge",
       label: "Dodge",
       title: "An action: attacks on you are rolled twice, the worse counting, until your next turn",
       ready: action && !battle.dodging,
+      basic: true,
     },
     // What their class can call on (build.js abilities), each for what it takes of the turn.
     ...abilitiesNow().map((ability) => ({
@@ -9701,6 +9877,7 @@ function battleTick(dt, moved) {
     attacks: battle.attacks,
     bonus: battle.bonus,
     acts: battleActs(),
+    target: aimWords(),
     slots: slots
       ? Object.entries(slots)
           .filter(([, have]) => have > 0)
@@ -11918,6 +12095,7 @@ function step(dt) {
   alliesTick(dt);
   angryTick();
   conditionsTick(dt);
+  aimTick();
   // (A persona whose card has a 5e sheet brings it into each world once.)
   if (core.save && core.personas && core.cardSeen !== `${core.save.id}|${core.personaId}`) {
     core.cardSeen = `${core.save.id}|${core.personaId}`;
@@ -12468,6 +12646,7 @@ function attach(element) {
     build: buildInfo,
     onBuild: setBuild,
     onAbility: useAbility,
+    onAction: (id) => (String(id).startsWith("spell:") ? cast(String(id).slice(6)) : useAbility(id)),
     onShortRest: shortRest,
     onApplyCard: () => applyCard(true),
     onBattleAct: battleAct,
