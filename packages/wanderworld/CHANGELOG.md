@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.7.18 — 2026-11-17
+
+- The Creatures sliders (stray dogs, farm animals, wild animals, wolves, monsters, the town's animals) each go up to 100 now. The counts are for the whole world, so a big map needs a high number to feel lived in.
+
 ## 0.7.17 — 2026-11-17
 
 - Fixed: Settings showed a column of (i) buttons with nothing beside them. They belonged to the other sections' notes, which were hidden while their buttons were not. An (i) now goes and comes with what it explains.
