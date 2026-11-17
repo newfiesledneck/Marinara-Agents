@@ -118,7 +118,8 @@ const worn = wornBonuses(sheet, [
 assert.deepEqual(worn, { ac: 3, attack: 2 });
 const hurt = applyChanges(sheet, [{ stat: "hp", to: 5 }]).sheet;
 const drunk = useItem(hurt, "A red potion. [+10 HP when drunk. +2 AC]");
-assert.deepEqual([valueOf(drunk.sheet, "hp"), valueOf(drunk.sheet, "ac"), drunk.applied.length], [15, 10, 1]);
+// (Used up, everything its block names is changed for good: the HP mended, and the AC too.)
+assert.deepEqual([valueOf(drunk.sheet, "hp"), valueOf(drunk.sheet, "ac"), drunk.applied.length], [15, 12, 2]);
 
 // In words, for a prompt: only what's on, the worn bonuses counted, the player's own with their descriptions.
 const told = sheetWords(off, worn);

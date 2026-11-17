@@ -116,7 +116,7 @@ export function keysLine(text, keys) {
   const detail = document.createElement("div");
   detail.setAttribute("data-wanderworld-keys", "");
   detail.style.cssText =
-    "font:11px/1.45 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;opacity:0.85;padding:4px 0 2px 28px;";
+    "font:11px/1.45 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;opacity:0.85;padding:4px 6px 2px 28px;max-height:42vh;overflow-y:auto;";
   detail.textContent = keys;
   const row = document.createElement("div");
   row.style.cssText = "display:flex;align-items:center;font-size:12px;line-height:1.35;";

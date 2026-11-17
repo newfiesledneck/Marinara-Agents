@@ -245,10 +245,20 @@ export function bonusesIn(text, sheet) {
     const amount = (match[1] === "+" ? 1 : -1) * Number(match[2]);
     // The longest run of words after the number that names something: "+2 to attack rolls" is attack.
     const parts = match[3].trim().split(/\s+/u);
+    // ("+5 Max HP": it's the most of it that changes, for one that has a most.)
+    const most = parts.length > 1 && parts[0].toLowerCase() === "max";
+    if (most) parts.shift();
     for (let take = Math.min(parts.length, 4); take >= 1; take--) {
       const name = parts.slice(0, take).join(" ").toLowerCase();
       const special = name === "attack" || name === "to hit" ? "attack" : name === "damage" ? "damage" : null;
       const entry = special ? null : find(sheet, name);
+      if (most) {
+        if (entry && "max" in entry) {
+          found.push({ stat: entry.id, amount, max: true });
+          break;
+        }
+        continue;
+      }
       if (special || (entry && !NUMBERLESS.has(entry.kind))) {
         found.push({ stat: special ?? entry.id, amount });
         break;
@@ -266,18 +276,44 @@ export function wornBonuses(sheet, items) {
   const total = {};
   for (const item of Array.isArray(items) ? items : []) {
     if (typeof item?.location !== "string" || !item.location.startsWith("equipped:")) continue;
-    for (const bonus of bonusesIn(statBlock(item.description), sheet))
-      total[bonus.stat] = (total[bonus.stat] ?? 0) + bonus.amount;
+    for (const bonus of bonusesIn(statBlock(item.description), sheet)) {
+      const key = bonus.max ? `max:${bonus.stat}` : bonus.stat; // (what it adds to the most of something: wornMax)
+      total[key] = (total[key] ?? 0) + bonus.amount;
+    }
   }
   return total;
 }
 
-/** Using something up: its bonuses to resources (HP, mana, the player's own) are applied once. */
+/**
+ * Using something up: what its block says is applied once and stays. "+15 HP" mends (up to the most), "+1
+ * Souls" adds to a number that has no most, "+1 Strength" raises it for good, and "+5 Max HP" raises the
+ * most of something and what's in it by as much. "+N to attack" and "+N damage" are for worn things only.
+ */
 export function useItem(sheet, description) {
-  const changes = bonusesIn(statBlock(description), sheet)
-    .filter((bonus) => "max" in (entryOf(sheet, bonus.stat) ?? {}))
-    .map((bonus) => ({ stat: bonus.stat, by: bonus.amount }));
-  return applyChanges(sheet, changes);
+  const bonuses = bonusesIn(statBlock(description), sheet).filter((bonus) => entryOf(sheet, bonus.stat));
+  let next = sheet;
+  const applied = [];
+  for (const bonus of bonuses.filter((entry) => entry.max)) {
+    const entry = entryOf(next, bonus.stat);
+    const to = Math.max(1, entry.max + bonus.amount);
+    next = changeSheet(next, { set: entry.id, field: "max", value: to });
+    next = changeSheet(next, { set: entry.id, field: "value", value: entry.value + Math.max(0, bonus.amount) });
+    applied.push({ id: entry.id, name: `Max ${entry.name}`, from: entry.max, to });
+  }
+  const changed = applyChanges(
+    next,
+    bonuses.filter((bonus) => !bonus.max).map((bonus) => ({ stat: bonus.stat, by: bonus.amount })),
+  );
+  return { sheet: changed.sheet, applied: [...applied, ...changed.applied] };
+}
+
+/** What worn things add to the most of each resource: { [id]: amount } (wornBonuses' "max:<id>" keys). */
+export function wornMax(worn) {
+  return Object.fromEntries(
+    Object.entries(worn ?? {})
+      .filter(([key, amount]) => key.startsWith("max:") && amount)
+      .map(([key, amount]) => [key.slice(4), amount]),
+  );
 }
 
 // ── The sheet in words, for a prompt ─────────────────────────────────────────

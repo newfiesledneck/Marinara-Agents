@@ -859,4 +859,57 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
   assert.equal(gearWorn(plain, [on("Band", "[+2 Str, +1 int]")]).strength, 2);
 }
 
+// The rest of a weapon's traits from its block; what raises the most of something; a used thing on any number.
+{
+  const { gearWorn } = await import("../packages/wanderworld/src/combat.js");
+  const { bonusesIn, useItem, wornBonuses, wornMax } = await import("../packages/wanderworld/src/sheet.js");
+  const pike = weaponIn({ name: "Odd pole", description: "[1d10 piercing damage, two-handed, reach, heavy]" });
+  assert.deepEqual([pike.two, pike.reach, pike.heavy, pike.light], [true, true, true, undefined]);
+  const axe = weaponIn({ name: "Odd thing", description: "[1d6 slashing damage, versatile 1d8, thrown 9, light]" });
+  assert.deepEqual([axe.versatile, axe.thrown, axe.light], ["1d8", 9, true]);
+  assert.equal(weaponIn({ name: "Odd thing", description: "[1d4 damage, thrown]" }).thrown, 6);
+  // Thrown, it goes by Strength (or the better of the two if it's finesse), not Dexterity as a bow does.
+  let strong = checkSheet(null);
+  strong = changeSheet(strong, { set: "strength", field: "value", value: 16 });
+  const mid = () => 0.5; // an 11 on the die
+  const hurled = { ...axe, range: axe.thrown, hurled: true };
+  assert.equal(playerStrike({ sheet: strong, weapon: hurled, foe: { ac: 5 } }, mid).total, 14);
+  assert.equal(playerStrike({ sheet: strong, weapon: { ...axe, range: 9 }, foe: { ac: 5 } }, mid).total, 11);
+  assert.match(
+    strikeWords({
+      who: "Zoey",
+      what: "wolf",
+      weapon: { ...hurled, name: "Hand axe" },
+      result: { hit: false, total: 3, ac: 13 },
+      left: 5,
+      max: 11,
+    }),
+    /^Zoey throws the hand axe at the wolf/u,
+  );
+  // "+5 Max HP": worn, it's counted apart from HP itself; used, it raises the most for good.
+  let sheet = checkSheet(null);
+  sheet = changeSheet(sheet, { add: { kind: "stat", name: "Souls", about: "", value: 15 } });
+  assert.deepEqual(bonusesIn("+5 Max HP, +2 AC, +3 max souls", sheet), [
+    { stat: "hp", amount: 5, max: true },
+    { stat: "ac", amount: 2 },
+  ]);
+  const on = (description) => ({ name: "Thing", description, location: "equipped:neck" });
+  assert.deepEqual(wornMax(wornBonuses(sheet, [on("[+5 Max HP, +1 AC]"), on("[+2 max hp]")])), { hp: 7 });
+  assert.deepEqual(wornMax(gearWorn(sheet, [on("[+5 Max HP]")])), { hp: 5 });
+  assert.deepEqual(wornMax({ ac: 2 }), {});
+  const fed = useItem(sheet, "A heart. [+5 Max HP]");
+  const hp = fed.sheet.entries.find((entry) => entry.id === "hp");
+  assert.deepEqual([hp.value, hp.max, fed.applied[0].name], [25, 25, "Max HP"]);
+  // A number with no most just goes up; an ability too, for good.
+  const taken = useItem(sheet, "A wisp. [+1 Souls, +1 Strength]");
+  assert.deepEqual(
+    [
+      taken.sheet.entries.find((entry) => entry.name === "Souls").value,
+      taken.sheet.entries.find((entry) => entry.id === "strength").value,
+    ],
+    [16, 11],
+  );
+  assert.equal(useItem(sheet, "A whetstone. [+1 to attack]").applied.length, 0, "a blow's bonus is for what's worn");
+}
+
 console.log("ok: fighting by the rules");

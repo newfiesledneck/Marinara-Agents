@@ -263,6 +263,7 @@ import {
   toppedUp,
   useItem,
   valueOf,
+  wornMax,
 } from "./sheet.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
 import {
@@ -7898,7 +7899,12 @@ function aimed() {
 }
 
 /** How far what the player fights with reaches: a bow's range if they carry one, else a swing's. */
-const aimReach = () => Math.max(SWING_REACH, bowOf(core.items ?? [], byDesc())?.range ?? 0);
+const aimReach = () => {
+  const weapon = weaponNow();
+  return Math.max(swingReach(weapon), weapon.thrown ?? 0, bowOf(core.items ?? [], byDesc())?.range ?? 0);
+};
+/** How far a swing with `weapon` reaches: a pace and a half more for one with reach. */
+const swingReach = (weapon) => SWING_REACH + (weapon?.reach ? 1.5 : 0);
 
 /**
  * With a creature aimed at: turns the player to it if it's within `reach` metres, and says it's out of range
@@ -8201,8 +8207,38 @@ function sheetTold() {
 }
 /** Quartermaster's items for the sheet being played, read again (kept in `core.items` for the bonuses). */
 async function readItems() {
-  core.items = await core.inventory.items().catch(() => []);
+  try {
+    core.items = await core.inventory.items();
+    if (core.inventory.ready()) wornMaxSync();
+  } catch {
+    core.items = [];
+  }
   return core.items;
+}
+
+/**
+ * What's worn that raises the most of something ("+5 Max HP") is taken into the sheet, and taken out again
+ * when it comes off: the most goes up or down by the difference, and what's in it is held to the new most.
+ * Done as the items are read, so a failed read never takes anything away.
+ */
+function wornMaxSync() {
+  if (!core.save) return;
+  const sheet = sheetNow();
+  const now = wornMax(wornNow(sheet));
+  const had = core.save.wornMax?.[sheetKey()] ?? {};
+  let next = sheet;
+  for (const entry of sheet.entries) {
+    const change = (now[entry.id] ?? 0) - (had[entry.id] ?? 0);
+    if (change && "max" in entry)
+      next = changeSheet(next, { set: entry.id, field: "max", value: Math.max(1, entry.max + change) });
+  }
+  if (next === sheet && JSON.stringify(now) === JSON.stringify(had)) return;
+  core.save = { ...core.save, wornMax: { ...core.save.wornMax, [sheetKey()]: now } };
+  core.saves.write(core.save);
+  if (next !== sheet) {
+    setSheet(next);
+    core.hud?.refreshInventory?.();
+  }
 }
 /**
  * The AI keeps the sheet (Settings → Inventory → "The AI updates your sheet"): it reads what was
@@ -8553,7 +8589,9 @@ function strikeMods(weapon, foe, keen = false) {
     buildNow().feats?.includes("grappler")
   )
     mods.advantage = true; // (the Grappler feat)
-  if (!melee) mods.attack += kit.archery;
+  if (!melee && !weapon.hurled) mods.attack += kit.archery;
+  // (A heavy weapon in a small one's hands: the worse of two.)
+  if (weapon.heavy && ["halfling", "gnome"].includes(buildNow().race)) mods.hampered = true;
   if (melee && weapon.name && !weapon.two && !weapon.twoHanded) mods.damage += kit.dueling;
   // (Great Weapon Fighting: a 1 or a 2 on the weapon's dice is rolled again.)
   if (melee && kit.greatWeapon && (weapon.two || weapon.twoHanded)) mods.reroll = 2;
@@ -9287,10 +9325,15 @@ function swing() {
   const weapon = weaponNow();
   // A bow, a crossbow or a sling they carry is shot when nothing is in reach of a swing: at whatever is
   // ahead within its range, or (with it equipped) at nothing at all.
-  const bow = core.shape ? null : bowOf(core.items ?? [], byDesc()); // (a beast shoots nothing)
-  if (!aimInRange(Math.max(SWING_REACH, bow?.range ?? 0), bow ? `the ${bow.name.toLowerCase()}` : "a swing")) return;
-  if (bow && !blowTarget()) faceEnemy(bow.range); // (nothing in reach of a swing: the bow turns to the nearest enemy)
-  const near = blowTarget();
+  // (A weapon with reach lands a pace and a half further off.)
+  const reach = swingReach(weapon);
+  // (A beast shoots nothing. With no bow, a weapon that can be thrown is, at what's out of reach.)
+  const shot = core.shape ? null : bowOf(core.items ?? [], byDesc());
+  const bow =
+    shot ?? (!core.shape && weapon.thrown ? { ...weapon, range: weapon.thrown, hurled: true, worn: false } : null);
+  if (!aimInRange(Math.max(reach, bow?.range ?? 0), bow ? `the ${bow.name.toLowerCase()}` : "a swing")) return;
+  if (bow && !blowTarget(reach)) faceEnemy(bow.range); // (nothing in reach of a swing: the bow turns to the nearest enemy)
+  const near = blowTarget(reach);
   const far = bow && !near ? blowTarget(bow.range, SPELL_ARC, true) : null;
   // By turns: an Attack is a turn's action; outside a fight, a swing or a shot at something starts one.
   if (mode === "turns") {
@@ -9307,7 +9350,7 @@ function swing() {
   const saveId = core.save?.id;
   later(seconds * SWING_LANDS, () => {
     if (core.save?.id !== saveId || fightMode() !== mode || core.downed) return;
-    const foe = blowTarget();
+    const foe = blowTarget(reach);
     if (!foe) return;
     if (foe.person) return void landOnPerson(foe, weapon);
     if (mode === "realtime" || mode === "turns") return void landOn(foe, weapon);
@@ -11123,7 +11166,7 @@ function landOn(foe, weapon, cover = 0) {
     !!core.settings.srdModifiers &&
     !weapon.range &&
     !["dagger", "javelin", "shortsword", "spear", "trident"].includes(weapon.srd);
-  const worse = afflicted().attackDis || underwater;
+  const worse = afflicted().attackDis || underwater || !!mods.hampered;
   const result = better === worse ? swung() : rolledTwice(swung, better);
   if (worse && !better) result.hampered = true;
   strikeSpent(mods, result, foe);

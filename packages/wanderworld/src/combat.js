@@ -141,6 +141,14 @@ function weaponWritten(item) {
     type: damage[2]?.toLowerCase() ?? like?.type ?? "bludgeoning",
     ...(/\bfinesse\b/iu.test(text) ? { finesse: true } : {}),
     ...(/\blight\b/iu.test(text) || like?.light ? { light: true } : {}),
+    ...(/\btwo[- ]handed\b/iu.test(text) ? { two: true } : {}),
+    ...(/\bheavy\b/iu.test(text) ? { heavy: true } : {}),
+    ...(/\breach\b/iu.test(text) ? { reach: true } : {}),
+    // ("versatile 1d10": its dice in both hands. "thrown 6": it can be thrown that many metres; six with no number.)
+    ...(/\bversatile\s+(\d{0,2}d\d{1,3})/iu.test(text)
+      ? { versatile: /\bversatile\s+(\d{0,2}d\d{1,3})/iu.exec(text)[1] }
+      : {}),
+    ...(/\bthrown\b/iu.test(text) ? { thrown: Number(/\bthrown\s+(\d{1,2})/iu.exec(text)?.[1] ?? 6) } : {}),
   };
 }
 
@@ -283,7 +291,10 @@ export function gearWorn(
         sets[ability] = Math.max(sets[ability] ?? 0, score);
       continue;
     }
-    for (const bonus of stated) total[bonus.stat] = (total[bonus.stat] ?? 0) + bonus.amount;
+    for (const bonus of stated) {
+      const key = bonus.max ? `max:${bonus.stat}` : bonus.stat;
+      total[key] = (total[key] ?? 0) + bonus.amount;
+    }
   }
   // (An ability a worn thing sets: up to that number, if it was less with everything else counted.)
   for (const [ability, score] of Object.entries(sets)) {
@@ -436,11 +447,13 @@ export function foeOf(kind, foes, scale = 1) {
 export function playerStrike({ sheet, worn = {}, weapon = UNARMED, foe, prof = 0, mods = {} }, random = Math.random) {
   // (A bow goes by Dexterity, as the SRD has it; anything swung by Strength; a finesse weapon by the better.)
   const of = (attribute) => modifier(valueOf(sheet, attribute) + (worn[attribute] ?? 0));
-  const strength = weapon.range
-    ? of("dexterity")
-    : weapon.finesse
-      ? Math.max(of("strength"), of("dexterity"))
-      : of("strength");
+  // (Something thrown goes by Strength like a blow, though it has a range.)
+  const strength =
+    weapon.range && !weapon.hurled
+      ? of("dexterity")
+      : weapon.finesse
+        ? Math.max(of("strength"), of("dexterity"))
+        : of("strength");
   const result = attackRoll(
     {
       // (`mods`: what their class, fighting style and what they've called on add: build.js, main.js strikeMods.)
@@ -552,7 +565,7 @@ export function strikeWords({ who, what, weapon, result, left, max, named = fals
   // (`named`: `what` is someone's name, not a kind of creature.)
   const whom = named ? what : `the ${what}`;
   const how = weapon.range
-    ? `shoots the ${weapon.name.toLowerCase()} at`
+    ? `${weapon.hurled ? "throws" : "shoots"} the ${weapon.name.toLowerCase()} at`
     : weapon.name
       ? `swings the ${weapon.name.toLowerCase()} at`
       : "strikes at";
