@@ -3257,6 +3257,7 @@ export function createHud(root, handlers) {
       body.append(pick("Race", build.race, build.races, "race"));
       if (build.styles.length) body.append(pick("Fighting style", build.style, build.styles, "style"));
       body.append(pick("Background", build.background, build.backgrounds, "background"));
+      if (build.forms?.length) body.append(pick("Wild Shape form", build.form ?? "", build.forms, "form"));
       if (build.skillList.length) {
         body.append(
           piece("margin-top:4px;", `Skills you're proficient in (${build.skills.length} of ${build.skillCount})`),
@@ -4792,7 +4793,7 @@ export function createHud(root, handlers) {
       conditionRow.replaceChildren(
         ...list.map((entry) => {
           const chip = document.createElement("span");
-          chip.textContent = `${entry.label} ${entry.seconds}s`;
+          chip.textContent = entry.seconds === null ? entry.label : `${entry.label} ${entry.seconds}s`;
           chip.title = entry.about;
           chip.style.cssText = `padding:3px 9px;border-radius:10px;font:600 12px system-ui,sans-serif;background:${entry.good ? "rgba(30,90,50,0.86)" : "rgba(120,30,20,0.86)"};color:#fff;`;
           return chip;

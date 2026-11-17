@@ -429,6 +429,7 @@ export async function createAnimal(name, wanted = null) {
       /** Makes a gesture once: "strike" (with what it carries) or "cast" (clips.js GESTURES). */
       act(name) {
         doing = { gesture: name, held: name === "strike" ? (outlaw?.carry ?? null) : null };
+        return true;
       },
       object: body.object,
       kind,
@@ -514,6 +515,14 @@ export async function createAnimal(name, wanted = null) {
   let lookUntil = 0;
   let leaping = 0;
   let leapAt = 0;
+  let acting = null; // { clip, time }: an attack being played through once (act)
+
+  /** Plays its attack once ("strike"), or what it has for a breath or a spell ("cast"). Whether it has one. */
+  function act(name) {
+    const clip = name === "cast" ? (clips.cast ?? clips.attack) : clips.attack;
+    if (clip) acting = { clip, time: 0 };
+    return !!clip;
+  }
 
   /** `jump`: how far through a leap it is (0…1), or null on the ground (only the ridden kinds leap). */
   function update(dt, speed = 0, { graze = false, jump = null } = {}) {
@@ -550,6 +559,13 @@ export async function createAnimal(name, wanted = null) {
       leaping = ease(leaping, jump === null ? 0 : 1, dt, 0.07);
       pose(clips.jump, leapAt, leaping);
     }
+    // An attack, over whatever else it was doing: in quickly, and out again as it ends.
+    if (acting) {
+      acting.time += dt;
+      const through = acting.time / acting.clip.duration;
+      if (through >= 1) acting = null;
+      else pose(acting.clip, through, Math.min(1, through * 8, (1 - through) * 6));
+    }
   }
   // Where its body's bone is as it stands (the idle's first frame), in its own space: what its back's
   // movement is measured from, and the pose anything set on its back is fitted to.
@@ -565,6 +581,7 @@ export async function createAnimal(name, wanted = null) {
   update(0);
 
   return {
+    act,
     object: root,
     kind,
     coat,

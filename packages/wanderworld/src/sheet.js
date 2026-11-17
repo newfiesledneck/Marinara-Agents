@@ -335,7 +335,7 @@ export function rollDice(dice, random = Math.random) {
  * hits and rolls the damage dice twice; a natural 1 always misses. { roll, total, hit, crit, damage }.
  */
 export function attackRoll(
-  { bonus = 0, ac = 10, damage = "1d4", damageBonus = 0, critFrom = 20, more = [] },
+  { bonus = 0, ac = 10, damage = "1d4", damageBonus = 0, critFrom = 20, more = [], reroll = 0 },
   random = Math.random,
 ) {
   const roll = 1 + Math.floor(random() * 20);
@@ -343,7 +343,18 @@ export function attackRoll(
   // come with a hit besides the weapon's own, a Sneak Attack's say, doubled on a critical hit like the rest.)
   const crit = roll >= Math.max(2, critFrom);
   const hit = crit || (roll !== 1 && roll + bonus >= ac);
-  const rolled = () => [damage, ...more].reduce((sum, dice) => sum + rollDice(dice, random).total, 0);
+  // (`reroll`: Great Weapon Fighting. One of the weapon's own dice that comes up that or less is rolled
+  // again, once, and the new roll stands.)
+  const own = () => {
+    const first = rollDice(damage, random);
+    const sides = Number(/d(\d+)/u.exec(String(damage))?.[1] ?? 0);
+    if (!reroll || !sides) return first.total;
+    return first.rolls.reduce(
+      (sum, face) => sum + (face <= reroll ? 1 + Math.floor(random() * sides) - face : 0),
+      first.total,
+    );
+  };
+  const rolled = () => own() + more.reduce((sum, dice) => sum + rollDice(dice, random).total, 0);
   const dealt = hit ? Math.max(1, rolled() + (crit ? rolled() : 0) + damageBonus) : 0;
   return { roll, total: roll + bonus, hit, crit, damage: dealt };
 }

@@ -424,6 +424,7 @@ export function playerStrike({ sheet, worn = {}, weapon = UNARMED, foe, prof = 0
         (mods.damage ?? 0),
       critFrom: mods.critFrom ?? 20,
       more: mods.more ?? [],
+      reroll: mods.reroll ?? 0,
     },
     random,
   );

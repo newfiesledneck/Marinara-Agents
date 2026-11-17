@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.7.13 — 2026-11-17
+
+- Animals and monsters have real attack animations now (a bite, a butt of the head, a slime's lunge, a dragon's breath) in place of the little hop forward.
+- Wild Shape for druids from level 2: take a beast's shape (chosen in Inventory → Sheet), with its HP, AC and bite, until its HP run out or you change back. You're seen as the beast.
+- You can swing, shoot and cast from the saddle. By turns, a horse carries you 18 metres a turn and a donkey 12.
+- Ready: hold your attack, and it goes off at the first creature to come within reach.
+- Great Weapon Fighting rerolls 1s and 2s on the weapon's dice, as the SRD has it.
+
 ## 0.7.12 — 2026-11-17
 
 - Your companions fight by more of the rules. Their attack bonus and HP grow with their level (their card's, or yours). A rogue lands a Sneak Attack with someone beside the creature, a paladin a Divine Smite once a fight, a barbarian rages, a fighter takes a Second Wind below half HP, a monk strikes with bare hands, and those with Extra Attack strike twice from level 5.
