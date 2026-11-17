@@ -1,5 +1,13 @@
 # Wanderworld release notes
 
+## 0.7.12 — 2026-11-17
+
+- Your companions fight by more of the rules. Their attack bonus and HP grow with their level (their card's, or yours). A rogue lands a Sneak Attack with someone beside the creature, a paladin a Divine Smite once a fight, a barbarian rages, a fighter takes a Second Wind below half HP, a monk strikes with bare hands, and those with Extra Attack strike twice from level 5.
+- Kinds of damage count for their weapons too.
+- Creatures' special attacks land on them: venom, and conditions such as prone, poisoned or grappled, with their effects.
+- With death saving throws on, a companion at 0 HP falls, dying, and rolls as you do. A healer among them, or your own healing spell aimed at them, gets them up. Nobody dies.
+- Their spells look like the spells they are.
+
 ## 0.7.11 — 2026-11-17
 
 - Every explanation has its (i) now, not only the ones in Settings: the notes in the Inventory, the Journal and people's cards fold behind an (i) when "Show explanations" is off.
