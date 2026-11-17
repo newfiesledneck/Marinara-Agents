@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.13",
+          "date": "2026-11-17",
+          "notes": "- Animals and monsters have real attack animations now (a bite, a butt of the head, a slime's lunge, a dragon's breath) in place of the little hop forward.\n- Wild Shape for druids from level 2: take a beast's shape (chosen in Inventory → Sheet), with its HP, AC and bite, until its HP run out or you change back. You're seen as the beast.\n- You can swing, shoot and cast from the saddle. By turns, a horse carries you 18 metres a turn and a donkey 12.\n- Ready: hold your attack, and it goes off at the first creature to come within reach.\n- Great Weapon Fighting rerolls 1s and 2s on the weapon's dice, as the SRD has it.",
+          "highlight": false
+        },
+        {
           "version": "0.7.12",
           "date": "2026-11-17",
           "notes": "- Your companions fight by more of the rules. Their attack bonus and HP grow with their level (their card's, or yours). A rogue lands a Sneak Attack with someone beside the creature, a paladin a Divine Smite once a fight, a barbarian rages, a fighter takes a Second Wind below half HP, a monk strikes with bare hands, and those with Extra Attack strike twice from level 5.\n- Kinds of damage count for their weapons too.\n- Creatures' special attacks land on them: venom, and conditions such as prone, poisoned or grappled, with their effects.\n- With death saving throws on, a companion at 0 HP falls, dying, and rolls as you do. A healer among them, or your own healing spell aimed at them, gets them up. Nobody dies.\n- Their spells look like the spells they are.",
@@ -307,12 +313,6 @@
           "version": "0.6.94",
           "date": "2026-11-15",
           "notes": "- Journal → World → Animals is now Creatures, to match Settings → Creatures.",
-          "highlight": false
-        },
-        {
-          "version": "0.6.93",
-          "date": "2026-11-15",
-          "notes": "- Regenerate this world asks what New world asks about the land: hills, mountains, river, the settlement and its layout, walls, market, streets, world size, more settlements, farms, landmarks and places out in the country. Each starts as it is. Change any and the map shows the result, so a world can be made bigger or given more places.\n- Vendors in New world and Regenerate: an \"at least\" and an \"at most\" for each trade. Shops are built to reach the least; any over the most sell something else, or shut. Trades set by hand are counted and left alone.\n- Settings → Animals is now Settings → Creatures.\n- The (i) sits before each setting's name, so the names line up. New world's explanations have an (i) each too.",
           "highlight": false
         }
       ]

@@ -211,4 +211,27 @@ assert.equal(turnBudget("", 1).move, 9);
   assert.equal(checkBuild({ feats: ["lucky"] }, "fighter").feats, undefined);
 }
 
+// Wild Shape: which beasts, by level; and Great Weapon Fighting's reroll.
+{
+  const { wildForms } = await import("../packages/wanderworld/src/build.js");
+  assert.deepEqual(wildForms(1), []);
+  assert.ok(wildForms(2).includes("wolf") && !wildForms(2).includes("bat"), "a wolf at 2; nothing that flies");
+  assert.ok(!wildForms(2).includes("skeleton") && !wildForms(2).includes("dragon"), "beasts only");
+  assert.ok(wildForms(8).includes("bat"));
+  assert.deepEqual(names("druid", 1), []);
+  assert.deepEqual(names("druid", 2), ["wild", "unwild"]);
+  assert.equal(checkBuild({ form: "wolf" }, "druid").form, "wolf");
+  assert.equal(checkBuild({ form: "dragon" }, "druid").form, undefined);
+  // A 1 and a 2 on 2d6 are each rolled again (to a 5 and a 6); a 3 stands.
+  const faces = (...list) => {
+    let i = 0;
+    return () => (list[i++ % list.length][0] - 0.5) / list[i - 1][1];
+  };
+  const again = attackRoll({ ac: 5, damage: "2d6", reroll: 2 }, faces([15, 20], [1, 6], [2, 6], [5, 6], [6, 6]));
+  assert.equal(again.damage, 11);
+  const stands = attackRoll({ ac: 5, damage: "2d6", reroll: 2 }, faces([15, 20], [3, 6], [4, 6]));
+  assert.equal(stands.damage, 7);
+  assert.equal(attackRoll({ ac: 5, damage: "2d6" }, faces([15, 20], [1, 6], [2, 6])).damage, 3, "no style: as rolled");
+}
+
 console.log("ok: the build");

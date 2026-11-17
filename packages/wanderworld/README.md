@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.12)
+## What it does now (0.7.13)
 
 ### The world
 
@@ -621,6 +621,9 @@ every roll, and no AI call is made in a real-time fight.
   is said, not spent), and Abilities, Moves and Spells each open from one button in a fight.
 - **Companions by the rules**: class features, level, conditions and death saving throws for the
   people who fight beside you.
+- **Wild Shape, mounted fighting and Ready**: a druid takes a beast's shape, blows and spells work
+  from the saddle, and a readied attack goes off by itself. Animals and monsters have attack
+  animations of their own.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.

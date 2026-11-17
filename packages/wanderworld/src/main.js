@@ -75,7 +75,18 @@ import {
   visitFrom,
   visitOver,
 } from "./household.js";
-import { ANIMALS, animalKind, COATS, coatFor, DOG_SIZES, dogBody, dogSizeOf, SORT_OF, SWITCHES } from "./animals.js";
+import {
+  ANIMALS,
+  animalKind,
+  COATS,
+  coatFor,
+  createAnimal,
+  DOG_SIZES,
+  dogBody,
+  dogSizeOf,
+  SORT_OF,
+  SWITCHES,
+} from "./animals.js";
 import { checkSetting, DEVICE_SETTINGS, frameLimitOf, loadSettings, saveSettings, sharedSettings } from "./settings.js";
 import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
@@ -210,6 +221,7 @@ import {
   skillNamed,
   skillsOf,
   stylesFor,
+  wildForms,
 } from "./build.js";
 import {
   CONDITIONS,
@@ -7813,7 +7825,10 @@ function toScreen(x, y, z) {
 /** How near a tap has to land to a creature or a companion to aim at them (pixels). */
 const AIM_RADIUS = 46;
 /** Whether a tap on a creature or a companion aims at them: in a fight by turns, or with a weapon drawn. */
-const aiming = () => !!core.battle || weaponDrawn();
+const aiming = () => !!core.battle || weaponDrawn() || (core.mode === "ride" && fighting());
+/** Whether the player can swing or cast: on their feet, or settled in the saddle. */
+const afoot = () =>
+  core.mode === "walk" || (core.mode === "ride" && !!core.mount && !core.mounting && !core.dismounting);
 
 /**
  * A tap at (x, y) on the stage aims at the creature or the companion under it; a tap on what's aimed at
@@ -7967,6 +7982,11 @@ function actionGroups() {
 
 /** A click or tap on the world: use (or walk to) what's under it, or walk to that spot on the ground. */
 function tap(clientX, clientY) {
+  // (In the saddle a tap only aims.)
+  if (core.mode === "ride" && core.camera && aiming()) {
+    const box = core.stage.getBoundingClientRect();
+    if (aimAt(clientX - box.left, clientY - box.top)) return;
+  }
   if (core.mode === "talk" || core.mode === "door" || core.mode === "ride" || !core.camera) return;
   if (core.mode === "sit") return standUp();
   const rect = core.stage.getBoundingClientRect();
@@ -8319,6 +8339,7 @@ const BUFF_WORDS = {
   inspired: "Inspired",
   smiting: "Smite ready",
   helping: "Helping",
+  readied: "Attack readied",
   stunning: "Stunning Strike ready",
   hidden: "Hidden",
   helped: "Helped",
@@ -8362,6 +8383,13 @@ const MOVES = [
   },
   { id: "help", name: "Help", about: "A companion's next attack has advantage.", cost: "action" },
   {
+    id: "ready",
+    name: "Ready",
+    about:
+      "Hold your attack: it goes off by itself at the first creature to come within reach before your next turn (six seconds).",
+    cost: "action",
+  },
+  {
     id: "hide",
     name: "Hide",
     about:
@@ -8386,6 +8414,94 @@ function movesNow() {
         ]
       : []),
   ];
+}
+
+/** A readied attack goes off at the first hostile creature within reach of what the player fights with. */
+function readyTick() {
+  if (!buffed("readied") || core.downed || core.interior || afflicted().helpless || !afoot()) return;
+  const at = core.player.position;
+  const bow = core.shape ? null : bowOf(core.items ?? [], byDesc());
+  const reach = bow ? Math.min(bow.range, 12) : SWING_REACH;
+  const foe = core.herd
+    .foes(at, reach + 3)
+    .find((entry) => entry.hostile && !entry.fled && Math.hypot(entry.x - at.x, entry.z - at.z) <= reach + entry.room);
+  if (!foe) return;
+  core.buffs = lift(core.buffs, "readied");
+  core.player.rotation.y = Math.atan2(foe.x - at.x, foe.z - at.z);
+  const weapon = bow ?? weaponNow();
+  core.gesture = bow ? "cast" : weapon.name ? "strike" : "punch";
+  core.gestureHeld = weapon.held;
+  narrate(null, `${personaName()}'s readied attack goes off.`);
+  landOn(foe, weapon);
+}
+
+// ── Wild Shape ──
+
+/** The player takes a beast's shape: its HP, AC and attack stand in for theirs, and its body for their own. */
+function shapeInto(kind) {
+  const stats = SRD_CREATURES[kind];
+  const shape = { kind, hp: stats.hp, max: stats.hp, animal: null };
+  core.shape = shape;
+  const at = core.player.position;
+  spellFx().burst(core.space.scene, chest(at.x, at.z, 0.6), spellColour("heal"), 1.6);
+  narrate(null, `${personaName()} takes the shape of a ${stats.name.toLowerCase()}: ${stats.hp} HP, AC ${stats.ac}.`);
+  void createAnimal(kind)
+    .then((animal) => {
+      if (core.shape !== shape) return void animal.dispose();
+      shape.animal = animal;
+      core.player.add(animal.object);
+      if (core.character) core.character.object.visible = false;
+    })
+    .catch(() => {});
+}
+
+/** Back to their own shape (said with `words`, if any). */
+function unshape(words) {
+  const shape = core.shape;
+  if (!shape) return;
+  core.shape = null;
+  shape.animal?.dispose();
+  if (core.character) core.character.object.visible = true;
+  if (core.player) {
+    const at = core.player.position;
+    if (core.space?.scene) spellFx().burst(core.space.scene, chest(at.x, at.z, 0.6), spellColour("heal"), 1.4);
+  }
+  if (words) narrate(null, words);
+}
+
+/** A blow in a beast's shape: the beast's own attack and damage, with its Pack Tactics where it has them. */
+function shapeStrike(foe) {
+  const mine = SRD_CREATURES[core.shape.kind];
+  const stats = foeOf(foe.kind, foeTable(), foe.scale);
+  const roll = () => attackRoll({ bonus: mine.attack, ac: stats.ac, damage: mine.damage });
+  const pack =
+    !!mine.pack && fightingAllies().some((ally) => Math.hypot(ally.position.x - foe.x, ally.position.z - foe.z) < 2.5);
+  const better = marked(foe.id) || pack;
+  const worse = afflicted().attackDis;
+  const rolled = better === worse ? roll() : rolledTwice(roll, better);
+  const typed = typedDamage(rolled.damage, mine.type, stats);
+  const result = { ...rolled, damage: typed.damage, how: typed.how, type: mine.type, ac: stats.ac };
+  core.shape.animal?.act?.("strike");
+  const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
+  const nerve = !foe.hostile
+    ? "flee"
+    : result.hit
+      ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
+      : "fight";
+  const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
+  if (!struck) return false;
+  const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const told = strikeWords({
+    who: `${personaName()}, as a ${mine.name.toLowerCase()},`,
+    what,
+    weapon: { name: "", range: 0 },
+    result,
+    left: struck.hp,
+    max: struck.max,
+  });
+  narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
+  if (struck.down) foeBeaten(foe, stats);
+  return struck.down;
 }
 
 /** A contest of the player's Athletics against a creature's strength or nimbleness, whichever is better: { mine, theirs, won }. */
@@ -8437,10 +8553,8 @@ function strikeMods(weapon, foe, keen = false) {
     mods.advantage = true; // (the Grappler feat)
   if (!melee) mods.attack += kit.archery;
   if (melee && weapon.name && !weapon.two && !weapon.twoHanded) mods.damage += kit.dueling;
-  // ponytail: Great Weapon Fighting rerolls 1s and 2s on the damage dice; here it's +1 for each die, which is
-  // about what that comes to. Reroll the dice in sheet.js attackRoll if it should be exact.
-  if (melee && kit.greatWeapon && (weapon.two || weapon.twoHanded))
-    mods.damage += Number(/^(\d*)d/u.exec(weapon.damage)?.[1] || 1);
+  // (Great Weapon Fighting: a 1 or a 2 on the weapon's dice is rolled again.)
+  if (melee && kit.greatWeapon && (weapon.two || weapon.twoHanded)) mods.reroll = 2;
   if (melee && buffed("raging")) mods.damage += kit.rage || 2;
   if (buffed("inspired")) {
     const level = valueOf(sheetNow(), "level");
@@ -8518,6 +8632,8 @@ function useAbility(id) {
   const hp = entryOf(sheet, "hp");
   const level = valueOf(sheet, "level");
   if ((id === "wind" || id === "lay") && hp && hp.value >= hp.max) return notice("You're not hurt.");
+  if (id === "wild" && core.shape) return notice("You're in a beast's shape already.");
+  if (id === "unwild" && !core.shape) return notice("You're in your own shape.");
   if (core.battle) {
     if (!battleMine()) return notice("It isn't your turn yet.");
     if (ability.cost !== "free" && !battleSpend(ability.cost)) return;
@@ -8553,6 +8669,18 @@ function useAbility(id) {
     core.grappling = { id: target.id, until: core.clock + 30 };
     return void narrate(null, `${who} grapples the ${what} (${told}): it's held where it is.`);
   }
+  if (id === "ready") {
+    buff("readied", 6);
+    return void narrate(null, `${who} holds their attack, ready for whatever comes within reach.`);
+  }
+  if (id === "wild") {
+    const forms = wildForms(level);
+    const kind = forms.includes(buildNow().form) ? buildNow().form : forms[0];
+    if (!kind) return notice("There's no beast you can take the shape of yet.");
+    useOne("wild");
+    return void shapeInto(kind);
+  }
+  if (id === "unwild") return void unshape(`${who} takes their own shape again.`);
   if (id === "help") {
     if (!fightingAllies().length) return notice("There's nobody with you to help.");
     buff("helping", 30);
@@ -8758,6 +8886,13 @@ function buildInfo() {
     abilities: abilitiesNow(),
     hitDice: { die: dice.die, max: dice.max, left: Math.max(0, dice.max - usedOf("hitDice")) },
     prof: profNow() || 2,
+    forms:
+      classId === "druid"
+        ? wildForms(level).map((kind) => ({
+            id: kind,
+            label: `${SRD_CREATURES[kind].name} (${SRD_CREATURES[kind].hp} HP, AC ${SRD_CREATURES[kind].ac})`,
+          }))
+        : [],
     featList: Object.entries(SRD_FEATS).map(([id, feat]) => ({
       id,
       name: feat.name,
@@ -8773,7 +8908,7 @@ function buildInfo() {
 
 /** One part of the build is changed in the Sheet tab (`field`: race | style | background | skills). */
 function setBuild(field, value) {
-  if (!core.save || !["race", "style", "background", "skills", "feats"].includes(field)) return;
+  if (!core.save || !["race", "style", "background", "skills", "feats", "form"].includes(field)) return;
   core.save = { ...core.save, build: checkBuild({ ...buildNow(), [field]: value }, playerClass()) };
   core.saves.write(core.save);
   core.hud?.refreshInventory?.();
@@ -8820,6 +8955,14 @@ function statusChips() {
     seconds: Math.ceil(left),
     good: true,
   }));
+  if (core.shape)
+    chips.push({
+      id: "shape",
+      label: `${SRD_CREATURES[core.shape.kind].name}'s shape: ${core.shape.hp} of ${core.shape.max} HP`,
+      about: "",
+      seconds: null,
+      good: true,
+    });
   if (core.conc?.until && core.conc.until <= core.clock) core.conc = null;
   if (core.conc?.until)
     chips.push({
@@ -9097,7 +9240,7 @@ const SWING_LANDS = 0.34;
  */
 function swing() {
   const mode = fightMode();
-  if (!mode || core.downed || core.carrying || core.mode !== "walk" || core.clock < (core.strikeUntil ?? 0)) return;
+  if (!mode || core.downed || core.carrying || !afoot() || core.clock < (core.strikeUntil ?? 0)) return;
   if (afflicted().helpless) return void core.hud?.setNotice("You can't act: it has to wear off first.");
   // (What's carried is read again now and then, behind the swing: the first of a session may be with bare hands.)
   if (!core.itemsAt || core.clock - core.itemsAt > 15) {
@@ -9107,7 +9250,7 @@ function swing() {
   const weapon = weaponNow();
   // A bow, a crossbow or a sling they carry is shot when nothing is in reach of a swing: at whatever is
   // ahead within its range, or (with it equipped) at nothing at all.
-  const bow = bowOf(core.items ?? [], byDesc());
+  const bow = core.shape ? null : bowOf(core.items ?? [], byDesc()); // (a beast shoots nothing)
   if (!aimInRange(Math.max(SWING_REACH, bow?.range ?? 0), bow ? `the ${bow.name.toLowerCase()}` : "a swing")) return;
   if (bow && !blowTarget()) faceEnemy(bow.range); // (nothing in reach of a swing: the bow turns to the nearest enemy)
   const near = blowTarget();
@@ -9228,7 +9371,8 @@ const chest = (x, z, up = 1.2) => ({ x, y: (core.interior ? core.player.position
  * the spell's range, which takes a spell attack or makes its saving throw as the bolt lands.
  */
 function cast(id = null) {
-  if (!fighting() || core.downed || core.carrying || core.mode !== "walk" || core.clock < (core.castUntil ?? 0)) return;
+  if (!fighting() || core.downed || core.carrying || !afoot() || core.clock < (core.castUntil ?? 0)) return;
+  if (core.shape) return void core.hud?.setNotice("You can't cast in a beast's shape.");
   if (afflicted().helpless) return void core.hud?.setNotice("You can't act: it has to wear off first.");
   const spells = spellsNow();
   const chosen = (id && spells.find((entry) => entry.id === id)) || readySpell(spells);
@@ -9779,7 +9923,8 @@ function battleTick(dt, moved) {
         battle.bonus = turn.bonus;
         battle.attacks = 0;
         battle.from = { x: at.x, z: at.z };
-        battle.reach = turn.move;
+        // (In the saddle it's the mount's speed: a horse's 18 metres, a donkey's 12.)
+        battle.reach = core.mode === "ride" && core.mount ? (core.mount.kind === "horse" ? 18 : 12) : turn.move;
         // (Conditions: getting up from prone takes half the turn's movement; held, they go nowhere;
         // paralyzed, stunned or asleep, the turn is lost.)
         const state = turnConditions();
@@ -10894,6 +11039,14 @@ function personActs(person, far, spells) {
  * back unless they're up on something or in the middle of a move. Returns their HP as it is after.
  */
 function playerStruck(result, from) {
+  // (In a beast's shape the beast's HP go first; what's left over when they run out is their own to take.)
+  if (core.shape && result.hit && result.damage > 0) {
+    const over = result.damage - core.shape.hp;
+    core.shape.hp -= result.damage;
+    if (core.shape.hp > 0) return { value: core.shape.hp, max: core.shape.max, on: true };
+    unshape(`${personaName()} is beaten out of the beast's shape.`);
+    return over > 0 ? playerStruck({ ...result, damage: over }, from) : entryOf(sheetNow(), "hp");
+  }
   if (result.hit && result.damage > 0) {
     setSheet(applyChanges(sheetNow(), [{ stat: "hp", by: -result.damage }]).sheet);
     if (core.afflicted) core.afflicted = hurtConditions(core.afflicted);
@@ -10916,6 +11069,7 @@ function playerStruck(result, from) {
  * one that's struck fights back (unless it has had enough); a peaceful one runs. Returns whether it's down.
  */
 function landOn(foe, weapon, cover = 0) {
+  if (core.shape) return shapeStrike(foe);
   const sheet = sheetNow();
   const stats = foeOf(foe.kind, foeTable(), foe.scale);
   const behind = cover ? { ...stats, ac: stats.ac + cover } : stats;
@@ -11181,7 +11335,12 @@ function foeAttacks(event, what, with_ = null) {
   const result = foeStrike({
     foe: stats,
     sheet,
-    worn: stats.cover ? { ...worn, ac: (worn.ac ?? 0) + stats.cover } : worn,
+    // (In a beast's shape it's the beast's AC that's rolled against.)
+    worn: core.shape
+      ? { ac: SRD_CREATURES[core.shape.kind].ac - valueOf(sheet, "ac") + (stats.cover ?? 0) }
+      : stats.cover
+        ? { ...worn, ac: (worn.ac ?? 0) + stats.cover }
+        : worn,
     guarded: core.clock < (core.blockUntil ?? 0) || !!core.battle?.dodging,
     hindered: hindered(event.id),
     keen: pack || afflicted().defendAdv || buffed("reckless"),
@@ -11259,6 +11418,7 @@ function comeTo(home, free = false) {
   core.stayDown = false;
   core.afflicted = {};
   core.buffs = {};
+  unshape("");
   core.dying = null;
   breakConcentration("");
   core.gesture = null;
@@ -12127,7 +12287,8 @@ function movePlayer(dt, input) {
     // Mid-jump it carries on the way it's facing, at a canter at least, whatever the stick says (which
     // still turns it), and while its back is well up it passes over fences and benches.
     const leaping = !!core.air?.mount;
-    if (x || y || leaping) {
+    // (In a fight by turns the mount moves on its rider's turn only, and within that turn's reach.)
+    if ((x || y || leaping) && !(core.battle && !battleMine())) {
       const sin = Math.sin(core.cameraYaw);
       const cos = Math.cos(core.cameraYaw);
       const wantX = -sin * y + cos * x;
@@ -12148,6 +12309,14 @@ function movePlayer(dt, input) {
       const edge = (core.world?.size ?? WORLD_SIZE) / 2 - 2;
       position.x = Math.max(-edge, Math.min(edge, position.x));
       position.z = Math.max(-edge, Math.min(edge, position.z));
+      if (core.battle?.from && battleMine()) {
+        const { from, reach } = core.battle;
+        const out = Math.hypot(position.x - from.x, position.z - from.z);
+        if (out > reach) {
+          position.x = from.x + ((position.x - from.x) / out) * reach;
+          position.z = from.z + ((position.z - from.z) / out) * reach;
+        }
+      }
       if (x || y)
         player.rotation.y = approachAngle(player.rotation.y, Math.atan2(wantX, wantZ), (input.run ? 4 : 6) * dt);
     }
@@ -12316,6 +12485,7 @@ function step(dt) {
   conditionsTick(dt);
   alliesFxTick(dt);
   aimTick();
+  readyTick();
   // (A persona whose card has a 5e sheet brings it into each world once.)
   if (core.save && core.personas && core.cardSeen !== `${core.save.id}|${core.personaId}`) {
     core.cardSeen = `${core.save.id}|${core.personaId}`;
@@ -12352,6 +12522,7 @@ function step(dt) {
     talk: false,
     swim: core.swimming,
   });
+  core.shape?.animal?.update(dt, still ? 0 : speed, {}); // (in a beast's shape, it's the beast that's seen)
   core.gesture = null;
   core.gestureHeld = null;
   if (pose?.footstep) core.sound.footstep(0, pose.running);

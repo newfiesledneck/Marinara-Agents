@@ -5,140 +5,140 @@
       "group": "farm",
       "triangles": 2182,
       "bones": 50,
-      "bytes": 237741,
+      "bytes": 250838,
       "height": 2.25
     },
     "donkey": {
       "group": "farm",
       "triangles": 2000,
       "bones": 50,
-      "bytes": 226410,
+      "bytes": 248234,
       "height": 1.65
     },
     "cow": {
       "group": "farm",
       "triangles": 2450,
       "bones": 42,
-      "bytes": 212868,
+      "bytes": 224087,
       "height": 1.7
     },
     "bull": {
       "group": "farm",
       "triangles": 2418,
       "bones": 42,
-      "bytes": 211074,
+      "bytes": 222293,
       "height": 1.8
     },
     "alpaca": {
       "group": "farm",
       "triangles": 2060,
       "bones": 46,
-      "bytes": 212534,
+      "bytes": 224156,
       "height": 1.7
     },
     "husky": {
       "group": "farm",
       "triangles": 1920,
       "bones": 49,
-      "bytes": 194456,
+      "bytes": 209494,
       "height": 0.85
     },
     "shiba": {
       "group": "farm",
       "triangles": 1950,
       "bones": 46,
-      "bytes": 175858,
+      "bytes": 190096,
       "height": 0.62
     },
     "deer": {
       "group": "wild",
       "triangles": 2098,
       "bones": 46,
-      "bytes": 198999,
+      "bytes": 208414,
       "height": 1.45
     },
     "stag": {
       "group": "wild",
       "triangles": 2054,
       "bones": 38,
-      "bytes": 199591,
+      "bytes": 207586,
       "height": 1.95
     },
     "wolf": {
       "group": "wild",
       "triangles": 1962,
       "bones": 51,
-      "bytes": 182628,
+      "bytes": 200070,
       "height": 0.95
     },
     "fox": {
       "group": "wild",
       "triangles": 1848,
       "bones": 51,
-      "bytes": 175481,
+      "bytes": 192923,
       "height": 0.6
     },
     "slime": {
       "group": "monsters",
       "triangles": 1440,
       "bones": 12,
-      "bytes": 124598,
+      "bytes": 126453,
       "height": 0.8
     },
     "skeleton": {
       "group": "monsters",
       "triangles": 1810,
       "bones": 12,
-      "bytes": 158707,
+      "bytes": 161794,
       "height": 1.8
     },
     "spider": {
       "group": "monsters",
       "triangles": 2712,
       "bones": 39,
-      "bytes": 260142,
+      "bytes": 267893,
       "height": 0.9
     },
     "rat": {
       "group": "monsters",
       "triangles": 4004,
       "bones": 31,
-      "bytes": 348394,
+      "bytes": 353395,
       "height": 0.55
     },
     "snake": {
       "group": "monsters",
       "triangles": 1618,
       "bones": 15,
-      "bytes": 140877,
+      "bytes": 143493,
       "height": 0.75
     },
     "bat": {
       "group": "monsters",
       "triangles": 1046,
       "bones": 24,
-      "bytes": 104481,
+      "bytes": 109408,
       "height": 0.8
     },
     "wasp": {
       "group": "monsters",
       "triangles": 3736,
       "bones": 29,
-      "bytes": 327691,
+      "bytes": 332705,
       "height": 0.6
     },
     "frog": {
       "group": "monsters",
       "triangles": 4920,
       "bones": 28,
-      "bytes": 420386,
+      "bytes": 425917,
       "height": 0.5
     },
     "dragon": {
       "group": "monsters",
       "triangles": 1344,
       "bones": 28,
-      "bytes": 137200,
+      "bytes": 153719,
       "height": 3.2
     }
   }

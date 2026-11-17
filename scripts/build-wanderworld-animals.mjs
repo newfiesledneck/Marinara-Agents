@@ -13,7 +13,8 @@
 // Each animal in the pack is a skinned mesh in flat colours with a dozen animations, about 1.5 MB, most
 // of it keyframes. Kept here: the mesh (drawn as one: each vertex says which of the pack's materials it
 // was, "Main", "Hair", "Hooves", and the file lists their colours, so the game can give a horse or a dog
-// another coat), the skeleton, and the few animations the game plays (standing, grazing, walking, galloping),
+// another coat), the skeleton, and the few animations the game plays (standing, grazing, walking, galloping,
+// attacking),
 // sampled again at a few frames a second: about a tenth the size. Sizes are in metres: each animal is
 // scaled so it stands as tall as ANIMALS says.
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -59,56 +60,62 @@ const ANIMALS = {
     group: "monsters",
     fbx: "Slime.fbx",
     height: 0.8,
-    clips: { idle: "Slime_Idle", walk: "Slime_Walk", gallop: "Slime_Walk" },
+    clips: { idle: "Slime_Idle", walk: "Slime_Walk", gallop: "Slime_Walk", attack: "Slime_Attack" },
   },
   skeleton: {
     group: "monsters",
     fbx: "Skeleton.fbx",
     height: 1.8,
-    clips: { idle: "Skeleton_Idle", walk: "Skeleton_Running", gallop: "Skeleton_Running" },
+    clips: { idle: "Skeleton_Idle", walk: "Skeleton_Running", gallop: "Skeleton_Running", attack: "Skeleton_Attack" },
   },
   spider: {
     group: "monsters",
     fbx: "Spider.fbx",
     height: 0.9,
-    clips: { idle: "Spider_Idle", walk: "Spider_Walk", gallop: "Spider_Walk" },
+    clips: { idle: "Spider_Idle", walk: "Spider_Walk", gallop: "Spider_Walk", attack: "Spider_Attack" },
   },
   rat: {
     group: "monsters",
     fbx: "Rat.fbx",
     height: 0.55,
-    clips: { idle: "Rat_Idle", walk: "Rat_Walk", gallop: "Rat_Run" },
+    clips: { idle: "Rat_Idle", walk: "Rat_Walk", gallop: "Rat_Run", attack: "Rat_Attack" },
   },
   snake: {
     group: "monsters",
     fbx: "Snake.fbx",
     height: 0.75,
-    clips: { idle: "Snake_Idle", walk: "Snake_Walk", gallop: "Snake_Walk" },
+    clips: { idle: "Snake_Idle", walk: "Snake_Walk", gallop: "Snake_Walk", attack: "Snake_Attack" },
   },
   bat: {
     group: "monsters",
     fbx: "Bat.fbx",
     height: 0.8,
-    clips: { idle: "Bat_Flying", walk: "Bat_Flying", gallop: "Bat_Flying" },
+    clips: { idle: "Bat_Flying", walk: "Bat_Flying", gallop: "Bat_Flying", attack: "Bat_Attack" },
   },
   wasp: {
     group: "monsters",
     fbx: "Wasp.fbx",
     height: 0.6,
-    clips: { idle: "Wasp_Flying", walk: "Wasp_Flying", gallop: "Wasp_Flying" },
+    clips: { idle: "Wasp_Flying", walk: "Wasp_Flying", gallop: "Wasp_Flying", attack: "Wasp_Attack" },
   },
   // (A frog gets about by hopping: its jump is its walk.)
   frog: {
     group: "monsters",
     fbx: "Frog.fbx",
     height: 0.5,
-    clips: { idle: "Frog_Idle", walk: "Frog_Jump", gallop: "Frog_Jump" },
+    clips: { idle: "Frog_Idle", walk: "Frog_Jump", gallop: "Frog_Jump", attack: "Frog_Attack" },
   },
   dragon: {
     group: "monsters",
     fbx: "Dragon.fbx",
     height: 3.2,
-    clips: { idle: "Dragon_Flying", walk: "Dragon_Flying", gallop: "Dragon_Flying" },
+    clips: {
+      idle: "Dragon_Flying",
+      walk: "Dragon_Flying",
+      gallop: "Dragon_Flying",
+      attack: "Dragon_Attack",
+      cast: "Dragon_Attack2",
+    },
   },
 };
 
@@ -119,6 +126,8 @@ const CLIPS = [
   ["graze", ["Eating"], 6],
   ["walk", ["Walk"], 15],
   ["gallop", ["Gallop"], 24],
+  // Its attack: a bite, or a butt of the head for the ones that have no bite.
+  ["attack", ["Attack", "Attack_Headbutt"], 20],
   // The leap, for the ones that are ridden only (each clip adds to the file).
   ["jump", ["Gallop_Jump"], 24, ["horse", "donkey", "husky"]],
 ];

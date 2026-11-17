@@ -8,7 +8,7 @@
 // where it always was). The user plans to move characters into Quartermaster: when that happens this
 // module is what reads from there, and main.js need not change. This module only works things out.
 
-import { SRD_BACKGROUNDS, SRD_CLASSES, SRD_RACES, SRD_SKILLS, SRD_STYLES } from "./srd.js";
+import { SRD_BACKGROUNDS, SRD_CLASSES, SRD_CREATURES, SRD_RACES, SRD_SKILLS, SRD_STYLES } from "./srd.js";
 
 /** A build from whatever was saved: only what the SRD has, and no more skills than the class allows. */
 export function checkBuild(raw, classId = "") {
@@ -25,10 +25,24 @@ export function checkBuild(raw, classId = "") {
     background: SRD_BACKGROUNDS[raw?.background] ? raw.background : "",
     skills,
     ...(extra.length ? { extra } : {}),
+    ...(wildForms(20).includes(raw?.form) ? { form: raw.form } : {}),
     ...(Array.isArray(raw?.feats) && raw.feats.some((id) => SRD_FEATS[id])
       ? { feats: [...new Set(raw.feats.filter((id) => SRD_FEATS[id]))] }
       : {}),
   };
+}
+
+/**
+ * The beasts a druid of `level` can take the shape of, of those Wanderworld has (its kinds): challenge 1/4 or
+ * less from level 2, 1/2 from level 4 and 1 from level 8, and nothing that flies before level 8.
+ */
+export function wildForms(level) {
+  if (level < 2) return [];
+  const most = level >= 8 ? 1 : level >= 4 ? 0.5 : 0.25;
+  return Object.entries(SRD_CREATURES)
+    .filter(([kind, beast]) => beast.kin === "beast" && (beast.cr ?? 9) <= most)
+    .filter(([kind]) => level >= 8 || !["bat", "wasp"].includes(kind))
+    .map(([kind]) => kind);
 }
 
 /** The SRD's feats (it has the one). `needs`: the least of an ability it asks. */
@@ -322,6 +336,17 @@ export function abilities(classId = "", level = 1, mods = {}) {
         [18, 3],
       ]),
     });
+  if (classId === "druid" && level >= 2) {
+    add({
+      id: "wild",
+      name: "Wild Shape",
+      about:
+        "Take a beast's shape (which one is in Inventory → Sheet): its HP, AC and bite stand in for yours, and you can't cast, until its HP run out or you change back.",
+      cost: "action",
+      max: 2,
+    });
+    add({ id: "unwild", name: "Own shape", about: "Back to your own shape.", max: 0 });
+  }
   if (classId === "sorcerer" && level >= 2)
     add({
       id: "font",

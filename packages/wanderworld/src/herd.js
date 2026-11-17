@@ -533,8 +533,8 @@ export function createHerd() {
    * walk and gallop were baked); bake them from the packs in scripts/build-wanderworld-animals.mjs to replace the lunge.
    */
   function actOut(beast, name) {
-    if (beast.animal?.act) beast.animal.act(name);
-    else if (name === "strike") beast.lungeAt = clock;
+    // (One whose kit has no attack of its own lunges.)
+    if (!beast.animal?.act?.(name) && name === "strike") beast.lungeAt = clock;
   }
 
   /** Somewhere to go: a dry, open spot within its range of home. */
