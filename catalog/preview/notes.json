@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.24",
+          "date": "2026-11-17",
+          "notes": "- The text in Wanderworld's menus is rewritten to be shorter and plainer: setting labels and their (i) explanations, buttons, notes, notices and the item and keyword references. Explanations say what On does and what Off does.\n- Help is reorganised. The long fighting section is in short parts, and new sections cover your sheet, items and money; gathering, crafting and shops; fighting; the chat window and places; and what people remember.\n- Help now names settings and places as the menus show them.\n- Fixed text that was out of date: a note said there was no fighting yet, and the SRD spell list was said to stop at level 3.",
+          "highlight": false
+        },
+        {
           "version": "0.7.23",
           "date": "2026-11-17",
           "notes": "- Creatures of one kind fight differently. About half the bandits close in with a blade, some stand off with a crossbow, some cast (an acolyte's spells). Puglins and skeletons are fighters or archers.\n- One that shoots or casts keeps its distance, backs off when crowded and gets a tree or a boulder between you. Casters choose their spell: an area for a huddle, a hold now and then, mending when badly hurt.\n- Companions fight by class: barbarians, fighters, monks, paladins and rogues close in; rangers and casters keep off and take cover.\n- Talk in fights: threats, taunts, curses, a wolf's snarl, a companion's shout, now and then. The AI can write these (off to begin with).\n- By turns, the AI can choose each creature's move from what it really has (off to begin with). The game still rolls everything.\n- All four have switches in Settings → Inventory → 5e rules and Combat.",
@@ -307,12 +313,6 @@
           "version": "0.7.05",
           "date": "2026-11-16",
           "notes": "- Spells go to the ninth level: 94 of the 5e SRD's can be added from Inventory → Sheet, up from 53. Spell slots go to the ninth level too.\n- Spells grow as in the SRD. A cantrip rolls its dice again at levels 5, 11 and 17. Cast from a higher spell slot than its own, a spell is the greater for it (Fireball from a fifth-level slot is 10d6).\n- Each kind of spell has its own look: a fan of flame for a cone, a beam for a line or for lightning, three darts for one that can't miss, light from above, a flash for a touch. A shove throws a shockwave over the ground, and motes circle whatever is under a spell.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.04",
-          "date": "2026-11-16",
-          "notes": "- Death saving throws (off to begin with): at 0 HP you fall, dying, and roll every few seconds. Three successes and you come round with 1 HP, three failures and you're beaten; a 20 gets you up at once, and so does a companion's healing.\n- Concentration: Hold Person and spells like it end if you're hurt and fail a Constitution save, or when you cast another such spell.\n- Cover: a tree or a boulder between a shot or a spell attack and its target gives +2 AC, for you and for creatures.\n- Creatures have their nerve from the ruleset: skeletons and fanatics never run, cowards run sooner. By turns, wolves go for whoever is most hurt, puglins for the weakest, a dragon for casters.\n- Each has a switch in Settings → Inventory → 5e rules.",
           "highlight": false
         }
       ]

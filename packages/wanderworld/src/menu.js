@@ -541,7 +541,7 @@ export function createMenu(layer, handlers, art = null) {
         const up = await handlers.aiStatus?.();
         if (!up) {
           status.line.textContent =
-            "Wanderworld isn't fully loaded yet: restart the Engine (needed once after installing or updating Wanderworld). Until then the AI can't be used; the world still works without it.";
+            "Wanderworld isn't fully loaded yet. Restart the Engine (needed once after installing or updating Wanderworld). Until then the AI can't be used, but the world still works without it.";
           return;
         }
         status.line.textContent = "Choose which of your Engine connections does what.";
@@ -606,7 +606,7 @@ export function createMenu(layer, handlers, art = null) {
       genderStep.append(
         element("div", "font:12px system-ui;opacity:0.75;", "Genders of everyone else"),
         explainLine(
-          "Lore comes first: a gender from a lorebook, a card or set by you is never changed. These only decide people nothing says the gender of: townsfolk the game makes, and people the AI invents. The sliders are weighed against each other. For this world only: change them later in Journal → World. They start from Menu → Settings → People → Genders.",
+          "Lore comes first: a gender from a lorebook, a card or you never changes. These decide only people nothing else gives a gender: townsfolk the game makes, and people the AI invents. The sliders are weighed against each other. They're for this world only (change them later in Journal → World), and start from Menu → Settings → People → Genders.",
         ),
         slider("genderMale", "Male"),
         slider("genderFemale", "Female"),

@@ -487,7 +487,7 @@ export const KEYWORD_GUIDE = [
     group: "What an entry is about",
     write: "ww:character:Mira Saxton",
     on: "any entry",
-    does: "The entry is that person (with no name after it, the entry's title is the name). A card you chose for the world with exactly that name is who it means; otherwise a person is made for that world from the entry, and one model call fills in their details.",
+    does: "The entry is that person (with no name after it, the entry's title is the name). A card you chose for the world with exactly that name is who it means; otherwise a person is made for that world from the entry, and one AI call fills in their details.",
   },
   {
     group: "What an entry is about",
@@ -608,7 +608,7 @@ export const KEYWORD_GUIDE = [
     group: "Creatures",
     write: "ww:monster:Goblin, ww:creature:Deer, ww:hostile",
     on: "any entry",
-    does: "Marks the entry as a creature (a monster, or a hostile creature, attacks). One the game has a body for (wolf, deer, stag, fox, dog, horse, donkey, cow, bull, alpaca) is put in the world where its entry says it's found; the rest are kept for later.",
+    does: "Marks the entry as a creature (a monster, or a hostile creature, which attacks). One the game has a body for (wolf, deer, stag, fox, dog, horse, donkey, cow, bull, alpaca) is put in the world where its entry says it's found; the rest are kept for later.",
   },
   {
     group: "Creatures",
@@ -632,7 +632,7 @@ export const KEYWORD_GUIDE = [
     group: "Creatures",
     write: "ww:animals:none",
     on: "a place's entry (ww:garden1, ww:forest1, ww:world)",
-    does: "None of the world's own animals there: a place with a spot keeps them off it, ww:forest1 keeps the country's away, ww:world has none anywhere. Animals the lore itself puts somewhere, and anyone's own, still are.",
+    does: "None of the world's own animals there: a place with a spot keeps them off it, ww:forest1 keeps the country's away, ww:world has none anywhere. Animals the lore itself puts somewhere, and anyone's own, still appear.",
   },
   {
     group: "People",

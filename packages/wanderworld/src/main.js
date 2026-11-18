@@ -895,7 +895,7 @@ async function saveWorldNow() {
   await core.store.flush();
   core.hud?.setNotice(
     core.store.pending
-      ? "Saved in this browser, but the Engine didn't take it. It's tried again with the next save: check the Engine is running."
+      ? "Saved in this browser, but the Engine didn't take it. It tries again with the next save: check the Engine is running."
       : `Saved: ${core.save.name}.`,
   );
 }
@@ -12593,7 +12593,7 @@ function rollCommand(which, rest) {
     return void narrate(null, `${who} rolls ${dice.replace(/\s+/gu, "")}: ${rolled.total}${each}.`);
   }
   if (!core.settings.sheet)
-    return void core.hud?.setNotice("Checks use your character sheet, which is switched off in Settings.");
+    return void core.hud?.setNotice("Checks need your character sheet: turn it on in Settings → Inventory → Sheet.");
   const sheet = sheetNow();
   // The longest run of words that names a line of the sheet; whatever follows is what's being tried.
   const typed = rest.split(/\s+/u).filter(Boolean);
@@ -13593,7 +13593,7 @@ function attach(element) {
   if (core.software && !core.softwareTold) {
     core.softwareTold = true; // once per page
     core.hud.setNotice(
-      "Your browser is drawing the 3D world without your graphics card, so it will run slowly. Turn on hardware acceleration (sometimes called \"graphics acceleration\") in your browser's settings, then restart the browser. If you can't: Menu → Settings → Display → Graphics, with Resolution on 1080p or 720p, Ground on Simple, Detailed trees out to on Near, Trees and rocks on Sparse and Draw distance on Tiny, is the fastest it goes.",
+      'Your browser is drawing the 3D world without your graphics card, so it will run slowly. Turn on hardware acceleration (sometimes called "graphics acceleration") in your browser\'s settings, then restart the browser. If you can\'t, these are the fastest settings, in Menu → Settings → Display → Graphics: Resolution 1080p or 720p, Ground Simple, "Detailed trees out to" Near, "Trees and plants" and "Rocks and boulders" Sparse, and Draw distance Tiny.',
     );
   }
   core.menu = createMenu(
