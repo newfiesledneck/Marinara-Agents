@@ -5216,7 +5216,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.7.24",
+        "version": "0.7.25",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -5372,13 +5372,13 @@
           },
           {
             "path": "client.js",
-            "sha256": "421025576aebe531db041bb6b2aab83d4020881a59be6647a2febe0d6ac73a79",
-            "bytes": 3139370
+            "sha256": "9115bceed4b3499d1cc1ba4a7e3155210e682ebc69b46b0ffee2e5f542e226cf",
+            "bytes": 3140575
           },
           {
             "path": "server.mjs",
-            "sha256": "7676de4c24a46c69fb05e6de4867bd143d174393e20f8eb34000895624de2c1d",
-            "bytes": 166786
+            "sha256": "9670367a71a6fad595be3e2bb7e936472906dd65fe4aca219aa2bac2bf7a0985",
+            "bytes": 166849
           },
           {
             "path": "wanderworld-icon.webp",
@@ -5988,9 +5988,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.7.24.zip",
-        "sha256": "c610c9d13fc06079aa07ab576e96aeb57e4c28f5780c79e9ef773632f492779b",
-        "bytes": 29896064
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.7.25.zip",
+        "sha256": "c7e199aae2c97bb49dac1a89c44a2a2d90278bc141b5c33a1c7dc4e901eb5e11",
+        "bytes": 29897332
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },

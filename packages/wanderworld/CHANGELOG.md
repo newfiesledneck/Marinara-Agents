@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.25 — 2026-11-17
+
+- Inventory → Sheet: each thing your class can call on now has what it does written under its button, so it can be read on a phone. With explanations folded away, it's behind an (i).
+- An (i) on a line of its own no longer has "About this" beside it.
+- The AI assistant reads much more of Help for a how-to question: the parts that match your question first, then the rest, up to 10,000 tokens (it was about 2,000, which covered only the first section). Settings → AI assistant → "How much of Help it reads (tokens)" sets it, from 1,000 to 20,000; all of Help is about 13,000. Questions about your world don't send Help at all.
+
 ## 0.7.24 — 2026-11-17
 
 - The text in Wanderworld's menus is rewritten to be shorter and plainer: setting labels and their (i) explanations, buttons, notes, notices and the item and keyword references. Explanations say what On does and what Off does.

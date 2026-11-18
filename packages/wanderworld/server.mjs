@@ -2381,7 +2381,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           found: list(body.found, 24)
             .map((entry) => ({ title: text(entry.title, 200), content: block(entry.content, MAX.loreText) }))
             .filter((entry) => entry.title && entry.content),
-          help: block(body.help, 9000),
+          help: block(body.help, 80000), // (up to the 20,000 tokens Settings → AI assistant allows)
           ages: isRecord(body.ages) ? body.ages : null,
           genders: isRecord(body.genders) ? body.genders : null,
         });

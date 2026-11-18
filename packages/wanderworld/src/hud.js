@@ -923,6 +923,8 @@ export function createHud(root, handlers) {
       "On: a creature's HP, AC, attack and damage are those of its match in the 5e SRD. A wolf is the SRD's wolf (11 HP, AC 13, +4 to hit, 2d4+2), a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage. Cattle, the alpaca and the shiba have no close match, so they keep the game's own numbers. Off: every creature uses the game's own numbers. People fight by their class either way, and experience for a win is always the game's own.",
     srdModifiers:
       "On: numbers work as in the 5e SRD. Your attacks and spells add a proficiency bonus that grows with your level (+2, +3 from level 5, up to +6). Your AC adds your Dexterity modifier. Armour you wear, known by its name (leather armor, chain shirt, scale mail, chain mail, plate and the rest), sets your AC in place of 10 and limits how much Dexterity counts; a shield adds 2. A finesse weapon (dagger, rapier, shortsword) uses the better of Strength and Dexterity. Off: your sheet's AC plus what worn things say, and no proficiency.",
+    assistantHelp:
+      "When you ask the assistant how something works, it reads the parts of Help that match your question, then the rest, up to this many tokens (about four characters each). All of Help is about 13,000. More gives better answers to how-to questions, and costs more on those questions only. Questions about your world don't send Help at all.",
     trackItemStats:
       "On: Quartermaster's tracker is told how item stats are written (in square brackets at the end of a description), so something new that the story hands you can come with stats that fit it. It is told never to change a block an item already has. Off: it's told nothing about stats, and new items get them only from their names.",
     gearByDescription:
@@ -1978,6 +1980,7 @@ export function createHud(root, handlers) {
     add(node, explain);
   }
   heading("AI assistant");
+  number("assistantHelp", "How much of Help it reads (tokens)");
   {
     const about = document.createElement("div");
     about.style.cssText = `font-size:12px;line-height:1.4;color:${INK_SOFT};`;
@@ -3363,22 +3366,31 @@ export function createHud(root, handlers) {
       }
       if (build.abilities.length) {
         body.append(piece("margin-top:4px;font-weight:700;", "What your class can call on"));
-        const wrap = piece("display:flex;flex-wrap:wrap;gap:5px;");
-        for (const ability of build.abilities)
-          wrap.append(
-            small(
-              `${ability.name}${ability.left === null ? "" : ` (${ability.left})`}`,
-              `${ability.about}${ability.left === null ? "" : ` ${ability.left} of ${ability.max} left; back after a ${ability.per} rest.`}`,
-              () => {
-                handlers.onAbility?.(ability.id);
-                void drawInventory();
-              },
-            ),
+        // (A row each: the button that uses it, and what it does written under it, so a phone can read it
+        // too; with explanations folded away, that's behind the (i).)
+        for (const ability of build.abilities) {
+          const uses =
+            ability.left === null ? "" : ` ${ability.left} of ${ability.max} left; back after a ${ability.per} rest.`;
+          const control = small(
+            `${ability.name}${ability.left === null ? "" : ` (${ability.left})`}`,
+            `Use ${ability.name}`,
+            () => {
+              handlers.onAbility?.(ability.id);
+              void drawInventory();
+            },
           );
+          control.setAttribute("aria-label", `Use ${ability.name}.${uses}`);
+          // (Its (i) on the same line as the button, the words under them both.)
+          const note = explainNote(`${ability.about}${uses}`);
+          const line = piece("display:flex;align-items:center;gap:6px;");
+          line.append(control, info(note));
+          const row = piece("display:flex;flex-direction:column;align-items:flex-start;gap:1px;");
+          row.append(line, note);
+          body.append(row);
+        }
         body.append(
-          wrap,
           explainNote(
-            "Hover or hold one for what it does. Each can be put on a number key in the Hotkeys tab; in a fight by turns they're on the bar at the top too.",
+            "Each can go on a number key in the Hotkeys tab. In a fight by turns, they're on the bar at the top too.",
           ),
         );
       }
@@ -4100,13 +4112,11 @@ export function createHud(root, handlers) {
       else {
         // (Standing by itself, it goes and comes with what it explains: a part of Settings that isn't the
         // one open hides its lines, and its (i) with them.)
-        // (With a word beside it, so it isn't a bare (i): what the note is.)
+        // (On a line of its own: the (i) alone says what it is.)
         const row = document.createElement("div");
         row.setAttribute("data-wanderworld-info-row", "");
-        row.style.cssText = "align-items:center;font-size:12px;opacity:0.85;";
-        const words = document.createElement("span");
-        words.textContent = node.dataset.intro ? "About these settings" : "About this";
-        row.append(control, words);
+        row.style.cssText = "align-items:center;";
+        row.append(control);
         node.before(row);
         // (In Settings a line belongs to a section and a sub-tab, and is hidden by an attribute when another
         // is open: its (i) is marked the same, so showSection hides and shows the two together.)
