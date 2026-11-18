@@ -3193,6 +3193,7 @@ function stepPlaces(dt) {
           slot: slotsShown() && entry.spell.level > 0 ? entry.spell.level : 0,
           slotted: !!slotsShown() && entry.spell.level >= 0,
           mark: entry.spell.reaction ? "" : costMark(entry.spell.bonus ? "bonus" : "action"),
+          hot: hotkeyed(`spell:${entry.id}`), // (on a number key: shown there, not again)
         })),
         readySpell(spells)?.id ?? "",
       );
@@ -7973,6 +7974,9 @@ function healAlly(aim, amount, spell) {
   narrate(null, `${personaName()} casts ${spell} on ${aim.name}: +${amount} HP (${health.hp} of ${health.max}).`);
 }
 
+/** Whether `value` ("spell:<id>", "ability:<id>") is on one of the number keys. */
+const hotkeyed = (value) => Object.values(core.save?.hotkeys ?? {}).includes(value);
+
 /** What something takes of a turn, as a letter for its button where fights go by turns: "A" an action, "B" a bonus action, "" neither. */
 const costMark = (cost) => (byTurns() ? (cost === "bonus" ? "B" : cost === "action" ? "A" : "") : "");
 /** A button's tags after its name: " (B, 1)" for a bonus action with one use left; "" with neither. */
@@ -7986,6 +7990,7 @@ function actionGroups() {
   const all = abilitiesNow();
   const item = (ability) => ({
     id: ability.id,
+    hot: hotkeyed(`ability:${ability.id}`),
     label: `${ability.name}${tagged(costMark(ability.cost), ability.left)}`,
     title: ability.about,
     ready: (ability.left === null || ability.left >= Math.max(1, ability.spend)) && !(ability.turns && !core.battle),
@@ -8000,6 +8005,7 @@ function actionGroups() {
         .filter((entry) => !entry.spell.reaction)
         .map((entry) => ({
           id: `spell:${entry.id}`,
+          hot: hotkeyed(`spell:${entry.id}`),
           label: `${entry.name}${tagged(costMark(entry.spell.bonus ? "bonus" : "action"), null)}`,
           title: `Cast ${entry.name}`,
           ready: true,
@@ -8683,7 +8689,7 @@ function useAbility(id) {
   const who = personaName();
   const notice = (words) => void core.hud?.setNotice(words);
   if (afflicted().helpless) return notice("You can't act: it has to wear off first.");
-  if (ability.turns && !core.battle) return notice(`${ability.name} is for a fight by turns.`);
+  if (ability.turns && !core.battle) return notice(`${ability.name} is for turn-based combat.`);
   const spend = Math.max(1, ability.spend);
   if (ability.left !== null && ability.left < spend)
     return notice(`No ${ability.name} left: a ${ability.per} rest brings it back.`);

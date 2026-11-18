@@ -192,6 +192,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.26",
+          "date": "2026-11-17",
+          "notes": "- \"Fights by turns\" is called turn-based combat everywhere: the Combat choice, its settings, Help and the buttons.\n- Inventory → Sheet: the turn's numbers read \"Each turn, you get\", with \"Move [9] Metres\".\n- The (i): a tap or a click opens its explanation. Hovering shows it as a tooltip and no longer opens it, which made it open and shut over and over.\n- The chat window no longer shows a spell or an ability twice: one that's on a number key is only its hotkey's button.",
+          "highlight": false
+        },
+        {
           "version": "0.7.25",
           "date": "2026-11-17",
           "notes": "- Inventory → Sheet: each thing your class can call on now has what it does written under its button, so it can be read on a phone. With explanations folded away, it's behind an (i).\n- An (i) on a line of its own no longer has \"About this\" beside it.\n- The AI assistant reads much more of Help for a how-to question: the parts that match your question first, then the rest, up to 10,000 tokens (it was about 2,000, which covered only the first section). Settings → AI assistant → \"How much of Help it reads (tokens)\" sets it, from 1,000 to 20,000; all of Help is about 13,000. Questions about your world don't send Help at all.",
@@ -303,12 +309,6 @@
           "version": "0.7.07",
           "date": "2026-11-16",
           "notes": "- A persona whose card has a sheet for the Engine's 5e ruleset brings it into Wanderworld. Once in each world, your class, level, race, background, abilities, most HP, skills and the spells Wanderworld can play are set from it. You can change any of it afterwards, and Inventory → Sheet has a button to take it from the card again.\n- A companion whose character card has a 5e sheet fights as it says: their class, most HP and spells come from the card, unless you've chosen a class for them.\n- Settings → Inventory → 5e rules → \"Use a 5e sheet on a persona's or character's card\" turns it off.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.06",
-          "date": "2026-11-16",
-          "notes": "- Inventory → Sheet has a build, from the 5e SRD: a race (its ability bonuses and speed), a fighting style, a background and the skills you're proficient in.\n- Classes do more. Saving throws add proficiency where the class is trained. A rogue has Sneak Attack, Uncanny Dodge and Evasion; a monk Martial Arts, Ki and an unarmoured AC; a barbarian Rage by level and Reckless Attack; a paladin Lay on Hands and Divine Smite; a bard Bardic Inspiration; a cleric Turn Undead; a sorcerer Font of Magic. Casters cast with their class's ability.\n- What a class can call on works in real time too: from the Sheet tab, a number key, or the bar in a fight by turns.\n- Short rests spend hit dice to heal. A sleep is a long rest.",
           "highlight": false
         }
       ]

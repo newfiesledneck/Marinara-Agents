@@ -150,7 +150,11 @@ export function infoButton(explain) {
     kept = !kept;
     show(kept);
   });
-  node.addEventListener("pointerenter", (event) => event.pointerType === "mouse" && show(true));
-  node.addEventListener("pointerleave", (event) => event.pointerType === "mouse" && show(kept));
+  // (Hovering shows the words in a tooltip, read afresh each time since some change with other settings.
+  // Opening on hover moved what was under the pointer, so it opened and shut over and over.)
+  node.addEventListener("pointerenter", () => {
+    const words = explain?.textContent?.trim() ?? "";
+    if (words) node.title = words;
+  });
   return node;
 }

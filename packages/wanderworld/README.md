@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.25)
+## What it does now (0.7.26)
 
 ### The world
 
@@ -544,7 +544,7 @@ Combat can be played four ways.
   lands on you mid-roll. X draws your weapon or puts it away; drawn, the view stays behind you and
   you step sideways and back without turning. Z casts the spell that's ready. On a touch screen a
   Combat button swaps Run, Sit and Jump for Attack, Block, Dodge and Cast.
-- **By turns.** A fight stops the clock for those in it. Everyone rolls initiative and acts in that
+- **Turn-based combat.** A fight stops the clock for those in it. Everyone rolls initiative and acts in that
   order. It begins when a creature starts coming for you: its Stealth against your passive
   Perception decides whether you're surprised and lose your first turn. On your turn a circle on
   the ground shows how far you can go (nine metres from where the turn began; anywhere inside it,
@@ -553,7 +553,7 @@ Combat can be played four ways.
   attack unless you Disengaged. Creatures with bows or spells use them. An optional class of your
   own adds Second Wind, Action Surge, Cunning Action, Rage and Extra Attack by level, and the
   numbers a turn gives can be set by hand. Companions and creatures
-  take turns by the same rules, and a bar along the top shows the order. With "Fights by turns use
+  take turns by the same rules, and a bar along the top shows the order. With "Turn-based combat use
   spell slots" on, a spell takes a spell slot of its level or higher, as the SRD has it, and mana
   is left alone; a sleep gives the slots back.
 - **A narrated moment.** When a creature gets to you, or you press Attack with one in reach, the
@@ -610,7 +610,7 @@ every roll, and no AI call is made in a real-time fight.
   from, each kind with a look of its own (cone, beam, volley, light from above, touch).
 - **A build from the SRD**: race, class, fighting style, background and skills, with what each class
   has by level (Sneak Attack, Ki, Rage, Lay on Hands, Divine Smite and more), usable in real time
-  and by turns, and short and long rests with hit dice.
+  and in turn-based combat, and short and long rests with hit dice.
 - **5e sheets from cards**: a persona's or a character's card with a sheet for the Engine's 5e
   ruleset sets their class, level, abilities, HP and spells here (a setting).
 - **Magic items and loot**: worn magic from the SRD works by its name, potions heal by their dice,
@@ -628,7 +628,7 @@ every roll, and no AI call is made in a real-time fight.
   them the name decides. The tracker knows the format, and added items get their equip slot.
 - **Smarter fights**: each bandit, puglin or skeleton has a way of fighting of its own; archers and
   casters keep their distance and take cover; casters pick their spell. Companions fight by class.
-  Things are said in a fight, and the AI can write them and choose creatures' moves by turns.
+  Things are said in a fight, and the AI can write them and choose creatures' moves in turn-based combat.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.

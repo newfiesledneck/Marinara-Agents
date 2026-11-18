@@ -235,7 +235,8 @@ export function abilities(classId = "", level = 1, mods = {}) {
       add({
         id: "surge",
         name: "Action Surge",
-        about: "By turns: one more action this turn. In real time: your swings come twice as fast for six seconds.",
+        about:
+          "Turn-based combat: one more action this turn. Real time: your swings come twice as fast for six seconds.",
         cost: "free",
         max: level >= 17 ? 2 : 1,
       });
