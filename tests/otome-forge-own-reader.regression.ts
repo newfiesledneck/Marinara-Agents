@@ -87,6 +87,14 @@ function reply(messages: Messages): string {
           miss: many("Missed", 3),
           plush: many("Plush", 3),
         },
+        kitty: {
+          start: many("Deal", 2),
+          good: many("Match", 3),
+          cheat: many("Swap", 3),
+          caught: many("Caught", 2),
+          win: many("Yours", 3),
+          lose: many("Mine", 3),
+        },
       });
     case "chat":
       return json({ messages: [{ text: "Awake. Barely." }], suggestions: ["Sleep.", "Me too."] });
@@ -339,7 +347,7 @@ test("another love interest's route or repair chapter never reaches a note, a li
     assert.match(overviewOf(kaiChat!), /Mireille's Ledger[^]*PRIVATE-LEDGER/u, "hers, titled private");
     assert.ok(kaiChat!.includes("SHARED-QUAY") && kaiChat!.includes("KAI-OWN-ROUTE"), "the shared story and his own");
     assert.ok(
-      kaiChat!.includes('# Previous chapter in full: Kai\'s own route chapter "The Bell Tower"') &&
+      kaiChat!.includes('# Previous chapter in full: [After chapter 1] Kai\'s own route chapter "The Bell Tower"') &&
         kaiChat!.includes("KAI-ROUTE-OPENING") &&
         kaiChat!.includes("tower210"),
       "his route in full",

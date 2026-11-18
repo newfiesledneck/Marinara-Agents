@@ -46,6 +46,11 @@ import {
   type DateScore,
 } from "../../../../../client/src/features/otome-forge/shared/dates.js";
 import { FACES, MUSIC_MOODS } from "../../../../../client/src/features/otome-forge/shared/faces.js";
+import {
+  HAPTIC_ACTIONS,
+  HAPTIC_CUES_MAX,
+  HAPTIC_PATTERNS,
+} from "../../../../../client/src/features/otome-forge/shared/haptics.js";
 import { GIFT_IDS } from "../../../../../client/src/features/otome-forge/shared/shop.js";
 import { THOUGHTS_MAX } from "../../../../../client/src/features/otome-forge/shared/home.js";
 import { isChapterKey } from "../ids.js";
@@ -69,6 +74,18 @@ export const HisSideNoteSchema: ZodType<HisSideNote> = z.object({
   at: short(40),
 });
 
+/** 0.34.0: a segment's haptic cues as normalizeHapticCues keeps them (SH/haptics.ts). */
+export const HapticCuesSchema = z
+  .array(
+    z.object({
+      action: z.enum(HAPTIC_ACTIONS),
+      pattern: z.enum(HAPTIC_PATTERNS).optional(),
+      intensity: z.number().min(0).max(1).optional(),
+      device: short(80).optional(),
+    }),
+  )
+  .max(HAPTIC_CUES_MAX);
+
 export const SegmentSchema: ZodType<Segment> = z.object({
   speaker: short(120),
   text: short(4000),
@@ -77,6 +94,8 @@ export const SegmentSchema: ZodType<Segment> = z.object({
   place: short(120).optional(),
   gender: short(20).optional(),
   exits: z.array(z.string()).optional(),
+  haptic: HapticCuesSchema.optional(),
+  voiced: short(4000).optional(),
 });
 
 const ChoiceSchema: ZodType<ForgeChoice> = z.object({
@@ -203,8 +222,9 @@ export const ConfrontationSchema: ZodType<Confrontation> = z.union([
 ]);
 
 /**
- * A date's plan (M5, SH/dates.ts); a damaged one reads as none, so the chapter is not a playable date. #2128's `gift`
- * and #2156's `clearAir` are optional, as every date planned before them has none.
+ * A date's plan (M5, SH/dates.ts); a damaged one reads as none, so the chapter is not a playable date. #2128's `gift`,
+ * #2156's `clearAir`, #2283's `second` and #2303's pulled date (`item`, `cast`, `newcomers`, `grand`) are optional, as
+ * every date planned before them has none.
  */
 const DatePlanSchema: ZodType<DatePlan> = z.object({
   li: z.string(),
@@ -217,6 +237,15 @@ const DatePlanSchema: ZodType<DatePlan> = z.object({
   keepsake: z.object({ brief: short(1200), art: PaintSchema.optional() }),
   gift: z.enum(GIFT_IDS).optional(),
   clearAir: z.literal(true).optional(),
+  // A double date's invited love interest (#2283), as planned; inviting the date's own love interest was refused when
+  // the date started, not read back here.
+  second: short(80).optional(),
+  // #2303: a date won from Wish: its item, everyone taken on it (`li` first), those on it for the first time, and a
+  // 5★ date's key image.
+  item: short(80).optional(),
+  cast: z.array(short(80)).min(1).max(20).optional(),
+  newcomers: z.array(short(80)).max(20).optional(),
+  grand: z.literal(true).optional(),
 });
 
 const SCORE_VALUES: ReadonlySet<unknown> = new Set([-1, 0, 1]);
@@ -268,10 +297,24 @@ export function normalizeChapter(data: unknown): Chapter | null {
         return parsed.success ? parsed.data : undefined;
       },
       prestige: z.object({ kind: z.enum(PRESTIGE_KINDS), premise: short(600) }).optional(),
+      bond: z.object({ rank: z.number().int().min(11).max(20), reveal: short(600) }).optional(),
       thoughts: z.string().min(1).max(THOUGHTS_MAX).optional(),
       gift: z.enum(GIFT_IDS).optional(),
       hisSide: HisSideNoteSchema.optional(),
       recalled: z.array(z.string().refine(isChapterKey)).min(1).max(RECALL_MAX).optional(),
+      // 0.24.2: the story context its plan or first scene read, sent by every scene (S/story/beats.ts). Bounded by no
+      // length: recallText caps nothing, and a dropped-too-long context would read as never saved (Dottore, #2262).
+      context: z
+        .object({
+          overview: z.string(),
+          details: z.array(z.object({ kind: z.string(), title: z.string(), content: z.string() })),
+          prefix: z.string(),
+          fate: z.string(),
+          optional: z.array(z.string()),
+          // 0.34.0: the timeline form it was read from. Optional, so a context saved before reads with none.
+          form: z.number().int().optional(),
+        })
+        .optional(),
       // 0.20.4: its small memories' ids, [] when it has none (S/story/beats.ts).
       memories: z.array(z.string().min(1).max(300)).max(200).optional(),
     },
@@ -369,11 +412,13 @@ export function toChapterView(chapter: Chapter): ChapterView {
     grievance: _grievance,
     date: _date,
     prestige: _prestige,
+    bond: _bond,
     thoughts: _thoughts,
     gift: _gift,
     hisSide: _hisSide,
     recalled: _recalled,
     memories: _memories,
+    context: _context,
     music,
     ...rest
   } = chapter;

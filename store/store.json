@@ -196,6 +196,10 @@
       "section": "adventure",
       "tagline": "A low-poly 3D world to walk around in."
     },
+    "wordle": {
+      "section": "games",
+      "tagline": "One word a day, raced with your characters."
+    },
     "world-state": {
       "section": "trackers",
       "tagline": "Date, time, weather and place."
@@ -233,7 +237,8 @@
         "chess",
         "poker",
         "blackjack",
-        "uno"
+        "uno",
+        "wordle"
       ]
     }
   ]

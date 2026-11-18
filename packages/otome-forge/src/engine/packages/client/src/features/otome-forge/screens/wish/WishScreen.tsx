@@ -48,6 +48,7 @@ import {
   FOUR_STAR_RATE,
   HARD_PITY,
   SOFT_PITY_FROM,
+  isLookKind,
   wishCost,
   type BannerView,
   type ItemView,
@@ -134,6 +135,8 @@ interface WishScreenProps {
   /** Opens a Character Story, a Moment or a first-wear beat in the reader. */
   onOpenStory: (key: string) => void;
   onOpenWardrobe: () => void;
+  /** #2303: plans a pulled date (Album → Dates) for the item id. */
+  onOpenDate?: (item: string) => void;
 }
 
 interface Sequence {
@@ -143,7 +146,7 @@ interface Sequence {
   phase: { at: "letter" } | { at: "reveal"; index: number } | { at: "results" };
 }
 
-export function WishScreen({ runKey, view, onOpenStory, onOpenWardrobe }: WishScreenProps) {
+export function WishScreen({ runKey, view, onOpenStory, onOpenWardrobe, onOpenDate }: WishScreenProps) {
   const { t } = useTranslation();
   const otome = useOtomeApi();
   const queryClient = useQueryClient();
@@ -316,6 +319,7 @@ export function WishScreen({ runKey, view, onOpenStory, onOpenWardrobe }: WishSc
           onClose={() => setSequence(null)}
           onOpenStory={onOpenStory}
           onOpenWardrobe={onOpenWardrobe}
+          onOpenDate={onOpenDate}
         />
       ) : null}
     </div>
@@ -486,7 +490,8 @@ function BannerPanel({ view, banner, wish, actions, pulling, error, onPull, onBa
   const number = new Intl.NumberFormat(locale);
   const li = view.lis.find((item) => item.id === banner.featuredLi) ?? null;
   const bannerTitle = banner.title || banner.five.title;
-  const look = banner.kind !== "memories";
+  // A wardrobe banner's art is a look on its wearer; a Memory's is a key image and (#2303) a date's its place.
+  const look = isLookKind(banner.five.kind);
   const picture = readyPicture(banner) ?? readyPicture(banner.five);
   const art = useSpriteDisplay(picture?.url ?? null, look && !picture?.cut);
   const [expanded, setExpanded] = useState(false);
@@ -494,6 +499,8 @@ function BannerPanel({ view, banner, wish, actions, pulling, error, onPull, onBa
   const viewerBlocked = actions.busy.size > 0 || !!actions.review;
   useEffect(() => setExpanded(false), [art, viewerBlocked]);
   const held = paintWaits(banner.art) ? banner.art : null;
+  // 0.24.0: a painted banner can be painted again; its picture stays on the hero until the new one is saved.
+  const repaint = !held && banner.art?.state === "ready" && imagesOn(view);
   const heldId = `banner:${banner.key}`;
   const pity = wish.pity[banner.kind];
   const busy = pulling?.banner === banner.key;
@@ -594,7 +601,14 @@ function BannerPanel({ view, banner, wish, actions, pulling, error, onPull, onBa
               </span>
             ) : null}
           </p>
-          {li ? <p className="of-banner-who">{t("ui.otomeForge.wish.with", { name: li.name })}</p> : null}
+          {li && banner.kind !== "dates" ? (
+            <p className="of-banner-who">{t("ui.otomeForge.wish.with", { name: li.name })}</p>
+          ) : null}
+          {banner.five.place ? (
+            <p className="of-banner-who">
+              {t("ui.otomeForge.wish.datePlace", { place: banner.five.place.name, count: banner.five.scenes ?? 1 })}
+            </p>
+          ) : null}
         </div>
       </div>
       {banner.art?.state === "pending" ? (
@@ -602,27 +616,30 @@ function BannerPanel({ view, banner, wish, actions, pulling, error, onPull, onBa
           {t("ui.otomeForge.wish.paintingBanner")}
         </p>
       ) : null}
-      {held ? (
+      {held || repaint ? (
         <div className="of-inline-actions">
           <button
             type="button"
             className="of-button of-button--quiet of-glass of-button--small"
+            aria-label={repaint ? t("ui.otomeForge.wish.repaintBanner") : undefined}
             aria-disabled={actions.busy.has(heldId)}
             onClick={() => {
               if (!actions.busy.has(heldId)) void actions.paintBanner(banner);
             }}
           >
-            {held.state === "waiting-consent" ? (
-              <Paintbrush size={14} strokeWidth={2} aria-hidden="true" />
-            ) : (
+            {held && held.state !== "waiting-consent" ? (
               <RotateCcw size={14} strokeWidth={2} aria-hidden="true" />
+            ) : (
+              <Paintbrush size={14} strokeWidth={2} aria-hidden="true" />
             )}
-            {held.state === "waiting-consent"
-              ? t("ui.otomeForge.wish.paintBanner")
-              : t("ui.otomeForge.wish.paintRetry")}
+            {!held
+              ? t("ui.otomeForge.wish.repaintBanner")
+              : held.state === "waiting-consent"
+                ? t("ui.otomeForge.wish.paintBanner")
+                : t("ui.otomeForge.wish.paintRetry")}
           </button>
           <CostHint images={1} />
-          {held.state === "failed" ? <span className="of-hint">{t("ui.otomeForge.wish.paintFailed")}</span> : null}
+          {held?.state === "failed" ? <span className="of-hint">{t("ui.otomeForge.wish.paintFailed")}</span> : null}
         </div>
       ) : null}
       {actions.errors[heldId] ? (
@@ -715,7 +732,7 @@ function BannerContents({ view, banner }: { view: RunView; banner: BannerView })
                 <li key={item.id} className="of-banner-item">
                   <ItemArt item={item} view={view} />
                   <span className="of-banner-item-name">
-                    {rarity === 3
+                    {rarity === 3 && !item.look
                       ? (view.lis.find((li) => li.id === item.li)?.name ?? item.title)
                       : item.look?.name || item.title}
                   </span>
@@ -938,6 +955,8 @@ interface PullSequenceProps {
   onClose: () => void;
   onOpenStory: (key: string) => void;
   onOpenWardrobe: () => void;
+  /** #2303: plans a pulled date (Album → Dates) for the item id. */
+  onOpenDate?: (item: string) => void;
 }
 
 function PullSequence({
@@ -950,6 +969,7 @@ function PullSequence({
   onClose,
   onOpenStory,
   onOpenWardrobe,
+  onOpenDate,
 }: PullSequenceProps) {
   const { t } = useTranslation();
   const audio = useOtomeAudio();
@@ -1003,6 +1023,7 @@ function PullSequence({
         onDone={onClose}
         onOpenStory={onOpenStory}
         onOpenWardrobe={onOpenWardrobe}
+        onOpenDate={onOpenDate}
       />
     );
   }

@@ -33,7 +33,7 @@
 // image rating, or picking Dark romance, needs it (403 `age-gate`), lowering never does, and every stored content goes
 // through enforceContent, so a limit that cannot apply is always a Line.
 import { z } from "zod";
-import type { Unit } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
+import type { Presentation, Unit } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
 import { LIS_MAX, LIS_MIN } from "../../../../../client/src/features/otome-forge/shared/cast.js";
 import { ARCHETYPE_IDS } from "../../../../../client/src/features/otome-forge/shared/archetypes.js";
 import { OWN_BANNED_PHRASES_MAX } from "../../../../../client/src/features/otome-forge/shared/banned-phrases.js";
@@ -53,6 +53,7 @@ import { imagesOf, paintView, updateIfChanged } from "../art/paint.js";
 import { withPlaceViews } from "../art/places.js";
 import { runForeground } from "../generation.js";
 import { ensureQuizScores } from "../minigames/quiz.js";
+import { ensureClearAirScenes } from "../phone/upset.js";
 import { embeddingHost } from "../memory/recall-index.js";
 import {
   OtomeForgeError,
@@ -283,6 +284,8 @@ export const registerRunRoutes: RegisterRoutes = (router, deps) => {
         units.push(created);
       }
       const { protagonist } = setup;
+      const presentation: Presentation =
+        protagonist.pronouns.subject === "he" ? "man" : protagonist.pronouns.subject === "she" ? "woman" : "person";
       const player = await store.mutateDoc(runDocTarget("player", playerId(runId)), normalizePlayer, (player) => ({
         ...player,
         personaId: protagonist.personaId,
@@ -291,6 +294,7 @@ export const registerRunRoutes: RegisterRoutes = (router, deps) => {
         pronouns: protagonist.pronouns,
         traits: protagonist.traits.map((trait) => trait.trim()).filter(Boolean),
         goal: protagonist.goal.trim(),
+        look: { ...player.look, presentation },
       }));
       // #2147: a story with no image connection shows the Engine's art; with one, everyone is painted.
       const paints = setup.images.connectionId !== null;
@@ -372,6 +376,8 @@ export const registerRunRoutes: RegisterRoutes = (router, deps) => {
       await settleForge(deps, runId);
       const read = await readRun(store, runId);
       if (!read) throw runNotFound();
+      // #2303: an invitation to clear the air accepted before its scene existed gets that scene, once (no model call).
+      await ensureClearAirScenes(store, runId, read.state);
       // #2174: the love interests' personality quiz answers, once, in the background (a story from before the quiz
       // gets them here, by its first chapter-planning wait); nothing here waits for them.
       void ensureQuizScores(deps, runId, read, { debugMode: debugModeOf(request) }).catch((error: unknown) =>

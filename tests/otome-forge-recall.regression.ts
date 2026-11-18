@@ -76,6 +76,10 @@ function topicVector(text: string): number[] {
 
 const keyOf = (id: string, kind = "chapter") => JSON.stringify([kind, id]);
 const HEAD = "HEAD: the harbour's first nights, condensed.";
+/** The tag the prompts give the condensed head, the main chapters it holds (S/story/canon.ts headTag). */
+const HEAD_TAG = "[Chapters 1–4]";
+/** A chapter recalled by meaning: "# Chapter 3 in detail: …", "# Earlier, in detail: [After chapter 4] …". */
+const IN_DETAIL = /^# [^\n]* in detail[:,]/mu;
 /** How the story names Mireille's route chapter "Her First" (S/story/canon.ts titleOf). */
 const HER_FIRST =
   'Mireille\'s own route chapter "Her First" (private: only the people in its scenes know what happened in it)';
@@ -466,7 +470,7 @@ test("only chapters the head condensed, that every scene may know, at least the 
   // Nothing alike enough: none.
   const none = await plan(["bell"]);
   assert.equal(none.recalled, undefined);
-  assert.ok(!none.text.includes("# Earlier, in detail"));
+  assert.ok(!IN_DETAIL.test(none.text), none.text);
   // Without `cached`, her chapter is hers to know: a prompt for her may recall it, one for Sol never.
   const forHer = await recallText({ store: t.store, recall: spy }, t.runId, {
     job: "structured",
@@ -475,7 +479,10 @@ test("only chapters the head condensed, that every scene may know, at least the 
     chooseBy: ["lighthouse"],
   });
   assert.ok(offered.at(-1)!.includes(HER_FIRST));
-  assert.ok(forHer.text.includes(`# Earlier, in detail: ${HER_FIRST}\nHER-FIRST-SUMMARY`), forHer.text);
+  assert.ok(
+    forHer.text.includes(`# Earlier, in detail: [After chapter 4] ${HER_FIRST}\nHER-FIRST-SUMMARY`),
+    forHer.text,
+  );
   // His side of the previous chapter goes in full beside it, so it is never recalled, not even for him; nor is his date,
   // which is never in the timeline.
   assert.ok(!offered.at(-1)!.some((title) => title.startsWith(KAI_SIDE)), offered.at(-1)!.join("\n"));
@@ -511,6 +518,64 @@ test("only chapters the head condensed, that every scene may know, at least the 
   assert.deepEqual((await plan(["Nothing in particular."])).recalled, ["main-2", "main-3", "main-4"]);
 });
 
+test("#2304: a main chapter's plan recalls only chapters its Lead led, and its scenes send exactly those", async () => {
+  const t = await harbour("r-recalllead-aaaaaa");
+  // Night 2 was Sol's to lead; the lighthouse query scores it .71, so it would be chosen if any lead's counted.
+  await t.store.updateDoc(runDocTarget("chapter", chapterId(t.runId, "main-2")), normalizeChapter, (chapter) => ({
+    ...chapter,
+    lead: SOL,
+  }));
+  await t.recall.ensure(t.runId);
+  await settled(t.recall, t.runId);
+  const offered: string[][] = [];
+  const spy = {
+    choose: async (runId: string, options: Parameters<typeof t.recall.choose>[1]) => {
+      offered.push(options.candidates.map((candidate) => candidate.title));
+      return t.recall.choose(runId, options);
+    },
+  };
+  const plan = (recallLed?: string) =>
+    recallText({ store: t.store, recall: spy }, t.runId, {
+      job: "structured",
+      cast: recallLed ? [recallLed] : [KAI],
+      continues: "main",
+      cached: {},
+      lastStory: true,
+      chooseBy: ["lighthouse"],
+      ...(recallLed ? { recallLed } : {}),
+    });
+  assert.deepEqual((await plan()).recalled, ["main-1", "main-2", "main-3"], "without a lead, as before");
+  assert.deepEqual((await plan(KAI)).recalled, ["main-1", "main-3", "main-4"], "Kai's own, Sol's Night 2 left out");
+  assert.deepEqual(offered.at(-1), ["Night 1", "Night 3", "Night 4"]);
+  assert.equal((await plan(SOL)).recalled?.join(), "main-2", "Sol's one chapter");
+  // Mireille led no main chapter, but her own route chapter is hers: recalled, titled private, in the shared context.
+  const hers = await plan(MIR);
+  assert.deepEqual(hers.recalled, [`route-${MIR}-2`]);
+  assert.ok(hers.text.includes(`# Earlier, in detail: [After chapter 4] ${HER_FIRST}\nHER-FIRST-SUMMARY`), hers.text);
+  // Her chapter's scenes send it too, for every cast, as the plan saved it; without the Lead a scene could not.
+  const scene = (recallLed?: string) =>
+    recallText({ store: t.store }, t.runId, {
+      job: "narration",
+      cast: [SOL],
+      continues: "main",
+      cached: {},
+      lastStory: true,
+      recalled: [`route-${MIR}-2`],
+      ...(recallLed ? { recallLed } : {}),
+    });
+  assert.equal((await scene(MIR)).text, hers.text, "byte for byte, as the plan cached it");
+  assert.equal((await scene()).recalled, undefined);
+
+  // The plan behind POST /chapters/next does the same, and saves it for the chapter's scenes.
+  const planned = await t.call("POST", "/runs/:run/chapters/next", { lead: KAI });
+  assert.equal(planned.status, 200, JSON.stringify(planned.body));
+  const chapter = (await t.store.readDoc(chapterId(t.runId, "main-7"), normalizeChapter))!;
+  assert.deepEqual(chapter.recalled, ["main-1", "main-3", "main-4"]);
+  const story = storyPart(t.calls.find((call) => isPlanner(call.messages))!.messages);
+  assert.ok(!story.includes(SUMMARIES[keyOf("main-2")]), "Sol's Night 2 is not recalled in detail");
+  assert.ok(story.includes(SUMMARIES[keyOf("main-4")]), story);
+});
+
 test("a chapter's plan saves what it recalls, between the head and the newest entries, and its scenes send exactly that", async () => {
   const t = await harbour("r-recallplan-aaaaaa");
   await t.recall.ensure(t.runId);
@@ -529,11 +594,11 @@ test("a chapter's plan saves what it recalls, between the head and the newest en
     return index;
   };
   const order = [
-    at(`# Canon to date\n${HEAD}`),
-    at(`# Earlier, in detail: Night 1\n${SUMMARIES[keyOf("main-1")]}`),
-    at(`# Earlier, in detail: Night 2\n${SUMMARIES[keyOf("main-2")]}`),
-    at(`# Earlier, in detail: Night 3\n${SUMMARIES[keyOf("main-3")]}`),
-    at("# Canon to date, continued\nNight 5\nENTRY-FIVE: the dark."),
+    at(`# Canon to date\n${HEAD_TAG}\n${HEAD}`),
+    at(`# Chapter 1 in detail: Night 1\n${SUMMARIES[keyOf("main-1")]}`),
+    at(`# Chapter 2 in detail: Night 2\n${SUMMARIES[keyOf("main-2")]}`),
+    at(`# Chapter 3 in detail: Night 3\n${SUMMARIES[keyOf("main-3")]}`),
+    at("# Canon to date, continued\n[Chapter 5] Night 5\nENTRY-FIVE: the dark."),
   ];
   assert.deepEqual(
     order,
@@ -594,7 +659,10 @@ test("with no embeddings, or no index, the prompt is exactly what it was, and th
   const options = { job: "structured" as const, cast: [KAI], continues: "main" as const, cached: {}, lastStory: true };
   const t = await harbour("r-recallnoemb-aaaaaa");
   const before = await recallText({ store: t.store }, t.runId, options);
-  assert.ok(before.text.includes(`# Canon to date\n${HEAD}\n\nNight 5\nENTRY-FIVE`), before.text);
+  assert.ok(
+    before.text.includes(`# Canon to date\n${HEAD_TAG}\n${HEAD}\n\n[Chapter 5] Night 5\nENTRY-FIVE`),
+    before.text,
+  );
   // No index yet.
   const unindexed = await recallText({ store: t.store, recall: t.recall }, t.runId, {
     ...options,
@@ -618,7 +686,7 @@ test("with no embeddings, or no index, the prompt is exactly what it was, and th
   assert.equal(planned.status, 200, JSON.stringify(planned.body));
   const chapter = (await t.store.readDoc(chapterId(t.runId, "main-7"), normalizeChapter))!;
   assert.equal(chapter.recalled, undefined, "nothing recalled, nothing saved");
-  assert.ok(!storyPart(t.calls.find((call) => isPlanner(call.messages))!.messages).includes("# Earlier, in detail"));
+  assert.ok(!IN_DETAIL.test(storyPart(t.calls.find((call) => isPlanner(call.messages))!.messages)));
   // An older chapter with no `recalled` sends none.
   const scene = await recallText({ store: t.store }, t.runId, { ...options, job: "narration" });
   assert.equal(scene.text, before.text);

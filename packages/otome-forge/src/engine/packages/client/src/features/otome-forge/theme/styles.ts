@@ -7,6 +7,7 @@
 // stops under prefers-reduced-motion or the Engine's "Reduce Ambient Animations & Effects" (reducedRules).
 import { REDUCED_EFFECTS, reducedRules } from "../lib/reduced-motion";
 import { DATE_NIGHT_RULES } from "../screens/dates/date-night-styles";
+import { KITTY_RULES } from "../screens/dates/KittyCards";
 import { READ_HIM_RULES } from "../screens/dates/ReadHim";
 import { READ_ME_RULES } from "../screens/dates/ReadMe";
 import { TAROT_RULES } from "../screens/dates/TarotNight";
@@ -41,6 +42,15 @@ ${R} {
   transition: background-color var(--of-fade) var(--of-ease), color var(--of-fade) var(--of-ease);
 }
 ${R} *, ${R} *::before, ${R} *::after { box-sizing: border-box; }
+/* Every scrollbar in Otome Hearth takes its look's colours (2026-11-18): the Engine paints every scrollbar, the reader's
+   narration and dialogue boxes included, in its own accent through \`*\` and ::-webkit-scrollbar-thumb (Safari). A box
+   that sets its own scrollbar colours keeps them. */
+${R} * { scrollbar-color: var(--of-border-strong) transparent; }
+:root ${R} ::-webkit-scrollbar-track { background: transparent; }
+:root ${R} ::-webkit-scrollbar-thumb {
+  background: var(--of-border-strong); background-clip: padding-box; border: 2px solid transparent; border-radius: 999px;
+}
+:root ${R} ::-webkit-scrollbar-thumb:hover { background-color: var(--of-text-faint); }
 ${R} :is(h1, h2, h3, p) { margin: 0; }
 ${R} button { font: inherit; color: inherit; letter-spacing: inherit; }
 ${R} :focus-visible { outline: 2px solid var(--of-focus); outline-offset: 3px; }
@@ -649,6 +659,11 @@ ${R} .of-tile-name {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
   font-size: 0.78rem; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere;
 }
+/* A card's or persona's title / comment under its name, as the Engine's lists show it (#2365). */
+${R} .of-tile-title {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-top: -3px;
+  font-size: 0.68rem; font-style: italic; line-height: 1.2; overflow-wrap: anywhere; color: var(--of-text-soft);
+}
 ${R} .of-tile-check {
   position: absolute; top: 6px; inset-inline-end: 6px; display: grid; place-items: center; width: 18px; height: 18px;
   border-radius: 50%; background: ${PALETTE.champagne}; color: ${PALETTE.ink};
@@ -707,9 +722,12 @@ ${R} .of-limit-fixed {
   display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 600; color: var(--of-text-soft);
 }
 ${R} .of-custom-limits { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 4px; }
-${R} .of-custom-limit {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 6px; width: 100%;
-}
+/* One of your own: the text box takes the room its Allow | Veil | Line pills and small remove button leave. They go
+   under it together, at the end of the row, only when one line cannot hold them all (a large text size on a phone). */
+${R} .of-custom-limit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; }
+${R} .of-custom-limit > .of-input { flex: 1 1 4.5rem; min-width: 4.5rem; padding-inline: 10px; }
+${R} .of-custom-limit-level { display: flex; align-items: center; gap: 6px; min-width: 0; margin-inline-start: auto; }
+${R} .of-custom-limit-level .of-icon-button { width: 28px; height: 28px; }
 /* Review. */
 ${R} .of-review { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 20px; }
 ${R} .of-review-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -1306,9 +1324,8 @@ ${R} .of-ward-worn {
 ${R} .of-ward-look-body { display: flex; flex-direction: column; gap: 4px; padding-inline: 4px; min-width: 0; flex: 1; }
 ${R} .of-ward-look-name { font-family: var(--of-font-display); font-weight: 600; font-size: 1.1rem; line-height: 1.1; overflow-wrap: anywhere; }
 ${R} .of-ward-look-state { font-size: 0.74rem; font-weight: 800; color: var(--of-champagne-text); }
-${R} .of-ward-faces { display: flex; gap: 4px; }
-${R} .of-ward-faces img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; object-position: 50% 12%;
-  box-shadow: 0 0 0 1.5px var(--of-li-accent, var(--of-rose)); }
+${R} .of-ward-expressions { display: flex; align-items: center; gap: 4px; margin: 0; font-size: 0.74rem; font-weight: 700; }
+${R} .of-ward-expressions svg { color: var(--of-li-accent, var(--of-rose)); flex: none; }
 ${R} .of-ward-actions { display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin-top: auto; padding-top: 4px; }
 ${R} .of-ward-actions .of-button { width: 100%; padding: 4px 10px; line-height: 1.15; text-align: center; }
 ${R} .of-ward-actions .of-cost { justify-content: center; font-size: 0.72rem; }
@@ -1386,6 +1403,10 @@ ${R} .of-album-sticker--quiet {
 ${R} .of-album-sticker--quiet svg { color: var(--of-accent-text); }
 ${R} .of-album-sticker--quiet .of-button { min-height: 44px; }
 ${R} .of-album-sticker--quiet .of-cost { justify-content: center; }
+/* #2299: a painted sticker's Repaint, its status and its cost sit under it, centred as a card's do. */
+${R} .of-album-cgs--sticker > li { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; text-align: center; }
+${R} .of-album-cgs--sticker > li > .of-button { min-height: 44px; }
+${R} .of-album-cgs--sticker > li > .of-cost { justify-content: center; }
 /* #2151: Tarot night's cards, each its whole card face (TAROT_RULES), labelled under it; three across on a phone. */
 ${R} .of-album-cgs--card { grid-template-columns: repeat(auto-fill, minmax(min(112px, 30%), 1fr)); gap: 14px 10px; }
 ${R} .of-album-card { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; text-align: center; }
@@ -1520,6 +1541,8 @@ const STORY_RULES = `
 ${R} .of-eyebrow {
   font-size: 0.7rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--of-champagne-text);
 }
+/* 0.34.8: the arc line sits under the centred page head, so it is centred too (its chapter count never splits). */
+${R} .of-story-arc { text-align: center; }
 ${R} .of-story-next {
   border-color: rgb(230 201 138 / 0.55);
   background: linear-gradient(150deg, var(--of-tint-strong), transparent 62%), var(--of-surface);
@@ -1568,26 +1591,55 @@ ${R} .of-path-node[data-kind="confrontation"]:not([data-state="read"]) { border-
 /* Affection: ten hearts in his colour. */
 ${R} .of-affection-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
 ${R} .of-affection {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "avatar name level" "avatar hearts hearts";
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "avatar name name" "avatar hearts hearts";
   align-items: center; column-gap: 10px; row-gap: 3px;
 }
-${R} .of-affection:has(.of-affection-progress) { grid-template-areas: "avatar name level" "avatar hearts progress"; }
+${R} .of-affection:has(.of-affection-progress) { grid-template-areas: "avatar name name" "avatar hearts progress"; }
 ${R} .of-affection > .of-avatar { grid-area: avatar; }
+/* The name and the level on one line across both columns: the level sizes only its own line, so a long one ("Level 10
+   · named") no longer widens the counter's column and wraps the hearts under it (2026-11-17). */
+${R} .of-affection-head { grid-area: name; display: flex; align-items: center; gap: 8px; min-width: 0; }
 ${R} .of-affection-name {
-  grid-area: name; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   font-family: var(--of-font-display); font-weight: 600; font-size: 1.12rem; line-height: 1.1;
 }
-${R} .of-affection-level { grid-area: level; justify-self: end; font-size: 0.74rem; font-weight: 800; color: var(--of-accent-text); }
+${R} .of-affection-level {
+  flex: none; margin-inline-start: auto; white-space: nowrap; font-size: 0.74rem; font-weight: 800;
+  color: var(--of-accent-text);
+}
 ${R} .of-affection-progress {
   grid-area: progress; justify-self: end; font-size: 0.7rem; line-height: 1.2; font-weight: 600;
   font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--of-text-soft);
 }
-${R} .of-hearts { grid-area: hearts; display: flex; flex-wrap: wrap; gap: 3px; color: var(--of-li-accent, var(--of-rose)); }
-${R} .of-hearts svg[data-on="false"] { color: var(--of-border-strong); }
+/* Ten hearts on one line, always (2026-11-17): the line shrinks its hearts to fit a narrow column (a phone with large
+   text, a long counter) rather than wrapping the last one under the others, and never grows them past 16px. */
+${R} .of-hearts {
+  grid-area: hearts; display: flex; flex-wrap: nowrap; gap: 3px; min-width: 0;
+  color: var(--of-li-accent, var(--of-rose));
+}
+${R} .of-hearts > .of-heart { flex: 0 1 16px; min-width: 0; }
+${R} .of-hearts > .of-heart > svg:not(.of-heart-inner) { width: 100%; height: auto; max-width: 16px; }
+/* 0.23.0: ten outer hearts (levels 1-10) with a bond rank's inner heart inside each; the wrapper owns the "off" colour
+   so it reaches both hearts, and the inner one sits a little high, in the outer heart's hollow. */
+${R} .of-heart { position: relative; display: inline-flex; color: var(--of-border-strong); }
+${R} .of-heart[data-on="true"] { color: var(--of-li-accent, var(--of-rose)); }
+/* Both inner states sit on the accent fill of a reached outer heart (a bond rank opens only at level 11, so all ten
+   outer hearts are filled), so they take --of-on-accent, the ink for text and marks on an accent, rather than
+   --of-surface: the surface is translucent over that fill (2.5:1 on Midnight) and on Pearl lighter than the accent
+   (1.4:1), and --of-border-strong (1.2:1) was a smudge. Every accent is a light pastel, so only a dark ink clears
+   3:1 on all of them. A reached rank is an outline with the accent showing through, so it reads as filled with colour;
+   one still to come is solid ink, so it reads as empty, and is drawn at 0.85 against a reached one's full-strength
+   outline (the maintainer's, 2026-11-18: the opposite of 0.23.0's look). Lowest across 368 accents: 4.3:1 Midnight,
+   3.4:1 Pearl filtered. */
+${R} .of-heart-inner { position: absolute; inset-inline-start: 50%; top: 50%; translate: -50% -54%; color: var(--of-on-accent); opacity: 0.85; }
+${R} .of-heart-inner[data-inner-on="true"] { opacity: 1; }
 ${R}[data-look="pearl"] .of-hearts { filter: brightness(0.8) saturate(1.35); }
+/* A bond rank's "Open {{rank}}" button takes a row of its own under the hearts. With no place in the row's grid it fell
+   into the avatar column, which grew to the button's width and squeezed the name and hearts (2026-11-17). */
+${R} .of-bond-open { grid-column: 2 / -1; justify-self: start; margin-top: 4px; }
 /* Prestige past level 10 (#2025): three pips, and the extra story they unlock. */
 ${R} .of-affection:has(.of-prestige) {
-  grid-template-areas: "avatar name level" "avatar hearts progress" "avatar prestige prestige";
+  grid-template-areas: "avatar name name" "avatar hearts progress" "avatar prestige prestige";
 }
 ${R} .of-prestige {
   grid-area: prestige; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-top: 2px;
@@ -3246,6 +3298,28 @@ ${R} .of-care-source { text-align: center; }
 const DIALOG_RULES = `
 ${R} .of-stage-layer { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
 ${R} .of-stage-layer:empty { display: none; }
+/* 0.34.0: Stop the toys, over every screen while they play (components/HapticsStop.tsx). */
+${R} .of-haptics-stop {
+  position: absolute; z-index: 3; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 18px; border-radius: 999px;
+  pointer-events: auto; font: inherit; font-weight: 800; font-size: 0.92rem; cursor: pointer;
+  color: var(--of-text); background: color-mix(in srgb, var(--of-rose) 30%, var(--of-surface-strong, var(--of-surface)));
+  border: 1px solid color-mix(in srgb, var(--of-rose) 60%, var(--of-border-strong));
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
+}
+${R} .of-haptics-stop:focus-visible { outline: 2px solid var(--of-rose); outline-offset: 3px; }
+/* 0.34.0: Settings → Audio → Haptics (screens/settings/Haptics.tsx). */
+${R} .of-haptics-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+${R} .of-haptics-devices { display: flex; flex-direction: column; gap: 4px; }
+${R} .of-haptics-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+${R} .of-haptics-name { font-weight: 700; overflow-wrap: anywhere; }
+/* 0.34.0: hand him the remote, in his thread's header (screens/phone/RemoteControl.tsx). */
+${R} .of-remote { position: relative; display: flex; align-items: center; gap: 4px; flex: none; }
+${R} .of-remote-held { font-size: 0.8rem; font-weight: 700; color: var(--of-accent-text); max-width: 16ch; }
+${R} .of-remote-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 4; display: flex; flex-direction: column; gap: 4px;
+  padding: 8px; border-radius: 16px;
+}
 /* Above a takeover (z-index 1) in the same layer, so a dialog opened from a wish's results is the one on top. */
 ${R} .of-dialog-backdrop {
   position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; padding: 16px; pointer-events: auto;
@@ -3270,11 +3344,13 @@ ${R}[dir="rtl"] .of-gate-statement { border-radius: 14px 4px 4px 14px; }`;
 
 // Dates (M5): pick who to spend time with, the activities, today's capped rewards, and the plush shelf.
 const DATES_RULES = `
-${R} .of-partners { margin: 0; min-width: 0; }
-${R} .of-partners > legend { float: inline-start; width: 100%; padding: 0; margin-bottom: 10px; }
-${R} .of-partner-list { clear: both; display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: thin; }
+/* Every love interest in rows that wrap, so the screen only ever scrolls down (a row that scrolled sideways also
+   widened the whole page on a phone). */
+${R} .of-partner-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 8px; padding: 2px 2px 6px;
+}
 ${R} .of-partner {
-  flex: 0 0 auto; min-width: 86px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: 10px 8px 8px; border-radius: 18px; cursor: pointer; border: 1.5px solid transparent;
   background: var(--of-surface-hover);
   transition: border-color 360ms var(--of-ease), background-color 360ms var(--of-ease), box-shadow 360ms var(--of-ease);
@@ -3386,11 +3462,16 @@ ${R} .of-claw-pip[data-state="missed"] { opacity: 0.45; }
 ${R} .of-claw-toggles { display: flex; gap: 6px; }
 ${R} .of-claw-toggles .of-icon-button { width: 34px; height: 34px; }
 ${R} .of-claw-toggles .of-icon-button[aria-pressed="false"] { color: var(--of-text-faint); }
-${R} .of-claw-partner { display: flex; align-items: center; gap: 10px; min-height: 54px; }
+/* One height whatever the row shows (the status, a one- or two-line line, or the swap between them), so a line never
+   pushes the machine down: room for two lines of the bubble with its padding and border; a longer line is cut. */
+${R} .of-claw-partner {
+  display: flex; flex: none; align-items: center; gap: 10px; height: max(54px, calc(2 * 1.22 * 1.04rem + 18px));
+}
 ${R} .of-claw-bubble {
   flex: 1; min-width: 0; padding: 8px 13px; border-radius: 16px 16px 16px 4px;
   border-color: color-mix(in srgb, var(--of-li-accent) 55%, transparent);
   font-family: var(--of-font-display); font-style: italic; font-weight: 600; font-size: 1.04rem; line-height: 1.22;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
 }
 ${R}[dir="rtl"] .of-claw-bubble { border-radius: 16px 16px 4px 16px; }
 ${R} .of-claw-status {
@@ -3706,6 +3787,7 @@ export function otomeForgeStyles(): string {
     READ_ME_RULES,
     TAROT_RULES,
     CLAW_RULES,
+    KITTY_RULES,
     DIALOG_RULES,
     MOTION_RULES,
   ].join("\n");

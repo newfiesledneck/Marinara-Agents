@@ -57,9 +57,10 @@ import {
   useOtomeAudio,
   type SpeakOutcome,
 } from "../../hooks/use-otome-audio";
+import { useOtomeHaptics } from "../../hooks/use-otome-haptics";
 import { useReader, useReducedMotion, type ReaderState } from "../../hooks/use-reader";
 import { accentOf } from "../../lib/accent";
-import { canonOption, cgOnLine, readyUrl, sumGrants, voiceOf, type Voice } from "../../lib/reader-state";
+import { canonOption, cgOnLine, hapticAt, readyUrl, sumGrants, voiceOf, type Voice } from "../../lib/reader-state";
 import { useOtomeProps } from "../../props";
 import type { Grant, LiId, RunLiView, RunView } from "../../shared/api-types";
 import { OWN_OPTION } from "../../shared/arcs";
@@ -240,20 +241,28 @@ function ReaderScene({ runKey, chapterKey, view, startNode, onExit, exitLabel, o
   const canPaint = !!view.world.images.connectionId;
   const paintsByItself = usePaintsByItself(view.world.images);
   const placeState = placeInfo?.art?.state;
+  // From its line until the scene moves to another place (0.21.1: it stayed to the end of the scene).
+  const cg = reader.cg && current && cgOnLine(reader.timeline, reader.cg, reader.lineIndex) ? reader.cg : null;
+  const cgUrl = readyUrl(cg?.art);
+  // 0.24.0: a painted place offers a repaint while it is the picture on screen (not under a key image); the picture
+  // it shows stays until a new one is saved.
+  const placeRepaint = placeState === "ready" && !!placeUrl && !cgUrl;
   const placePaint =
     canPaint &&
     placeInfo?.tags.trim() &&
     place &&
-    (!placeState || placeState === "waiting-consent" || placeState === "failed" || placeState === "stopped")
+    (!placeState ||
+      placeState === "waiting-consent" ||
+      placeState === "failed" ||
+      placeState === "stopped" ||
+      placeRepaint)
       ? {
+          repaint: placeRepaint,
           retry: placeState === "failed" || placeState === "stopped",
           busy: reader.painting,
           onPaint: () => void reader.paintPlace(place),
         }
       : undefined;
-  // From its line until the scene moves to another place (0.21.1: it stayed to the end of the scene).
-  const cg = reader.cg && current && cgOnLine(reader.timeline, reader.cg, reader.lineIndex) ? reader.cg : null;
-  const cgUrl = readyUrl(cg?.art);
   const cgId = `${chapterKey}/${reader.node ?? 0}r${beat?.rewrites ?? 0}`;
   // The pan plays once per version of a beat in this visit, the first time its line comes.
   const cgIntro = !!cgUrl && reading && !cgShown.has(cgId);
@@ -330,6 +339,20 @@ function ReaderScene({ runKey, chapterKey, view, startNode, onExit, exitLabel, o
     // Once per line: the segment and ref belong to the line key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audio, voicedKey]);
+
+  // 0.34.0: the toys play the newest cue up to this line, from the line it is on, and loop until a later line's cue
+  // replaces it; leaving the scene (or its end, or the tags card) lets them go. A beat starts still.
+  const haptics = useOtomeHaptics();
+  const cue = reading && !aftermath && reader.timeline ? hapticAt(reader.timeline, reader.lineIndex) : null;
+  const hapticKey = cue && reader.position ? `${reader.position.id}:${cue.index}` : "";
+  const hapticCues = cue?.cues;
+  useEffect(() => {
+    if (!haptics || !hapticKey || !hapticCues) return;
+    haptics.play(hapticKey, hapticCues);
+    return () => haptics.release(hapticKey);
+    // Once per cue: the cues belong to the key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [haptics, hapticKey]);
 
   // Music or a voice that could not play says so once per kind in this visit, and the scene goes on. The story's audio
   // outlives the reader, so a notice it already held when this visit began (Home's music, an earlier chapter's voice)
@@ -433,6 +456,16 @@ function ReaderScene({ runKey, chapterKey, view, startNode, onExit, exitLabel, o
               : undefined
           }
           placePaint={placePaint}
+          cgPaint={
+            // 0.24.0: a key image on screen can be painted again; one whose repaint failed keeps its picture and a Retry.
+            reading && cg && cgUrl && canPaint
+              ? {
+                  retry: cg.art?.state === "failed" || cg.art?.state === "stopped",
+                  busy: reader.painting || cg.art?.state === "pending",
+                  onPaint: () => void reader.paintCg(),
+                }
+              : undefined
+          }
           sidePaint={reading ? sidePaint : undefined}
           onPlaceBackground={() => openDialog("background")}
           tags={reader.tags}

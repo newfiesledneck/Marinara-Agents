@@ -11,7 +11,8 @@
 // each bubble in its speaker's accent with their name when the speaker changes and their portrait on the last of a run,
 // the protagonist's five stickers, no quote, and Close and remember for everyone in it (no affection).
 // #2156: his invitation to clear the air (PhoneMessage.invite) shows under his message with Accept and Decline while it
-// waits (POST .../invite), then what became of it; Accept opens Date Night with him (onDate).
+// waits (POST .../invite), then what became of it; Accept opens the scene that clears it in the reader (#2303,
+// onOpenScene), and the accepted card keeps a way back to it.
 // A picked sticker is attached to the message box (shown above it, with Remove), not sent: Send sends it with the words
 // in the box, or alone, as one message; picking another replaces it. A failed send that was never saved gives it back.
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
@@ -20,6 +21,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookHeart, ChevronLeft, Heart, HeartHandshake, RotateCcw, SendHorizontal, X } from "lucide-react";
 import { useOtomeApi } from "../../api";
 import { Avatar, AvatarCluster } from "../../components/Avatar";
+import { phoneHapticKey, useOtomeHaptics } from "../../hooks/use-otome-haptics";
 import { storyQueryKey } from "../../hooks/use-reader";
 import { runQueryKey } from "../../hooks/use-run";
 import { accentOf } from "../../lib/accent";
@@ -36,10 +38,12 @@ import type {
   RunView,
 } from "../../shared/api-types";
 import { isFace } from "../../shared/faces";
+import { hapticsOn } from "../../shared/haptics";
 import { GROUP_THREAD } from "../../shared/home";
 import { playQueryKey } from "../dates/DatesHub";
 import { homeQueryKey } from "../home/HomeScreen";
 import { CloseAndRemember } from "./CloseAndRemember";
+import { RemoteControl } from "./RemoteControl";
 import { BUSY_POLL_MS, phonePath, phoneQueryKey, threadQueryKey } from "./PhoneScreen";
 import { Sticker, StickerArt, StickerPicker, stickerLabel, useStickers, type Stickers } from "./StickerPicker";
 import { messageTime } from "./ThreadList";
@@ -91,8 +95,8 @@ interface ThreadProps {
   onBack: () => void;
   /** The quote still waiting for her next message, or null once it went with one or she removed it. */
   onQuoteChange: (quote: string | null) => void;
-  /** #2156: she accepted his invitation to clear the air: Date Night with him opens. */
-  onDate?: (li: string) => void;
+  /** #2156, #2303: opens the scene her acceptance of his invitation to clear the air registered. */
+  onOpenScene?: (key: string) => void;
 }
 
 export function Thread({
@@ -103,10 +107,11 @@ export function Thread({
   focusHeading,
   onBack,
   onQuoteChange,
-  onDate,
+  onOpenScene,
 }: ThreadProps) {
   const { t } = useTranslation();
   const stickers = useStickers(view, li);
+  const haptics = useOtomeHaptics();
   const otome = useOtomeApi();
   const queryClient = useQueryClient();
   const { localization, timeZone } = useOtomeProps();
@@ -216,7 +221,9 @@ export function Thread({
       setQuote(null);
     }
     try {
-      const result = await otome.post<PhoneSendResult>(`${path}/send`, body);
+      // 0.34.0: while he holds the remote of her toys, his reply may drive them (the minutes he still has it).
+      const held = li && haptics && hapticsOn(view.world) ? haptics.remoteMinutes(li.id) : 0;
+      const result = await otome.post<PhoneSendResult>(`${path}/send`, held ? { ...body, remote: held } : body);
       const rows = Array.isArray(result.messages) ? result.messages : [];
       setIncoming({
         mine: rows.filter((row) => row.who === "player"),
@@ -247,7 +254,8 @@ export function Thread({
     }
   };
 
-  // His messages appear one by one, each after its typing delay; then the thread keeps them.
+  // His messages appear one by one, each after its typing delay; then the thread keeps them. A message that drives her
+  // toys (0.34.0, while he holds the remote) plays as it appears, and loops until his next cue or Stop.
   useEffect(() => {
     if (!incoming) return;
     if (incoming.shown < incoming.his.length) {
@@ -256,6 +264,9 @@ export function Thread({
       const timer = setTimeout(
         () => {
           setIncoming((current) => (current === incoming ? { ...current, shown: current.shown + 1 } : current));
+          if (li && next.haptic?.length && haptics?.remoteMinutes(li.id)) {
+            haptics.play(phoneHapticKey(li.id, next.id), next.haptic);
+          }
           setAnnounce(
             next.text.trim()
               ? t("ui.otomeForge.phone.said", { name: nameOf(next), text: next.text })
@@ -448,6 +459,7 @@ export function Thread({
             </div>
           </>
         )}
+        {li && haptics && hapticsOn(view.world) ? <RemoteControl li={li} /> : null}
         <CloseAndRemember
           path={path}
           text={
@@ -533,7 +545,7 @@ export function Thread({
                 group={!li && row.who === "li" ? { first: !joinsBefore, last: !joinsNext } : undefined}
               />
               {li && row.invite && row.who === "li" ? (
-                <InviteCard runKey={runKey} li={li} row={row} onDate={onDate} />
+                <InviteCard runKey={runKey} li={li} row={row} onOpenScene={onOpenScene} />
               ) : null}
               {session ? (
                 <li className="of-thread-divider">
@@ -692,12 +704,12 @@ function InviteCard({
   runKey,
   li,
   row,
-  onDate,
+  onOpenScene,
 }: {
   runKey: string;
   li: RunLiView;
   row: Row;
-  onDate?: (li: string) => void;
+  onOpenScene?: (key: string) => void;
 }) {
   const { t } = useTranslation();
   const otome = useOtomeApi();
@@ -718,11 +730,14 @@ function InviteCard({
     setBusy(true);
     setError(null);
     try {
-      await otome.post(`${phonePath(runKey, li.id)}/invite`, { message: row.id, accept });
+      const { scene } = await otome.post<{ status: string; scene?: string }>(`${phonePath(runKey, li.id)}/invite`, {
+        message: row.id,
+        accept,
+      });
       answered.current = true;
       void queryClient.invalidateQueries({ queryKey: playQueryKey(runKey) });
       void queryClient.invalidateQueries({ queryKey: storyQueryKey(runKey) });
-      if (accept) onDate?.(li.id);
+      if (accept && scene) onOpenScene?.(scene);
     } catch (failure) {
       setError(failure);
     } finally {
@@ -760,6 +775,16 @@ function InviteCard({
               onClick={() => void answer(false)}
             >
               {t("ui.otomeForge.phone.inviteDecline")}
+            </button>
+          </div>
+        ) : status === "accepted" && row.invite!.scene && onOpenScene ? (
+          <div className="of-invite-actions">
+            <button
+              type="button"
+              className="of-button of-button--quiet of-glass of-button--small"
+              onClick={() => onOpenScene(row.invite!.scene!)}
+            >
+              {t("ui.otomeForge.phone.invitePlay", { name: li.name })}
             </button>
           </div>
         ) : null}
