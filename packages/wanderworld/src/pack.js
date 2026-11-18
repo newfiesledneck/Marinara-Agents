@@ -600,6 +600,45 @@ const FIGHT = {
   square: "{who} wakes by the market, sore, with no memory of the way back.",
 };
 
+/**
+ * What's said in a fight, when no AI writes it (Settings → Inventory → Combat → "Talk in fights"): a person
+ * or a monster that talks (a bandit, a witch, a puglin: `outlaw`), an animal (`beast`, told as what it does),
+ * and a companion (`ally`). By the moment: as it starts, landing a blow, hurt, running, a creature downed.
+ */
+const COMBAT_TALK = {
+  outlaw: {
+    start: [
+      "“Well, look what wandered in. Hand over the purse and you might walk away.”",
+      "“Wrong road, friend. Wrong road entirely.”",
+      "“On them! Don't let this one run!”",
+      "“You should have stayed in town.”",
+    ],
+    hit: [
+      "“Ha! Felt that, didn't you?”",
+      "“There's more where that came from.”",
+      "“Stay down and this ends quicker.”",
+      "“Too slow!”",
+    ],
+    hurt: ["“You'll pay for that!”", "“Lucky. That's all that was.”", "“Rgh! Get them, get them!”"],
+    flee: ["“Not worth it! Not for this!”", "“Fall back! Fall back!”", "“You haven't seen the last of me!”"],
+  },
+  beast: {
+    start: [
+      "The {kind} bares its teeth, a low growl rolling out of it.",
+      "The {kind} lowers its head and comes on.",
+      "With a snarl, the {kind} closes in.",
+    ],
+    hit: ["The {kind} snaps its jaws, sensing blood.", "The {kind} circles, eager for more."],
+    hurt: ["The {kind} yelps and backs a step, hackles up.", "The {kind} shakes off the blow with a snarl."],
+    flee: ["The {kind} whines and bolts.", "Tail low, the {kind} breaks away and runs."],
+  },
+  ally: {
+    start: ["“Here they come. Stay close!”", "“I've got your back.”", "“Weapons out!”"],
+    win: ["“That's one down!”", "“And stay down.”", "“Next!”"],
+    hurt: ["“I'm hit! Still standing!”", "“That one stung.”", "“I could use some help here!”"],
+  },
+};
+
 /** The same of a hostile person (a bandit, a witch, a wizard: {kind}). */
 const OUTLAWS = {
   threat: [
@@ -1181,6 +1220,7 @@ export const PACK = {
   sleep: SLEEP,
   beasts: BEASTS,
   outlaws: OUTLAWS,
+  combatTalk: COMBAT_TALK,
   foes: FOES,
   spoils: SPOILS,
   fight: FIGHT,

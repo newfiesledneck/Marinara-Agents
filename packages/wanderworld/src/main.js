@@ -210,6 +210,7 @@ import {
   witOf,
 } from "./combat.js";
 import { createSpellFx, spellColour, spellLook } from "./spellfx.js";
+import { greaterCasts, mendSpell, pickSpell, roleOf, roleStats, standoff, standSpot } from "./tactics.js";
 import {
   SRD_FEATS,
   abilities,
@@ -8533,7 +8534,7 @@ function unshape(words) {
 /** A blow in a beast's shape: the beast's own attack and damage, with its Pack Tactics where it has them. */
 function shapeStrike(foe) {
   const mine = SRD_CREATURES[core.shape.kind];
-  const stats = foeOf(foe.kind, foeTable(), foe.scale);
+  const stats = statsOf(foe);
   const roll = () => attackRoll({ bonus: mine.attack, ac: stats.ac, damage: mine.damage });
   const pack =
     !!mine.pack && fightingAllies().some((ally) => Math.hypot(ally.position.x - foe.x, ally.position.z - foe.z) < 2.5);
@@ -8567,7 +8568,7 @@ function shapeStrike(foe) {
 
 /** A contest of the player's Athletics against a creature's strength or nimbleness, whichever is better: { mine, theirs, won }. */
 function contest(foe) {
-  const stats = foeOf(foe.kind, foeTable(), foe.scale);
+  const stats = statsOf(foe);
   const die = () => 1 + Math.floor(Math.random() * 20);
   const mine = die() + skillAdd("athletics");
   const theirs = die() + Math.max(stats.saves?.strength ?? 0, stats.saves?.dexterity ?? 0);
@@ -8636,7 +8637,7 @@ function strikeMods(weapon, foe, keen = false) {
     const slotted = byTurns() && core.settings.srdSlots;
     const slot = slotted ? slotFor(1, slotsNow(), core.save.slotsUsed) : valueOf(sheetNow(), "mana") >= 1 ? 1 : 0;
     if (slot > 0) {
-      const kin = foe && !foe.person ? foeOf(foe.kind, foeTable(), foe.scale).kin : "";
+      const kin = foe && !foe.person ? statsOf(foe).kin : "";
       mods.more.push(`${Math.min(5, 1 + slot) + (kin === "undead" || kin === "fiend" ? 1 : 0)}d8`);
       mods.smite = slot;
     }
@@ -8665,8 +8666,7 @@ function strikeSpent(mods, result, foe) {
   if (buffed("stunning") && foe && !foe.person) {
     core.buffs = lift(core.buffs, "stunning");
     const dc = 8 + (profNow() || 2) + Math.max(0, modifier(valueOf(sheetNow(), "wisdom")));
-    const total =
-      1 + Math.floor(Math.random() * 20) + (foeOf(foe.kind, foeTable(), foe.scale).saves?.constitution ?? 0);
+    const total = 1 + Math.floor(Math.random() * 20) + (statsOf(foe).saves?.constitution ?? 0);
     if (total < dc) core.herd.stun(foe.id, 6);
     notes.push(
       total < dc
@@ -8847,7 +8847,7 @@ function useAbility(id) {
     spellFx().wave(core.space.scene, chest(at.x, at.z, 0.15), spellColour("radiant"), 9);
     const turned = [];
     for (const foe of core.interior ? [] : core.herd.foes(at, 9)) {
-      const stats = foeOf(foe.kind, foeTable(), foe.scale);
+      const stats = statsOf(foe);
       if (stats.kin !== "undead") continue;
       const total = 1 + Math.floor(Math.random() * 20) + (stats.saves?.wisdom ?? 0);
       if (total < dc && core.herd.strike(foe.id, 0, stats.hp, "flee")) turned.push(foe.kind);
@@ -9160,7 +9160,7 @@ function dyingTick() {
 function foeTarget(foe, targets) {
   const near = (entry) => Math.hypot(entry.x - foe.x, entry.z - foe.z);
   const nearest = targets.reduce((best, entry) => (near(entry) < near(best) ? entry : best));
-  const wants = extrasOn() ? foeOf(foe.kind, foeTable(), foe.scale).targets : "";
+  const wants = extrasOn() ? statsOf(foe).targets : "";
   const inReach = targets.filter((entry) => near(entry) <= TURN_MOVE + 3);
   if (!wants || inReach.length < 2) return nearest;
   const hp = entryOf(sheetNow(), "hp");
@@ -9658,7 +9658,7 @@ function spellLands(foe, who, name, spell, wit, from) {
 }
 
 function spellOnFoe(foe, who, name, spell, wit, from = null) {
-  const stats = foeOf(foe.kind, foeTable(), foe.scale);
+  const stats = statsOf(foe);
   // (A tree or a boulder in the way: +2 to its AC against a spell attack.)
   const cover = from && !spell.save && !spell.sure ? coverBetween(from, foe) : 0;
   const result = spellStrike({
@@ -9912,7 +9912,7 @@ function battleStart(id, surprised = false) {
       id: foe.id,
       kind: "foe",
       name: foes.filter((other) => other.kind === foe.kind).length > 1 ? `${what(foe)} ${i + 1}` : what(foe),
-      bonus: foeTable()[foe.kind]?.dex ?? Math.floor(foeOf(foe.kind, foeTable(), foe.scale).attack / 2),
+      bonus: foeTable()[foe.kind]?.dex ?? Math.floor(statsOf(foe).attack / 2),
     })),
   ];
   const rolled = initiativeOrder(sides);
@@ -9964,6 +9964,7 @@ function spotted(event) {
         : `${who} sees ${a.toLowerCase()} ${what} coming (${rolled}).`,
     );
   battleStart(event.id, surprised);
+  combatSay("start", { foe: event });
 }
 
 /** A creature comes at the player while fights go by turns: it starts a fight, or joins the one going on. */
@@ -10104,7 +10105,7 @@ function battleTick(dt, moved) {
     const far = Math.hypot(target.x - foe.x, target.z - foe.z);
     const reach = 1.2 + foe.room;
     // (One with a bow or spells that reach from where it stands stays there and uses them.)
-    const stats = foeOf(foe.kind, foeTable(), foe.scale);
+    const stats = statsOf(foe);
     const range =
       core.settings.rangedFoes && core.settings.srdCreatures
         ? Math.max(
@@ -10114,25 +10115,69 @@ function battleTick(dt, moved) {
             extrasOn() && stats.breath && !core.foeFx?.get(foe.id)?.breathSpent ? stats.breath.reach : 0,
           )
         : 0;
-    const shoots = far > reach + 0.9 && far <= range;
-    if (battle.step === "move") {
+    let shoots = far > reach + 0.9 && far <= range;
+    // The AI's move for it (Settings → Inventory → Combat), asked for as its turn begins; the fight waits a
+    // few seconds for it, and goes on without it after that.
+    if (battle.step === "asking") {
+      battle.step = "move"; // (no answer in time: it does what its sort does)
+    } else if (battle.step === "move" && core.settings.combatAiMoves && !foe.stunned && battle.plan?.id !== foe.id) {
+      const asked = battle;
+      asked.plan = { id: foe.id, move: "" };
+      asked.step = "asking";
+      asked.wait = 8;
+      void askMove(foe, stats, target, far, reach, range).then((answer) => {
+        if (core.battle !== asked || asked.plan?.id !== foe.id || asked.step !== "asking") return;
+        asked.plan.move = answer?.move ?? "";
+        if (answer?.line && core.settings.combatTalk) sayInFight({ foe }, answer.line);
+        asked.step = "move";
+        asked.wait = 0;
+      });
+      return;
+    }
+    const plan = battle.plan?.id === foe.id ? battle.plan.move : "";
+    if (plan === "close") shoots = false;
+    if (plan === "shoot" || plan.startsWith("cast:") || plan === "mend") shoots = true;
+    if (battle.step === "move" && plan === "flee" && !foe.stunned) {
+      core.herd.strike(foe.id, 0, stats.hp, "flee");
+      sayInFight({ foe }, ""); // (nothing said; the run is told)
+      narrate(null, `The ${what(foe)} turns and runs.`);
+      battle.step = "next";
+      battle.wait = 0.8;
+    } else if (battle.step === "move" && plan === "back" && !foe.stunned) {
+      const way = far > 0.01 ? { x: (foe.x - target.x) / far, z: (foe.z - target.z) / far } : { x: 1, z: 0 };
+      core.herd.march(foe.id, foe.x + way.x * TURN_MOVE, foe.z + way.z * TURN_MOVE, target.x, target.z);
+      battle.step = "act";
+      battle.wait = 2;
+    } else if (battle.step === "move") {
       if (foe.stunned) {
         battle.step = "next";
         battle.wait = 0.6;
       } else {
-        const go = shoots ? 0 : Math.max(0, Math.min(TURN_MOVE, far - reach));
+        // One that shoots or casts moves to cover, or off from whoever is crowding it (as far as a turn
+        // allows); else it stays to shoot, or closes in.
+        const spot = (plan === "cover" || (!plan && tacticsOn())) && range > 0 ? coverSpot(foe, target, range) : null;
+        // (Told to shoot or cast from too far: it comes as near as it must. Told to close in: it does.)
+        const keep = plan === "close" ? reach : range > 0 ? range - 2 : reach;
+        const go = spot || (shoots && far <= range) ? 0 : Math.max(0, Math.min(TURN_MOVE, far - keep));
         const way = far > 0.01 ? { x: (target.x - foe.x) / far, z: (target.z - foe.z) / far } : { x: 0, z: 0 };
-        core.herd.march(foe.id, foe.x + way.x * go, foe.z + way.z * go, target.x, target.z);
+        if (spot) core.herd.march(foe.id, spot.x, spot.z, target.x, target.z);
+        else core.herd.march(foe.id, foe.x + way.x * go, foe.z + way.z * go, target.x, target.z);
         battle.step = "act";
-        battle.wait = Math.min(2.4, 0.5 + go / 5);
+        battle.wait = Math.min(2.4, 0.5 + (spot ? spot.walk : go) / 5);
       }
     } else {
       const event = { id: foe.id, kind: foe.kind, scale: foe.scale, x: foe.x, z: foe.z, target: target.id };
-      if (far <= reach + 0.9 || shoots) core.herd.act(foe.id, far <= reach + 0.9 ? "strike" : "cast");
-      if (far <= reach + 0.9) {
+      // (What the AI chose, where it's something it can still do from here.)
+      if (plan === "shoot" || plan.startsWith("cast:") || plan === "mend") event.force = plan;
+      const strikes = far <= reach + 0.9 && !event.force;
+      if (event.force && far > range && plan !== "mend") delete event.force;
+      shoots = !!event.force || (shoots && far <= range);
+      if (strikes || shoots) core.herd.act(foe.id, strikes ? "strike" : "cast");
+      if (strikes) {
         if (target.id) allyAttacked(event, what(foe));
         else foeAttacks(event, what(foe));
       } else if (shoots) foeShoots(event, what(foe));
+      battle.plan = null;
       battle.step = "next";
       battle.wait = shoots ? 1.3 : 0.9;
     }
@@ -10150,7 +10195,7 @@ function battleTick(dt, moved) {
       const foe = foes.reduce((best, entry) =>
         Math.hypot(entry.x - from.x, entry.z - from.z) < Math.hypot(best.x - from.x, best.z - from.z) ? entry : best,
       );
-      const caster = spellsOfPerson(person.id).attack.length > 0;
+      const caster = allyKeepsOff(person.id);
       const far = Math.hypot(foe.x - from.x, foe.z - from.z);
       const go = caster || allyMods(person.id).still ? 0 : Math.max(0, Math.min(TURN_MOVE, far - (1.5 + foe.room)));
       if (go > 0.3)
@@ -10313,23 +10358,64 @@ const ARROW = 0xd8c8a0;
  * What comes of it is rolled as the shot lands.
  */
 function foeShoots(event, what) {
-  const stats = foeOf(event.kind, foeTable(), event.scale);
+  const stats = statsOf(event);
   const ally = event.target ? fightingAllies().find((person) => person.id === event.target) : null;
   if (event.target ? !ally : core.downed || core.mode === "talk") return;
   const to = ally ? ally.position : core.player.position;
   const far = Math.hypot(to.x - event.x, to.z - event.z);
   // (A breath, from as far as it reaches.)
-  if (extrasOn() && stats.breath && !ally && far <= stats.breath.reach && breathReady(event.id, stats.breath))
+  if (
+    !event.force &&
+    extrasOn() &&
+    stats.breath &&
+    !ally &&
+    far <= stats.breath.reach &&
+    breathReady(event.id, stats.breath)
+  )
     return void foeBreathes(event, what, stats);
-  const spells = (stats.spells ?? [])
-    .map(foeSpell)
-    .filter((entry) => entry?.spell.damage && entry.spell.range >= far && (entry.level === 0 || Math.random() < 0.35));
+  const known = (stats.spells ?? []).map(foeSpell).filter(Boolean);
   const shot = stats.ranged?.range >= far ? stats.ranged : null;
-  const chosen =
-    spells.length && (!shot || Math.random() < 0.7) ? spells[Math.floor(Math.random() * spells.length)] : null;
+  const fx = foeFx(event.id);
+  const who = personaName();
+  let chosen = null;
+  // (A move chosen for it, by turns: what it shoots or casts is that.)
+  const forced = event.force ?? "";
+  if (forced && forced !== "mend") {
+    chosen = forced.startsWith("cast:") ? (known.find((entry) => entry.name === forced.slice(5)) ?? null) : null;
+    if (chosen?.level > 0) fx.casts = (fx.casts ?? 0) + 1;
+  } else if (tacticsOn() || forced) {
+    // The spell for the moment (tactics.js): mending itself when it's badly hurt, an area for a huddle, a hold
+    // now and then, its strongest sometimes, a cantrip mostly. Its greater spells run out for the fight.
+    const leveled = (fx.casts ?? 0) < greaterCasts(stats.cr);
+    const mine = core.herd.foes({ x: event.x, z: event.z }, 6).find((entry) => entry.id === event.id);
+    const mend =
+      forced === "mend" || (mine?.hp !== undefined && mine.hp <= stats.hp * 0.4) ? mendSpell(known, leveled) : null;
+    if (mend) {
+      if (mend.level > 0) fx.casts = (fx.casts ?? 0) + 1;
+      const now = core.herd.mend(event.id, Math.max(1, rollDice(mend.spell.heal).total + (stats.wit ?? 0)));
+      spellFx().motes(core.space.scene, chest(event.x, event.z, 0), spellColour("heal"));
+      return void narrate(
+        null,
+        `The ${what} casts ${mend.name} on itself: ${now?.hp ?? "?"} of ${now?.max ?? "?"} HP.`,
+      );
+    }
+    const huddle = ally
+      ? 1
+      : 1 + fightingAllies().filter((other) => Math.hypot(other.position.x - to.x, other.position.z - to.z) < 4).length;
+    chosen = pickSpell(
+      known.filter((entry) => !ally || entry.spell.damage), // (a companion only takes what harms)
+      { far, clustered: huddle, afflicted: !ally && afflicted().names.length > 0, leveled },
+    );
+    if (chosen && shot && Math.random() < 0.3) chosen = null; // (now and then what's in its hand)
+    if (chosen?.level > 0) fx.casts = (fx.casts ?? 0) + 1;
+  } else {
+    const spells = known.filter(
+      (entry) => entry.spell.damage && entry.spell.range >= far && (entry.level === 0 || Math.random() < 0.35),
+    );
+    chosen = spells.length && (!shot || Math.random() < 0.7) ? spells[Math.floor(Math.random() * spells.length)] : null;
+  }
   if (!chosen && !shot) return;
   const saveId = core.save?.id;
-  const who = personaName();
   // (A spell is seen as that spell is: a fan, a beam, light from above. A shot is an arrow.)
   const flies = (options) =>
     chosen
@@ -10373,6 +10459,34 @@ function foeShoots(event, what) {
           null,
           `The ${what} casts ${chosen.name} at ${who}, who answers with ${countered}: it comes to nothing.`,
         );
+      // (One that takes an area catches the companions beside them too, each rolled for by itself.)
+      if (chosen.spell.area > 0 && chosen.spell.damage) {
+        spellFx().burst(core.space.scene, chest(to.x, to.z, 0.5), colourOf(chosen.spell), 1 + chosen.spell.area * 0.4);
+        for (const other of fightingAllies())
+          if (Math.hypot(other.position.x - to.x, other.position.z - to.z) <= chosen.spell.area + 0.5)
+            allyAttacked({ ...event, target: other.id }, what, {
+              attack: 2 + (stats.wit ?? 0),
+              damage: chosen.spell.damage,
+              damageBonus: 0,
+              verb: `casts ${chosen.name}`,
+            });
+      }
+      // (One that only holds or hinders: their saving throw, and what it leaves on them if it fails.)
+      if (!chosen.spell.damage) {
+        const left = conditionFor(chosen.spell.effect?.name);
+        const thrown = chosen.spell.save
+          ? playerSave(chosen.spell.save.attribute.toLowerCase(), 10 + (stats.wit ?? 0))
+          : null;
+        const took = !thrown?.saved && !!left && afflictPlayer(left, chosen.spell.effect.seconds);
+        return void narrate(
+          null,
+          `The ${what} casts ${chosen.name} at ${who}${thrown ? ` (${thrown.words})` : ""}: ${
+            took
+              ? `${who} is ${CONDITIONS[left].label.toLowerCase()} for ${chosen.spell.effect.seconds} seconds`
+              : "nothing comes of it"
+          }.`,
+        );
+      }
       const sheet = sheetNow();
       const result = spellAtPlayer({
         wit: stats.wit ?? 0,
@@ -10403,6 +10517,219 @@ function foeShoots(event, what) {
       if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
     },
   });
+}
+
+// ── Talk in fights ──
+
+/** The last few lines told, for the AI (what just happened in the fight). */
+const recentWords = (count = 6) =>
+  core.momentLog
+    .slice(-count)
+    .map((entry) => `${entry.who && entry.who !== "Narrator" ? `${entry.who}: ` : ""}${entry.text}`)
+    .join("\n");
+
+/** What a creature is, for a prompt: "a bandit (it fights with a light crossbow)". */
+function foeDescribed(foe) {
+  const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const stats = statsOf(foe);
+  const role = tacticsOn() ? roleOf(foe.kind, foe.id, foeOf(foe.kind, foeTable())) : "";
+  const how =
+    role === "caster" && stats.spells?.length
+      ? `, a caster (${stats.spells.join(", ")})`
+      : role === "ranged" && stats.ranged
+        ? `, fighting with a ${stats.ranged.name.toLowerCase()}`
+        : "";
+  return `a ${what}${how}`;
+}
+/** Whether a creature of `kind` talks (a person, or a monster on a person's frame) rather than growls. */
+const talks = (kind) => !!ANIMALS[kind]?.person || !!ANIMALS[kind]?.folk;
+
+/**
+ * Something said in a fight, now and then (Settings → Inventory → Combat → "Talk in fights"): a creature's
+ * threat as it starts, a taunt when it lands a blow, a curse when it's hurt, a cry as it runs; a companion's
+ * shout. `speaker`: { foe } or { person }. `moment`: start | hit | hurt | flee | win. Never more than one
+ * every few seconds, nor from one speaker twice in a while. Written by the AI where that's on, else the game's
+ * own lines.
+ */
+function combatSay(moment, speaker) {
+  if (!core.settings.combatTalk || !fighting() || core.interior || core.downed) return;
+  const id = speaker.foe?.id ?? speaker.person?.id;
+  if (!id || core.clock < (core.talkAt ?? 0)) return;
+  core.talkBy ??= new Map();
+  if (core.clock < (core.talkBy.get(id) ?? 0)) return;
+  if (Math.random() > ({ start: 0.8, flee: 0.7, win: 0.4 }[moment] ?? 0.3)) return;
+  core.talkAt = core.clock + 6;
+  core.talkBy.set(id, core.clock + 14);
+  const person = speaker.person ?? null;
+  const kind = speaker.foe?.kind;
+  const speaks = !!person || talks(kind);
+  const what = person ? nameFor(person.id, person.name) : (PACK.animals[kind] ?? "the creature").replace(/^the /u, "");
+  const lines = PACK.combatTalk[person ? "ally" : speaks ? "outlaw" : "beast"];
+  const written = pickLine(lines?.[moment] ?? [], `talk:${id}:${Math.floor(core.clock)}`, {
+    kind: what,
+    who: personaName(),
+  });
+  if (!core.settings.combatAiTalk) return void sayInFight(speaker, written);
+  const moments = {
+    start: "the fight is just starting",
+    hit: `it has just landed a blow on ${personaName()}`,
+    hurt: "it has just been hurt",
+    flee: "it is losing, and running from the fight",
+    win: "they have just beaten one of the creatures",
+  };
+  if (core.talkAsking) return void sayInFight(speaker, written);
+  core.talkAsking = true;
+  void core.ai
+    .combatLine({
+      worldName: core.save?.name ?? "",
+      setting: core.save?.setting ?? "",
+      speaker: person
+        ? `${what}, ${personaName()}'s companion (a ${SRD_CLASSES[classOf(person.id)]?.name.toLowerCase() ?? "fighter"})`
+        : foeDescribed(speaker.foe),
+      talks: speaks,
+      moment: moments[moment] ?? "the fight goes on",
+      foe: person ? "the creatures attacking them" : personaName(),
+      recent: recentWords(),
+      connectionId: core.settings.textConnection || null,
+    })
+    .then((answer) => sayInFight(speaker, answer?.line || written))
+    .catch(() => sayInFight(speaker, written))
+    .finally(() => (core.talkAsking = false));
+}
+
+/** A line said in a fight, shown: in the chat, under who said it, and over a creature that talks. */
+function sayInFight(speaker, line) {
+  if (!line || !core.save) return;
+  if (speaker.person) return void narrate(nameFor(speaker.person.id, speaker.person.name), line);
+  const what = (PACK.animals[speaker.foe.kind] ?? "the creature").replace(/^the /u, "");
+  if (!talks(speaker.foe.kind)) {
+    // (An animal's is what it does: "bares its teeth", or a whole sentence of the game's own.)
+    return void narrate(null, /^the /iu.test(line) ? line : `The ${what} ${line.replace(/[.!]*$/u, "")}.`);
+  }
+  narrate(`The ${what}`, line);
+  const body = core.herd.bodyOf?.(speaker.foe.id);
+  if (body) core.talk?.say(body, line.replace(/^[\u201c"]|[\u201d"]$/gu, ""), 4, `The ${what}`);
+}
+
+// ── The AI's moves, by turns ──
+
+/**
+ * What a creature can do on its turn, for the AI to choose from: [{ id, says }]. Close in (or strike where it
+ * stands), shoot, each spell it knows that it can still cast, mend itself when hurt, take cover, back off, run.
+ */
+function moveOptions(foe, stats, far, reach, range) {
+  const list = [{ id: "close", says: far <= reach + 0.9 ? "strike at them where it stands" : "close in and strike" }];
+  if (stats.ranged)
+    list.push({ id: "shoot", says: `shoot its ${stats.ranged.name.toLowerCase()} (${stats.ranged.range} m)` });
+  const fx = foeFx(foe.id);
+  const leveled = (fx.casts ?? 0) < greaterCasts(stats.cr);
+  for (const entry of (stats.spells ?? []).map(foeSpell).filter(Boolean)) {
+    if (entry.level > 0 && !leveled) continue;
+    const spell = entry.spell;
+    if (spell.heal && !spell.damage) {
+      if (foe.hp !== undefined && foe.hp < stats.hp && !list.some((option) => option.id === "mend"))
+        list.push({ id: "mend", says: `cast ${entry.name} on itself` });
+      continue;
+    }
+    const does = spell.damage ? `${spell.damage} ${spell.type} damage` : (spell.effect?.name ?? "");
+    list.push({
+      id: `cast:${entry.name}`,
+      says: `cast ${entry.name} (${does}${spell.area ? ", an area" : ""}, ${spell.range} m)`,
+    });
+  }
+  if (range > 0) list.push({ id: "cover", says: "move behind a tree or a rock" });
+  list.push({ id: "back", says: "back away from them" }, { id: "flee", says: "run from the fight" });
+  return list;
+}
+
+/** Asks the AI for a creature's move this turn; resolves to { move, line } (move "" for none). Never rejects. */
+async function askMove(foe, stats, target, far, reach, range) {
+  const hp = entryOf(sheetNow(), "hp");
+  const whom = target.id
+    ? (() => {
+        const person = fightingAllies().find((entry) => entry.id === target.id);
+        const health = allyHp(target.id);
+        return `${person ? nameFor(person.id, person.name) : "a companion"} (${health.hp} of ${health.max} HP), ${far.toFixed(1)} m away`;
+      })()
+    : `${personaName()} (${hp?.value ?? "?"} of ${hp?.max ?? "?"} HP), ${far.toFixed(1)} m away`;
+  try {
+    return await core.ai.combatMove({
+      worldName: core.save?.name ?? "",
+      setting: core.save?.setting ?? "",
+      creature: foeDescribed(foe),
+      talks: talks(foe.kind),
+      state: `It has ${foe.hp ?? stats.hp} of ${stats.hp} HP.${afflicted().names.length ? ` They are ${afflicted().names.join(", ")}.` : ""}`,
+      foe: whom,
+      options: moveOptions(foe, stats, far, reach, range),
+      recent: recentWords(),
+      talk: !!core.settings.combatTalk && !!core.settings.combatAiTalk,
+      connectionId: core.settings.textConnection || null,
+    });
+  } catch {
+    return { move: "", line: "" };
+  }
+}
+
+/** Whether creatures fight each by its own sort (tactics.js): roles, cover, a spell for the moment. */
+const tacticsOn = () => !!core.settings.foeTactics && !!core.settings.srdCreatures;
+
+/**
+ * One creature's numbers in a fight (`foe`: anything with its kind, and its id and scale where it has them):
+ * its kind's, as its own role fights with them. One that closes in has no bow to stand back with, an
+ * archer no spells, and a bandit who casts has the spells of its kind's casters.
+ */
+function statsOf(foe) {
+  const stats = foeOf(foe.kind, foeTable(), foe.scale);
+  return tacticsOn() ? roleStats(stats, roleOf(foe.kind, foe.id, stats)) : stats;
+}
+
+/** How far a creature shoots or casts from, in a fight in real time (0: it closes in). */
+function foeRange(foe) {
+  if (!core.settings.rangedFoes || !core.settings.srdCreatures) return 0;
+  const stats = statsOf(foe);
+  const breath = extrasOn() && stats.breath && !core.foeFx?.get(foe.id)?.breathSpent ? stats.breath.reach : 0;
+  return Math.max(stats.ranged?.range ?? 0, stats.spells?.length ? 18 : 0, breath);
+}
+
+/**
+ * Where someone who shoots or casts would stand to fight `target` from `from` ({ x, z }): a spot a few
+ * paces off that has a tree or a boulder between it and them, at a good distance, or (crowded) just a good
+ * distance. Sixteen spots round where they are are looked at. null: stay put.
+ */
+function coverSpot(from, target, range) {
+  // (Never further off than a few paces past where it likes to stand: else each spot found leads further away.)
+  const most = Math.min(range, standoff(range) + 5);
+  const far = Math.hypot(target.x - from.x, target.z - from.z);
+  if (coverBetween(target, from) > 0 && far >= 4.5 && far <= most - 1) return null; // (behind something already)
+  const spots = [];
+  for (const walk of [3, 6])
+    for (let i = 0; i < 8; i++) {
+      const x = from.x + Math.sin((i * Math.PI) / 4) * walk;
+      const z = from.z + Math.cos((i * Math.PI) / 4) * walk;
+      if (core.space.blocked?.(x, z, 0.4) || waterAt(x, z).depth > 0.3) continue;
+      const spot = { x, z, walk, far: Math.hypot(target.x - x, target.z - z) };
+      spot.cover = coverBetween(target, spot) > 0;
+      spots.push(spot);
+    }
+  return standSpot(spots, { range: most, crowded: far < 3.5 });
+}
+
+/**
+ * Where each creature in the fight that shoots or casts wants to stand, looked at afresh every second or so
+ * (herd.js walks them there between their shots): { [id]: { x, z } | null }.
+ */
+function tacticsTick() {
+  if (!tacticsOn() || fightMode() !== "realtime" || core.interior || core.downed) return void (core.foeSpots = null);
+  if (core.clock < (core.tacticsAt ?? 0)) return;
+  core.tacticsAt = core.clock + 1.1;
+  const at = core.player.position;
+  const spots = new Map();
+  for (const foe of core.herd.foes(at, 30)) {
+    if (!foe.hostile || foe.fled) continue;
+    const range = foeRange(foe);
+    if (range > 0) spots.set(foe.id, coverSpot(foe, at, range));
+  }
+  core.foeSpots = spots;
 }
 
 /** What each creature is in a fight: the 5e SRD's numbers (Settings → Inventory → Combat), or the setting pack's own. */
@@ -10498,6 +10825,19 @@ function applyCard(force = false) {
 const cardWords = (card) =>
   `a level ${card.level}${card.race ? ` ${SRD_RACES[card.race].name}` : ""}${card.classId ? ` ${SRD_CLASSES[card.classId].name.toLowerCase()}` : " character"}`;
 
+/**
+ * How a companion fights, by their class: "melee" (a barbarian, a fighter, a monk, a paladin, a rogue) closes in;
+ * "ranged" (a ranger) shoots from a distance; "caster" (the rest) casts, and keeps a few paces off.
+ */
+function allyRole(id) {
+  const classId = classOf(id);
+  if (["barbarian", "fighter", "monk", "paladin", "rogue"].includes(classId)) return "melee";
+  if (classId === "ranger") return "ranged";
+  return spellsOfPerson(id).attack.length ? "caster" : "melee";
+}
+/** Whether a companion fights from a distance (and looks for cover), rather than closing in. */
+const allyKeepsOff = (id) => allyRole(id) !== "melee";
+
 /** What a class casts in a fight here: the SRD's spells of its list, cantrips and first level, read as rules. */
 const classSpells = new Map();
 function spellsOfClass(classId) {
@@ -10557,7 +10897,7 @@ function alliesTick(dt) {
       const foe = foes.reduce((best, entry) =>
         Math.hypot(entry.x - from.x, entry.z - from.z) < Math.hypot(best.x - from.x, best.z - from.z) ? entry : best,
       );
-      allyMoves(person, foe, spellsOfPerson(person.id).attack.length > 0);
+      allyMoves(person, foe, allyKeepsOff(person.id));
     }
     if (core.clock < (core.allyNext.get(person.id) ?? 0)) continue;
     if (allyActs(person, foes, hurt)) core.allyNext.set(person.id, core.clock + 2.4 + Math.random() * 2.2);
@@ -10592,7 +10932,7 @@ function allyAttacked(event, what, with_ = null) {
   if (!person) return;
   const name = nameFor(person.id, person.name);
   // (`with_`: what it attacks with when that isn't its own teeth: a bow's or a spell's numbers, and how it's told.)
-  const stats = { ...foeOf(event.kind, foeTable(), event.scale), ...with_ };
+  const stats = { ...statsOf(event), ...with_ };
   const ac = foeTable().ally.ac;
   const roll = () => attackRoll({ bonus: stats.attack, ac, damage: stats.damage, damageBonus: stats.damageBonus ?? 0 });
   // (Down, held or blinded, they're easier to hit: the better of two. A hindered creature: the worse.)
@@ -10614,6 +10954,7 @@ function allyAttacked(event, what, with_ = null) {
     core.crowd.gesture(person.id, "hurt");
   }
   narrate(null, foeWords({ who: name, what, verb: stats.verb, result, left: health.hp, max: health.max }));
+  if (result.hit && health.hp > 0 && health.hp < health.max / 2) combatSay("hurt", { person });
   if (result.hit && health.hp <= 0) allyDown(person.id, name, health);
   else if (result.hit && extrasOn() && !with_) allyExtras(person, name, stats, what, health);
   core.fightSeen = core.clock;
@@ -10632,6 +10973,9 @@ function allyMoves(person, foe, caster) {
     core.allySide.set(person.id, side);
   }
   const from = person.position;
+  // (One who keeps off, with creatures that fight by their sort: behind a tree or a rock, where there's one near.)
+  const hide = caster && tacticsOn() ? coverSpot(from, foe, 18) : null;
+  if (hide) return void core.crowd.fightTo(person.id, hide.x, hide.z, 1.2);
   const around = Math.atan2(from.x - foe.x, from.z - foe.z) + side.way * (caster ? 0.35 : 0.6);
   const ring = caster ? 7.5 : 1.5 + foe.room;
   const spot = { x: foe.x + Math.sin(around) * ring, y: 0, z: foe.z + Math.cos(around) * ring };
@@ -10724,7 +11068,9 @@ function allyActs(person, foes, hurt) {
   const castable = spells.attack.filter(
     (entry) => entry.spell.range >= distance && (entry.level === 0 || Math.random() < 0.3),
   );
-  if (castable.length && (!inReach || Math.random() < 0.5)) {
+  // (One who closes in casts only now and then, and never with a creature in reach of their weapon.)
+  const melee = allyRole(person.id) === "melee";
+  if (castable.length && (melee ? !inReach && Math.random() < 0.3 : !inReach || Math.random() < 0.5)) {
     const chosen = castable[Math.floor(Math.random() * castable.length)];
     core.crowd.gesture(person.id, "cast", null, foe.x, foe.z);
     const saveId = core.save?.id;
@@ -10862,7 +11208,7 @@ function alliesFxTick(dt) {
  */
 function allyStrikes(person, foe, weapon, again = false) {
   const name = nameFor(person.id, person.name);
-  const stats = foeOf(foe.kind, foeTable(), foe.scale);
+  const stats = statsOf(foe);
   const classId = classOf(person.id);
   const kit = allyKit(person.id);
   const used = allyUsed(person.id);
@@ -10928,6 +11274,7 @@ function allyStrikes(person, foe, weapon, again = false) {
     ? [sneaks && "a Sneak Attack", smites && "a Divine Smite"].filter(Boolean).join(" and ")
     : "";
   narrate(null, `${struck.down ? `${told} (+${stats.xp} XP)` : told}${with_ ? ` (With ${with_}.)` : ""}`);
+  if (struck.down) combatSay("win", { person });
   if (struck.down) foeBeaten(foe, stats);
   // Extra Attack: one more, at the same creature if it still stands.
   else if (!again && turnBudget(classId, allyLevel(person.id)).attacks > 1) {
@@ -11222,7 +11569,7 @@ function playerStruck(result, from) {
 function landOn(foe, weapon, cover = 0) {
   if (core.shape) return shapeStrike(foe);
   const sheet = sheetNow();
-  const stats = foeOf(foe.kind, foeTable(), foe.scale);
+  const stats = statsOf(foe);
   const behind = cover ? { ...stats, ac: stats.ac + cover } : stats;
   const mods = strikeMods(weapon, foe, marked(foe.id));
   const swung = () => ({
@@ -11252,6 +11599,7 @@ function landOn(foe, weapon, cover = 0) {
   const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
   const told = strikeWords({ who: personaName(), what, weapon, result, left: struck.hp, max: struck.max });
   narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
+  if (!struck.down && foe.hostile) combatSay(nerve === "flee" ? "flee" : result.hit ? "hurt" : "hit", { foe });
   if (struck.down) foeBeaten(foe, stats);
   return struck.down;
 }
@@ -11470,7 +11818,7 @@ function foeAttacks(event, what, with_ = null) {
     );
   const sheet = sheetNow();
   const worn = wornNow(sheet);
-  const stats = { ...foeOf(event.kind, foeTable(), event.scale), ...with_ };
+  const stats = { ...statsOf(event), ...with_ };
   const extras = extrasOn() && !with_;
   // (A breath, when it has one ready, in place of its bite.)
   if (extras && stats.breath && !event.again && breathReady(event.id, stats.breath))
@@ -11516,6 +11864,7 @@ function foeAttacks(event, what, with_ = null) {
   }
   const hp = playerStruck(result, event);
   narrate(null, foeWords({ who, what, verb: stats.verb, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
+  if (result.hit && result.damage > 0 && !with_) combatSay("hit", { foe: event });
   if (shielded) narrate(null, `${who} casts ${shielded} in answer: +5 AC, and the blow is turned.`);
   if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) return void defeated();
   if (extras && result.hit) foeExtras(stats, what, event);
@@ -12639,6 +12988,7 @@ function step(dt) {
   angryTick();
   conditionsTick(dt);
   alliesFxTick(dt);
+  tacticsTick();
   aimTick();
   readyTick();
   // (What's carried is brought up to how items are written now, once in each world.)
@@ -12748,6 +13098,10 @@ function step(dt) {
       // (Which kinds shoot or cast from a distance, and from how far: real time, with the SRD's numbers.)
       ranged:
         core.settings.rangedFoes && core.settings.srdCreatures && fightMode() === "realtime" ? RANGED_KINDS : null,
+      // (With each fighting by its own sort: how far this one reaches, and where it wants to stand.)
+      ...(tacticsOn() && fightMode() === "realtime"
+        ? { rangeOf: foeRange, spotOf: (beast) => core.foeSpots?.get(beast.id) ?? null }
+        : {}),
       // (Whom else a creature may go for: the companions in the fight.)
       allies: fightingAllies().map((person) => ({ id: person.id, x: person.position.x, z: person.position.z })),
       // (Nothing goes for someone who's down, or while a scene plays the fight out.)
@@ -12761,6 +13115,7 @@ function step(dt) {
       // Something starts coming for them: by turns, the fight begins there and then (it lands nothing first).
       if (event.type === "chase") {
         if (byTurns()) spotted(event);
+        else combatSay("start", { foe: event });
         continue;
       }
       // With fighting on, an attack is rolled against the player's AC and told as what was rolled.

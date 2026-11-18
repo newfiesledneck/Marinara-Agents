@@ -1,5 +1,14 @@
 # Wanderworld release notes
 
+## 0.7.23 — 2026-11-17
+
+- Creatures of one kind fight differently. About half the bandits close in with a blade, some stand off with a crossbow, some cast (an acolyte's spells). Puglins and skeletons are fighters or archers.
+- One that shoots or casts keeps its distance, backs off when crowded and gets a tree or a boulder between you. Casters choose their spell: an area for a huddle, a hold now and then, mending when badly hurt.
+- Companions fight by class: barbarians, fighters, monks, paladins and rogues close in; rangers and casters keep off and take cover.
+- Talk in fights: threats, taunts, curses, a wolf's snarl, a companion's shout, now and then. The AI can write these (off to begin with).
+- By turns, the AI can choose each creature's move from what it really has (off to begin with). The game still rolls everything.
+- All four have switches in Settings → Inventory → 5e rules and Combat.
+
 ## 0.7.22 — 2026-11-17
 
 - Illustrate → "What the AI is told" is no longer cut off at 4,000 characters. It now takes about 60,000, so a long instruction with conditions in it is sent whole. The picture template's limit went from 2,000 to 20,000.

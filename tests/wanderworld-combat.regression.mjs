@@ -530,7 +530,8 @@ assert.equal(foeOf("person", PACK.foes).hp, 10);
     /^Zoey shoots the shortbow at the wolf/u,
   );
   assert.deepEqual(SRD_CREATURES.bandit.ranged, { name: "Light Crossbow", attack: 3, damage: "1d8+1", range: 24 });
-  assert.deepEqual(SRD_CREATURES.wizard.spells, ["Fire Bolt", "Magic Missile"]);
+  assert.deepEqual(SRD_CREATURES.wizard.spells, ["Fire Bolt", "Magic Missile", "Fireball"]);
+  assert.deepEqual(SRD_CREATURES.bandit.caster.spells, ["Sacred Flame", "Cure Wounds"], "a bandit who casts");
   assert.ok(!SRD_CREATURES.wolf.ranged && !SRD_CREATURES.wolf.spells, "a wolf has to close with you");
 }
 
