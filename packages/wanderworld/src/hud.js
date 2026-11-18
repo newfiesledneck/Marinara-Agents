@@ -131,12 +131,12 @@ WEAPON   [1d8 slashing damage, +1 to attack, finesse]
 
 WORN     [+2 AC, +1 Str, +5 Max HP]
  +N or -N of any stat:  AC · Str Dex Con Int Wis Cha · one of your own
- +5 Max HP · +5 Max Mana · the most of any stat that has one
+ +5 Max HP · +5 Max Mana · the maximum of any stat that has one
  +1 to attack · +1 damage
 
 USED UP  [+15 HP]  [+1 Souls]  [+5 Max HP]
- +N of any number on your sheet, for good: HP and Mana fill up to their most; a stat with no most just goes up
- +N Max of a stat raises its most, and what's in it
+ +N of any number on your sheet, for good: HP and Mana fill up to their maximum; a stat with no maximum just goes up
+ +N Max of a stat raises its maximum, and its current value with it
  rolled:  +2d4+2 HP
 
 TOOL     [+2 gathering]
@@ -670,7 +670,7 @@ export function createHud(root, handlers) {
   peoplePanel.style.cssText = PANEL;
   const peopleNote = document.createElement("div");
   peopleNote.style.cssText = "opacity:0.75;font-size:12px;margin-bottom:4px;";
-  peopleNote.textContent = `Up to ${maxPeople} characters live in town, in their 3D Avatars model when they have one.`;
+  peopleNote.textContent = `Up to ${maxPeople} characters can live in town. Each uses their 3D Avatars model if they have one.`;
   const peopleList = document.createElement("div");
   peopleList.style.cssText = "display:flex;flex-direction:column;gap:2px;";
   peoplePanel.append(peopleNote, peopleList);
@@ -812,24 +812,23 @@ export function createHud(root, handlers) {
     },
     genderCustom: "0 means nobody is given the custom gender unless lore, a card or you say so.",
     genderName:
-      "What the custom gender is called. It is shown wherever a gender is chosen and is what the AI is told. Empty: Custom.",
+      "The custom gender's name. It's shown wherever a gender is chosen, and it's what the AI is told. Left empty: Custom.",
     resolution:
-      "How sharp the picture is: Full is every pixel of your screen, the others a smaller picture stretched to fit (never more than your screen has). On a 4K screen, 1080p is a quarter of the work.",
-    ground:
-      "Simple: plainer ground, with less work for every pixel of it. Helps most on a big screen without a graphics card.",
+      "How sharp the picture is. Full uses every pixel of your screen. The others draw a smaller picture and stretch it to fit, never more than your screen has. On a 4K screen, 1080p is a quarter of the work.",
+    ground: "Simple: plainer ground that is quicker to draw. Helps most on a big screen without a graphics card.",
     drawDistance: "How far away things are drawn. Further looks grander but is slower.",
     smooth:
-      "Softens jagged edges, which show most at a low resolution. Auto: on when the picture is no sharper than the page and a graphics card draws it. Without a graphics card it costs speed. A change shows after the page is reloaded.",
+      "Softens jagged edges, which show most at low resolutions. Auto: on when a graphics card draws the picture and it's no sharper than the page. Without a graphics card it slows things down. A change shows after you reload the page.",
     density: "How many trees and plants grow round the town. Sparse is half of Normal, and the fastest.",
     rockDensity:
-      "How many rocks and boulders lie about, set apart from the trees: a thick forest needn't be a field of boulders.",
+      "How many rocks and boulders lie about. It's set apart from the trees, so a thick forest needn't be full of boulders.",
     treeDetail:
-      "Trees further off than this are drawn as simple shapes. Detailed trees are the costliest thing on screen, so Near is much faster; you'll see trees change as you walk up to them. Never further than the draw distance.",
+      "Trees further off than this are drawn as simple shapes. Detailed trees cost more to draw than anything else, so Near is much faster, but you'll see trees change as you walk up to them. Never further than the draw distance.",
     shadows: "Soft shadows under people.",
     frameLimit:
-      "The most frames drawn a second. A lower limit leaves more of the graphics card for other things (a picture being painted on this computer) and keeps a laptop or phone cooler. Never more than your screen shows.",
+      "The most frames drawn each second. A lower limit leaves more of the graphics card free (say, for a picture being painted on this computer) and keeps a laptop or phone cooler. Never more than your screen shows.",
     paintSlow:
-      "While a picture is being painted, Wanderworld draws no more than 30 frames a second, and goes back when the picture arrives. For when the pictures are painted on this computer's graphics card.",
+      "On: while a picture is being painted, Wanderworld draws at most 30 frames a second, and goes back to normal when the picture arrives. Use it when pictures are painted on this computer's graphics card.",
     nature: "On: detailed trees and plants. Off: simple shapes, which is faster.",
     props: "On: detailed barrels, crates, benches and stalls. Off: simple shapes.",
     buildings: "On: detailed buildings. Off: simple boxes.",
@@ -839,44 +838,44 @@ export function createHud(root, handlers) {
     runSpeed: "How fast you run (hold Shift).",
     lookSpeed: "How fast the camera turns when you drag or use the arrow keys.",
     invertLook: "On: dragging up looks down, like a flight stick.",
-    restKey: "On: the Sit key (C, unless you've changed it below) sits you down, and again lies you down.",
+    restKey: "On: the Sit key (C, unless you've changed it under Keys) sits you down. Press it again to lie down.",
     jumpButton: "On a touch screen: a Jump button along the bottom.",
     restButton: "On a touch screen: a Sit button along the bottom. It becomes Lie down once you're sitting.",
     runButton:
-      "On a touch screen: a Run button along the bottom. Tap it and you run, by the stick or to where you tap, until you tap it again.",
+      "On a touch screen: a Run button along the bottom. Tap it to run, with the stick or to where you tap, until you tap it again.",
     chatMoves:
-      "Jump and Sit buttons in the chat window, for a mouse. A touch screen has them along the bottom instead.",
+      "Jump and Sit buttons in the chat window, for playing with a mouse. A touch screen has them along the bottom instead.",
     time: "Let the day pass, or keep it always day or always night.",
     timeSpeed: "How long a full day takes.",
     weather:
-      "Changing picks every few minutes: mostly clear, sometimes rain, fog or snow, the heavy kinds least often; a winter world gets snow where others get rain. Off keeps the sky clear. How far you can see in each kind is the same at every draw distance.",
+      "Changing: the weather changes every few minutes. Mostly clear, sometimes rain, fog or snow, and the heavy kinds least often. A winter world gets snow where others get rain. Off: the sky stays clear. How far you can see in each kind is the same at every draw distance.",
     season:
-      'Which season is shown and played. As this world has it: the world\'s own, set in Journal → World and turned by "Seasons change". Any other choice holds that season here whatever the world says, as picking a kind of weather holds that weather. It changes how the land looks, what foraging finds, and which weather comes.',
+      'Which season is shown and played. As this world has it: the world\'s own season, set in Journal → World and moved on by "Seasons change". Any other choice holds that season here, whatever the world says. The season changes how the land looks, what foraging finds and which weather comes.',
     seasonsTurn:
-      "On: the seasons follow one another (spring, summer, fall, winter), and the chat says when one begins. A world with no season set counts as summer. Days are the world's own, so with the time held at always day or always night no season passes. Off: the season stays as it is set in Journal → World → Season.",
+      "On: the seasons follow one another (spring, summer, fall, winter), and the chat says when each begins. A world with no season set counts as summer. Seasons count the world's days, so with Time set to always day or always night, no season passes. Off: the season stays as set in Journal → World → Season.",
     seasonDays:
-      "How many of the world's days a season lasts: any number from 1 to 999. At the usual speed a day is 20 minutes, so 7 days is a little over two hours of play for each season.",
-    morningMist: "With changing weather, about one clear morning in three starts in mist, from five until eight.",
+      "How many of the world's days a season lasts, from 1 to 999. At the usual speed a day is 20 minutes, so 7 days is a little over two hours of play per season.",
+    morningMist: "With Weather on Changing, about one clear morning in three starts misty, from five until eight.",
     lightning: "On: lightning lights the sky in a thunderstorm. Off: a storm has rain and thunder but no flashes.",
     besidePlaces:
-      "On: a place you're beside counts as well as the one you're in. On a river's bank in the woods, the river's lore is active with the forest's, and the AI and pictures are told you're near the river. It reaches a few metres past water, the mountains, a cave's mouth, a road and places out in the country. Off: only the place you're in.",
+      "On: a place you're beside counts as well as the one you're in. On a riverbank in the woods, the river's lore is active alongside the forest's, and the AI and pictures are told you're near the river. This reaches a few metres beyond water, mountains, a cave mouth, a road and places in the country. Off: only the place you're in counts.",
     narration:
-      'A short written line when you arrive somewhere new, and now and then about who is near. No AI is used. To have the AI write it, turn on AI → Writing → "…when you arrive somewhere".',
+      'On: a short written line when you arrive somewhere new, and now and then one about who is near. No AI is used. To have the AI write it, turn on AI → Writing → "…when you arrive somewhere".',
     arriveGap:
-      "The shortest time between one place being told and the next. A place you reach sooner is told when the wait is over, if you're still there; places you only pass through aren't told.",
+      "The shortest time between one place being told and the next. A place you reach sooner is told when the wait ends, if you're still there. Places you only pass through aren't told.",
     arriveVisits:
-      "A place that's been told isn't told again until you've come back this many times. 1 tells it on every visit.",
+      "Once a place has been told, it isn't told again until you've come back this many times. 1 tells it on every visit.",
     illustrateHere:
-      "On: the lines that describe other places (told when you arrived there) are left out of what Illustrate is given, so the picture is of one place. What was said and done is always given. Off: the last eight lines whatever they are.",
+      "On: lines describing other places (from when you arrived there) are left out of what Illustrate is given, so the picture shows one place. What was said and done is always given. Off: the last eight lines, whatever they are.",
     illustrateTell:
-      "On: when the chat has no line describing the place you're in yet, Illustrate has it told first, so the picture matches where you are. The AI writes it if arrivals use the AI, else it's a written line. Needs \"Lines about where you are\" on; not indoors.",
-    interiors: "On: you can walk into furnished rooms (unfinished). Off: a door shows who's inside.",
+      'On: if the chat has no line yet describing where you are, Illustrate has one told first, so the picture matches. The AI writes it if arrivals use the AI; otherwise it\'s a written line. Needs "Lines about where you are" on. Not indoors.',
+    interiors: "On: you can walk into furnished rooms (still unfinished). Off: a door shows who's inside.",
     worldEvents:
       "On: once a week is market day and every fourth week an evening festival, when much of the town gathers in the square. Off: every day is the same.",
     approach: "How often townsfolk walk up to greet you, or to confront you. 0 is never.",
     approachMax: "The most people who come up to you at the same time.",
     combat:
-      "Where unfriendly people and hostile animals may square up to you. Safe places are towns, inns and cottages. Nothing is hurt yet.",
+      "Where unfriendly people and hostile animals may square up to you. Safe places are towns, inns and cottages.",
     names:
       "Name tags over people's heads, tinted by how they see you. With \"Only people I know\", someone you haven't met is a Stranger until you learn their name.",
     relationsMove:
@@ -891,31 +890,37 @@ export function createHud(root, handlers) {
     inventory:
       "On: an Inventory button in the top bar opens Quartermaster's sheet for the persona you play in this world. Each world and each persona has its own. Off: no button, and Wanderworld asks nothing of Quartermaster.",
     inventoryWorn:
-      "On: what the sheet says you're wearing is added after your persona's appearance when the AI speaks, narrates, plans a scene or paints a picture. It is written the way the sheet's own Feed setting says (Quartermaster → Settings); while that is Off, as names with descriptions. Off: the AI only knows your persona's card.",
+      "On: what the sheet says you're wearing is added after your persona's appearance whenever the AI speaks, narrates, plans a scene or paints a picture. It's written as Quartermaster's own Feed setting says (Quartermaster → Settings); while that is Off, as names with descriptions. Off: the AI only knows your persona's card.",
     inventoryTrack:
-      "After moments: when something is narrated, one more AI call reads it and updates the sheet (picked up, put on, given away), by Quartermaster's own rules for hidden items. After moments and replies: the same after each reply in a conversation, so about twice the calls there. Never: you keep the sheet yourself.",
+      "After moments: each time something is narrated, one more AI call reads it and updates the sheet (picked up, put on, given away), by Quartermaster's own rules for hidden items. After moments and replies: also after each reply in a conversation, so about twice the calls there. Never: you keep the sheet yourself.",
     inventoryScenes:
-      "On: a scene started from here is linked to this world's sheet, so the scene's chat shows and changes the same inventory, and its narrator is told what you carry. For the AI to update it during the scene, the Quartermaster agent has to be on in that chat. Off: a scene's chat has a sheet of its own. Needs Quartermaster 0.1.37 or later.",
+      "On: a scene started from here shares this world's sheet. The scene's chat shows and changes the same inventory, and its narrator is told what you carry. For the AI to update it during the scene, the Quartermaster agent must be on in that chat. Off: a scene's chat has its own sheet. Needs Quartermaster 0.1.37 or later.",
     sheet:
-      "On: you have a character sheet in each world (Inventory → Sheet): level, experience, HP, mana, AC, six attributes, and any stats, skills, feats or spells you add. Using an item applies what its description gives (a potion that says +10 HP heals 10), and worn items that say things like +2 AC count. Off: no sheet, and the Inventory window is Quartermaster's items alone.",
+      "On: you have a character sheet in each world (Inventory → Sheet) with level, experience, HP, mana, AC, six attributes, and any stats, skills, feats or spells you add. Using an item applies what its description says (a potion that says +10 HP heals 10), and worn items that say things like +2 AC count. Off: no sheet, and the Inventory window shows only Quartermaster's items.",
     sheetTold:
-      "On: the ticked lines of your sheet are told to the AI in conversations and moments, so it knows you're hurt or what you're good at. Off: the sheet is yours to keep, and the AI isn't told. Adds a line or two to those prompts.",
+      "On: the ticked lines of your sheet are told to the AI in conversations and moments, so it knows if you're hurt or what you're good at. It adds a line or two to what's sent. Off: the sheet is just for you, and the AI isn't told.",
     sheetTrack:
-      "The AI reads what was narrated and changes your sheet to match: HP lost to a bite, mana spent on a spell, experience for something done. It answers with a short list of changes, which the game checks against your sheet, and a note in the chat says what changed. After moments: read each time something is narrated. It shares the inventory tracker's AI call when that is on, and is one more call when it isn't. After moments and replies: also after each reply in a conversation. Off: only you and the game's own rules (using an item) change it.",
+      "The AI reads what was narrated and changes your sheet to match: HP lost to a bite, mana spent on a spell, experience for something done. It answers with a short list of changes, the game checks them against your sheet, and a note in the chat says what changed. After moments: each time something is narrated. This shares the inventory tracker's AI call when that's on, and is one more call when it isn't. After moments and replies: also after each reply in a conversation. Off: only you and the game's own rules (using an item) change it.",
     fights:
-      "Off: nothing can be hurt, and hostile creatures only see you off. Real time: F swings, Q blocks, R dodges and X draws your weapon or puts it away. With it drawn the view stays behind you, turning the view turns you, and you step sideways and back without turning away (on a touch screen the Combat button by your thumb swaps Run, Sit and Jump for Attack, Block and Dodge; the chat window has the three too). A block lasts a moment: an attack on you while it does is rolled twice and the worse roll counts. A dodge rolls you a few steps, and nothing lands on you while you roll. You swing wherever you face, standing or on the move, and whatever animal is in front of you and in reach when the blow lands takes it. Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A hostile creature you strike fights back, its attacks rolled the same way against your AC; a peaceful one runs. No AI call is made: the game rolls and tells what was rolled. By turns: a fight stops the clock for those in it. Everyone rolls initiative (a d20 plus Dexterity's modifier for you) and acts in that order. On your turn you may move nine metres, take one action (Attack, Cast a spell, Dodge, or use something you carry) and one bonus action (a spell cast as one), then end your turn; a bar at the top shows whose turn it is and what you have left. Companions and creatures take their turns by the same rules. A narrated moment: nothing is swung in real time. When a creature gets to you, or you press Attack with one in reach, the game rolls one exchange (its attack and yours) and, with AI moments on, the AI tells it as rolled; then the creature holds off a few seconds before the next. A scene: the same meeting opens a scene chat instead, with your stats sent to it, and the creatures let you be while you play it out.",
+      "How fights are played. Off: nothing can be hurt, and hostile creatures only see you off. " +
+      "Real time: F swings, Q blocks, R dodges, and X draws or sheathes your weapon. With it drawn, the camera stays behind you, turning the camera turns you, and you step sideways and back without turning away. On a touch screen, the Combat button by your thumb swaps Run, Sit and Jump for Attack, Block and Dodge; the chat window has those three too. " +
+      "A block lasts a moment: an attack on you during it is rolled twice and the worse roll counts. A dodge rolls you a few steps, and nothing lands on you while you roll. " +
+      "You swing wherever you face, standing or moving, and the blow lands on whatever animal is in front of you and in reach. Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus, against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A hostile creature you strike fights back, rolled the same way against your AC; a peaceful one runs. No AI call is made: the game rolls and says what was rolled. " +
+      "By turns: a fight stops the clock for those in it. Everyone rolls initiative (for you, a d20 plus your Dexterity modifier) and acts in that order. On your turn you may move nine metres, take one action (Attack, Cast a spell, Dodge, or use something you carry) and one bonus action (a spell cast as one), then end your turn. A bar at the top shows whose turn it is and what you have left. Companions and creatures follow the same rules. " +
+      "A narrated moment: nothing is swung in real time. When a creature reaches you, or you press Attack with one in reach, the game rolls one exchange (its attack and yours). With AI moments on, the AI tells it as rolled. The creature then holds off a few seconds before the next. " +
+      "A scene: the same meeting opens a scene chat instead, with your stats sent to it, and the creatures leave you alone while you play it out.",
     defeatCost:
-      "Taken when you get up after a defeat, however you get up. A quarter of your money (rounded up) is gone, or the experience you had toward your next level. Never a level, and never an item.",
+      "Taken when you get up after a defeat, however you get up: a quarter of your money (rounded up), or the experience you had towards your next level. Never a level, and never an item.",
     beatenDays:
-      "How many days pass before something you've beaten is about again, back where it lives. 0: it's back the next time the world is opened.",
+      "How many days pass before something you've beaten is back where it lives. 0: it's back the next time the world is opened.",
     bodyMinutes:
-      "How long something you've beaten lies where it fell before it goes. 0 keeps it until you harvest it or clear it with the button below. While it lies there you can harvest an animal (hide, meat and the like go into your inventory, and the body goes) or search an outlaw (what they carried; the body stays).",
+      "How long something you've beaten lies where it fell before it goes. 0 keeps it until you harvest it or clear it with the button below. While it lies there, you can harvest an animal (hide, meat and the like go into your inventory, and the body goes) or search an outlaw (you take what they carried, and the body stays).",
     defeat:
-      "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and what beat you has drawn off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Stay down until you choose: you lie where you fell while the chat and the narration go on, and a Respawn button at the top gets you up at home whenever you like. Nothing is lost either way, and nobody dies for good.",
+      "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and whatever beat you has backed off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Stay down until you choose: you lie where you fell while the chat and narration go on, and a Respawn button at the top gets you up at home whenever you like. Nothing is lost either way, and nobody dies for good.",
     srdSlots:
-      "Only where combat is By turns. Off: a spell costs its level in mana, as in real time. On: a spell is cast with a spell slot of its level or higher, as the 5e SRD has it, and mana is left alone; your sheet and the spell buttons then show spell slots where mana was. You have the slots of a full caster of your level (two first-level slots at level 1, three at level 2, four and two second-level at level 3, and so on up to third-level slots), and a sleep gives them back. Cantrips need neither.",
+      "Only when combat is By turns. Off: a spell costs its level in mana, as in real time. On: a spell uses a spell slot of its level or higher, as in the 5e SRD, and no mana. Your sheet and the spell buttons then show spell slots instead of mana. You have the slots of a full caster of your level (two first-level at level 1, three at level 2, four first-level and two second-level at level 3, and so on up to third-level slots). A sleep gives them back. Cantrips need neither.",
     srdCreatures:
-      "On: a creature's HP, AC, attack and damage are those of the 5e SRD creature it is taken as: a wolf is the SRD's wolf (11 HP, AC 13, +4 to hit, 2d4+2), a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage. Cattle, the alpaca and the shiba have nothing close in the SRD and keep the game's own numbers, as they all do with this off. People fight by their class either way. Experience for a win is the game's own.",
+      "On: a creature's HP, AC, attack and damage are those of its match in the 5e SRD. A wolf is the SRD's wolf (11 HP, AC 13, +4 to hit, 2d4+2), a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage. Cattle, the alpaca and the shiba have no close match, so they keep the game's own numbers. Off: every creature uses the game's own numbers. People fight by their class either way, and experience for a win is always the game's own.",
     srdModifiers:
       "On: numbers work as in the 5e SRD. Your attacks and spells add a proficiency bonus that grows with your level (+2, +3 from level 5, up to +6). Your AC adds your Dexterity modifier. Armour you wear, known by its name (leather armor, chain shirt, scale mail, chain mail, plate and the rest), sets your AC in place of 10 and limits how much Dexterity counts; a shield adds 2. A finesse weapon (dagger, rapier, shortsword) uses the better of Strength and Dexterity. Off: your sheet's AC plus what worn things say, and no proficiency.",
     trackItemStats:
@@ -931,27 +936,27 @@ export function createHud(root, handlers) {
     combatAiMoves:
       "Fights by turns only. On: on each creature's turn the AI chooses what it does, from the moves it really has (close in, shoot, a spell it knows, take cover, back off, run), to fit what it is and how the fight is going. The game still rolls every attack and save. One AI call each creature's turn; with the AI writing what's said too, the same call gives its line. If the AI takes too long or fails, the creature does what its sort does. Off: the game decides.",
     foeTactics:
-      "On: creatures of one kind don't all fight alike. Of the bandits about half close in with a blade, some stand off with a crossbow and some cast; puglins and skeletons are fighters or archers. One that shoots or casts keeps its distance, backs off when you crowd it, and gets a tree or a boulder between you where there is one. A caster picks its spell: an area when you and a companion stand together, a hold now and then, its strongest sometimes, and it mends itself when badly hurt; its greater spells run out for the fight. Off: every creature of a kind fights the same way, and comes straight at you.",
+      "On: creatures of one kind don't all fight alike. About half the bandits close in with a blade, some stand off with a crossbow and some cast spells. Puglins and skeletons are fighters or archers. One that shoots or casts keeps its distance, backs off when you crowd it, and puts a tree or a boulder between you where it can. A caster picks its spell: one that hits an area when you and a companion stand together, a hold now and then, sometimes its strongest. It heals itself when badly hurt, and its greater spells run out for the fight. Off: every creature of a kind fights the same way and comes straight at you.",
     creatureExtras:
       "On: creatures use what the 5e SRD gives them besides a plain attack. A wolf's bite can knock you prone (a Strength save) and wolves, jackals and rats attack with advantage when one of their own is beside you. A snake's, a spider's, a wasp's and an imp's venom does more damage (a Constitution save for half). A frog's bite holds you. A slime's touch burns with acid and a dragon's bite with fire. A witch strikes twice. A dragon breathes fire (a Dexterity save for half), then needs a while before it can again. Off: one plain attack each.",
     conditions:
-      "On: conditions can land on you, from a creature's attack or a spell cast at you, and show at the top left. Prone, restrained, blinded: your attacks are rolled twice with the worse counting, and attacks on you with the better. Poisoned, frightened: your attacks are at that disadvantage. Grappled, restrained: you can't move (grappled, you try to break free by yourself). Paralyzed, stunned, asleep: you can't move or act. Slowed: half your pace. Each wears off. Off: only damage lands on you.",
+      "On: conditions can land on you, from a creature's attack or a spell cast at you, and show at the top left. Prone, restrained, blinded: your attacks are rolled twice and the worse counts, and attacks on you take the better. Poisoned, frightened: your attacks are rolled twice and the worse counts. Grappled, restrained: you can't move (when grappled, you try to break free by yourself). Paralyzed, stunned, asleep: you can't move or act. Slowed: you move at half pace. Each wears off. Off: only damage lands on you.",
     deathSaves:
       "On: at 0 HP you fall, dying, and roll a death saving throw every few seconds: 10 or more is a success, less a failure, a 1 two failures, and a 20 gets you up with 1 HP. Three successes and you're stable and come round with 1 HP; three failures and you're beaten, and \"When your HP runs out\" says what happens then. Healing from a companion gets you up at once. Off: you're beaten at 0 HP.",
     concentration:
-      "On: a spell whose rule says Concentration (Hold Person, Bless and the like) lasts only while you keep your mind on it. When you're hurt you roll a Constitution save (DC 10, or half the damage if that's more) and on a failure the spell ends; casting another such spell ends the first. Off: they last their time whatever happens.",
+      "On: a spell whose rule says Concentration (Hold Person, Bless and the like) lasts only while you keep your mind on it. When you're hurt you roll a Constitution save (DC 10, or half the damage if that's more) and on a failure the spell ends; casting another such spell ends the first. Off: they last their full time, whatever happens.",
     cover:
       "On: a tree or a boulder between a shot or a spell and its target is half cover: +2 to the target's AC, for you and for creatures alike. Off: only distance matters.",
     cardSheets:
-      "On: a persona or a character whose card has a sheet for the Engine's 5e ruleset (made in the Engine's persona or character editor) brings it here. For you, once in each world: your class, level, race, background, abilities, most HP, the skills you're proficient in and the spells Wanderworld can play are set from it, and you can change any of it afterwards (Inventory → Sheet has a button to take it from the card again). For a companion: their class, most HP and spells come from their card unless you've chosen a class for them. Off: cards are left alone.",
+      "On: if a persona's or character's card has a 5e sheet (made in the Engine's persona or character editor), it's used here. For you, once in each world, it sets your class, level, race, background, abilities, max HP, the skills you're proficient in and the spells Wanderworld can play. You can change any of it afterwards, and Inventory → Sheet has a button to take it from the card again. For a companion, their class, max HP and spells come from their card unless you've chosen a class for them. Off: cards are left alone.",
     srdLoot:
-      "On: a beaten creature that would carry money (a bandit, a puglin, a skeleton, a witch, a wizard, an imp, a dragon) has pocket treasure on it besides what you'd harvest: coin, now and then a Potion of Healing, and seldom from the greater ones a magic thing to wear. Off: only what the game's own lists give.",
+      "On: a beaten creature that would carry money (a bandit, a puglin, a skeleton, a witch, a wizard, an imp, a dragon) has pocket treasure as well as what you'd harvest: coin, now and then a Potion of Healing, and rarely, from the stronger ones, a magic item to wear. Off: only what the game's own lists give.",
     moves:
-      "On: more to do in a fight, on the bar by turns and in Inventory → Sheet (each can go on a number key). Shove: your Athletics against the creature's, and it's pushed back and knocked down. Grapple: the same contest, and it's held where it is until it breaks free. Help: a companion's next attack has advantage. Hide: your Stealth against what the creatures near you notice; hidden, nothing comes for you and your next attack has advantage. Off-hand attack: with two light weapons equipped, a bonus action's blow with the other. Off: just Attack, Cast, Dash, Disengage and Dodge.",
+      "On: more to do in a fight, on the turn bar and in Inventory → Sheet (each can go on a number key). Shove: your Athletics against the creature's, and it's pushed back and knocked down. Grapple: the same contest, and it's held where it is until it breaks free. Help: a companion's next attack has advantage. Hide: your Stealth against what the creatures near you notice; hidden, nothing comes for you and your next attack has advantage. Off-hand attack: with two light weapons equipped, a bonus action's blow with the other. Off: just Attack, Cast, Dash, Disengage and Dodge.",
     reactions:
-      "On: if Shield is on your sheet, it casts itself when a blow would land and +5 AC would turn it; if Counterspell is, it casts itself when a creature casts at you. Each costs its mana or slot, and you have one such answer every six seconds. Off: they're never cast.",
+      "On: if Shield is on your sheet, it casts itself when a blow would land and +5 AC would turn it; if Counterspell is, it casts itself when a creature casts at you. Each costs its mana or slot, and you get one such reaction every six seconds. Off: they're never cast.",
     jumpByStrength:
-      "On: how high you jump goes by your Strength, as the SRD's high jump does: about 0.9 metres at Strength 10, more for more. Off: everyone jumps the same.",
+      "On: how high you jump depends on your Strength, as in the SRD's high jump: about 0.9 metres at Strength 10, and higher with more. Off: everyone jumps the same.",
     rangedFoes:
       "On: a creature the SRD gives a bow, a crossbow or spells uses them when you're out of its reach, in real time and by turns. A bandit shoots a light crossbow, a puglin and a skeleton a shortbow; a wizard casts Fire Bolt and Magic Missile, a witch Sacred Flame and Spiritual Weapon. Each is rolled against your AC or your saving throw, or a companion's AC. Off: they all have to close with you.",
     turnActions:
@@ -970,13 +975,13 @@ export function createHud(root, handlers) {
     fightPeople:
       "Off: a swing passes people by, and only animals, monsters and outlaws can be struck. On: a blow can land on anyone in front of you, your companions too. It's rolled like any other. Whoever you strike remembers it for good and becomes your enemy, anyone who sees it remembers, and at 0 HP they are out cold for a couple of minutes, then get up. Nobody dies.",
     fightBack:
-      "Real-time combat only. On: someone you strike or cast at turns on you. They close in and swing their class's weapon, or keep their distance and cast their class's spells at you; each is rolled against your AC or your saving throw and told in the chat, and Block and Dodge work against them. They stop when they're down to a third of their HP, when you go down, when you get well away, or about 45 seconds after you last went for them. Off: they take it, remember it and become your enemy, as before.",
+      "Real-time combat only. On: someone you strike or cast at turns on you. They close in and swing their class's weapon, or keep their distance and cast their class's spells at you; each is rolled against your AC or your saving throw and told in the chat, and Block and Dodge work against them. They stop when they're down to a third of their HP, when you go down, when you get well away, or about 45 seconds after you last went for them. Off: they take it, remember it and become your enemy.",
     restRestores:
       "On: while you sit or lie down (on the ground, a bench, a bed) a point of mana comes back every few seconds and a point of HP a little slower, until both are full. A sleep in a tent or a bed restores both completely. Off: only items, spells and levelling restore them.",
     undefeatable:
-      "On: your HP, mana and every other resource with a most are held at their most, whatever happens. Fights are still rolled and told, and nothing can put you down.",
+      "On: your HP, mana and every other resource with a maximum stay full, whatever happens. Fights are still rolled and told, but nothing can put you down.",
     gathering:
-      "On: buttons in the chat window let you gather where the land allows it. Each kind only at its resource: fish by water, chop wood standing against a tree (four strokes bring it down), forage in the woods, mine at a boulder or a cave, harvest on a farm in summer and fall. A roll with one of your attributes decides what you find, and it goes into your inventory. Needs the Quartermaster package for the items. Off: no gathering.",
+      "On: buttons in the chat window let you gather where the land allows. Each kind works only in its own place: fish by water, chop wood standing at a tree (four strokes bring it down), forage in the woods, mine at a boulder or a cave, harvest on a farm in summer and fall. A roll with one of your attributes decides what you find, and it goes into your inventory. Needs the Quartermaster package for the items. Off: no gathering.",
     treeDays: "How many of the world's days a tree you cut down takes to stand again. 0: it never grows back.",
     vendors:
       "On: shops buy and sell. At a vendor's door or inside (the smithy, a shop, a tavern, an inn), a Shop button appears in the chat window. You pay from your purse and sell what you carry: a shop pays half a thing's worth for what it deals in and a quarter for anything else. Needs the Quartermaster package for the items. Off: no trading.",
@@ -998,7 +1003,7 @@ export function createHud(root, handlers) {
     gossip:
       "On: people who spend time together sometimes tell each other something they saw or heard of you. The listener knows it as hearsay and doesn't pass it on. Whispers are never passed on. Off: people only know what they were there for.",
     memoryEach:
-      "Small things: what was said, what they saw. When full, the oldest is forgotten. All keeps everything until you delete it. Keeping more costs no tokens.",
+      "Small things: what was said, what they saw. When full, the oldest is forgotten. All keeps everything until you delete it. Keeping more costs nothing; only sending them to the AI does.",
     memoryKept:
       "Things that mattered. Only another lasting memory pushes one out. All keeps everything. Memories you pin are locked and don't count.",
     memoryTold: (s) =>
@@ -1017,7 +1022,7 @@ export function createHud(root, handlers) {
     loreAnimals:
       "On: animals a lorebook places, and anyone's own dog or horse, appear even when their sort is at 0. Off: 0 means none at all.",
     keepApart:
-      "On: animals keep out of one another, and so do people walking, so a pack runs side by side and nobody walks through anybody. Off: they may pass through each other, as before.",
+      "On: animals keep out of one another, and so do people walking, so a pack runs side by side and nobody walks through anybody. Off: they may pass through each other.",
     hostileAnimals:
       "Keep their distance: they run if you come close. Square up: they come to about six paces and hold you off. Come for you: they run in and snap, sending you back a step. With combat off nothing is hurt; with it on (Settings → Inventory → Combat) each attack is rolled against your AC.",
     sound: "Footsteps, doors and the world's sounds.",
@@ -1030,7 +1035,7 @@ export function createHud(root, handlers) {
     explanations:
       "On: every setting has its line under it, and the Journal and New world have theirs. Off: a setting's (i) shows its line while you point at it, and a tap keeps it open.",
     aiTalk:
-      "On: when you talk to someone, your model writes their replies from their character card, your persona and the world. Off: they use short set lines.",
+      "On: when you talk to someone, the AI writes their replies from their character card, your persona and the world. Off: they use short set lines.",
     aiMoments:
       "On: when something happens, the AI narrates it and people nearby may answer. Typing in the chat always counts; the switches below add more. One AI call each time. Off: the game uses its own written lines.",
     aiArrive: "One call each time you reach a new place. Off to start with, because it adds up.",
@@ -1046,7 +1051,7 @@ export function createHud(root, handlers) {
       "A general tone on top of each person's own character. Someone given a voice of their own in Journal → Edit people keeps it.",
     replyLength: "How long people's replies are. Longer replies cost more tokens.",
     promptCache:
-      "For AI providers that charge less for a prompt they've seen before (prompt caching). On: in a conversation, what changes with every line (the time, who's near, what they remember, what you have on) is sent last, after what was said, so everything before it can be reused; and the lines sent back start from the same place for several turns. Off: it is all sent at the top, as before. Replies should be the same either way; turn it off if a model starts talking about its \"context\". Moments are always sent in the cache-friendly order. The AI assistant's chat is ordered the same way: the world as it is now goes on your newest message.",
+      "For AI providers that charge less for text they've seen before (prompt caching). On: in a conversation, what changes with every line (the time, who's near, what they remember, what you have on) is sent last, after what was said, so everything before it can be reused. The lines sent back also start from the same place for several turns. Off: it's all sent at the top. Replies should be the same either way; turn it off if a model starts talking about its \"context\". Moments are always sent in the cache-friendly order. The AI assistant's chat is ordered the same way: the world as it is now goes with your newest message.",
     aiTemperature: "Higher: more surprising. Lower: more predictable.",
     sceneNarratorCard:
       "One of your character cards as the narrator in scenes. With one chosen, a scene can start with nobody else there.",
@@ -1179,11 +1184,11 @@ export function createHud(root, handlers) {
   };
   const times = (value) => `${value.toFixed(1)}×`;
   const orAll = (value) => (value > 100 ? "All" : String(value));
-  heading(
-    "Display",
-    "How Wanderworld looks and sounds on this device. These are kept for each device, so a phone and a desktop can differ.",
-    ["Graphics", "On screen", "Sound"],
-  );
+  heading("Display", "How Wanderworld looks and sounds. Kept for each device, so a phone and a desktop can differ.", [
+    "Graphics",
+    "On screen",
+    "Sound",
+  ]);
   at("Display", "Graphics");
   choice("resolution", "Resolution", RESOLUTION_LABELS);
   choice("smooth", "Smooth edges", { auto: "Auto", on: "On", off: "Off" });
@@ -1293,11 +1298,7 @@ export function createHud(root, handlers) {
     add(head, about, list, reset);
   }
 
-  heading("World", "The world itself: its time, its weather, its places and its shops.", [
-    "Time and weather",
-    "Places",
-    "Vendors",
-  ]);
+  heading("World", "The world's time, weather, places and shops.", ["Time and weather", "Places", "Vendors"]);
   at("World", "Time and weather");
   choice("time", "Time", TIME_LABELS);
   choice("timeSpeed", "Time speed", {
@@ -1346,7 +1347,7 @@ export function createHud(root, handlers) {
   // People: how they act round the player, how they get on, what they remember. Rules alone.
   heading(
     "People",
-    "How the people of the world act around you, how they get on with each other, and what they remember. All of it runs on the game's own rules: none of it calls the AI. Nothing happens while Wanderworld is closed.",
+    "How people act around you, how they get on with each other, and what they remember. All of it runs on the game's own rules, with no AI calls. Nothing happens while Wanderworld is closed.",
     ["Around you", "Relationships", "Memory", "Genders"],
   );
   at("People", "Around you");
@@ -1371,7 +1372,7 @@ export function createHud(root, handlers) {
   toggle("awayRecap", "Tell me what I missed", "worldLog");
   at("People", "Memory");
   intro(
-    "Each person remembers what they saw, heard or were told. The game keeps these itself, so remembering costs no tokens. Sending memories to the AI when it speaks for someone does, so you choose how many are kept and how many are sent. Anyone can have limits of their own in Journal → Edit people → Memory.",
+    "Each person remembers what they saw, heard or were told. The game keeps these itself, so remembering costs nothing. Sending memories to the AI when it speaks for someone costs tokens, so you choose how many are kept and how many are sent. Anyone can have their own limits in Journal → Edit people → Memory.",
   );
   toggle("memories", "People remember things");
   toggle("memorySights", "Remember what you do, not only what you say", "memories");
@@ -1389,12 +1390,12 @@ export function createHud(root, handlers) {
   // after People's; People's own last part, Genders, is added below.)
   heading(
     "Inventory",
-    "What you carry, your character sheet, gathering and shops. The things themselves are kept by the Quartermaster package, if you have it installed; your sheet is Wanderworld's own and works without it.",
+    "What you carry, your character sheet, gathering, shops and fights. Your items are kept by the Quartermaster package, if it's installed. Your sheet is Wanderworld's own and works without it.",
     ["Items", "Sheet", "Gathering", "Shops", "Combat", "5e rules"],
   );
   at("Inventory", "Items");
   intro(
-    "The Inventory button opens a window in tabs: Items, Craft, Sheet and Quartermaster. What you wear and carry is kept by the Quartermaster package: without it the Items and Craft tabs are empty and these settings do nothing.",
+    "The Inventory button opens a window with tabs: Items, Craft, Sheet and Quartermaster. What you wear and carry is kept by the Quartermaster package. Without it, the Items and Craft tabs are empty and these settings do nothing.",
   );
   toggle("inventory", "Use Quartermaster for the inventory");
   toggle("inventoryWorn", "Tell the AI what you're wearing", "inventory");
@@ -1410,7 +1411,7 @@ export function createHud(root, handlers) {
   toggle("inventoryPinned", "Keep the inventory window open while you play", "inventory");
   at("Inventory", "Sheet");
   intro(
-    "Your character sheet (Inventory → Sheet): level, experience, HP, mana, AC, attributes, and whatever you add. A level gained raises what your HP and mana can be, and restores your HP.",
+    "Your character sheet (Inventory → Sheet): level, experience, HP, mana, AC, attributes, and whatever you add. Gaining a level raises your maximum HP and mana, and restores your HP.",
   );
   toggle("sheet", "Character sheet");
   toggle("sheetTold", "Tell the AI your stats", "sheet");
@@ -1422,7 +1423,7 @@ export function createHud(root, handlers) {
   );
   at("Inventory", "Gathering");
   intro(
-    "Fishing, chopping wood, foraging, mining and harvesting, each at its own resource. What you find goes into your inventory.",
+    "Fishing, chopping wood, foraging, mining and harvesting, each in its own place. What you find goes into your inventory.",
   );
   toggle("gathering", "Gathering");
   toggle("gatherTools", "Gathering needs tools", "gathering");
@@ -1436,7 +1437,7 @@ export function createHud(root, handlers) {
   toggle("haggling", "Haggling", "vendors");
   at("Inventory", "Combat");
   intro(
-    "Fighting what would attack you: wolves, monsters and outlaws. It uses your character sheet (HP, AC, Strength), so the sheet has to be on. How hostile creatures behave when you're near is in Settings → Creatures → Behaviour.",
+    "Fighting what would attack you: wolves, monsters and outlaws. It uses your character sheet (HP, AC, Strength), so the sheet must be on. How hostile creatures act when you're near is in Settings → Creatures → Behaviour.",
   );
   choice(
     "fights",
@@ -1453,7 +1454,7 @@ export function createHud(root, handlers) {
   choice(
     "defeatCost",
     "What a defeat costs",
-    { none: "Nothing", coins: "A quarter of your money", xp: "Your experience toward the next level" },
+    { none: "Nothing", coins: "A quarter of your money", xp: "Your experience towards the next level" },
     "sheet",
   );
   toggle("undefeatable", "Undefeatable", "sheet");
@@ -1472,7 +1473,7 @@ export function createHud(root, handlers) {
   toggle("rangedFoes", "Creatures shoot and cast from a distance", "srdCreatures");
   at("Inventory", "5e rules");
   intro(
-    "How much of the 5e SRD's rules your fights go by. Each can be switched off by itself; with all of them off, fights are as simple as they were.",
+    "How closely your fights follow the 5e SRD's rules. Each switch works on its own. With all of them off, fights use the game's simple rules.",
   );
   toggle("srdModifiers", "Proficiency, Dexterity and armour by the rules", "sheet");
   toggle("cardSheets", "Use a 5e sheet on a persona's or character's card", "sheet");
@@ -1495,7 +1496,7 @@ export function createHud(root, handlers) {
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
   number("beatenDays", "Days before the beaten are about again", "sheet");
   {
-    const clear = button("Clear the beaten now", "Everything beaten and still lying about goes", () =>
+    const clear = button("Clear the beaten now", "Remove everything beaten that's still lying about", () =>
       handlers.onClearBodies?.(),
     );
     clear.style.alignSelf = "flex-start";
@@ -1503,7 +1504,7 @@ export function createHud(root, handlers) {
   }
   at("People", "Genders");
   intro(
-    "How many of the people the game or the AI makes up are men, women, or a third gender you name. Lore comes first: a gender set by a lorebook, a character card, or by you in Journal → Edit people is never changed. These only decide people whose gender nothing says: townsfolk left on Auto, and people the AI invents. Each world keeps its own (New world, then Journal → World): what's here is what a new world starts from, and what a world made before 0.5.83 follows.",
+    "How many of the people the game or the AI makes up are men, women, or a third gender you name. Lore comes first: a gender set by a lorebook, a character card, or you in Journal → Edit people never changes. These decide only people nothing else gives a gender: townsfolk left on Auto, and people the AI invents. Each world keeps its own shares (New world, then Journal → World). These are what a new world starts with, and what worlds made before version 0.5.83 use.",
   );
   const share = (value) => String(Math.round(value));
   slider("genderMale", "Male", 1, share);
@@ -1586,7 +1587,7 @@ export function createHud(root, handlers) {
   at("Creatures", "Kinds");
   group(
     "Which kinds there are",
-    "Off, there are none of that kind anywhere. This beats everything else: the numbers above, a lorebook, and ownership.",
+    "Off: none of that kind anywhere. This overrides everything else: the numbers above, a lorebook, and ownership.",
   );
   const kindHead = (text) => {
     const head = document.createElement("div");
@@ -1757,7 +1758,7 @@ export function createHud(root, handlers) {
     const status = await handlers.onAiStatus?.();
     if (!status) {
       aiStatus.textContent =
-        "Wanderworld isn't fully loaded yet: restart the Engine (needed once after installing or updating Wanderworld). Until then people use set lines.";
+        "Wanderworld isn't fully loaded yet. Restart the Engine (needed once after installing or updating Wanderworld). Until then, people use set lines.";
       return;
     }
     aiStatus.textContent = status.scenes
@@ -1790,7 +1791,7 @@ export function createHud(root, handlers) {
     const warning = document.createElement("div");
     warning.style.cssText = "font-size:12px;line-height:1.4;";
     warning.textContent =
-      "This builds this world again from its setup, with everything this version adds. Change anything below to build it differently: bigger, another kind of settlement, more places out in the country. Your people, relationships, party, notes and lore stay; you start again at the square. It can't be undone.";
+      "This rebuilds the world from its setup, with everything this version adds. Change anything below to build it differently: bigger, another kind of settlement, more places in the country. Your people, relationships, party, notes and lore stay, and you start again at the square. This can't be undone.";
     const label = document.createElement("label");
     label.style.cssText = "display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;";
     const reshuffle = document.createElement("input");
@@ -1861,7 +1862,7 @@ export function createHud(root, handlers) {
     vendorsAbout.setAttribute("data-wanderworld-explain", "");
     vendorsAbout.style.cssText = "font-size:11px;opacity:0.75;line-height:1.35;";
     vendorsAbout.textContent =
-      "At least: shops are built to make up the number (they take the place of houses). At most: any over it sell something else, or shut. Trades you set by hand under Vendors stand, and are counted. Empty: no say.";
+      "At least: shops are built to make up the number (they take the place of houses). At most: any over it sell something else, or shut. Trades you set by hand under Vendors stay, and are counted. Left empty: no limit.";
     vendorsHead.prepend(info(vendorsAbout));
     const vendorBox = vendorCountsEditor(now.kinds, now.counts);
     const asked = () => {
@@ -1916,11 +1917,11 @@ export function createHud(root, handlers) {
   // setting as in its own section (addField): changed in either, it's changed in both.
   heading(
     "Token use",
-    "Every setting that changes how many tokens Wanderworld spends, in one place. They are the same settings as in AI and People → Memory: change one here or there and it changes in both. Each AI call sends the speaker's card, your persona, the lore active where you stand, the recent chat and their memories, so fewer calls and less in each are the two ways to spend less.",
+    "Every setting that changes how many tokens Wanderworld spends. They're the same settings as in AI and People → Memory, so a change here changes there too. Each AI call sends the speaker's card, your persona, the lore active where you stand, the recent chat and their memories. Fewer calls, and less in each, are the two ways to spend less.",
     ["How often", "How much", "Tips"],
   );
   at("Token use", "How often");
-  intro("Each of these is one AI call when it happens. Off, the game uses its own written lines.");
+  intro("Each of these is one AI call when it happens. Off: the game uses its own written lines.");
   toggle("aiTalk", "AI conversations");
   toggle("aiMoments", "AI moments");
   toggle("aiArrive", "…when you arrive somewhere", "aiMoments");
@@ -1981,7 +1982,7 @@ export function createHud(root, handlers) {
     const about = document.createElement("div");
     about.style.cssText = `font-size:12px;line-height:1.4;color:${INK_SOFT};`;
     about.textContent =
-      "Ask about the world you're in, or ask for a change to it. You see every change first, can rewrite it or leave it out, and nothing happens until you press Confirm; Undo takes it back. It never touches your cards, personas or lorebooks in the Engine. Not sure what to ask? The buttons under the chat are ready-made requests, and Help lists everything it can do.";
+      "Ask about the world you're in, or ask for a change to it. You see every change first, can rewrite it or leave it out, and nothing happens until you press Confirm. Undo takes it back. It never touches your cards, personas or lorebooks in the Engine. Not sure what to ask? The buttons under the chat are ready-made requests, and Help lists everything it can do.";
     add(
       about,
       (assistant = createAssistant({
@@ -2303,7 +2304,7 @@ export function createHud(root, handlers) {
       box.rows = 8;
       box.setAttribute("aria-label", part.title);
       box.style.cssText = `${INK_INPUT}width:100%;box-sizing:border-box;font:11px ui-monospace,Consolas,monospace;margin-top:4px;resize:vertical;`;
-      const copy = button("Copy the prompt", "Copy it, to paste to your assistant", async () => {
+      const copy = button("Copy the prompt", "Copy it to paste into your AI assistant", async () => {
         try {
           await navigator.clipboard.writeText(part.prompt);
           copy.textContent = "Copied";
@@ -2434,7 +2435,7 @@ export function createHud(root, handlers) {
     };
     const nodes = [
       debugNote(
-        "Every building and market stall that buys and sells in this world. Tick the trades a vendor has: one can be several at once. Give one a name and its sign says it; without a name its sign says its trade. If a world came without a trade you want, add it here, or make a shop of an empty house below. What a vendor stocks follows its trades when it next restocks.",
+        "Every building and market stall that buys and sells in this world. Tick the trades a vendor has; one can have several. A vendor you name has its name on its sign; otherwise the sign shows its trade. If a world came without a trade you want, add it here, or make a shop of an empty house below. A vendor's stock follows its trades from its next restock.",
       ),
     ];
     if (!now.kinds.length) nodes.push(debugNote("Open a world to see its vendors."));
@@ -2557,7 +2558,7 @@ export function createHud(root, handlers) {
           vendorsTradesOpen,
           (open) => (vendorsTradesOpen = open),
           debugNote(
-            'What each trade stocks. The guidance is what the AI is told when "The AI stocks shop shelves" is on: rewrite it to change what it comes up with. A trade of your own needs a name; give it guidance for the AI, goods for when the AI is off, or both. Then tick it on a vendor above.',
+            'What each trade stocks. The guidance is what the AI is told when "The AI stocks shop shelves" is on: rewrite it to change what it comes up with. A trade of your own needs a name. Give it guidance for the AI, goods for when the AI is off, or both, then tick it on a vendor above.',
           ),
           ...boxes,
           piece("font-weight:700;margin-top:6px;", "A trade of your own"),
@@ -2753,7 +2754,7 @@ export function createHud(root, handlers) {
       tabs.append(tab);
     }
     // (One line on every tab: how a description sets what an item does, behind its (i).)
-    const itemKeys = keysLine("Inventory item descriptions can configure item stats.", ITEM_KEYS);
+    const itemKeys = keysLine("An item's description can set its stats.", ITEM_KEYS);
     const itemHelp = piece("flex:1 0 100%;");
     itemHelp.append(itemKeys.row, itemKeys.detail);
     tabs.append(itemHelp);
@@ -2768,7 +2769,7 @@ export function createHud(root, handlers) {
       if (drawn !== inventoryDrawn) return;
       body.replaceChildren(
         debugNote(
-          "Each number key does one thing of your choosing: casts a spell from your sheet, uses up something you carry (a potion, food), or puts something on and takes it off again (a weapon, armour, clothing). Only things with a slot in Quartermaster can be put on: give an item its slot in the Quartermaster tab. On a touch screen, and with a mouse, the same are buttons in the chat window.",
+          "Each number key does one thing you choose: cast a spell from your sheet, use up something you carry (a potion, food), or put something on and take it off again (a weapon, armour, clothing). Only things with a slot in Quartermaster can be put on; give an item its slot in the Quartermaster tab. Each key you set is also a button in the chat window.",
         ),
       );
       for (const key of "1234567890") {
@@ -2809,7 +2810,7 @@ export function createHud(root, handlers) {
     } else if (inventoryTab === "quartermaster") {
       body.append(
         debugNote(
-          "Quartermaster's own window: slots, outfits, item pictures, hidden items and everything else it does. It is the same sheet as the Items tab, so a change in either shows in both.",
+          "Quartermaster's own window: slots, outfits, item pictures, hidden items and everything else it does. It's the same sheet as the Items tab, so a change in either shows in both.",
         ),
         inkSmall("Open Quartermaster's window", () => handlers.onInventory?.()),
       );
@@ -2846,7 +2847,7 @@ export function createHud(root, handlers) {
     }
     body.append(
       debugNote(
-        "Make things out of what you carry. A recipe you can make has its button lit; the numbers are what you have of what it needs. New recipes come as your level rises, and you can save your own at the bottom.",
+        "Make things from what you carry. A recipe you can make has its button lit; the numbers show how much you have of what it needs. New recipes come as you level up, and you can save your own at the bottom.",
       ),
     );
     const ready = answer.recipes.filter((recipe) => recipe.can);
@@ -2905,7 +2906,7 @@ export function createHud(root, handlers) {
     const form = piece("display:flex;flex-direction:column;gap:4px;margin-top:4px;");
     form.append(
       debugNote(
-        'Say how many of each thing goes in, name what comes of it and describe it, then save. From then on it is a recipe that needs those same things. A description can say what it does: "+10 HP when eaten", "+1 AC", "Weapon: 1d6 damage".',
+        'Choose how many of each thing go in, name what it makes and describe it, then save. From then on it\'s a recipe that needs those same things. A description can say what it does: "+10 HP when eaten", "+1 AC", "Weapon: 1d6 damage".',
       ),
     );
     const puts = [];
@@ -3128,7 +3129,7 @@ export function createHud(root, handlers) {
       when.addEventListener("change", () => handlers.onSetting("sheetTrack", when.value));
       keeps.append(piece("flex:1;", "The AI updates your sheet"), when);
       const about = explainNote(
-        "With updating on, the AI reads what was narrated and changes these numbers to match (one more AI call each time). Which model does it: Settings → AI → Connections → Trackers use.",
+        "With updating on, the AI reads what was narrated and changes these numbers to match (one more AI call each time). The model it uses is set in Settings → AI → Connections → Trackers use.",
       );
       about.setAttribute("data-wanderworld-explain", "");
       body.append(told, keeps, about);
@@ -3243,7 +3244,7 @@ export function createHud(root, handlers) {
     body.append(
       piece("font-weight:700;margin-top:6px;", "Add a spell from the 5e SRD"),
       explainNote(
-        'These are the SRD\'s spells of level 0 to 3 that a fight here can play. A cantrip costs no mana; a spell costs its level in mana (1 for a first-level spell, 2 for a second). Once added it is yours: its description is its rule, and you can rewrite it. Your own spells are written the same way: "2 mana. 1d10 fire damage. Range 20." is an attack roll; "Dexterity save for half" asks the target for a saving throw; "Always hits" needs no roll; "Wisdom save or paralyzed 8 seconds" leaves an effect (stunned, paralyzed, restrained and incapacitated hold the target; frightened sends it running); "+1d8 HP" heals you. No mana named makes it a cantrip. A spell with none of these is only told to the AI.',
+        'The SRD\'s spells of level 0 to 9 that fights here can play. A cantrip costs no mana; a spell costs its level in mana (1 for a first-level spell, up to 9 for a ninth). Once added, it\'s yours: its description is its rule, and you can rewrite it. Write your own spells the same way: "2 mana. 1d10 fire damage. Range 20." is an attack roll; "Dexterity save for half" asks the target for a saving throw; "Always hits" needs no roll; "Wisdom save or paralyzed 8 seconds" leaves an effect (stunned, paralyzed, restrained and incapacitated hold the target; frightened sends it running); "+1d8 HP" heals you. No mana named makes it a cantrip. A spell with none of these is only told to the AI.',
       ),
       spellForm,
     );
@@ -3269,7 +3270,7 @@ export function createHud(root, handlers) {
       body.append(
         row,
         explainNote(
-          "Optional, and only for fights by turns. A class from the 5e SRD gives you what it gives by level: a fighter Second Wind (a bonus action: +1d10 + your level HP, once between sleeps), Action Surge from level 2 (one more action, once between sleeps) and more attacks for an Attack action from level 5; a rogue Cunning Action from level 2 (Dash or Disengage as a bonus action); a barbarian Rage (a bonus action, twice between sleeps: +2 damage with what you swing, and half damage from weapons, teeth and claws, for the rest of the fight). Barbarians, monks, paladins and rangers also attack twice from level 5. Settings → Inventory → Combat has the numbers, if you'd rather set them yourself.",
+          "Optional, and only for fights by turns. A class from the 5e SRD gives you its features as you level up: a fighter Second Wind (a bonus action: +1d10 + your level HP, once between sleeps), Action Surge from level 2 (one more action, once between sleeps) and more attacks for an Attack action from level 5; a rogue Cunning Action from level 2 (Dash or Disengage as a bonus action); a barbarian Rage (a bonus action, twice between sleeps: +2 damage with what you swing, and half damage from weapons, teeth and claws, for the rest of the fight). Barbarians, monks, paladins and rangers also attack twice from level 5. Settings → Inventory → Combat has the numbers, if you'd rather set them yourself.",
         ),
       );
     }
@@ -3409,7 +3410,7 @@ export function createHud(root, handlers) {
             ].map(([label, value, name]) => [label, value, (next) => handlers.onSetting?.(name, next)]),
           ),
           explainNote(
-            "What each of your turns gives as things stand: your class, level and race decide. Change a number to have that many. 0 hands it back to the rules.",
+            "What each of your turns gives right now; your class, level and race decide it. Change a number to set your own. 0 goes back to the rules.",
           ),
         );
       if (build.slots?.length)
@@ -3420,7 +3421,7 @@ export function createHud(root, handlers) {
           ),
           explainNote(
             build.slotsOn
-              ? "How many spell slots of each level you have between sleeps: your level decides, and you can change any of them. Set one to what your level gives and it's the rules' again."
+              ? "How many spell slots of each level you have between sleeps. Your level decides, and you can change any of them. Set one back to what your level gives and the rules decide it again."
               : 'How many spell slots of each level you would have. They are used only where fights go by turns with "Fights by turns use spell slots" on (Settings → Inventory → Combat); otherwise spells cost mana.',
           ),
         );
@@ -3555,7 +3556,7 @@ export function createHud(root, handlers) {
     }
   });
   // Save world: now, and sent to the Engine now. Load world: another of your worlds, as the Engine has them.
-  const saveButton = button("Save world", "Save this world now, and send it to the Engine now", () => {
+  const saveButton = button("Save world", "Save this world and send it to the Engine now", () => {
     togglePanel(menuPanel);
     handlers.onSaveWorld?.();
   });
@@ -3563,7 +3564,7 @@ export function createHud(root, handlers) {
   worldsPanel.setAttribute("data-wanderworld-ui", "");
   worldsPanel.style.cssText = PANEL;
   panels.push(worldsPanel);
-  const loadButton = button("Load world", "Leave this world (saved) for another of your worlds", () => {
+  const loadButton = button("Load world", "Save this world and open another of yours", () => {
     togglePanel(worldsPanel);
     if (worldsPanel.style.display === "none") return;
     const title = document.createElement("div");
@@ -3609,8 +3610,8 @@ export function createHud(root, handlers) {
   );
   controls.append(mapButton, inventoryButton, journalButton, loreButton, chatButton, illustrateButton, gameMenuButton);
 
-  const menuButton = button("☰", "Menu", () => setMenu(controls.dataset.open !== "1"));
-  menuButton.setAttribute("aria-label", "Menu");
+  const menuButton = button("☰", "Show or hide the buttons", () => setMenu(controls.dataset.open !== "1"));
+  menuButton.setAttribute("aria-label", "Show or hide the buttons");
   const narrow = window.matchMedia?.(NARROW) ?? { matches: false };
   function setMenu(open) {
     controls.dataset.open = open ? "1" : "0";
@@ -3647,9 +3648,9 @@ export function createHud(root, handlers) {
   const wanted = { jump: true, rest: true, run: true, chat: true, place: true }; // Settings: the thumb's buttons, the chat window's, the place line
   const jump = button("Jump", "Jump", () => handlers.onJump());
   const strike = button("Attack", "Swing at whatever is in front of you", () => handlers.onAttack?.());
-  const rest = button("Sit", "Sit down on the ground; again to lie down", () => handlers.onRest());
+  const rest = button("Sit", "Sit down on the ground. Tap again to lie down", () => handlers.onRest());
   let runOn = false;
-  const run = button("Run", "Run until this is tapped again", () => {
+  const run = button("Run", "Run until you tap this again", () => {
     runOn = !runOn;
     run.style.background = runOn ? "#2e8c96" : "rgba(10,14,20,0.62)";
     run.setAttribute("aria-pressed", String(runOn));
@@ -4219,7 +4220,7 @@ export function createHud(root, handlers) {
         : `${info.name} comes at you, looking for trouble.`;
       const words = document.createElement("div");
       words.textContent =
-        "There's no fighting in Wanderworld yet, so nothing happens by itself. You can talk to them, say or do something about it in the chat (a moment), or play it out as a scene.";
+        "Nothing happens unless you act: they don't strike first. Talk to them, say or do something in the chat (a moment), or play it out as a scene.";
       const row = document.createElement("div");
       row.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
       const act = (label, run, small = false) => {
@@ -4241,7 +4242,7 @@ export function createHud(root, handlers) {
       const hintLine = document.createElement("div");
       hintLine.style.cssText = `font-size:12px;color:${INK_SOFT};`;
       hintLine.textContent =
-        '"Stop aggressive approaches" turns them off in Menu → Settings → People; you can turn them back on there.';
+        '"Stop aggressive approaches" turns them off in Menu → Settings → People, where you can turn them back on.';
       confront.replaceChildren(title, words, row, foot, hintLine);
     },
     /** Opens the chat window with the cursor in its box. */
@@ -4542,7 +4543,7 @@ export function createHud(root, handlers) {
         node.textContent = content;
         return node;
       };
-      const loreKeys = keysLine("Lorebook entries can configure your world by using specific keywords.", LORE_KEYS);
+      const loreKeys = keysLine("Lorebook entries can change your world with ww: keywords.", LORE_KEYS);
       const nodes = [text(`Lore here: ${info.place}`, `font:700 15px ${SERIF};`), loreKeys.row, loreKeys.detail];
       if (!info.entries.length)
         nodes.push(
@@ -4740,7 +4741,7 @@ export function createHud(root, handlers) {
           text("The scene is set:", `font:700 13px ${SERIF};`),
           text(words, `${NOTE_PAPER}padding:8px 10px;font-size:13px;line-height:1.45;`),
           text(
-            'With AI on it plays out as a moment, or as a full scene from "Play it as a scene". It\'s kept in the Journal (Here).',
+            'With the AI on, it plays out as a moment, or as a full scene from "Play it as a scene". It\'s kept in the Journal, under Here.',
             "font-size:12px;opacity:0.75;",
           ),
         );

@@ -49,7 +49,7 @@ export function createAssistant(handlers) {
     `${INK_INPUT}width:100%;box-sizing:border-box;min-height:64px;font:13px system-ui,sans-serif;resize:vertical;`,
   );
   input.placeholder =
-    "Write your request or ask about your world. (Ex. Make Jason an old elven warrior who is married to Sothera)";
+    "Ask about your world, or ask for a change. For example: make Jason an old elven warrior married to Sothera";
   input.setAttribute("aria-label", "Ask the AI assistant");
   input.addEventListener("keydown", (event) => {
     event.stopPropagation(); // typing here doesn't walk
@@ -222,7 +222,7 @@ export function createAssistant(handlers) {
           }
         });
         again.style.cssText += "align-self:flex-start;margin-left:26px;";
-        again.title = "Asks the model for this text again (one more call)";
+        again.title = "Ask the AI to write this again (one more AI call)";
         againButtons.push(again);
         node.append(again);
       }

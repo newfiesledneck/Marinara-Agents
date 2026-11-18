@@ -801,12 +801,10 @@ export function createJournal(panelCss, handlers, shows = () => true) {
       row.append(element("span", "", "from"), ageMin, element("span", "", "to"), ageMax);
       body.append(row);
     }
-    body.append(
-      element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Genders of the people nothing says the gender of"),
-    );
+    body.append(element("div", "font-size:12px;opacity:0.75;margin-top:4px;", "Genders of people with none set"));
     body.append(
       explain(
-        "This world's own. Lore comes first: a gender from a lorebook, a card or set by you is never changed. These only decide townsfolk left on Auto and people the AI invents. The sliders are weighed against each other. Townsfolk on Auto follow a change the next time the world is opened.",
+        "This world's own. Lore comes first: a gender from a lorebook, a card or you never changes. These decide only townsfolk left on Auto and people the AI invents. The sliders are weighed against each other. Townsfolk on Auto follow a change the next time the world is opened.",
       ),
     );
     {
@@ -828,7 +826,7 @@ export function createJournal(panelCss, handlers, shows = () => true) {
         const range = element("input", "flex:1;min-width:0;max-width:220px;");
         Object.assign(range, { type: "range", min: 0, max: 100, step: 1 });
         range.value = now[key];
-        range.setAttribute("aria-label", `${label}: share of the people nothing says the gender of`);
+        range.setAttribute("aria-label", `${label}: share of people with no gender set`);
         const count = element("span", "flex:none;width:28px;text-align:right;", String(now[key]));
         range.addEventListener("input", () => {
           now[key] = Number(range.value);
@@ -1051,7 +1049,7 @@ export function createJournal(panelCss, handlers, shows = () => true) {
     if (world.waiting.length) {
       body.append(
         explain(
-          `Waiting for the world builder (the lore puts them somewhere this world hasn't built them): ${world.waiting.join(", ")}.`,
+          `Waiting to be placed (the lore puts them somewhere this world hasn't built yet): ${world.waiting.join(", ")}.`,
         ),
       );
     }
@@ -1087,7 +1085,7 @@ export function createJournal(panelCss, handlers, shows = () => true) {
   function drawMap() {
     body.append(
       explain(
-        "This region from above: you (yellow), your home, the town, places out in the country, and where each edge leads. Scroll or use the buttons to look closer, drag to move about, and click to set a waypoint.",
+        "This region from above: you (yellow), your home, the town, places out in the country, and where each edge leads. Scroll or use the buttons to look closer, drag to move about, and tap or click to set a waypoint.",
       ),
     );
     map = mapCanvas(420, 420);

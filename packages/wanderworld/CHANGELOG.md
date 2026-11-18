@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.7.24 — 2026-11-17
+
+- The text in Wanderworld's menus is rewritten to be shorter and plainer: setting labels and their (i) explanations, buttons, notes, notices and the item and keyword references. Explanations say what On does and what Off does.
+- Help is reorganised. The long fighting section is in short parts, and new sections cover your sheet, items and money; gathering, crafting and shops; fighting; the chat window and places; and what people remember.
+- Help now names settings and places as the menus show them.
+- Fixed text that was out of date: a note said there was no fighting yet, and the SRD spell list was said to stop at level 3.
+
 ## 0.7.23 — 2026-11-17
 
 - Creatures of one kind fight differently. About half the bandits close in with a blade, some stand off with a crossbow, some cast (an acolyte's spells). Puglins and skeletons are fighters or archers.

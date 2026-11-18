@@ -54,7 +54,7 @@ export const PLACEHOLDERS = {
   style:
     "The picture style chosen in Menu → Settings → AI → Pictures, in its own words (Engine default is your default style profile in the Engine). Empty for Auto and No style. If your template leaves this out, the style is added at the end anyway. Like: Painterly fantasy illustration with soft brushwork. painterly, soft brushwork, high detail",
   setting:
-    "Whatever you wrote in this world's Setting box (New world, or Journal → World), word for word. Empty if you left the box empty: it is your own text, nothing is added to it.",
+    "Whatever you wrote in this world's Setting box (New world, or Journal → World), word for word. Empty if you left the box empty: it's your own text, with nothing added.",
   recent: "The narrator's last line in the chat, if there is one.",
   recent_chat:
     "The last few lines of the chat, yours and everyone's, word for word. The AI rewrite is given these anyway (so it can paint what you're doing right now); put this in the template only if your image model copes with raw chat.",
@@ -176,7 +176,7 @@ export function createIllustrateWindow(layer, handlers) {
     element(
       "div",
       `color:${INK_SOFT};line-height:1.4;`,
-      "The template is the prompt, with {words in braces} swapped for what's true right now. Write anything else round them: it's sent as it is. Click one below to put it in. A sentence whose {words} all come out empty is left out whole, so \"With them: {people}.\" goes when nobody's there.",
+      "The template is the prompt, with {words in braces} swapped for what's true right now. Anything else you write round them is sent as it is. Tap one below to put it in. A sentence whose {words} all come out empty is left out whole, so \"With them: {people}.\" goes when nobody's there.",
     ),
   );
   const macros = element(
@@ -314,7 +314,7 @@ export function createIllustrateWindow(layer, handlers) {
     element(
       "div",
       `color:${INK_SOFT};line-height:1.4;margin-top:4px;`,
-      "The template only fills in the facts. With this on, a model rewrites that into a better prompt first: one more call, on the connection chosen here, which can be a different one from your conversations'.",
+      "The template only fills in the facts. With this on, a model first rewrites them into a better prompt: one more AI call, on the connection chosen here, which can differ from the one your conversations use.",
     ),
     tick("improve", "Have the AI rewrite the prompt before painting"),
     tick("review", "Show me the rewritten prompt first, to change or approve"),
