@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { CheckCircle2, ListChecks, Loader2, Search, Settings2, UsersRound } from "lucide-react";
+import { CheckCircle2, ListChecks, Search, Settings2, UsersRound } from "lucide-react";
 import { SlpSparkleGlyph } from "../../base/chrome/SlpGlyphs";
 import type { SlpCreatorManagedStageProfile } from "../../../../../shared/src/slp/slp-social.types.js";
 import { SlurpCreatorBulkEdit } from "./SlpCreatorBulkEdit";
@@ -12,9 +12,11 @@ import type { SlpCreatorFilter } from "./slp-creators-backstage-contract";
 import type { SlpBackstagePageProps } from "../backstage/slp-backstage-contract";
 import { BackstagePageHeader } from "../../modules/settings/SlpSettingsKit";
 import { SlpContinuityOverview } from "./SlpContinuityOverview";
+import { SlpCreatorLooksRefresh } from "./SlpCreatorLooksRefresh";
 import { useSlurpCreatorMetrics } from "./slp-creators-hooks";
 import { SLP_CREATOR_SETTING_TAB } from "./settings/slp-creator-settings-contract";
 import { openSlpCreatorSettings } from "./settings/slp-creator-settings-store";
+import { Spinner } from "../../../components/ui/Spinner";
 
 const CREATOR_FILTERS: readonly SlpCreatorFilter[] = ["all", "active", "paused", "attention"];
 
@@ -123,6 +125,7 @@ export function SlpCreatorsPanel(page: SlpBackstagePageProps) {
             <SlpSparkleGlyph size={14} className="text-[var(--noodle-accent-foreground)]" aria-hidden="true" />
             {t("ui.slurp.settings.creators.improve", { defaultValue: "Improve with AI" })}
           </button>
+          <SlpCreatorLooksRefresh creators={creators} />
         </div>
       </div>
 
@@ -162,7 +165,7 @@ export function SlpCreatorsPanel(page: SlpBackstagePageProps) {
 
       {accountsQuery.isLoading ? (
         <div className="flex justify-center py-10 text-[var(--slurp-muted)]" role="status">
-          <Loader2 size={20} className="animate-spin motion-reduce:animate-none" />
+          <Spinner size="lg" />
         </div>
       ) : accountsQuery.isError ? (
         <div className="rounded-xl bg-[var(--slurp-danger)]/10 p-5 text-sm ring-1 ring-inset ring-[var(--slurp-danger)]/25">

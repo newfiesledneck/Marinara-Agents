@@ -21,6 +21,8 @@ import { TopBar } from "./components/TopBar";
 import { INDEX_QUERY_KEY, useOtomeIndex } from "./hooks/use-index";
 import { useLook, type LookPreference } from "./hooks/use-look";
 import { OtomeAudioProvider } from "./hooks/use-otome-audio";
+import { OtomeHapticsProvider } from "./hooks/use-otome-haptics";
+import { HapticsStop } from "./components/HapticsStop";
 import { fetchRunView, runQueryKey, useRun, useSampledAccents } from "./hooks/use-run";
 import { accentOf } from "./lib/accent";
 import { dropStaleCareNotes } from "./lib/cycle-storage";
@@ -28,8 +30,9 @@ import { localDay } from "./lib/tap-mood";
 import { OtomePropsContext, readOtomeProps } from "./props";
 import { BibleView } from "./screens/BibleView";
 import { ClawMachine } from "./screens/dates/ClawMachine";
-import { DateNight } from "./screens/dates/DateNight";
+import { DateNight, type DateOpen } from "./screens/dates/DateNight";
 import { DatesHub, type DateActivity } from "./screens/dates/DatesHub";
+import { KittyCards } from "./screens/dates/KittyCards";
 import { PhotoShoot } from "./screens/dates/PhotoShoot";
 import { ReadHim } from "./screens/dates/ReadHim";
 import { ReadMe } from "./screens/dates/ReadMe";
@@ -39,7 +42,7 @@ import { HomeScreen, useHomeLi } from "./screens/home/HomeScreen";
 import { PhoneScreen, useDailyMessages, type PhoneOpen } from "./screens/phone/PhoneScreen";
 import { StickerNotice } from "./screens/phone/StickerPicker";
 import { Placeholder } from "./screens/Placeholder";
-import { Album } from "./screens/album/Album";
+import { Album, type AlbumTab } from "./screens/album/Album";
 import { Reader } from "./screens/reader/Reader";
 import { RemindMe } from "./screens/remind/RemindMe";
 import {
@@ -65,9 +68,9 @@ const ACTIVITIES: ReadonlySet<DateActivity> = new Set<DateActivity>([
   "read-him",
   "read-me",
   "tarot",
-  "date-night",
   "photo-shoot",
   "claw",
+  "kitty",
 ]);
 
 interface ScreensProps {
@@ -97,8 +100,16 @@ function OtomeForgeScreens({ lookPreference, onLookPreference }: ScreensProps) {
   const [datesLi, setDatesLi] = useState<string | null>(null);
   // Whose looks the Wardrobe shows, kept while the reader plays a look's first-wear scene (Back returns to them).
   const [wardrobeOwner, setWardrobeOwner] = useState<WardrobeOwner>();
-  // Date Night reads its scenes full-stage, as the reader does: the top bar steps aside while it says so.
+  // A date reads its scenes full-stage, as the reader does: the top bar steps aside while it says so.
   const [immersive, setImmersive] = useState(false);
+  // #2303: the date the date screen shows (a won date to plan, or an earlier one by its key), and where Back leads.
+  const [dateOpen, setDateOpen] = useState<DateOpen | null>(null);
+  const [dateReturn, setDateReturn] = useState<ScreenId>("album");
+  // #2302: where the open date is now (a playthrough's scenes or its ending), so coming back from Settings opens it
+  // there, not at its first step. Kept apart from dateOpen, which keys the screen and must not remount it mid-date.
+  const [dateAt, setDateAt] = useState<DateOpen | null>(null);
+  // The Album's tab when it opens again after a date or a story it opened (#2303), else its own first.
+  const [albumTab, setAlbumTab] = useState<AlbumTab | undefined>();
   const [opening, setOpening] = useState<string | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
   const screenRef = useRef<HTMLDivElement>(null);
@@ -123,6 +134,12 @@ function OtomeForgeScreens({ lookPreference, onLookPreference }: ScreensProps) {
   // where the forge screen alone would have left him on the colour his name hashes to.
   useSampledAccents(view ?? undefined);
 
+  // Kept while the Album opens a date or a story and Back returns to it, and through Settings on the way (#2302);
+  // anywhere else, the Album opens as usual.
+  useEffect(() => {
+    if (screen !== "album" && screen !== "date-night" && screen !== "reader" && screen !== "settings")
+      setAlbumTab(undefined);
+  }, [screen]);
   // Once the active story has loaded, its opening screen stays put: a world that finishes forging while the player
   // watches keeps showing the forge (its cast and paint offer) until they choose to go Home.
   const phase = view?.forge.phase ?? null;
@@ -237,6 +254,13 @@ function OtomeForgeScreens({ lookPreference, onLookPreference }: ScreensProps) {
     setReaderReturn(from);
     setChosen("reader");
   };
+  /** #2303: the date screen, for a won date or an earlier date, from Wish or the Album. */
+  const openDate = (from: ScreenId) => (open: DateOpen) => {
+    setDateOpen(open);
+    setDateAt(null);
+    setDateReturn(from);
+    go("date-night");
+  };
   // Begin opens the prologue in the reader (its chapter is made at once, its scene written as it opens), then Home;
   // once the prologue is read, Begin goes straight Home. A failure stays on the forge (ForgeProgress shows it).
   const begin = async () => {
@@ -259,9 +283,10 @@ function OtomeForgeScreens({ lookPreference, onLookPreference }: ScreensProps) {
     "read-him": "dates",
     "read-me": "dates",
     tarot: "dates",
-    "date-night": "dates",
+    "date-night": dateReturn,
     "photo-shoot": "dates",
     claw: "dates",
+    kitty: "dates",
     home: activeRun ? undefined : "picker",
   };
   const backTo = back[screen];
@@ -318,6 +343,7 @@ function OtomeForgeScreens({ lookPreference, onLookPreference }: ScreensProps) {
         view={view}
         onOpenStory={openReader("wish")}
         onOpenWardrobe={() => go("wardrobe")}
+        onOpenDate={(item) => openDate("wish")({ item })}
       />
     ) : screen === "wardrobe" && activeRun && view ? (
       <Wardrobe
@@ -328,7 +354,14 @@ function OtomeForgeScreens({ lookPreference, onLookPreference }: ScreensProps) {
         onOwnerChange={setWardrobeOwner}
       />
     ) : screen === "album" && activeRun && view ? (
-      <Album runKey={activeRun} view={view} onOpenStory={openReader("album")} />
+      <Album
+        runKey={activeRun}
+        view={view}
+        onOpenStory={openReader("album")}
+        onOpenDate={openDate("album")}
+        initialTab={albumTab}
+        onTabChange={setAlbumTab}
+      />
     ) : screen === "home" && activeRun && view ? (
       <HomeScreen
         runKey={activeRun}
@@ -345,10 +378,7 @@ function OtomeForgeScreens({ lookPreference, onLookPreference }: ScreensProps) {
         view={view}
         open={phoneOpen}
         onOpenChange={setPhoneOpen}
-        onDate={(li) => {
-          setDatesLi(li);
-          go("date-night");
-        }}
+        onOpenScene={openReader("phone")}
       />
     ) : screen === "remind" && activeRun && view ? (
       <RemindMe
@@ -375,19 +405,24 @@ function OtomeForgeScreens({ lookPreference, onLookPreference }: ScreensProps) {
       <ReadMe runKey={activeRun} view={view} li={datesOf} onExit={() => go("dates")} />
     ) : screen === "tarot" && activeRun && view && datesOf ? (
       <TarotNight runKey={activeRun} view={view} li={datesOf} onExit={() => go("dates")} />
-    ) : screen === "date-night" && activeRun && view && datesOf ? (
+    ) : screen === "date-night" && activeRun && view && dateOpen ? (
       <DateNight
         runKey={activeRun}
         view={view}
-        li={datesOf}
-        onExit={() => go("dates")}
+        open={dateAt ?? dateOpen}
+        onExit={() => go(dateReturn)}
+        exitLabel={t("ui.otomeForge.reader.backTo", { screen: t(SCREEN_NAME_KEYS[dateReturn]) })}
         onHome={() => go("home")}
         onImmersive={setImmersive}
+        onResume={setDateAt}
+        onImageSettings={() => openSettings("images")}
       />
     ) : screen === "photo-shoot" && activeRun && view && datesOf ? (
       <PhotoShoot runKey={activeRun} view={view} li={datesOf} onExit={() => go("dates")} />
     ) : screen === "claw" && activeRun && view && datesOf ? (
       <ClawMachine runKey={activeRun} view={view} li={datesOf} onExit={() => go("dates")} />
+    ) : screen === "kitty" && activeRun && view && datesOf ? (
+      <KittyCards runKey={activeRun} view={view} li={datesOf} onExit={() => go("dates")} />
     ) : activeRun && run.isPending ? (
       // A screen of the story whose view is still on its way (the active story changed beneath it).
       loading
@@ -397,53 +432,59 @@ function OtomeForgeScreens({ lookPreference, onLookPreference }: ScreensProps) {
 
   return (
     <OtomeAudioProvider run={view} cue={playsHomeCue(screen, settingsReturn) ? "home" : null}>
-      {/* The reader (and a date's scenes) are full-stage: their own header carries the way out. */}
-      {screen === "reader" || (screen === "date-night" && immersive) ? null : (
-        <TopBar
-          run={
-            RUN_SCREENS.has(screen)
-              ? {
-                  li: homeLi ? { name: homeLi.name, accent: accentOf(homeLi) } : null,
-                  starlight: view?.starlight ?? null,
-                }
-              : null
+      <OtomeHapticsProvider run={view}>
+        {/* The reader (and a date's scenes) are full-stage: their own header carries the way out. */}
+        {screen === "reader" || (screen === "date-night" && immersive) ? null : (
+          <TopBar
+            run={
+              RUN_SCREENS.has(screen)
+                ? {
+                    li: homeLi ? { name: homeLi.name, accent: accentOf(homeLi) } : null,
+                    starlight: view?.starlight ?? null,
+                  }
+                : null
+            }
+            onBack={backTo ? () => go(backTo) : undefined}
+            onHome={() => go("home")}
+            onSettings={screen === "settings" ? undefined : () => openSettings()}
+          />
+        )}
+        {activeRun && view && screen !== "picker" && screen !== "setup" ? (
+          <MemoryBanner
+            key={activeRun}
+            runKey={activeRun}
+            onOpenConnections={(memory) => openSettings("connections", memory)}
+            onLeave={() => screenRef.current?.querySelector<HTMLElement>("h1")?.focus({ preventScroll: true })}
+          />
+        ) : null}
+        <div
+          key={
+            screen === "bible"
+              ? `bible-${bibleLi}`
+              : screen === "reader"
+                ? `reader-${chapterKey}`
+                : screen === "read-him" ||
+                    screen === "read-me" ||
+                    screen === "tarot" ||
+                    screen === "photo-shoot" ||
+                    screen === "claw" ||
+                    screen === "kitty"
+                  ? `${screen}-${datesOf?.id ?? ""}`
+                  : screen === "date-night"
+                    ? `date-${dateOpen ? JSON.stringify(dateOpen) : ""}`
+                    : screen
           }
-          onBack={backTo ? () => go(backTo) : undefined}
-          onHome={() => go("home")}
-          onSettings={screen === "settings" ? undefined : () => openSettings()}
-        />
-      )}
-      {activeRun && view && screen !== "picker" && screen !== "setup" ? (
-        <MemoryBanner
-          key={activeRun}
-          runKey={activeRun}
-          onOpenConnections={(memory) => openSettings("connections", memory)}
-          onLeave={() => screenRef.current?.querySelector<HTMLElement>("h1")?.focus({ preventScroll: true })}
-        />
-      ) : null}
-      <div
-        key={
-          screen === "bible"
-            ? `bible-${bibleLi}`
-            : screen === "reader"
-              ? `reader-${chapterKey}`
-              : screen === "read-him" ||
-                  screen === "read-me" ||
-                  screen === "tarot" ||
-                  screen === "date-night" ||
-                  screen === "photo-shoot" ||
-                  screen === "claw"
-                ? `${screen}-${datesOf?.id ?? ""}`
-                : screen
-        }
-        ref={screenRef}
-        className="of-screen"
-      >
-        {content}
-      </div>
-      {/* "You unlocked a new sticker" (#2044), over whichever screen is open. */}
-      {view && activeRun ? <StickerNotice view={view} /> : null}
-      {DOCKED.has(screen) ? <Dock active={screen} onSelect={selectDockScreen} unseen={view?.unseen} /> : null}
+          ref={screenRef}
+          className="of-screen"
+        >
+          {content}
+        </div>
+        {/* "You unlocked a new sticker" (#2044), over whichever screen is open. */}
+        {view && activeRun ? <StickerNotice view={view} /> : null}
+        {/* 0.34.0: Stop the toys, over whichever screen is open while they play. */}
+        <HapticsStop />
+        {DOCKED.has(screen) ? <Dock active={screen} onSelect={selectDockScreen} unseen={view?.unseen} /> : null}
+      </OtomeHapticsProvider>
     </OtomeAudioProvider>
   );
 }

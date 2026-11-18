@@ -1,5 +1,41 @@
 # Slurp release notes
 
+## 0.4.27 — 2026-11-17
+
+- Changed: 23 copied helpers now come from two shared modules, `slp-hash.ts` and `slp-coerce.ts`, with the same output. A new regression freezes the hash values, so stored picks and rotations stay put.
+- Changed: the drama service uses the drama cast's `pairKey`, and earnings call `slurpDayKey` directly. No behaviour changes.
+
+## 0.4.26 — 2026-11-17
+
+- Changed: Slurp's switches, checkboxes and loading rings are now the ones Marinara Engine hands to packages (capability API 1.830), so they look and work like the Engine's own. The setting rows keep their name and note.
+- Changed: deleting an audience profile, a fan type, a storyline type or a content pack asks in Marinara's own dialog in place of the browser's.
+- Needs a Marinara Engine with capability API 1.830 or newer; an older Engine does not load this version.
+
+## 0.4.25 — 2026-11-16
+
+- Fixed: a hairstyle the card says is "worn" a certain way ("hair worn in a high ponytail") was read as clothing and left out of the picture.
+- Fixed: with Storylines off, explicit posts and occasions still brought in collab and couple partners from saved pairs and old collabs.
+- Added: Images › "One person per picture". Post pictures then show the Creator alone, with no partner, guest or collab partner drawn in.
+- Added: Backstage › Creators › "Refresh looks from cards". Slurp drafts each ticked Creator's look again from the card, as a Pulse task. One AI call per Creator.
+- Fixed: switching back to the Slurp tab no longer counts ad impressions again and rotates the ads.
+- Fixed: a fast second toggle in the events list no longer undoes the first one.
+- Fixed: a persona's Stir play can only be undone by that persona, also when no persona is sent.
+- Fixed: a double tap on a Life panel condition adds it once.
+
+## 0.4.24 — 2026-11-16
+
+- Fixed: cut-off post checks skip bracketed labels before the JSON object, schedule refresh rejects parsed non-object cards, and a relation denial no longer cancels an affirmed bond in a later clause.
+
+## 0.4.23 — 2026-11-16
+
+- Fixed: a post no longer stops in the middle of a sentence when the model runs out of output tokens. Slurp now sees that the answer was cut off and asks the model once more for a shorter post, in place of publishing the cut text.
+- Fixed: a card line that denies a relation, such as "not established friends" or "they aren't friends yet", no longer makes the two Creators friends.
+- Changed: the Creator settings tab that holds Delete is now called "Tools & delete", so you can find it.
+- Fixed: a double tap on "Resolve" for a Support ticket writes one line and gets one Creator reply.
+- Fixed: two subscription prices saved at the same time both stay saved.
+- Fixed: one damaged stored row no longer stops a Creator's request list or a scheduled follow-up, and a damaged character card gives a clear error when you refresh a conversation schedule.
+- Fixed: "Save to Slurp" from a chat checks that the chat has that character.
+
 ## 0.4.22 — 2026-11-13
 
 - Fixed: A collab or couple post now shows every partner in its picture. A nude picture no longer gets clothes from the Creator's card, the Stage appearance or a saved look. "Completely naked" counts as no clothes. (#2274)

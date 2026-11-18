@@ -9,10 +9,11 @@ import type { DatePlan, DateScore } from "./dates";
 import type { Prestige, PrestigeKind } from "./economy";
 import type { Face, MusicMood } from "./faces";
 import type { ClawRound } from "./claw";
+import type { KittyRound } from "./kitty";
 import type { ReadHimPaid } from "./read-him";
 import type { NotebookEntry, ReadMePaid } from "./read-me";
 import type { TarotPaid } from "./tarot";
-import type { ClawLineKind, TapZone, TimeOfDay } from "./home";
+import type { ClawLineKind, KittyLineKind, TapZone, TimeOfDay } from "./home";
 import type { FigurinePicture, GiftId } from "./shop";
 import type { PlayerSticker } from "./stickers";
 import type { BannerKind, PityCounter, Rarity, UnseenCounts } from "./wish";
@@ -162,6 +163,15 @@ export interface AudioSettings {
   chapterThemes: boolean;
   /** A Music asset folder (including its subfolders), or empty for Engine's mood library. */
   musicFolder: string;
+  /** 0.34.0: haptics play in this story (only with explicit Heat; SH/haptics.ts hapticsOn). */
+  haptics: boolean;
+  /** 0.34.0: the Intiface Central address to connect to, or "" for the Engine's own. */
+  hapticsUrl: string;
+  /**
+   * 0.34.0: scenes write bracketed delivery cues ("[hushed whisper]", "[gasps]") into spoken lines for the voice model
+   * (Segment.voiced); the reader never shows them.
+   */
+  emotionCues: boolean;
   homeMusic: string;
   audioConnectionId: string;
   muted: boolean;
@@ -302,6 +312,8 @@ export interface Player {
    * on, which starts them; absent: the built-in set only.
    */
   stickers?: Partial<Record<PlayerSticker, Paint>>;
+  /** 0.35.0: her Kitty Cards kitten's paint (S/art/kittens.ts), claimed once GET /play is read with images on. */
+  kitten?: Paint;
 }
 
 export type ArcStageKey = "1" | "2" | "3" | "4" | "5" | "6";
@@ -426,6 +438,8 @@ export interface Unit {
   figurine?: Paint;
   /** #2044: his nine chibi stickers, designed once he reaches level 2 with images on (S/art/stickers.ts). */
   stickers?: StickerSet;
+  /** 0.35.0: their Kitty Cards kitten's paint (S/art/kittens.ts), claimed once GET /play is read with images on. */
+  kitten?: Paint;
 }
 
 /**
@@ -487,11 +501,14 @@ export interface StageLines {
 }
 
 export type ClawLines = Record<ClawLineKind, string[]>;
+export type KittyLines = Record<KittyLineKind, string[]>;
 
-/** Lines written with his first stage pack: generic rough-day comfort, and the Claw Machine's. */
+/** Lines written with his first stage pack: generic rough-day comfort, the Claw Machine's and Kitty Cards'. */
 export interface FixedLines {
   comfort: string[];
   claw: ClawLines;
+  /** 0.35.0: absent in a pack written before Kitty Cards (the client plays the catalog's fallback lines). */
+  kitty?: KittyLines;
   at: string;
   /** #2152: the content it was written under, as StageLines.contract; its claw lines serve by the same rule. */
   contract?: string;
@@ -638,7 +655,10 @@ export interface PhoneMessage {
    * #2156: his invitation to clear the air, on his last message of a reply while she is upset with him: waiting for her
    * Accept or Decline, or what became of it (lapsed when she took it back first).
    */
-  invite?: { status: PhoneInviteStatus };
+  /** #2303: an accepted invitation names the scene it opened. */
+  invite?: { status: PhoneInviteStatus; scene?: string };
+  /** 0.34.0: his message drives the toys while he holds the remote (SH/haptics.ts); it loops until his next cue. */
+  haptic?: HapticCue[];
 }
 
 export type PhoneInviteStatus = "pending" | "accepted" | "declined" | "lapsed";
@@ -809,7 +829,10 @@ export interface LiState {
    * his messages and in the story's scenes; it clears when she takes it back or accepts his invitation to clear the air.
    */
   upset: { since: string } | null;
-  /** #2156: when she accepted his invitation to clear the air: the next Date Night with him is that evening (null after). */
+  /**
+   * #2156: when she accepted his invitation to clear the air; null again once its scene is read to its end (#2303:
+   * the scene is its own, SH/dates.ts clearAirSceneKey; it was a Date Night evening before).
+   */
   asked: string | null;
   /** What the protagonist has told him (he may know it; scene cards carry it). `ref` is `${key}/${i}`. */
   disclosures: Array<{ text: string; at: string; ref: string }>;
@@ -899,6 +922,8 @@ export interface Favorite {
    * lines (C/hooks/use-reader.ts).
    */
   ref: string;
+  /** 0.34.0: the line with its Emotion cues, as the reader voiced it (Segment.voiced); absent when it had none. */
+  voiced?: string;
 }
 
 /** A story CG the player has seen (M2b: unlocked only by POST /runs/:run/art/cg/seen). `key` is `${chapterKey}/${i}`. */
@@ -952,6 +977,8 @@ export interface RunState {
   purchases: ShopPurchaseRecord[];
   /** Each LI's newest finished Claw Machine rounds (M5): a repeated finish is answered from here; each is his memory. */
   claw: { rounds: ClawRound[] };
+  /** 0.35.0: each LI's newest finished Kitty Cards games, kept as the Claw's rounds are. */
+  kitty: { rounds: KittyRound[] };
   /** The newest paid Read Him sets (M5): the finish's once-only mark, in the same write as its pay. */
   readHim: { paid: ReadHimPaid[] };
   /** The newest paid Read Me sets (#1945): the once-only mark of the write that paid them and filled the notebook. */
@@ -1042,6 +1069,12 @@ export interface ChapterContext {
   prefix: string;
   fate: string;
   optional: string[];
+  /**
+   * 0.34.0: the timeline's form (S/memory/timeline.ts OVERVIEW_STYLE) it was read from, once that timeline was whole (no
+   * rebuild under way, every read made). Absent on one saved before, or meanwhile: the chapter's next scene after the
+   * rebuild replaces it once (S/story/beats.ts).
+   */
+  form?: number;
 }
 
 /** `${R}:chapter:${key}`: a chapter's plan. */
@@ -1120,6 +1153,18 @@ export interface Chapter {
 }
 
 /** A segment of a beat: one line of dialogue, one thought, or one piece of narration. */
+/**
+ * 0.34.0: one haptic cue on a line or a message (SH/haptics.ts): an action and a pattern at an intensity (0–1, never
+ * capped), for the toy `device` names (as the device list gives it) or for every connected toy that can do it. It loops
+ * until a later cue replaces it or the player stops it.
+ */
+export interface HapticCue {
+  action: "vibrate" | "rotate" | "oscillate" | "constrict" | "inflate" | "position" | "stop";
+  pattern?: "steady" | "tap" | "pulse" | "wave" | "ramp" | "impact";
+  intensity?: number;
+  device?: string;
+}
+
 export interface Segment {
   /** "" for narration. */
   speaker: string;
@@ -1136,6 +1181,16 @@ export interface Segment {
    * stage stops showing them until they speak again.
    */
   exits?: LiId[];
+  /**
+   * 0.34.0: what the toys do from this line on (explicit stories with Haptics on): it replaces every cue before it in the
+   * beat and loops until the next one.
+   */
+  haptic?: HapticCue[];
+  /**
+   * 0.34.0: a spoken line as written with the world's Emotion cues on, its bracketed cues kept for the voice model;
+   * `text` is the same line without them. Absent when the line had no cue.
+   */
+  voiced?: string;
 }
 
 export interface ChoiceOption {
@@ -1520,11 +1575,12 @@ export interface Grant {
 }
 
 /**
- * What an activity (Read Him, a date, a Claw round) earned, within the day's caps. #2128: `gift` is the affection a
- * gift given on a date earns beside the date's own, never capped (the gift was paid for in Starlight).
+ * What an activity (Read Him, a date, a Claw round, a Kitty Cards game) earned, within the day's caps. #2128:
+ * `gift` is the affection a gift given on a date earns beside the date's own, never capped (the gift was paid for in
+ * Starlight).
  */
 export interface ActivityGrant {
-  source: "read-him" | "read-me" | "tarot" | "date" | "claw" | "gift";
+  source: "read-him" | "read-me" | "tarot" | "date" | "claw" | "kitty" | "gift";
   starlight?: number;
   li?: LiId;
   affection?: number;
@@ -1565,7 +1621,8 @@ export interface MemoryStatus {
   retryable: boolean;
   /**
    * English, for Debug: not-prepared, interrupted, source-changed, generation-failed, … With `error`,
-   * `context-too-small` says the server wrote `message` itself (the memory model too small), not the provider.
+   * `context-too-small` (the memory model too small) and `timeline-too-long` (0.34.0: its condensed timeline came back
+   * over its length twice) say the server wrote `message` itself, not the provider.
    */
   reason?: string;
   recordCount?: number;

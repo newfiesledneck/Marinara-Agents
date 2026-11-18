@@ -16,21 +16,20 @@ import {
   type StoryWithChapters,
 } from "../lib/story-writer/model";
 import {
-  buildChapterMessages,
   buildSummaryMessages,
   buildTimelineMessages,
-  chapterRequest,
-  chapterTokenBudget,
   createClientId,
   endsMidSentence,
   findBannedPhrases,
   joinContinuation,
-  loreScanText,
   parseTimelineResponse,
+  planChapter,
   tokenBudget,
   visibleStreamingText,
   type ChatMessage,
+  type PromptSources,
 } from "../lib/story-writer/prompt";
+import { recordGeneration, redoOffer, type LatestGeneration } from "../lib/story-writer/redo";
 import {
   loadPromptCharacters,
   loadPromptLore,
@@ -42,6 +41,15 @@ import { storyWriterKeys, type StoryDocumentApi } from "./use-story-writer";
 
 export type GenerationStatus = "idle" | "writing" | "summarizing" | "timeline";
 
+/** The prompt the Engine would send for the primary Write button, as its raw route answers `returnPrompt`. */
+export interface PromptPeek {
+  mode: "next" | "continue";
+  chapterNumber: number;
+  model: string;
+  maxTokens: number | null;
+  messages: Array<{ role: string; content: string }>;
+}
+
 export interface StoryGenerationApi {
   status: GenerationStatus;
   generatingChapterId: string | null;
@@ -51,6 +59,15 @@ export interface StoryGenerationApi {
   canWrite: boolean;
   /** `request` (a quick reply) is sent in place of the continue message; a new chapter stores it as its request. */
   write(mode: "next" | "continue" | "rewrite", request?: string): Promise<void>;
+  /** The chapter Redo would write again, or null when Redo is not offered (see redoOffer). */
+  redoChapter: number | null;
+  /** Takes back what the latest generation wrote and writes it again with the same instruction. */
+  redo(): Promise<void>;
+  /**
+   * What the primary Write button would send right now, without writing: no run, no status, no chapter change.
+   * Null when there is no story or no connection.
+   */
+  peekPrompt(signal: AbortSignal): Promise<PromptPeek | null>;
   stop(): void;
   summarizeChapter(chapterId: string): Promise<void>;
   summarizeOlderChapters(): Promise<void>;
@@ -106,6 +123,32 @@ function scheduleFrame(callback: () => void): () => void {
 function pickConnection(connections: ConnectionOption[], settings: StorySettings): ConnectionOption | null {
   const id = resolveDefaultConnectionId(connections, settings.connectionId);
   return connections.find((connection) => connection.id === id) ?? null;
+}
+
+function promptSources(queryClient: QueryClient): PromptSources {
+  return {
+    characters: (ids) => loadPromptCharacters(queryClient, ids),
+    personas: (ids) => loadPromptPersonas(queryClient, ids),
+    lore: loadPromptLore,
+  };
+}
+
+function rowOf(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+/** The raw route's `returnPrompt` answer: `{ prompt: { messages }, parameters: { model, maxTokens, ... } }`. */
+function readPromptPeek(value: unknown): Pick<PromptPeek, "model" | "maxTokens" | "messages"> {
+  const parameters = rowOf(rowOf(value).parameters);
+  const list = rowOf(rowOf(value).prompt).messages;
+  return {
+    model: typeof parameters.model === "string" ? parameters.model : "",
+    maxTokens: typeof parameters.maxTokens === "number" ? parameters.maxTokens : null,
+    messages: (Array.isArray(list) ? list : []).flatMap((item) => {
+      const { role, content } = rowOf(item);
+      return typeof role === "string" && typeof content === "string" ? [{ role, content }] : [];
+    }),
+  };
 }
 
 /** Older chapters (outside the last N the next chapter sees in full) that have text but no summary yet. */
@@ -237,39 +280,26 @@ async function refreshTimeline(context: OperationContext): Promise<number | null
 async function writeChapter(
   context: OperationContext,
   requested: "next" | "continue" | "rewrite",
-  override?: string,
+  override: string | undefined,
+  /** Called once the run has saved what it wrote, before any follow-up. */
+  onWritten: (record: LatestGeneration) => void,
 ): Promise<void> {
   const { run, connection, t } = context;
   const doc = run.doc;
   const story = context.readStory();
   if (!story) return;
   const settings = story.story.settings;
-  const chapters = story.chapters;
-  const last = chapters[chapters.length - 1];
-  const original = requested === "rewrite" ? (last ?? null) : null;
-  const mode: "next" | "continue" = !last || (requested === "next" && last.status !== "draft") ? "next" : "continue";
-  // A rewrite is written from an emptied last chapter, so the prompt treats it as a new chapter.
-  const promptChapters = original ? [...chapters.slice(0, -1), { ...original, text: "", summary: "" }] : chapters;
-  const chapterNumber = mode === "next" ? chapters.length + 1 : chapters.length;
-  // Continuing a draft sends a quick reply once: the draft keeps the request it was started with.
-  const request = chapterRequest(settings, override, original);
-
+  const last = story.chapters[story.chapters.length - 1];
   // Cast and lore load before the story changes, so a failure here leaves it as it was.
-  const [characters, personas, lore] = await Promise.all([
-    loadPromptCharacters(context.queryClient, settings.characterIds),
-    loadPromptPersonas(context.queryClient, settings.personaIds),
-    loadPromptLore(settings.lorebookIds, loreScanText(settings, promptChapters, request)),
-  ]);
-  if (run.controller.signal.aborted) return;
-  const messages = buildChapterMessages({
+  const { mode, original, chapterNumber, request, messages, maxTokens } = await planChapter({
     settings,
-    chapters: promptChapters,
-    mode,
-    characters,
-    personas,
-    lore,
-    request,
+    chapters: story.chapters,
+    requested,
+    quickReply: override,
+    savedMaxTokens: connection.savedMaxTokens,
+    sources: promptSources(context.queryClient),
   });
+  if (run.controller.signal.aborted) return;
 
   let target: StoryChapter;
   if (mode === "next") {
@@ -313,12 +343,7 @@ async function writeChapter(
   let result: Completion;
   let failure: unknown = null;
   try {
-    result = await complete(
-      context,
-      messages,
-      chapterTokenBudget(settings.chapterWords, connection.savedMaxTokens),
-      context.streaming ? onText : undefined,
-    );
+    result = await complete(context, messages, maxTokens, context.streaming ? onText : undefined);
   } catch (error) {
     failure = error;
     const partial = (error as { partial?: unknown } | null)?.partial;
@@ -350,6 +375,8 @@ async function writeChapter(
   // A stopped, failed or cut-off chapter stays a draft, so Write continues it instead of starting the next one.
   const finished = result.finished && !result.aborted && !failure && !endsMidSentence(finalText);
   await doc.saveChapter(chapterId, { text: finalText, status: finished ? "complete" : "draft" }, { immediate: true });
+  const record = recordGeneration(story, { requested, override, chapterId, after: finalText });
+  onWritten(record);
 
   const banned = findBannedPhrases(addition, settings.bannedPhrases);
   if (banned.length) toast.warning(t("generation.bannedPhrases", { phrases: banned.join(", ") }));
@@ -366,6 +393,7 @@ async function writeChapter(
   // Clear only the note this chapter was written with; a note typed during the stream is meant for the next one.
   if (now.clearNoteAfterChapter && now.authorNote && now.authorNote === settings.authorNote) {
     doc.updateSettings({ authorNote: "" }, { immediate: true });
+    onWritten({ ...record, clearedNote: settings.authorNote });
   }
   context.setLive(null, 0);
   if (now.autoSummarize) {
@@ -387,6 +415,11 @@ export function useStoryGeneration(args: {
   const [status, setStatus] = useState<GenerationStatus>("idle");
   const [generatingChapterId, setGeneratingChapterId] = useState<string | null>(null);
   const [liveWords, setLiveWords] = useState(0);
+  // ponytail: one record per mounted Story Writer, for the open story, in memory: a reload or opening another story
+  // forgets it. Upgrade path: keep it on the story document.
+  const [latestGeneration, setLatestGeneration] = useState<LatestGeneration | null>(null);
+  const activeStoryId = doc.data?.story.id ?? null;
+  if (latestGeneration && latestGeneration.storyId !== activeStoryId) setLatestGeneration(null);
   const latest = useRef({ doc, streaming, debugMode, connections, t });
   const runRef = useRef<Run | null>(null);
 
@@ -455,8 +488,71 @@ export function useStoryGeneration(args: {
 
   const write = useCallback(
     (mode: "next" | "continue" | "rewrite", request?: string) =>
-      operate("writing", (context) => writeChapter(context, mode, request)),
+      operate("writing", (context) => writeChapter(context, mode, request, setLatestGeneration)),
     [operate],
+  );
+
+  const redo = useCallback(
+    () =>
+      operate("writing", async (context) => {
+        const record = latestGeneration;
+        // The story as it is now, with every edit saved: one made since Redo was shown withdraws it.
+        if (!record || redoOffer(record, context.readStory()) === null) return;
+        const { chapterId, before, requested, override, clearedNote } = record;
+        const runDoc = context.run.doc;
+        // Put the chapter back as it was before that generation. A restore that fails has been reported; nothing
+        // is written over it.
+        if (before) {
+          await runDoc.saveChapter(chapterId, before, { immediate: true });
+          if (!(await runDoc.flush())) {
+            toast.warning(context.t("stories.saveFailed"));
+            return;
+          }
+        } else if (!(await runDoc.deleteChapter(chapterId))) {
+          return;
+        }
+        // The note that generation cleared comes back too, so it is sent again, unless the author has written another.
+        if (clearedNote && !context.readStory()?.story.settings.authorNote) {
+          runDoc.updateSettings({ authorNote: clearedNote }, { immediate: true });
+        }
+        await writeChapter(context, requested, override, setLatestGeneration);
+      }),
+    [operate, latestGeneration],
+  );
+
+  // Outside operate(): a peek takes no run, sets no status and never touches a chapter.
+  const peekPrompt = useCallback(
+    async (signal: AbortSignal): Promise<PromptPeek | null> => {
+      const { doc: current, connections: options } = latest.current;
+      const storyId = current.data?.story.id;
+      const story = storyId
+        ? (queryClient.getQueryData<StoryWithChapters>(storyWriterKeys.story(storyId)) ?? current.data)
+        : null;
+      if (!story) return null;
+      const connection = pickConnection(options, story.story.settings);
+      if (!connection) return null;
+      // The primary Write button: the next chapter, or the draft it continues.
+      const plan = await planChapter({
+        settings: story.story.settings,
+        chapters: story.chapters,
+        requested: "next",
+        savedMaxTokens: connection.savedMaxTokens,
+        sources: promptSources(queryClient),
+      });
+      // returnPrompt (Engine 2.2.0+) answers with the merged, context-fitted messages before any provider call.
+      const result = await api.post<unknown>(
+        "/generate/raw",
+        {
+          connectionId: connection.id,
+          messages: plan.messages,
+          parameters: { maxTokens: plan.maxTokens },
+          returnPrompt: true,
+        },
+        { signal },
+      );
+      return { mode: plan.mode, chapterNumber: plan.chapterNumber, ...readPromptPeek(result) };
+    },
+    [queryClient],
   );
 
   const summarizeChapter = useCallback(
@@ -498,13 +594,13 @@ export function useStoryGeneration(args: {
   );
 
   // A run belongs to the story it started on: switching or deleting that story, or leaving the page, stops it.
-  const activeStoryId = doc.data?.story.id ?? null;
   useEffect(() => {
     if (runRef.current && runRef.current.storyId !== activeStoryId) stop();
   }, [activeStoryId, stop]);
   useEffect(() => stop, [stop]);
 
   const canWrite = status === "idle" && !!doc.data && !!pickConnection(connections, doc.data.story.settings);
+  const redoChapter = canWrite ? redoOffer(latestGeneration, doc.data) : null;
 
   return {
     status,
@@ -512,6 +608,9 @@ export function useStoryGeneration(args: {
     liveWords,
     canWrite,
     write,
+    redoChapter,
+    redo,
+    peekPrompt,
     stop,
     summarizeChapter,
     summarizeOlderChapters,

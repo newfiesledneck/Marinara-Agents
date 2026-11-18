@@ -19,6 +19,16 @@ declare module "@forge-kit/time-zone-server.mjs" {
   export function forgeResetIn(value?: number, period?: "day" | "week" | "month"): number;
 }
 
+declare module "@forge-kit/engine-local-auth.mjs" {
+  /** `headers` plus the Android local secret when `url` is this device's Engine and a secret is set; else `headers`. */
+  export function forgeEngineLocalHeaders<H extends Record<string, string> | undefined>(
+    url: string | URL,
+    headers?: H,
+  ): H | Record<string, string>;
+  /** The Android local secret header for an app.inject, or none. */
+  export function forgeEngineInjectHeaders(): Record<string, string>;
+}
+
 declare module "@forge-kit/character-card-context.mjs" {
   export interface ForgeCardCanon {
     description: string;
@@ -190,7 +200,8 @@ declare module "@forge-kit/player-choices-server.mjs" {
   /**
    * Validates the reply's `choices` around `normalizeBeat` (called for the mainline and again for each branch, with
    * `{...options, start, cgOpen: false}`); ids are `choice-<n>`/`option-<n>` from their places in the reply, and unknown
-   * option fields are dropped. Null when anything is invalid.
+   * option fields are dropped. Null when anything is invalid; `reject`, when given, hears why first, in words a repair
+   * turn can send back to the model.
    */
   export function forgeNormalizeChoiceBeat<
     O extends object,
@@ -199,7 +210,12 @@ declare module "@forge-kit/player-choices-server.mjs" {
     raw: unknown,
     options: O,
     normalizeBeat: (raw: unknown, options: O) => B | null,
-    settings: { enabled: boolean; terminal: boolean; label?: (text: string) => string },
+    settings: {
+      enabled: boolean;
+      terminal: boolean;
+      label?: (text: string) => string;
+      reject?: (why: string) => void;
+    },
   ): (B & { choices?: KitChoice[] }) | null;
   /** Writes each speaker's `gender` from the reply's `voices` onto the segments (in place) and returns them. */
   export function forgeSpeakerGenders<S extends KitSegment>(raw: unknown, segments: S[]): S[];

@@ -1,5 +1,17 @@
 # Noodle release notes
 
+## 1.5.19 — 2026-11-17
+
+- Changed: Noodle's switches, checkboxes and loading rings are now the ones Marinara Engine hands to packages, so they look and work like the Engine's own. Needs a Marinara Engine with capability API 1.830 or newer.
+
+## 1.5.18 — 2026-11-15
+
+- Fixed: on Marinara Engine versions that load the character list one page at a time, Noodle found none of your characters, so there was nobody to invite. (#2318)
+
+## 1.5.17 — 2026-11-14
+
+- Fixed: "Edit image instructions" on a character's Noodle profile opens the character's Selfie instructions in the Images tab, where Marinara Engine keeps them now, instead of the Convo tab. Needs a Marinara Engine with capability API 1.826 or newer. (#2296)
+
 ## 1.5.16 — 2026-11-13
 
 - Fixed: A profile now loads and pages all of that account's posts, not only the ones already loaded in the main timeline. Activity links to older posts now open the post, or show an error when it is gone. The Likes tab loads every post the account liked and has a "Load more" button. Activity also covers older posts that got recent likes, replies and reposts, and older posts that mention you. (#2273)

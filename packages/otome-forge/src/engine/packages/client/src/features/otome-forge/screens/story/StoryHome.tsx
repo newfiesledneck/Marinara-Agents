@@ -204,8 +204,8 @@ export function StoryHome({ runKey, view, onOpenChapter }: StoryHomeProps) {
             chapter: Math.min(story.data.arc.read + 1, story.data.arc.endsAt - story.data.arc.from + 1),
             total: story.data.arc.endsAt - story.data.arc.from + 1,
             label: story.data.arc.label,
-          })}
-          {/* #1983 M4: a breathing arc says what it is. */}
+          })}{" "}
+          {/* #1983 M4: a breathing arc says what it is (after a space, so the line wraps before it, centred). */}
           {story.data.arc.kind === "breathing" ? (
             <span className="of-badge of-badge--soft of-story-arc-kind">{t("ui.otomeForge.story.arcQuiet")}</span>
           ) : null}
@@ -425,7 +425,15 @@ function Affection({
           return (
             <li key={li.id} className="of-affection" style={{ "--of-li-accent": accent } as CSSProperties}>
               <Avatar name={li.name} url={li.portrait} accent={accent} size={38} />
-              <span className="of-affection-name">{li.name}</span>
+              {/* Name and level share one line, so a long level ("Level 10 · named") never narrows the hearts. */}
+              <span className="of-affection-head">
+                <span className="of-affection-name">{li.name}</span>
+                <span className="of-affection-level" aria-hidden="true">
+                  {bond
+                    ? t("ui.otomeForge.story.levelBond", { level: outer, rank: bond.name })
+                    : t("ui.otomeForge.story.level", { level: outer })}
+                </span>
+              </span>
               <span
                 className="of-hearts"
                 role="img"
@@ -449,17 +457,13 @@ function Affection({
                         className="of-heart-inner"
                         size={7}
                         strokeWidth={2.4}
-                        fill={index < inner ? "currentColor" : "none"}
+                        // A reached rank shows the accent through its outline; one still to come is solid ink.
+                        fill={index < inner ? "none" : "currentColor"}
                         data-inner-on={index < inner}
                       />
                     ) : null}
                   </span>
                 ))}
-              </span>
-              <span className="of-affection-level" aria-hidden="true">
-                {bond
-                  ? t("ui.otomeForge.story.levelBond", { level: outer, rank: bond.name })
-                  : t("ui.otomeForge.story.level", { level: outer })}
               </span>
               {level === BOND_MAX_LEVEL && li.prestige ? (
                 <span
@@ -1029,6 +1033,7 @@ function NewcomerDialog({
                         accent={nameAccent(card.name)}
                       />
                       <span className="of-tile-name">{card.name}</span>
+                      {card.title ? <span className="of-tile-title">{card.title}</span> : null}
                       {picked ? (
                         <span className="of-tile-check" aria-hidden="true">
                           <Check size={12} strokeWidth={3} />
