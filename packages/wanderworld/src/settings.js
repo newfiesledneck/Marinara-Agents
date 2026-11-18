@@ -137,6 +137,8 @@ export const SETTINGS = {
   inventoryWorn: { value: true },
   // Whether the inventory's tracker is told how item stats are written, so a new item it adds may have some (and ones that have them are left alone).
   trackItemStats: { value: true },
+  // How much of Help the AI assistant reads for a how-to question, in tokens (about four characters each).
+  assistantHelp: { value: 10000, min: 1000, max: 20000 },
   inventoryTrack: { value: "moments", options: ["off", "moments", "all"] },
   // A scene's chat uses the world's sheet; and Quartermaster's window in Wanderworld's parchment colours.
   inventoryScenes: { value: true },

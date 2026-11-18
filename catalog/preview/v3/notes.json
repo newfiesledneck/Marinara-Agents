@@ -192,6 +192,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.25",
+          "date": "2026-11-17",
+          "notes": "- Inventory → Sheet: each thing your class can call on now has what it does written under its button, so it can be read on a phone. With explanations folded away, it's behind an (i).\n- An (i) on a line of its own no longer has \"About this\" beside it.\n- The AI assistant reads much more of Help for a how-to question: the parts that match your question first, then the rest, up to 10,000 tokens (it was about 2,000, which covered only the first section). Settings → AI assistant → \"How much of Help it reads (tokens)\" sets it, from 1,000 to 20,000; all of Help is about 13,000. Questions about your world don't send Help at all.",
+          "highlight": false
+        },
+        {
           "version": "0.7.24",
           "date": "2026-11-17",
           "notes": "- The text in Wanderworld's menus is rewritten to be shorter and plainer: setting labels and their (i) explanations, buttons, notes, notices and the item and keyword references. Explanations say what On does and what Off does.\n- Help is reorganised. The long fighting section is in short parts, and new sections cover your sheet, items and money; gathering, crafting and shops; fighting; the chat window and places; and what people remember.\n- Help now names settings and places as the menus show them.\n- Fixed text that was out of date: a note said there was no fighting yet, and the SRD spell list was said to stop at level 3.",
@@ -303,12 +309,6 @@
           "version": "0.7.06",
           "date": "2026-11-16",
           "notes": "- Inventory → Sheet has a build, from the 5e SRD: a race (its ability bonuses and speed), a fighting style, a background and the skills you're proficient in.\n- Classes do more. Saving throws add proficiency where the class is trained. A rogue has Sneak Attack, Uncanny Dodge and Evasion; a monk Martial Arts, Ki and an unarmoured AC; a barbarian Rage by level and Reckless Attack; a paladin Lay on Hands and Divine Smite; a bard Bardic Inspiration; a cleric Turn Undead; a sorcerer Font of Magic. Casters cast with their class's ability.\n- What a class can call on works in real time too: from the Sheet tab, a number key, or the bar in a fight by turns.\n- Short rests spend hit dice to heal. A sleep is a long rest.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.05",
-          "date": "2026-11-16",
-          "notes": "- Spells go to the ninth level: 94 of the 5e SRD's can be added from Inventory → Sheet, up from 53. Spell slots go to the ninth level too.\n- Spells grow as in the SRD. A cantrip rolls its dice again at levels 5, 11 and 17. Cast from a higher spell slot than its own, a spell is the greater for it (Fireball from a fifth-level slot is 10d6).\n- Each kind of spell has its own look: a fan of flame for a cone, a beam for a line or for lightning, three darts for one that can't miss, light from above, a flash for a touch. A shove throws a shockwave over the ground, and motes circle whatever is under a spell.",
           "highlight": false
         }
       ]

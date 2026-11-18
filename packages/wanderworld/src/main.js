@@ -40,7 +40,7 @@ import { createInput } from "./input.js";
 import { createInterior } from "./interiors.js";
 import { BUILT_IN, findModel, loadModelCharacter, modelKinds } from "./models.js";
 import { summariseSetup } from "./setup.js";
-import { HELP, KEYWORD_PROMPT } from "./help.js";
+import { HELP, helpFor, KEYWORD_PROMPT } from "./help.js";
 import { actWords, arrivalLine, errandFor, PACK, pickLine, PROP_THINGS, thingLine } from "./pack.js";
 import {
   ANIMAL_SIZES,
@@ -5182,12 +5182,8 @@ async function askAssistant(chat, options = {}) {
             })
             .join("\n\n")
         : "",
-      help: needs.has("help")
-        ? HELP.filter((part) => Array.isArray(part.lines))
-            .map((part) => `${part.title}: ${part.lines.join(" ")}`)
-            .join("\n")
-            .slice(0, 9000)
-        : "",
+      // (The parts of Help that fit the question best, then the rest, up to the setting's tokens.)
+      help: needs.has("help") ? helpFor(said.slice(-2).join(" "), core.settings.assistantHelp * 4) : "",
       omitted: Object.keys(PARTS).filter((part) => !needs.has(part)),
       final,
     };

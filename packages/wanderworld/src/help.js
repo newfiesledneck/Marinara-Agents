@@ -40,6 +40,40 @@ ${keywordText}
 
 For each entry, tell me the keys to add (and any to remove or fix), then give me the entry's full list of keys. If an entry fits nothing here (an item, a spell, someone only mentioned), give it no Wanderworld keys.`;
 
+/**
+ * Help for the AI assistant, for a question (`asked`): the sections that share the most words with it first,
+ * then the rest in order, each whole, until `most` characters are used. "Settings, and where things are"
+ * always comes first, since it says where everything is. The lorebook keyword list is a section too.
+ */
+export function helpFor(asked, most) {
+  const words = (text) =>
+    new Set(
+      String(text)
+        .toLowerCase()
+        .match(/[a-z]{4,}/gu)
+        ?.map((word) => word.replace(/(?:ies|es|s)$/u, "")) ?? [],
+    );
+  const want = words(asked);
+  const parts = HELP.map((part, order) => {
+    const text = part.keywords ? keywordText : Array.isArray(part.lines) ? part.lines.join(" ") : "";
+    const have = words(`${part.title} ${text}`);
+    let score = 0;
+    for (const word of want) if (have.has(word)) score += 1;
+    if (/^settings, and where/iu.test(part.title)) score = Infinity;
+    return { title: part.title, text, score, order };
+  }).filter((part) => part.text);
+  parts.sort((a, b) => b.score - a.score || a.order - b.order);
+  const kept = [];
+  let used = 0;
+  for (const part of parts) {
+    const block = `${part.title}: ${part.text}`;
+    if (used + block.length > most) continue;
+    kept.push(block);
+    used += block.length + 1;
+  }
+  return kept.join("\n");
+}
+
 /** The sections: [{ title, lines: [text] }], or { title, keywords: true } for the keyword list, or { title, prompt }. */
 export const HELP = [
   {
@@ -147,7 +181,7 @@ export const HELP = [
       "It can set relationships, homes and work, days, body, voice, temperament, manner, how someone acts towards you and who knows whose name; add people and remove ones this world invented; write this world's own lore about a person, a place or the whole world (keeping the detail that's there); rename places and set when they're closed; make groups of places and factions; change the setting, the picture look and the ages; pin notes and give you an errand.",
       "It can also write a faction's lore (every member then knows it), take notes down from the noticeboard, drop your errand, and suggest a scene that starts in the Engine when you confirm. Ask for people while you're in another region and they live there.",
       "The assistant can look after memories too. Under More things to ask: Check memories against the lore, Clear out memories that don't matter, Find repeated memories, Sum up old memories (several everyday ones into one lasting one) and Suggest memories to pin. Sum up old memories also has a button in Settings → People → Memory, in Settings → Token use, and in each person's window in Journal → Edit people. Each first asks whose memories to send (a tick for each person, or All characters' memories) and says roughly what it costs in tokens. What it proposes (a rewording, a deletion, a pin, a new lasting memory) is shown in full for you to change or leave out, nothing happens until Confirm, and Undo brings it back.",
-      "What it's sent, and what it looks up: everyone's name, home and work always go, with the titles of your lore; the rest goes when the request needs it. When it needs more, it looks it up itself, up to three times before answering: a lore entry by title or by words (this world's own and the lorebooks chosen for it; yours are read-only), everything about a person, what someone remembers, or a part of the world that was left out. Each look-up is one more AI call. The line under each answer says what was sent and what it looked up.",
+      "What it's sent, and what it looks up: everyone's name, home and work always go, with the titles of your lore; the rest goes when the request needs it. When it needs more, it looks it up itself, up to three times before answering: a lore entry by title or by words (this world's own and the lorebooks chosen for it; yours are read-only), everything about a person, what someone remembers, or a part of the world that was left out. Each look-up is one more AI call. The line under each answer says what was sent and what it looked up. For a question about how something works, it reads the parts of Help that match it first, then the rest, up to the number of tokens set in Settings → AI assistant (10,000 to begin with; all of Help is about 13,000).",
       "The buttons under the chat are ready-made requests, for when you don't know what to ask: a few always in view, and More things to ask lists the rest with what each does. One ending in … is put in the box for you to finish.",
       "Draft ww: keywords (in that list) lets you pick a lorebook and tick its entries, twenty at most. Only those are sent, and you get each entry's keys as text to copy into your lorebook: the assistant can't change Engine lorebooks.",
       "Only the parts of the world your message needs are sent with it, and the small line under each answer says which. If the model needs a part that was left out, it asks, and is asked again with it (a second call). The chat is kept with the world; Start over forgets it.",
