@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.7.26 — 2026-11-17
+
+- "Fights by turns" is called turn-based combat everywhere: the Combat choice, its settings, Help and the buttons.
+- Inventory → Sheet: the turn's numbers read "Each turn, you get", with "Move [9] Metres".
+- The (i): a tap or a click opens its explanation. Hovering shows it as a tooltip and no longer opens it, which made it open and shut over and over.
+- The chat window no longer shows a spell or an ability twice: one that's on a number key is only its hotkey's button.
+
 ## 0.7.25 — 2026-11-17
 
 - Inventory → Sheet: each thing your class can call on now has what it does written under its button, so it can be read on a phone. With explanations folded away, it's behind an (i).

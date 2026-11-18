@@ -906,7 +906,7 @@ export function createHud(root, handlers) {
       "Real time: F swings, Q blocks, R dodges, and X draws or sheathes your weapon. With it drawn, the camera stays behind you, turning the camera turns you, and you step sideways and back without turning away. On a touch screen, the Combat button by your thumb swaps Run, Sit and Jump for Attack, Block and Dodge; the chat window has those three too. " +
       "A block lasts a moment: an attack on you during it is rolled twice and the worse roll counts. A dodge rolls you a few steps, and nothing lands on you while you roll. " +
       "You swing wherever you face, standing or moving, and the blow lands on whatever animal is in front of you and in reach. Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus, against the creature's AC. Under its AC misses, at or over hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A hostile creature you strike fights back, rolled the same way against your AC; a peaceful one runs. No AI call is made: the game rolls and says what was rolled. " +
-      "By turns: a fight stops the clock for those in it. Everyone rolls initiative (for you, a d20 plus your Dexterity modifier) and acts in that order. On your turn you may move nine metres, take one action (Attack, Cast a spell, Dodge, or use something you carry) and one bonus action (a spell cast as one), then end your turn. A bar at the top shows whose turn it is and what you have left. Companions and creatures follow the same rules. " +
+      "Turn-based: a fight stops the clock for those in it. Everyone rolls initiative (for you, a d20 plus your Dexterity modifier) and acts in that order. On your turn you may move nine metres, take one action (Attack, Cast a spell, Dodge, or use something you carry) and one bonus action (a spell cast as one), then end your turn. A bar at the top shows whose turn it is and what you have left. Companions and creatures follow the same rules. " +
       "A narrated moment: nothing is swung in real time. When a creature reaches you, or you press Attack with one in reach, the game rolls one exchange (its attack and yours). With AI moments on, the AI tells it as rolled. The creature then holds off a few seconds before the next. " +
       "A scene: the same meeting opens a scene chat instead, with your stats sent to it, and the creatures leave you alone while you play it out.",
     defeatCost:
@@ -918,7 +918,7 @@ export function createHud(root, handlers) {
     defeat:
       "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and whatever beat you has backed off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Stay down until you choose: you lie where you fell while the chat and narration go on, and a Respawn button at the top gets you up at home whenever you like. Nothing is lost either way, and nobody dies for good.",
     srdSlots:
-      "Only when combat is By turns. Off: a spell costs its level in mana, as in real time. On: a spell uses a spell slot of its level or higher, as in the 5e SRD, and no mana. Your sheet and the spell buttons then show spell slots instead of mana. You have the slots of a full caster of your level (two first-level at level 1, three at level 2, four first-level and two second-level at level 3, and so on up to third-level slots). A sleep gives them back. Cantrips need neither.",
+      "Only in turn-based combat. Off: a spell costs its level in mana, as in real time. On: a spell uses a spell slot of its level or higher, as in the 5e SRD, and no mana. Your sheet and the spell buttons then show spell slots instead of mana. You have the slots of a full caster of your level (two first-level at level 1, three at level 2, four first-level and two second-level at level 3, and so on up to third-level slots). A sleep gives them back. Cantrips need neither.",
     srdCreatures:
       "On: a creature's HP, AC, attack and damage are those of its match in the 5e SRD. A wolf is the SRD's wolf (11 HP, AC 13, +4 to hit, 2d4+2), a stag its elk, a fox its jackal, a husky its mastiff, the slime its gray ooze, the dragon its red dragon wyrmling, a witch its cult fanatic, a wizard its mage. Cattle, the alpaca and the shiba have no close match, so they keep the game's own numbers. Off: every creature uses the game's own numbers. People fight by their class either way, and experience for a win is always the game's own.",
     srdModifiers:
@@ -936,7 +936,7 @@ export function createHud(root, handlers) {
     combatAiTalk:
       "On: the AI writes what's said in a fight, to fit who is speaking, the moment and your world, in place of the game's own lines. One short AI call each time something is said (a few in a fight). If a call fails, the game's own line is used. Off: the game's own lines.",
     combatAiMoves:
-      "Fights by turns only. On: on each creature's turn the AI chooses what it does, from the moves it really has (close in, shoot, a spell it knows, take cover, back off, run), to fit what it is and how the fight is going. The game still rolls every attack and save. One AI call each creature's turn; with the AI writing what's said too, the same call gives its line. If the AI takes too long or fails, the creature does what its sort does. Off: the game decides.",
+      "Turn-based combat only. On: on each creature's turn the AI chooses what it does, from the moves it really has (close in, shoot, a spell it knows, take cover, back off, run), to fit what it is and how the fight is going. The game still rolls every attack and save. One AI call each creature's turn; with the AI writing what's said too, the same call gives its line. If the AI takes too long or fails, the creature does what its sort does. Off: the game decides.",
     foeTactics:
       "On: creatures of one kind don't all fight alike. About half the bandits close in with a blade, some stand off with a crossbow and some cast spells. Puglins and skeletons are fighters or archers. One that shoots or casts keeps its distance, backs off when you crowd it, and puts a tree or a boulder between you where it can. A caster picks its spell: one that hits an area when you and a companion stand together, a hold now and then, sometimes its strongest. It heals itself when badly hurt, and its greater spells run out for the fight. Off: every creature of a kind fights the same way and comes straight at you.",
     creatureExtras:
@@ -960,9 +960,9 @@ export function createHud(root, handlers) {
     jumpByStrength:
       "On: how high you jump depends on your Strength, as in the SRD's high jump: about 0.9 metres at Strength 10, and higher with more. Off: everyone jumps the same.",
     rangedFoes:
-      "On: a creature the SRD gives a bow, a crossbow or spells uses them when you're out of its reach, in real time and by turns. A bandit shoots a light crossbow, a puglin and a skeleton a shortbow; a wizard casts Fire Bolt and Magic Missile, a witch Sacred Flame and Spiritual Weapon. Each is rolled against your AC or your saving throw, or a companion's AC. Off: they all have to close with you.",
+      "On: a creature the SRD gives a bow, a crossbow or spells uses them when you're out of its reach, in real-time and turn-based combat. A bandit shoots a light crossbow, a puglin and a skeleton a shortbow; a wizard casts Fire Bolt and Magic Missile, a witch Sacred Flame and Spiritual Weapon. Each is rolled against your AC or your saving throw, or a companion's AC. Off: they all have to close with you.",
     turnActions:
-      "How many actions you have on each of your turns in a fight by turns. 0 leaves it to the rules: one (a fighter's Action Surge adds one, once between sleeps). Set a number to have that many whatever your class.",
+      "How many actions you have on each of your turns in turn-based combat. 0 leaves it to the rules: one (a fighter's Action Surge adds one, once between sleeps). Set a number to have that many whatever your class.",
     turnBonus: "How many bonus actions you have each turn. 0 leaves it to the rules: one.",
     turnAttacks:
       "How many attacks one Attack action gives. 0 leaves it to the rules: one, or two from level 5 for a barbarian, fighter, monk, paladin or ranger (a fighter three from level 11, four at 20), by the class you chose in Inventory → Sheet.",
@@ -1444,7 +1444,7 @@ export function createHud(root, handlers) {
   choice(
     "fights",
     "Combat",
-    { off: "Off", realtime: "Real time", turns: "By turns", moment: "A narrated moment", scene: "A scene" },
+    { off: "Off", realtime: "Real time", turns: "Turn-based", moment: "A narrated moment", scene: "A scene" },
     "sheet",
   );
   choice(
@@ -1464,13 +1464,13 @@ export function createHud(root, handlers) {
   toggle("fightPeople", "Blows can land on people", "sheet");
   toggle("fightBack", "People you attack fight back", "fightPeople");
   toggle("partyFights", "Your companions fight beside you", "sheet");
-  toggle("srdSlots", "Fights by turns use spell slots", "sheet");
-  number("turnActions", "By turns: actions each turn (0: by the rules)", "sheet");
-  number("turnBonus", "By turns: bonus actions each turn (0: by the rules)", "sheet");
-  number("turnAttacks", "By turns: attacks for one action (0: by the rules)", "sheet");
-  number("turnMove", "By turns: metres you can move (0: by the rules)", "sheet");
-  toggle("surprise", "By turns: creatures can surprise you", "sheet");
-  toggle("opportunity", "By turns: opportunity attacks", "sheet");
+  toggle("srdSlots", "Turn-based combat uses spell slots", "sheet");
+  number("turnActions", "Turn-based: actions each turn (0: by the rules)", "sheet");
+  number("turnBonus", "Turn-based: bonus actions each turn (0: by the rules)", "sheet");
+  number("turnAttacks", "Turn-based: attacks for one action (0: by the rules)", "sheet");
+  number("turnMove", "Turn-based: metres you can move (0: by the rules)", "sheet");
+  toggle("surprise", "Turn-based: creatures can surprise you", "sheet");
+  toggle("opportunity", "Turn-based: opportunity attacks", "sheet");
   toggle("srdCreatures", "Creatures use the 5e SRD's numbers", "sheet");
   toggle("rangedFoes", "Creatures shoot and cast from a distance", "srdCreatures");
   at("Inventory", "5e rules");
@@ -1484,7 +1484,7 @@ export function createHud(root, handlers) {
   toggle("foeTactics", "Creatures fight by their sort, and use cover", "srdCreatures");
   toggle("combatTalk", "Talk in fights: taunts, threats, cries", "sheet");
   toggle("combatAiTalk", "The AI writes what's said in fights", "combatTalk");
-  toggle("combatAiMoves", "By turns: the AI chooses creatures' moves", "sheet");
+  toggle("combatAiMoves", "Turn-based: the AI chooses creatures' moves", "sheet");
   toggle("creatureExtras", "Creatures use their special attacks", "srdCreatures");
   toggle("srdLoot", "Creatures carry pocket treasure", "srdCreatures");
   toggle("moves", "Shove, Grapple, Help, Hide and off-hand attacks", "sheet");
@@ -3146,7 +3146,7 @@ export function createHud(root, handlers) {
         if (slots && entry.id === "mana") {
           const row = piece("display:flex;align-items:center;gap:6px;flex-wrap:wrap;");
           row.title =
-            "Spells are cast with spell slots in fights by turns, so slots are shown in place of mana. A sleep gives them back.";
+            "Spells are cast with spell slots in turn-based combat, so slots are shown in place of mana. A sleep gives them back.";
           row.append(
             piece("flex:1;min-width:0;", "Spell slots"),
             ...slots.map((slot) =>
@@ -3273,7 +3273,7 @@ export function createHud(root, handlers) {
       body.append(
         row,
         explainNote(
-          "Optional, and only for fights by turns. A class from the 5e SRD gives you its features as you level up: a fighter Second Wind (a bonus action: +1d10 + your level HP, once between sleeps), Action Surge from level 2 (one more action, once between sleeps) and more attacks for an Attack action from level 5; a rogue Cunning Action from level 2 (Dash or Disengage as a bonus action); a barbarian Rage (a bonus action, twice between sleeps: +2 damage with what you swing, and half damage from weapons, teeth and claws, for the rest of the fight). Barbarians, monks, paladins and rangers also attack twice from level 5. Settings → Inventory → Combat has the numbers, if you'd rather set them yourself.",
+          "Optional, and only for turn-based combat. A class from the 5e SRD gives you its features as you level up: a fighter Second Wind (a bonus action: +1d10 + your level HP, once between sleeps), Action Surge from level 2 (one more action, once between sleeps) and more attacks for an Attack action from level 5; a rogue Cunning Action from level 2 (Dash or Disengage as a bonus action); a barbarian Rage (a bonus action, twice between sleeps: +2 damage with what you swing, and half damage from weapons, teeth and claws, for the rest of the fight). Barbarians, monks, paladins and rangers also attack twice from level 5. Settings → Inventory → Combat has the numbers, if you'd rather set them yourself.",
         ),
       );
     }
@@ -3390,21 +3390,23 @@ export function createHud(root, handlers) {
         }
         body.append(
           explainNote(
-            "Each can go on a number key in the Hotkeys tab. In a fight by turns, they're on the bar at the top too.",
+            "Each can go on a number key in the Hotkeys tab. In turn-based combat, they're on the bar at the top too.",
           ),
         );
       }
       // A turn in a fight by turns, and the spell slots: what they are now, and a box each to change them.
       const cells = (list) => {
         const row = piece("display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;");
-        for (const [label, value, onChange] of list) {
+        // (`after`: words after the box, "Move [9] Metres".)
+        for (const [label, value, onChange, after = ""] of list) {
           const cell = piece("display:flex;align-items:center;gap:4px;");
           cell.append(
             label,
-            numberBox(value, label, (next) => {
+            numberBox(value, `${label}${after ? ` ${after}` : ""}`, (next) => {
               onChange(Math.max(0, next));
               void drawInventory();
             }),
+            ...(after ? [after] : []),
           );
           row.append(cell);
         }
@@ -3412,14 +3414,14 @@ export function createHud(root, handlers) {
       };
       if (build.turn)
         body.append(
-          piece("margin-top:4px;font-weight:700;", "Each turn, in a fight by turns"),
+          piece("margin-top:4px;font-weight:700;", "Each turn, you get"),
           cells(
             [
               ["Actions", build.turn.actions, "turnActions"],
               ["Bonus actions", build.turn.bonus, "turnBonus"],
               ["Attacks an action", build.turn.attacks, "turnAttacks"],
-              ["Metres", build.turn.move, "turnMove"],
-            ].map(([label, value, name]) => [label, value, (next) => handlers.onSetting?.(name, next)]),
+              ["Move", build.turn.move, "turnMove", "Metres"],
+            ].map(([label, value, name, after]) => [label, value, (next) => handlers.onSetting?.(name, next), after]),
           ),
           explainNote(
             "What each of your turns gives right now; your class, level and race decide it. Change a number to set your own. 0 goes back to the rules.",
@@ -3434,7 +3436,7 @@ export function createHud(root, handlers) {
           explainNote(
             build.slotsOn
               ? "How many spell slots of each level you have between sleeps. Your level decides, and you can change any of them. Set one back to what your level gives and the rules decide it again."
-              : 'How many spell slots of each level you would have. They are used only where fights go by turns with "Fights by turns use spell slots" on (Settings → Inventory → Combat); otherwise spells cost mana.',
+              : 'How many spell slots of each level you would have. They are used only in turn-based combat with "Turn-based combat uses spell slots" on (Settings → Inventory → Combat); otherwise spells cost mana.',
           ),
         );
       const rest = piece("display:flex;align-items:center;gap:6px;margin-top:4px;");
@@ -3914,7 +3916,10 @@ export function createHud(root, handlers) {
       [actRow, false],
       [actThumbs, true],
     ]) {
-      const groups = actGroups.filter((group) => group.items.length && (thumb || group.id !== "spells"));
+      // (In the chat window, what's on a number key is a button there already.)
+      const groups = actGroups
+        .map((group) => (thumb ? group : { ...group, items: group.items.filter((item) => !item.hot) }))
+        .filter((group) => group.items.length && (thumb || group.id !== "spells"));
       const open = groups.find((group) => group.id === actOpen);
       const make = (label, title, onClick, ready = true) => {
         const node = button(label, title, onClick);
@@ -4886,28 +4891,31 @@ export function createHud(root, handlers) {
      * window (casting one makes it the ready one), and the touch screen's Cast button names the ready one.
      */
     setSpells(spells, readyId) {
-      const key = `${spells.map((spell) => `${spell.id}:${spell.name}:${spell.cost}:${spell.slotted ? spell.slot : ""}:${spell.mark ?? ""}`).join("|")}>${readyId}`;
+      const key = `${spells.map((spell) => `${spell.id}:${spell.name}:${spell.cost}:${spell.slotted ? spell.slot : ""}:${spell.mark ?? ""}:${spell.hot ? 1 : 0}`).join("|")}>${readyId}`;
       if (key === spellsKey) return;
       spellsKey = key;
       spellsShown = spells;
+      // (One that's on a number key is a button there already.)
       spellRow.replaceChildren(
-        ...spells.map((spell) => {
-          const control = button(
-            // (Its slot's level or its mana, and by turns what it takes of the turn: A an action, B a bonus action.)
-            `${spell.name}${((tags) => (tags.length ? ` (${tags.join(", ")})` : ""))(
-              [
-                spell.slotted ? (spell.slot ? `L${spell.slot}` : "") : spell.cost ? String(spell.cost) : "",
-                spell.mark ?? "",
-              ].filter(Boolean),
-            )}`,
-            `Cast ${spell.name}${spell.slotted ? (spell.slot ? `: a level ${spell.slot} spell slot` : "") : spell.cost ? `: ${spell.cost} mana` : ""}${spell.mark === "B" ? "; a bonus action" : spell.mark === "A" ? "; an action" : ""}${spell.id === readyId ? " (the ready one)" : ""}`,
-            () => handlers.onCast?.(spell.id),
-          );
-          control.style.cssText += `padding:4px 10px;font-size:12px;${spell.id === readyId ? "outline:1px solid #c9a15a;" : ""}`;
-          return control;
-        }),
+        ...spells
+          .filter((spell) => !spell.hot)
+          .map((spell) => {
+            const control = button(
+              // (Its slot's level or its mana, and by turns what it takes of the turn: A an action, B a bonus action.)
+              `${spell.name}${((tags) => (tags.length ? ` (${tags.join(", ")})` : ""))(
+                [
+                  spell.slotted ? (spell.slot ? `L${spell.slot}` : "") : spell.cost ? String(spell.cost) : "",
+                  spell.mark ?? "",
+                ].filter(Boolean),
+              )}`,
+              `Cast ${spell.name}${spell.slotted ? (spell.slot ? `: a level ${spell.slot} spell slot` : "") : spell.cost ? `: ${spell.cost} mana` : ""}${spell.mark === "B" ? "; a bonus action" : spell.mark === "A" ? "; an action" : ""}${spell.id === readyId ? " (the ready one)" : ""}`,
+              () => handlers.onCast?.(spell.id),
+            );
+            control.style.cssText += `padding:4px 10px;font-size:12px;${spell.id === readyId ? "outline:1px solid #c9a15a;" : ""}`;
+            return control;
+          }),
       );
-      spellRow.style.display = spells.length ? "flex" : "none";
+      spellRow.style.display = spells.some((spell) => !spell.hot) ? "flex" : "none";
       const ready = spells.find((spell) => spell.id === readyId);
       spellThumb.textContent = ready ? ready.name : "Cast";
     },
