@@ -830,7 +830,8 @@ export function useReader({ runKey, chapterKey, view, startNode, reducedMotion, 
       return;
     }
     // A key image shown in this beat whose unlock failed is tried once more now that the whole beat is read.
-    if (cg?.art?.state === "ready" && current.main >= cg.at && !seenCgs.current.has(refBase)) void markCgSeen();
+    // A picture seen is unlocked whatever its repaint is doing (0.24.0, S/art/cg.ts markCgSeen).
+    if (cg?.art?.url && current.main >= cg.at && !seenCgs.current.has(refBase)) void markCgSeen();
     refreshStory();
     void queryClient.invalidateQueries({ queryKey: runQueryKey(runKey) });
     if (node < nodeCount - 1) {
@@ -1100,6 +1101,7 @@ export function useReader({ runKey, chapterKey, view, startNode, reducedMotion, 
         ref: entry.ref,
         keep: !starred.has(entry.ref),
         ...(li ? { li } : {}),
+        ...(entry.line.segment.voiced ? { voiced: entry.line.segment.voiced } : {}),
       });
       setStarred(new Set((Array.isArray(favorites) ? favorites : []).map((favorite) => favorite.ref)));
     },

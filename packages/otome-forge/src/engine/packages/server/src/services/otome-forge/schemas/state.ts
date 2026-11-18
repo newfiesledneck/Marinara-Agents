@@ -17,6 +17,7 @@
 // S/story/chapters.ts lets them go); a damaged or too long one reads as none.
 // 0.21.0: the items won from Wish not looked at yet (`owned.unseen`, S/wish/pull.ts adds them in the pull's write,
 // S/routes/items.ts `seen` lets one go); the RunView counts them by where they are kept, for the dock's dots.
+// 0.35.0: each love interest's newest Kitty Cards games (`kitty.rounds`), kept as the Claw's rounds are.
 import { forgeStoryExpressionCast, forgeStoryExpressionsOn } from "@forge-kit/story-expressions-server.mjs";
 import { z, type ZodType } from "zod";
 import type {
@@ -30,6 +31,7 @@ import type {
   Player,
   PlayerThoughts,
   RunState,
+  RunLiView,
   RunView,
   ShopPurchaseRecord,
   TimelineEntry,
@@ -38,6 +40,7 @@ import type {
   World,
 } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
 import { FIRST_STAGE, LAST_STAGE } from "../../../../../client/src/features/otome-forge/shared/arcs.js";
+import { bondRankAt, bondStoriesPlayed } from "../../../../../client/src/features/otome-forge/shared/bond.js";
 import {
   CLAW_MAX_CATCHES,
   CLAW_ROUNDS_KEPT,
@@ -46,6 +49,11 @@ import {
   plushLi,
   type ClawRound,
 } from "../../../../../client/src/features/otome-forge/shared/claw.js";
+import {
+  KITTY_POINTS_MAX,
+  KITTY_ROUND_ID,
+  type KittyRound,
+} from "../../../../../client/src/features/otome-forge/shared/kitty.js";
 import {
   READ_HIM_PAID_KEPT,
   READ_HIM_SET_ID,
@@ -72,8 +80,10 @@ import {
   TENSION_MIN,
   TRUST_MAX,
   TRUST_MIN,
+  BOND_MAX_LEVEL,
   MAX_LEVEL,
   affectionProgressOf,
+  bondRankOf,
   levelOf,
   prestigeOf,
 } from "../../../../../client/src/features/otome-forge/shared/economy.js";
@@ -160,6 +170,7 @@ const FavoriteSchema: ZodType<Favorite> = z.object({
   li: z.string().optional(),
   text: short(2000),
   ref: short(200),
+  voiced: short(4000).optional(),
 });
 
 const AlbumCgSchema: ZodType<AlbumCg> = z.object({
@@ -171,6 +182,7 @@ const AlbumCgSchema: ZodType<AlbumCg> = z.object({
 });
 
 const ClawPlayerSchema = z.enum(["me", "partner"]);
+const ClawCheatSchema = z.enum(["steady", "nudge", "extra", "freeze", "calculate"]);
 const ClawRoundSchema: ZodType<ClawRound> = z.object({
   id: z.string().regex(CLAW_ROUND_ID),
   li: z.string(),
@@ -178,12 +190,28 @@ const ClawRoundSchema: ZodType<ClawRound> = z.object({
   at: z.string(),
   first: ClawPlayerSchema,
   caught: z.array(z.object({ prize: short(100), by: ClawPlayerSchema })).max(CLAW_MAX_CATCHES),
-  cheat: z.enum(["steady", "nudge", "extra", "freeze", "calculate"]).nullable(),
+  cheat: ClawCheatSchema.nullable(),
   paid: z.object({ starlight: z.number().int().min(0), affection: z.number().int().min(0) }),
   capped: z.boolean(),
   newPlush: z.array(short(100)).max(CLAW_MAX_CATCHES),
   firstPlush: z.boolean(),
   line: short(300).optional(),
+});
+const KittyPointsSchema = z.number().int().min(0).max(KITTY_POINTS_MAX);
+/** His cheat moment in a finished Kitty Cards game (SH/kitty.ts KittyCheat); the finish route checks the same shape. */
+export const KittyCheatSchema = z.object({ kind: ClawCheatSchema, caught: z.boolean() });
+const KittyRoundSchema: ZodType<KittyRound> = z.object({
+  id: z.string().regex(KITTY_ROUND_ID),
+  li: z.string(),
+  name: short(200),
+  at: z.string(),
+  first: ClawPlayerSchema,
+  result: z.enum(["win", "lose", "draw"]),
+  me: KittyPointsSchema,
+  partner: KittyPointsSchema,
+  cheat: KittyCheatSchema.nullable(),
+  paid: z.object({ starlight: z.number().int().min(0), affection: z.number().int().min(0) }),
+  capped: z.boolean(),
 });
 const ReadHimPaidSchema: ZodType<ReadHimPaid> = z.object({
   setId: z.string().regex(READ_HIM_SET_ID),
@@ -470,6 +498,7 @@ export function normalizeState(data: unknown): RunState {
     pulls: validItems(PullRecordSchema, field(data, "pulls"), PULLS_MAX),
     purchases: keepNewest(validItems(PurchaseRecordSchema, field(data, "purchases")), PURCHASES_MAX),
     claw: { rounds: keepClawRounds(validItems(ClawRoundSchema, field(field(data, "claw"), "rounds"))) },
+    kitty: { rounds: keepClawRounds(validItems(KittyRoundSchema, field(field(data, "kitty"), "rounds"))) },
     readHim: {
       paid: keepNewest(validItems(ReadHimPaidSchema, field(field(data, "readHim"), "paid")), READ_HIM_PAID_KEPT),
     },
@@ -592,13 +621,17 @@ export function facesComing(world: Pick<World, "images">, unit: Unit): boolean {
 /**
  * The Claw Machine rounds the state keeps, in the order they were played: each love interest's newest
  * CLAW_ROUNDS_KEPT, and each one's first-plush round as well, so one love interest's play never evicts another's.
+ * Kitty Cards' games (0.35.0) are kept the same way; they have no first plush.
  * ponytail: a love interest's rounds older than his newest CLAW_ROUNDS_KEPT leave his memory and the replay guard (a
  * finish of one sent again by hand would pay again, within the day's cap); the upgrade path is rounds kept as their own
  * documents, as Read Him sets are, or a digest of each love interest's older rounds.
  */
-export function keepClawRounds(rounds: readonly ClawRound[], max = CLAW_ROUNDS_KEPT): ClawRound[] {
+export function keepClawRounds<T extends Pick<ClawRound, "li"> & { firstPlush?: boolean }>(
+  rounds: readonly T[],
+  max = CLAW_ROUNDS_KEPT,
+): T[] {
   const room = new Map<string, number>();
-  const kept: ClawRound[] = [];
+  const kept: T[] = [];
   for (let index = rounds.length - 1; index >= 0; index -= 1) {
     const round = rounds[index]!;
     const left = room.get(round.li) ?? max;
@@ -617,6 +650,32 @@ export function clipText(text: string, max: number): string {
     clipped += character;
   }
   return clipped;
+}
+
+/**
+ * His level and its progress (1–20, 0.23.0): 1–10 from affection alone, and past his finale one bond rank at a time,
+ * each rank's story played before the next opens. `prestige` appears only at the last rank, and only then does the
+ * infinite loop (#2025) open; `bond` names the rank he stands at, for the Story screen.
+ */
+function bondView(
+  id: string,
+  points: number,
+  stage: number,
+  state: RunState,
+): Pick<RunLiView, "level" | "affectionProgress"> & { bond?: RunLiView["bond"]; prestige?: RunLiView["prestige"] } {
+  const open = stage >= LAST_STAGE;
+  const played = bondStoriesPlayed(state.chapters, id);
+  const level = bondRankOf(points, open, played);
+  const rank = bondRankAt(level);
+  return {
+    level,
+    affectionProgress: affectionProgressOf(points, open, played),
+    ...(rank
+      ? { bond: { level: rank.level, name: rank.name, played, next: bondRankAt(rank.level + 1)?.level ?? null } }
+      : {}),
+    // #2025: past level 20, his affection fills prestige points (only the derived numbers, never the points).
+    ...(level === BOND_MAX_LEVEL ? { prestige: prestigeOf(points, open) } : {}),
+  };
 }
 
 /**
@@ -670,10 +729,7 @@ export function toRunView(runKey: string, world: World, player: Player, units: U
           ...(portrait ? { portrait } : {}),
           ...(unit.art ? { art: unit.art } : {}),
           ...(unit.bible?.intimacy ? { intimacy: true as const } : {}),
-          level: levelOf(progress.points),
-          affectionProgress: affectionProgressOf(progress.points),
-          // #2025: past level 10, his affection fills prestige points (only the derived numbers, never the points).
-          ...(levelOf(progress.points) === MAX_LEVEL ? { prestige: prestigeOf(progress.points) } : {}),
+          ...bondView(unit.id, progress.points, progress.stage, state),
           stage: progress.stage,
           ...(expressions ? { expressions } : {}),
           ...(worn && wornUrl ? { worn: { id: worn.id, url: wornUrl } } : {}),

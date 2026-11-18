@@ -8,6 +8,7 @@
 // within the day's activity cap). A love interest may be any gender: the client names them or uses their pronouns.
 import type { Favorite, LiId, Noticed, Outfit, Paint, SoundtrackTrack, TimelineEntry } from "./api-types";
 import type { Face, MusicMood } from "./faces";
+import type { KittenView } from "./kitty";
 import type { GiftId, OwnedFigurineView } from "./shop";
 import type { Arcana } from "./tarot";
 import type { ItemKind, ItemView, Rarity } from "./wish";
@@ -67,6 +68,8 @@ export interface LookView {
   unopened: boolean;
   /** His ready faces on this look, while expressions are on; each its saved cut-out once ready (`cut`). */
   faces?: Partial<Record<Face, string>>;
+  /** All five of `faces` are painted, none of them his Engine sprites: the Wardrobe shows a check for them. */
+  facesPainted?: true;
   /** Which of `url` and `faces` are saved cut-outs (no backdrop): shown as they are, never cleaned in the browser. */
   cut?: string[];
   /** A 5★ look (his-look5, her-look5): the first-wear beat (a one-node Character Story), once its first open wrote it. */
@@ -85,9 +88,12 @@ export interface CoupleSet {
   his: { id: string; li: LiId | null; name: string; owned: boolean; url?: string; cut?: true };
   hers: { id: string; name: string; owned: boolean; url?: string; cut?: true };
   complete: boolean;
-  /** The pair portrait: ready once painted, pending while it paints, null until then. */
+  /**
+   * The pair portrait: ready once painted, pending while it paints, failed after a tap that failed, null until then. A
+   * painted one keeps its `url` while a repaint paints and after it failed (#2299).
+   */
   pair: Paint | null;
-  /** Complete and both looks painted: "Paint a pair portrait (1 image)" may be offered. */
+  /** Complete and both looks painted: "Paint a pair portrait (1 image)", or its Repaint, may be offered. */
   canPaintPair: boolean;
 }
 
@@ -130,7 +136,7 @@ export interface ShowResult {
 
 /**
  * An image the Album keeps: a story CG once seen, a Memory's CG once painted, a couple set's pair portrait, a sticker,
- * (#2087) a Photo Shoot photo or (#2151) a Tarot card's painted picture.
+ * (#2087) a Photo Shoot photo, (#2151) a Tarot card's painted picture or (0.36.0) a Kitty Cards kitten.
  */
 export interface AlbumImage {
   key: string;
@@ -138,7 +144,7 @@ export interface AlbumImage {
   ref?: string;
   at: string;
   li?: LiId;
-  source: "story" | "memory" | "pair" | "sticker" | "photo" | "card";
+  source: "story" | "memory" | "pair" | "sticker" | "photo" | "card" | "keepsake" | "kitten";
   /** A Memory's title, the couple set's look names, or a photo's place. */
   title?: string;
   /** A sticker's prompt name (mari_laugh), which its saved file is named after. */
@@ -202,6 +208,11 @@ export interface AlbumView {
   photos: AlbumImage[];
   /** #2151: the Tarot deck's drawn cards in Arcana order, then by love interest in cast order. */
   cards: AlbumCard[];
+  /**
+   * 0.36.0: Kitty Cards' painted kittens, hers then the cast's, only those painted and cut out (GET /play's own, each
+   * with a `url`); `art` is `pending` while the Album's Repaint paints one again. None with images off.
+   */
+  kittens: KittenView[];
 }
 
 /** POST /runs/:run/items/:item/open */

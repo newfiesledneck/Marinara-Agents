@@ -271,7 +271,7 @@ const longTermMemoryBoundary = await assertPackagePrivateImportBoundary({
   sourceRoot: longTermMemorySourceRoot,
   boundaryPath: join(repoRoot, "packages/long-term-memory/engine-boundary.json"),
   displayName: "Long-Term Memory",
-  capabilityApi: { major: 1, minor: 390 },
+  capabilityApi: { major: 1, minor: 820 },
 });
 for (const relativePath of [
   "packages/shared/src/features/agents/long-term-memory",
@@ -395,6 +395,19 @@ async function validateTurnGameRuntime(manifest, packageRoot) {
     return () => registry.delete(key);
   };
   const api = {
+    // A turn game may keep its own records (Wordle's daily results): an empty store and a route sink stand in for
+    // the host's api.runtime.persistence and registerPrivilegedRoutes, which every Engine it installs on provides.
+    runtime: {
+      persistence: {
+        documents: {
+          getById: async () => null,
+          create: async (document) => ({ ...document, revision: 1 }),
+          update: async () => null,
+        },
+      },
+      logger: { error() {} },
+    },
+    registerPrivilegedRoutes: async () => () => {},
     registerTurnGameEngine(engine) {
       if (!engine?.gameType) throw new Error(`${manifest.id} registered an invalid turn-game engine`);
       const cleanup = unregister(gameEngines, engine.gameType);
@@ -485,6 +498,10 @@ for (const entry of catalog.packages) {
     }
     if (JSON.stringify(manifest.builtAgainst) !== JSON.stringify(longTermMemoryBoundary.builtAgainst)) {
       throw new Error("Long-Term Memory build provenance does not match engine-boundary.json");
+    }
+    // The Agent activity card is a Capability API 1.820 slot; a manifest that lost it would drop the card silently.
+    if (!manifest.contributions?.slots?.includes("chat-activity")) {
+      throw new Error("Long-Term Memory must declare the chat-activity slot");
     }
   }
   if (manifest.id === "pixelforge") {
@@ -1040,8 +1057,8 @@ const agentOnly = publishedCatalog.packages.filter(
   (entry) => !isRulesetPackage(entry.manifest) && !entry.manifest.entrypoints.server,
 ).length;
 const features = publishedCatalog.packages.length - agentOnly - rulesets;
-if (publishedCatalog.packages.length !== 44 || agentOnly !== 26 || features !== 18 || rulesets !== 0) {
-  throw new Error(`Expected 26 agents, 18 features, and 0 rulesets, found ${agentOnly}, ${features}, and ${rulesets}`);
+if (publishedCatalog.packages.length !== 46 || agentOnly !== 26 || features !== 20 || rulesets !== 0) {
+  throw new Error(`Expected 26 agents, 20 features, and 0 rulesets, found ${agentOnly}, ${features}, and ${rulesets}`);
 }
 console.log(
   `Catalog valid: ${publishedCatalog.packages.length} packages (${agentOnly} agents, ${features} features, ${rulesets} rulesets).`,

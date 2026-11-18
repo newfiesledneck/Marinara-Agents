@@ -272,12 +272,12 @@ test("a slow burn through stage 4, a confession when earned in stage 5, and in s
   assert.doesNotMatch(at(5), SLOW);
   assert.doesNotMatch(at(5), KISS_LATER);
   // The affection level the player sees reaches the prompt, read from the points as the client shows it.
-  assert.match(at(1), /Affection level 1 of 10: how drawn Kai is to the protagonist\./);
+  assert.match(at(1), /Affection level 1 of 20: how drawn Kai is to the protagonist\./);
   assert.match(
     betweenYou(kai, { ...defaultLiState(), points: levelFloor(9) }),
-    /Affection level 9 of 10: how drawn Kai is to the protagonist\. The higher it is, the more it shows/,
+    /Affection level 9 of 20: how drawn Kai is to the protagonist\. The higher it is, the more it shows/,
   );
-  assert.match(betweenYou(kai, { ...defaultLiState(), points: 1_000_000 }), /Affection level 10 of 10/);
+  assert.match(betweenYou(kai, { ...defaultLiState(), points: 1_000_000 }), /Affection level 10 of 20/);
   // Stage 6: if not said yet, it must be; Ease off can end the finale before the words, so it never claims they were.
   assert.match(
     at(6),
@@ -377,20 +377,26 @@ test("the story knows what the protagonist wears now, as it does a love interest
 // 0.18.1: the canon writing rule now names an existing world's characters, so these prompts' bytes moved.
 // 2026-11-10: betweenYou's slow burn holds back love, not attraction, and carries the affection level, so every prompt
 // with a love interest's card moved (the bible, which has none, did not).
+// 2026-11-11: a chapter's last scene hands an open decision to the player, and no scene assumes a choice never made.
+// 0.23.0: betweenYou's affection line reads "of 20" (the bond ranks), so every prompt with a love interest's card moved
+// again; the bible has no card and kept its bytes.
+// 0.33.3: the writing rules add the maintainer's lines on narration, spoken dialogue and echoing, so every prompt
+// that carries them moved.
 const STAGING_OTHERS: Record<string, string> = {
-  scene: "6e5c66a808dce9a8",
-  callScene: "d114f4fe8ec04a9a",
-  confrontation: "abb1ce9a36a31e21",
-  closer: "858e88fdfc2f6942",
-  bible: "a500b0070a43282e",
+  scene: "61bb090263e1907a",
+  callScene: "d0b5b15715b90c79",
+  confrontation: "fac8810f0aa66c7a",
+  closer: "90c2bada664d2526",
+  bible: "4e899a1053b1eb60",
   // #2156: P17's one exception to "no meeting the story must keep", his invitation to clear the air.
   // 0.20.2: P17 is cached: the same words, its user part split before the thread now, so both digests moved.
-  chat: "fa12ef57c1ce4b4e",
-  daily: "f0c321c7e08d62ca",
-  note: "f0fa08c18c2e6608",
+  // 2026-11-14 (0.29.0): P17's HARD RULES gained the no-echo line and the plain-texting line, so both moved again.
+  chat: "da5e78755ac01f13",
+  daily: "32474e6fb7549e86",
+  note: "c0d9686d8425b719",
   // Retaken 2026-11-05 when the outfit and world fixes shipped together in 0.8.7: the date plan lost its WHAT THEY
   // WEAR block (now in protagonistBlock), its only change from staging; it still never reads the premise (above).
-  datePlan: "3ff9bb3236f5795d",
+  datePlan: "fe26ca63beab56d8",
 };
 
 test("only the arc and chapter planners read the premise, for its world alone; the world plan keeps it (0.8.7)", () => {
