@@ -184,6 +184,13 @@ export const SETTINGS = {
   damageTypes: { value: true },
   // Whether creatures use what the SRD gives them besides a plain attack: Multiattack, venom, a knock-down, Pack Tactics, a breath.
   creatureExtras: { value: true },
+  // Whether creatures fight each by its own sort (tactics.js): some close in, some shoot, some cast; cover; a spell for the moment.
+  foeTactics: { value: true },
+  // What's said in a fight: taunts, threats, cries. Written lines, or (combatAiTalk) the AI's.
+  combatTalk: { value: true },
+  combatAiTalk: { value: false },
+  // By turns, the AI chooses what each creature does on its turn, from what it can do.
+  combatAiMoves: { value: false },
   // Whether conditions (prone, poisoned, grappled, …) can land on the player (conditions.js).
   conditions: { value: true },
   // Whether a 5e sheet on a persona's or a character's card (the Engine's ruleset sheet) sets their class, level, abilities and spells here.

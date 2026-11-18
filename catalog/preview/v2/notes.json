@@ -196,6 +196,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.23",
+          "date": "2026-11-17",
+          "notes": "- Creatures of one kind fight differently. About half the bandits close in with a blade, some stand off with a crossbow, some cast (an acolyte's spells). Puglins and skeletons are fighters or archers.\n- One that shoots or casts keeps its distance, backs off when crowded and gets a tree or a boulder between you. Casters choose their spell: an area for a huddle, a hold now and then, mending when badly hurt.\n- Companions fight by class: barbarians, fighters, monks, paladins and rogues close in; rangers and casters keep off and take cover.\n- Talk in fights: threats, taunts, curses, a wolf's snarl, a companion's shout, now and then. The AI can write these (off to begin with).\n- By turns, the AI can choose each creature's move from what it really has (off to begin with). The game still rolls everything.\n- All four have switches in Settings → Inventory → 5e rules and Combat.",
+          "highlight": false
+        },
+        {
           "version": "0.7.22",
           "date": "2026-11-17",
           "notes": "- Illustrate → \"What the AI is told\" is no longer cut off at 4,000 characters. It now takes about 60,000, so a long instruction with conditions in it is sent whole. The picture template's limit went from 2,000 to 20,000.\n- A world's instructions for scenes go from 1,000 characters to 20,000.",
@@ -307,12 +313,6 @@
           "version": "0.7.04",
           "date": "2026-11-16",
           "notes": "- Death saving throws (off to begin with): at 0 HP you fall, dying, and roll every few seconds. Three successes and you come round with 1 HP, three failures and you're beaten; a 20 gets you up at once, and so does a companion's healing.\n- Concentration: Hold Person and spells like it end if you're hurt and fail a Constitution save, or when you cast another such spell.\n- Cover: a tree or a boulder between a shot or a spell attack and its target gives +2 AC, for you and for creatures.\n- Creatures have their nerve from the ruleset: skeletons and fanatics never run, cowards run sooner. By turns, wolves go for whoever is most hurt, puglins for the weakest, a dragon for casters.\n- Each has a switch in Settings → Inventory → 5e rules.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.03",
-          "date": "2026-11-16",
-          "notes": "- Creatures use their special attacks from the 5e SRD. A wolf's bite can knock you prone, and wolves, jackals and rats attack with advantage when one of their own is beside you. Snakes, spiders, wasps and imps have venom (a Constitution save for half). A frog's bite holds you. A witch strikes twice. A dragon breathes fire, then has to wait for it to come back.\n- Conditions can land on you: prone, poisoned, frightened, grappled, restrained, blinded, paralyzed, stunned, asleep, slowed. Each shows at the top left with its seconds and wears off. Spells cast at you leave theirs too.\n- Both have switches in Settings → Inventory → 5e rules.",
           "highlight": false
         }
       ]

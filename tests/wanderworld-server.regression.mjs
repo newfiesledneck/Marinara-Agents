@@ -1425,6 +1425,45 @@ assert.equal(
   });
   assert.match(along[1].content, /Hollis is travelling with Zoey, as one of their party \(with Mira\)/u);
   assert.match(along[1].content, /turns to Hollis/u);
+  // What's said in a fight, and a creature's move: the model is told what it may answer, and its answer checked.
+  {
+    const line = server.combatLineMessages({
+      worldName: "Millbrook",
+      speaker: "a bandit",
+      talks: true,
+      moment: "it has just been hurt",
+      foe: "Zoey",
+      recent: "Zoey swings at the bandit: a hit.",
+    });
+    assert.match(line[0].content, /under 15 words/u);
+    assert.match(line[1].content, /Speaking: a bandit\./u);
+    assert.match(
+      server.combatLineMessages({ speaker: "a wolf", talks: false, moment: "x" })[1].content,
+      /doesn't talk/u,
+    );
+    assert.equal(server.checkCombatLine({ line: '"You\'ll pay for that!"\nmore' }), "You'll pay for that!");
+    assert.equal(server.checkCombatLine(null), "");
+    const options = [
+      { id: "close", says: "close in" },
+      { id: "cast:Fire Bolt", says: "cast Fire Bolt" },
+    ];
+    const move = server.combatMoveMessages({ creature: "a wizard", state: "", foe: "Zoey", options, talk: true });
+    assert.match(move[1].content, /- cast:Fire Bolt: cast Fire Bolt/u);
+    assert.match(move[0].content, /"line"/u);
+    assert.doesNotMatch(
+      server.combatMoveMessages({ creature: "a wolf", foe: "Zoey", options, talk: false })[0].content,
+      /"line"/u,
+    );
+    assert.deepEqual(server.checkCombatMove({ move: "cast:Fire Bolt", line: "Burn!" }, ["close", "cast:Fire Bolt"]), {
+      move: "cast:Fire Bolt",
+      line: "Burn!",
+    });
+    assert.deepEqual(
+      server.checkCombatMove({ move: "dance" }, ["close"]),
+      { move: "", line: "" },
+      "only what it was offered",
+    );
+  }
   const asked = server.inventoryMessages({
     template: "PROMPT",
     context: "Items:\n(none)",

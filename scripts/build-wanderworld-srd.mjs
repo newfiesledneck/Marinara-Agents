@@ -353,12 +353,28 @@ for (const [kind, id] of Object.entries(CREATURE_OF)) {
   // greater ones would end a fight in one go), and what its casting adds.
   const known = (sheet.sheet?.lists?.spells ?? [])
     .map((spell) => spells.find((ours) => ours.name === spell.name))
-    .filter((spell) => spell?.damage && spell.level <= 2);
+    .filter((spell) => spell && !spell.reaction && (spell.damage || spell.effect || spell.heal) && spell.level <= 3);
   if (known.length) {
     creatures[kind].spells = known.map((spell) => spell.name);
     const ability = sheet.sheet.fields?.spellcasting_ability;
     creatures[kind].wit = Math.floor(((sheet.sheet.abilities?.[ability] ?? 10) - 10) / 2);
   }
+}
+// Some of a kind fight another way: a bandit who casts has an acolyte's spells (the SRD's nearest: a
+// first-level caster among common folk). Which SRD creature stands in is Wanderworld's choice.
+const CASTER_OF = { bandit: "acolyte" };
+for (const [kind, id] of Object.entries(CASTER_OF)) {
+  const sheet = bestiary.get(id)?.creature?.sheet;
+  const known = (sheet?.lists?.spells ?? [])
+    .map((spell) => spells.find((ours) => ours.name === spell.name))
+    .filter((spell) => spell && !spell.reaction && (spell.damage || spell.effect || spell.heal) && spell.level <= 3);
+  if (!creatures[kind] || !known.length) continue;
+  const ability = sheet.fields?.spellcasting_ability;
+  creatures[kind].caster = {
+    name: bestiary.get(id).label,
+    spells: known.map((spell) => spell.name),
+    wit: Math.floor(((sheet.abilities?.[ability] ?? 10) - 10) / 2),
+  };
 }
 if (Object.keys(creatures).length < 15)
   throw new Error(

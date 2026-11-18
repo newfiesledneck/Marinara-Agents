@@ -924,6 +924,14 @@ export function createHud(root, handlers) {
       'Stats are written in square brackets at the end of a description: "A notched blade. [1d8 slashing damage, +1 to attack]". Only what is inside the brackets is read. On: an item with a block does what the block says, and one without goes by its name. Off: the name decides first (sword, knife, dagger, axe, hammer, mace, spear, staff, bow, crossbow; armour, shields, worn magic and healing potions by their 5e SRD names), and only an item whose name says nothing goes by its block. A +1 in a name adds 1. Inventory has the list of everything a block can say.',
     damageTypes:
       "On: what a blow or a spell is made of matters to some creatures. A skeleton takes a blunt blow twice over and poison not at all; a slime resists fire, cold and acid; fire can't hurt a dragon or an imp. Off: damage is damage.",
+    combatTalk:
+      "On: things are said in a fight, now and then: a bandit's threat as it starts, a taunt when it lands a blow, a curse when it's hurt, a wolf's snarl, a companion's shout. They show in the chat, and over a speaker's head. Off: only the rolls are told.",
+    combatAiTalk:
+      "On: the AI writes what's said in a fight, to fit who is speaking, the moment and your world, in place of the game's own lines. One short AI call each time something is said (a few in a fight). If a call fails, the game's own line is used. Off: the game's own lines.",
+    combatAiMoves:
+      "Fights by turns only. On: on each creature's turn the AI chooses what it does, from the moves it really has (close in, shoot, a spell it knows, take cover, back off, run), to fit what it is and how the fight is going. The game still rolls every attack and save. One AI call each creature's turn; with the AI writing what's said too, the same call gives its line. If the AI takes too long or fails, the creature does what its sort does. Off: the game decides.",
+    foeTactics:
+      "On: creatures of one kind don't all fight alike. Of the bandits about half close in with a blade, some stand off with a crossbow and some cast; puglins and skeletons are fighters or archers. One that shoots or casts keeps its distance, backs off when you crowd it, and gets a tree or a boulder between you where there is one. A caster picks its spell: an area when you and a companion stand together, a hold now and then, its strongest sometimes, and it mends itself when badly hurt; its greater spells run out for the fight. Off: every creature of a kind fights the same way, and comes straight at you.",
     creatureExtras:
       "On: creatures use what the 5e SRD gives them besides a plain attack. A wolf's bite can knock you prone (a Strength save) and wolves, jackals and rats attack with advantage when one of their own is beside you. A snake's, a spider's, a wasp's and an imp's venom does more damage (a Constitution save for half). A frog's bite holds you. A slime's touch burns with acid and a dragon's bite with fire. A witch strikes twice. A dragon breathes fire (a Dexterity save for half), then needs a while before it can again. Off: one plain attack each.",
     conditions:
@@ -1470,6 +1478,10 @@ export function createHud(root, handlers) {
   toggle("cardSheets", "Use a 5e sheet on a persona's or character's card", "sheet");
   toggle("gearByDescription", "An item's description is its stats", "sheet");
   toggle("damageTypes", "Kinds of damage matter to creatures", "srdCreatures");
+  toggle("foeTactics", "Creatures fight by their sort, and use cover", "srdCreatures");
+  toggle("combatTalk", "Talk in fights: taunts, threats, cries", "sheet");
+  toggle("combatAiTalk", "The AI writes what's said in fights", "combatTalk");
+  toggle("combatAiMoves", "By turns: the AI chooses creatures' moves", "sheet");
   toggle("creatureExtras", "Creatures use their special attacks", "srdCreatures");
   toggle("srdLoot", "Creatures carry pocket treasure", "srdCreatures");
   toggle("moves", "Shove, Grapple, Help, Hide and off-hand attacks", "sheet");

@@ -196,6 +196,74 @@ Most things need no block.
 Answer with JSON only, nothing before or after it:
 {"stock":[{"name":"...","description":"...","price":0,"quantity":1}]}`;
 
+/** What the model that writes what's said in a fight is told (the game rolls everything; this is only words). */
+export const COMBAT_LINE_INSTRUCTION = `You write one thing said or done in a fight in a roleplay world, by one fighter, for one moment of it. A person or anything that talks says something: a taunt, a threat, a curse, a battle cry, a plea, a shout to a friend. An animal or a monster that doesn't talk makes a sound or does something: write that as what it does, starting with a verb ("bares its teeth and growls").
+
+Keep it to one short line, under 15 words, in keeping with who is speaking, the moment and the world. No name before it, no quotation marks, and nothing about dice or numbers. Nothing graphic.
+
+Answer with JSON only, nothing before or after it:
+{"line":"..."}`;
+
+/** The messages for one thing said in a fight. */
+export function combatLineMessages({ worldName, setting, speaker, talks, moment, foe, recent }) {
+  return [
+    { role: "system", content: COMBAT_LINE_INSTRUCTION },
+    {
+      role: "user",
+      content: [
+        `The world: ${([worldName, setting].filter(Boolean).join(": ") || "a small town and the country round it").replace(/[.\s]+$/u, "")}.`,
+        `Speaking: ${speaker}${talks ? "" : " (it doesn't talk: write what it does)"}.`,
+        foe && `Fighting: ${foe}.`,
+        `The moment: ${moment}.`,
+        recent && `What just happened:\n${recent}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    },
+  ];
+}
+
+/** A line the model gave, checked: one line, its quotation marks off; "" when there's none. */
+export const checkCombatLine = (data) =>
+  text(String(data?.line ?? "").split("\n")[0], 160)
+    .replace(/^["\u201c']+|["\u201d']+$/gu, "")
+    .trim();
+
+/** What the model that chooses a creature's move is told. With `talk`, it gives the line it says too. */
+export const combatMoveInstruction = (talk) => `You decide what one fighter does on its turn in a fight by turns, in a roleplay world. You're told what it is, how it stands, whom it's fighting, what has just happened, and the moves it can make now, each with an id. Choose the one move that fits what it is and the moment: an animal fights as an animal does and runs when it's badly hurt, a coward gives up sooner, a brute closes in, one who shoots or casts keeps its distance, and a hurt caster may mend itself. The game rolls every attack and save: you only choose.${
+  talk
+    ? ` Also give one short thing it says as it moves (under 15 words, no quotation marks), or for an animal or a monster that doesn't talk, what it does, starting with a verb.`
+    : ""
+}
+
+Answer with JSON only, nothing before or after it:
+{"move":"<one of the ids>"${talk ? ',"line":"..."' : ""}}`;
+
+/** The messages for choosing one creature's move. `options`: [{ id, says }]. */
+export function combatMoveMessages({ worldName, setting, creature, talks, state, foe, options, recent, talk }) {
+  return [
+    { role: "system", content: combatMoveInstruction(talk) },
+    {
+      role: "user",
+      content: [
+        `The world: ${([worldName, setting].filter(Boolean).join(": ") || "a small town and the country round it").replace(/[.\s]+$/u, "")}.`,
+        `The fighter: ${creature}${talk && !talks ? " (it doesn't talk)" : ""}. ${state}`,
+        `Fighting: ${foe}.`,
+        recent && `What just happened:\n${recent}`,
+        `Its moves now:\n${options.map((option) => `- ${option.id}: ${option.says}`).join("\n")}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    },
+  ];
+}
+
+/** The model's choice, checked against the ids it was given: { move ("" for none it was offered), line }. */
+export function checkCombatMove(data, ids) {
+  const move = text(data?.move, 80);
+  return { move: ids.includes(move) ? move : "", line: checkCombatLine(data) };
+}
+
 /** The messages for stocking one shop. */
 export function vendorStockMessages({ worldName, setting, shop, kinds, currency, usual, guidance }) {
   return [
@@ -2509,6 +2577,63 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           return splitSheet(data);
         } catch (error) {
           logger.warn("[wanderworld] inventory tracking failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
+        }
+      });
+
+      // What's said in a fight, written by the model (Settings → Inventory → Combat). Only words: the game rolls.
+      routes.post("/combat-line", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const input = {
+          worldName: text(body.worldName, MAX.name),
+          setting: text(body.setting, 600),
+          speaker: text(body.speaker, 200) || "a fighter",
+          talks: body.talks !== false,
+          moment: text(body.moment, 200) || "the fight goes on",
+          foe: text(body.foe, 200),
+          recent: block(body.recent, 1500),
+        };
+        try {
+          const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
+          const result = await askModel("combat-line", body, model, combatLineMessages(input), { temperature: 0.9, maxTokens: 120 });
+          const line = checkCombatLine(readJson(result?.content, api.runtime.json?.parseJsonish));
+          if (!line) return reply.status(502).send({ error: "The model's answer wasn't readable." });
+          return { line };
+        } catch (error) {
+          logger.warn("[wanderworld] a line in a fight failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
+        }
+      });
+
+      // A creature's move on its turn, chosen by the model from the ones the client offers (by turns only).
+      routes.post("/combat-move", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const options = (Array.isArray(body.options) ? body.options : [])
+          .filter(isRecord)
+          .slice(0, 16)
+          .map((option) => ({ id: text(option.id, 80), says: text(option.says, 200) }))
+          .filter((option) => option.id);
+        if (!options.length) return reply.status(400).send({ error: "No moves to choose from" });
+        const input = {
+          worldName: text(body.worldName, MAX.name),
+          setting: text(body.setting, 600),
+          creature: text(body.creature, 200) || "a creature",
+          talks: body.talks !== false,
+          state: text(body.state, 300),
+          foe: text(body.foe, 200) || "the player",
+          recent: block(body.recent, 1500),
+          talk: body.talk === true,
+          options,
+        };
+        try {
+          const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
+          const result = await askModel("combat-move", body, model, combatMoveMessages(input), { temperature: 0.6, maxTokens: 200 });
+          return checkCombatMove(
+            readJson(result?.content, api.runtime.json?.parseJsonish),
+            options.map((option) => option.id),
+          );
+        } catch (error) {
+          logger.warn("[wanderworld] choosing a move failed: %s", error?.message ?? error);
           return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
         }
       });

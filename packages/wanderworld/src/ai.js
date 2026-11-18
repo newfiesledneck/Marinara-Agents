@@ -210,6 +210,10 @@ export function createAi(locals = () => []) {
     sheetTrack: (payload) => request("/sheet-track", { method: "POST", body: payload }),
     /** A shop's shelves written to fit the world: { stock: [{ name, description, price, quantity }] } (server.mjs `/vendor-stock`). */
     vendorStock: (payload) => request("/vendor-stock", { method: "POST", body: payload }),
+    /** One thing said in a fight, written to fit: { line } (server.mjs `/combat-line`). */
+    combatLine: (payload) => request("/combat-line", { method: "POST", body: payload }),
+    /** A creature's move on its turn, chosen from those offered: { move, line } (server.mjs `/combat-move`). */
+    combatMove: (payload) => request("/combat-move", { method: "POST", body: payload }),
     /** Forgets a recap the client has kept. */
     forgetResult: (id) => request(`/scene-results/${encodeURIComponent(id)}`, { method: "DELETE" }),
   };

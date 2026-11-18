@@ -1425,6 +1425,7 @@ export const SRD_CREATURES = {
     cr: 0.125,
     kin: "humanoid",
     ranged: { name: "Light Crossbow", attack: 3, damage: "1d8+1", range: 24 },
+    caster: { name: "Acolyte", spells: ["Sacred Flame", "Cure Wounds"], wit: 2 },
   },
   witch: {
     name: "Cult Fanatic",
@@ -1440,7 +1441,7 @@ export const SRD_CREATURES = {
     cr: 2,
     kin: "humanoid",
     ranged: { name: "Dagger", attack: 4, damage: "1d4+2", range: 6 },
-    spells: ["Sacred Flame", "Inflict Wounds", "Spiritual Weapon"],
+    spells: ["Sacred Flame", "Inflict Wounds", "Hold Person", "Spiritual Weapon"],
     wit: 1,
   },
   wizard: {
@@ -1456,7 +1457,7 @@ export const SRD_CREATURES = {
     cr: 6,
     kin: "humanoid",
     ranged: { name: "Dagger", attack: 5, damage: "1d4+2", range: 6 },
-    spells: ["Fire Bolt", "Magic Missile"],
+    spells: ["Fire Bolt", "Magic Missile", "Fireball"],
     wit: 3,
   },
   imp: {

@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.22)
+## What it does now (0.7.23)
 
 ### The world
 
@@ -626,6 +626,9 @@ every roll, and no AI call is made in a real-time fight.
   animations of their own.
 - **Item stats in brackets**: a description sets stats only inside `[square brackets]`; without
   them the name decides. The tracker knows the format, and added items get their equip slot.
+- **Smarter fights**: each bandit, puglin or skeleton has a way of fighting of its own; archers and
+  casters keep their distance and take cover; casters pick their spell. Companions fight by class.
+  Things are said in a fight, and the AI can write them and choose creatures' moves by turns.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.

@@ -575,6 +575,9 @@ export function createHerd() {
    * away if they come on; or it runs in and snaps, then draws off till it's ready again. Returns false
    * when it has nothing to do with them (it goes about as any animal does).
    */
+  /** How far `beast` can shoot or cast from (metres; 0: it has to close in): its own (`view.rangeOf`), else its kind's. */
+  const reachOf = (beast, view) => (view.rangeOf ? view.rangeOf(beast) : (view.ranged?.[beast.kind] ?? 0));
+
   function hunt(beast, dt, player, view) {
     // (`angry`: it's been struck, and fights back whatever the settings say of hostile ones, and wherever.)
     if (view.down) return false; // (they're beaten: it has no more business with them)
@@ -650,7 +653,7 @@ export function createHerd() {
         face();
       } else if (
         (view.combat || beast.angry) &&
-        view.ranged?.[beast.kind] >= distance &&
+        reachOf(beast, view) >= distance &&
         distance > 3.5 &&
         beast.random() < 0.8
       ) {
@@ -671,6 +674,21 @@ export function createHerd() {
         beast.stance = "back";
         face();
       } else toward(beast, player.x, player.z, facts.gallop, dt);
+      return true;
+    }
+    // One that shoots or casts, between its shots: to where it wants to stand (behind something, where there
+    // is something: `view.spotOf`), else off a way from them, giving ground when they come on and closing
+    // when they get out of its reach.
+    const reach = mode === "attack" && (view.combat || beast.angry) ? reachOf(beast, view) : 0;
+    if (reach > 0 && distance > 0.01) {
+      const spot = view.spotOf?.(beast) ?? null;
+      const keep = Math.max(5, Math.min(reach * 0.6, 11));
+      if (spot && Math.hypot(spot.x - beast.x, spot.z - beast.z) > 0.6)
+        toward(beast, spot.x, spot.z, facts.walk * 2, dt);
+      else if (!spot && distance < keep - 2)
+        toward(beast, beast.x - (dx / distance) * 3, beast.z - (dz / distance) * 3, facts.walk * 2, dt);
+      else if (!spot && distance > Math.min(reach - 1, keep + 5)) toward(beast, player.x, player.z, facts.walk * 2, dt);
+      else face();
       return true;
     }
     // In a fight, between its attacks: close on them, or going round them, unless it chose to draw off.
@@ -1018,6 +1036,15 @@ export function createHerd() {
       beast.stunUntil = 0;
       beast.slowUntil = 0;
       beast.calmUntil = 0;
+    },
+    /** `id`'s body, for something to be shown over it (a speech bubble), or null. */
+    bodyOf: (id) => beasts.find((entry) => entry.id === id && entry.down === undefined)?.group ?? null,
+    /** `id` is mended by `amount` HP, up to its most. What it has then, or null if it isn't there or isn't hurt. */
+    mend(id, amount) {
+      const beast = beasts.find((entry) => entry.id === id);
+      if (!beast || beast.down !== undefined || beast.hp === undefined) return null;
+      beast.hp = Math.min(beast.max ?? beast.hp, beast.hp + Math.max(0, amount));
+      return { hp: beast.hp, max: beast.max ?? beast.hp };
     },
     /** `id` can't move from where it is for `seconds` (0 lets it go), though it can still strike what's beside it. */
     root(id, seconds) {
