@@ -122,7 +122,7 @@ function storyPrompts(content: ContentSettings): Record<string, string> {
   const fight = node({ kind: "confrontation", cg: true });
   const close = node({ kind: "closer", cg: true });
   const arc = { world, player, units, state, li: KAI, memory: "" };
-  const banner = (kind: "memories" | "his-wardrobe" | "my-wardrobe") =>
+  const banner = (kind: "memories" | "his-wardrobe" | "my-wardrobe" | "dates") =>
     text(
       bannerPlanMessages({
         kind,
@@ -173,6 +173,7 @@ function storyPrompts(content: ContentSettings): Record<string, string> {
     bannerMemories: banner("memories"),
     bannerHis: banner("his-wardrobe"),
     bannerMine: banner("my-wardrobe"),
+    bannerDates: banner("dates"),
   };
 }
 
@@ -254,16 +255,17 @@ test("chapter and scene prompts keep emotional payoffs occasional and permit cha
 });
 
 const EXPECTED_ANGST: Record<string, string> = {
-  bannerHis: "49861081dcc45db3",
-  bannerMemories: "3383bf6abce8a4fa",
-  bannerMine: "6e3372632cf89823",
-  beat: "8b7a95e162545c7d",
-  beatWithCg: "bc15cfbe2ef5124e",
-  chapterPlan: "42dd694241ff4c94",
-  closer: "17b400f2bfe59d2a",
-  confrontation: "71f550c082604838",
-  repairPlan: "26cbc866d537100d",
-  routePlan: "ec4ee9d0b1b7bdf4",
+  bannerDates: "aa9d3cf03d67cdfd",
+  bannerHis: "21bf95d684f68f79",
+  bannerMemories: "7c716d4c55345092",
+  bannerMine: "c351237cd3c46b0e",
+  beat: "b63cec610253640e",
+  beatWithCg: "ab3daf28929fade8",
+  chapterPlan: "1dfc5c7c85d163b9",
+  closer: "60bb16736a15bb0a",
+  confrontation: "9c7bdef6e213df6c",
+  repairPlan: "2cb72f086364081e",
+  routePlan: "69aea8e9df88c573",
 };
 // 0.18.1: the canon writing rule names an existing world's characters, so both sets of digests moved.
 // 0.20.2: P10 and P11 open with the story context their chapter's scenes cache, so both sets' routePlan and
@@ -273,17 +275,21 @@ const EXPECTED_ANGST: Record<string, string> = {
 // 2026-11-11: a chapter's last scene hands an open decision to the player, and no scene assumes a choice never made.
 // 0.23.0: the affection line reads "of 20" (the bond ranks), so both sets moved again.
 // 0.26.0: the writing rules ask for plain prose and dialogue in each speaker's own register, so both sets moved.
+// 0.33.3: the writing rules add the maintainer's lines on narration, spoken dialogue and echoing, so both moved.
+// 2026-11-14 (#2303): the wardrobe banners ask for three 3★ looks and three Snapshots, so both sets' bannerHis and
+// bannerMine moved; bannerMemories is unchanged, and bannerDates (the Dates banner) is new.
 const EXPECTED_GENTLE: Record<string, string> = {
-  bannerHis: "5b62b08ce07157ab",
-  bannerMemories: "afba92bf75a051b7",
-  bannerMine: "6aef7d64a723b757",
-  beat: "db7ff607a8c2ac4e",
-  beatWithCg: "0431170b2b0a35a2",
-  chapterPlan: "fb82db1eb1efc02d",
-  closer: "4cf99bcf195fa1f7",
-  confrontation: "85b02b1adbd6ca1b",
-  repairPlan: "c80364a605c38327",
-  routePlan: "bb732dae8211a70a",
+  bannerDates: "e3ae25f32dc27735",
+  bannerHis: "1b78cc8091ed8932",
+  bannerMemories: "cb274bff4e234963",
+  bannerMine: "c698fce9011ce84d",
+  beat: "ae78638cbb3abad3",
+  beatWithCg: "ea025fe3a71f4461",
+  chapterPlan: "7d820bc2925c1592",
+  closer: "363bfbbc780e2cba",
+  confrontation: "b91cac93b2208c8c",
+  repairPlan: "d72a8c77557498cd",
+  routePlan: "84118b57f235e75e",
 };
 
 test("the SFW defaults pin scene pacing and earned character change in story and banner prompts", () => {
@@ -409,15 +415,16 @@ test("SFW images keep their safety prompts and negatives, and tagged faces retai
       faceTagged: expressionPrompt({ unit, base: "/kai.png", face: "tender", world, style: tagged }),
     },
     {
+      // A written outfit keeps the likeness reference's own clothes and hood out (2026-11-17).
       look: {
         prompt:
-          "tall man, grey eyes, keeper's coat, full body, standing, neutral pose, plain flat mid-grey background, safe for work, fully clothed, adult man",
-        negativePrompt: `${LOOK_NEGATIVE}, ${SAFE}`,
+          "tall man, grey eyes, keeper's coat, full body, standing, neutral pose, plain flat mid-grey background, safe for work, fully clothed, adult man. If a reference picture of Kai is attached, use it only for Kai's face, hair and build: Kai wears only the outfit written here, never the clothes, hood, hat or accessories in that picture, and never its pose, framing or background.",
+        negativePrompt: `${LOOK_NEGATIVE}, hood up, hooded, hat, ${SAFE}`,
       },
       lookTagged: {
         prompt:
           "anime screencap, tall man, grey eyes, keeper's coat, full body, standing, neutral pose, plain flat mid-grey background, safe for work, fully clothed, adult man, masterpiece",
-        negativePrompt: `${LOOK_NEGATIVE}, ${SAFE}, lowres`,
+        negativePrompt: `${LOOK_NEGATIVE}, hood up, hooded, hat, ${SAFE}, lowres`,
       },
       lookEdited: { prompt: "red coat, safe for work, fully clothed, adult man", negativePrompt: `blurry, ${SAFE}` },
       place: {

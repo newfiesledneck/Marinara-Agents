@@ -89,10 +89,12 @@ import { createBackgroundQueue, type BackgroundQueue } from "../background-queue
 import {
   ROMANTIC_FIRSTS,
   SUMMARY_WORDING,
+  TIMELINE_FOLD_WORDS,
   notebookMemories,
   otomeContentContract,
   romanticFirstsAsk,
   timelineFoldMessages,
+  timelineShortenMessages,
   withRules,
 } from "../prompts.js";
 import { OUTPUT_FLOOR, generateJson, promptRoom, resolveConnectionId, type OtomeMessage } from "../generation.js";
@@ -165,6 +167,23 @@ const tooSmall = (maxContext: number, task: "write a summary" | "condense the st
   message: `The Memory connection's model (${maxContext.toLocaleString("en-US")} tokens of context) is too small to ${task}. Choose a connection with a larger context.`,
 });
 
+/**
+ * 0.34.0: the longest condensed head kept, in estimated tokens: TIMELINE_FOLD_WORDS at the estimator's 1.35 tokens a
+ * word, with a quarter of leeway. 0.34.2: a longer one is shortened (SHORTEN_PASSES), then fails as a summary does,
+ * with Otome's own words (timelineTooLong), and nothing of it is saved.
+ */
+const TIMELINE_HEAD_TOKENS = Math.round(TIMELINE_FOLD_WORDS * 1.35 * 1.25);
+/** About how many words a condensed head of `tokens` estimated tokens holds, as the shortening and the status say it. */
+const headWords = (tokens: number) => Math.round(tokens / 1.35);
+/** 0.34.2: how many times a condensed head over its length goes back to be shortened before the condensing fails. */
+const SHORTEN_PASSES = 3;
+
+/** A condensing still over TIMELINE_HEAD_TOKENS after its shortenings: Otome's own words (see tooSmall). */
+const timelineTooLong = (tokens: number) => ({
+  reason: "timeline-too-long",
+  message: `The Memory connection's model condensed the story's timeline and shortened it ${SHORTEN_PASSES} times, but it still came back at about ${headWords(tokens).toLocaleString("en-US")} words, past the ${TIMELINE_FOLD_WORDS.toLocaleString("en-US")} it may keep, so nothing was saved. Retry to ask again, or choose a stronger model for Memory.`,
+});
+
 /** How many characters of its source a detail request carries (the kit's `range`); a piece of one is the smallest. */
 /** The id of the source a chapter summary request summarizes (its chapter key), when the kit's message carries one. */
 const sourceIdOf = (request: SummaryRequest): string | undefined => {
@@ -184,7 +203,7 @@ type SavedForm =
       overview?: unknown;
       overviewStyle?: unknown;
       legacyOverview?: unknown;
-      status?: { phase?: unknown; unknownReaders?: unknown };
+      status?: { phase?: unknown; unknownReaders?: unknown; retryable?: unknown; reason?: unknown };
     }
   | null
   | undefined;
@@ -197,10 +216,18 @@ type SavedForm =
  */
 const currentForm = (data: unknown) => {
   const saved = data as SavedForm;
-  const form: SavedForm =
-    saved?.overview && saved.overviewStyle !== OVERVIEW_STYLE
-      ? { ...saved, overview: null, legacyOverview: saved.overview }
-      : saved;
+  const earlier = !!saved?.overview && saved.overviewStyle !== OVERVIEW_STYLE;
+  // 0.34.0: a story whose memory waited for Retry when its form changed rebuilds by itself, as every other one does.
+  const form: SavedForm = earlier
+    ? {
+        ...saved,
+        overview: null,
+        legacyOverview: saved!.overview,
+        ...(saved!.status?.phase === "error"
+          ? { status: { phase: "stale", retryable: true, reason: "not-prepared" } }
+          : {}),
+      }
+    : saved;
   const status = form?.status;
   if (status?.phase === "context-unknown")
     return { ...form, status: { phase: "stale", retryable: true, reason: "not-prepared" } };
@@ -211,9 +238,15 @@ const currentForm = (data: unknown) => {
   return form ?? null;
 };
 
-/** The memory as the kit writes it: one with an overview carries its form, and the earlier one is let go. */
+/**
+ * The memory as the kit writes it: one with an overview carries its form. 0.34.0: the earlier overview is let go only
+ * once the rebuild's status is ready, so `legacyOverview` says a rebuild is under way through all of its folds
+ * (S/memory/timeline.ts savedStory `rebuilding`); What happened so far… shows the new timeline as soon as it has one.
+ */
 const stampedForm = (data: unknown) => {
-  if (!(data as SavedForm)?.overview) return data;
+  const saved = data as SavedForm;
+  if (!saved?.overview) return data;
+  if (saved.legacyOverview && saved.status?.phase !== "ready") return { ...saved, overviewStyle: OVERVIEW_STYLE };
   const { legacyOverview: _earlier, ...rest } = data as Record<string, unknown>;
   return { ...rest, overviewStyle: OVERVIEW_STYLE };
 };
@@ -370,6 +403,11 @@ export function createOtomeMemory({
   const again = new Map<string, boolean>();
   /** Why each run's summary failed this round (the call's own message, or tooSmall), for the kit's next error status. */
   const failures = new Map<string, { message: string; reason?: string }>();
+  /**
+   * 0.34.3 (the maintainer's): a condensing's last reply, kept by run and by what it was condensed from, so a Retry
+   * after a failed shortening goes on from that reply instead of condensing again. Kept only until the server restarts.
+   */
+  const condenseDrafts = new Map<string, { from: string; head: string }>();
   let disposed = false;
 
   const runExists = async (runId: string) => !!(await documents.getById(OTOME_FORGE_PACKAGE_ID, worldId(runId)));
@@ -522,7 +560,12 @@ export function createOtomeMemory({
       const request = value as SummaryRequest;
       const job = running.get(request.runId) ?? (await summaryJob(request.runId));
       if (!job) throw new Error("memory-unavailable");
-      const call = async (kind: string, messages: OtomeMessage[], maxTokens = SUMMARY_OUTPUT_TOKENS) => {
+      const call = async (
+        kind: string,
+        messages: OtomeMessage[],
+        maxTokens = SUMMARY_OUTPUT_TOKENS,
+        normalize?: (reply: z.infer<typeof SummarySchema>) => z.infer<typeof SummarySchema> | string,
+      ) => {
         const { value: reply } = await generateJson(
           { runtime, store },
           {
@@ -531,6 +574,7 @@ export function createOtomeMemory({
             label: `memory-${kind}`,
             messages,
             schema: SummarySchema,
+            ...(normalize ? { normalize } : {}),
             maxTokens,
             debugMode: request.debugMode === true,
             lane: "background",
@@ -594,9 +638,37 @@ export function createOtomeMemory({
           failures.set(request.runId, tooSmall(job.maxContext ?? 0, "condense the story's timeline"));
           throw new Error("summary-context-too-small");
         }
-        head = cleanSummary(
-          await ask("timeline", condense({ head, entries: pending.slice(0, take) }), TIMELINE_OUTPUT_TOKENS),
-        );
+        const part = renderTimeline({ head, entries: pending.slice(0, take) });
+        // 0.34.3: a Retry goes on from the last reply for this same part (condenseDrafts), not from a new condensing.
+        const draft = condenseDrafts.get(request.runId);
+        let condensed =
+          draft?.from === part
+            ? draft.head
+            : cleanSummary(
+                (await call("timeline", condense({ head, entries: pending.slice(0, take) }), TIMELINE_OUTPUT_TOKENS))
+                  .summary,
+              );
+        // 0.34.2 (the maintainer's): a head over its length goes back alone, told how many words to cut, up to
+        // SHORTEN_PASSES times, each from the last one's reply. Still over, it fails the condensing, so a copied-out
+        // timeline is never saved in place of a condensed one.
+        for (let pass = 0; estimateTextTokens(condensed) > TIMELINE_HEAD_TOKENS; pass += 1) {
+          condenseDrafts.set(request.runId, { from: part, head: condensed });
+          const tokens = estimateTextTokens(condensed);
+          if (pass === SHORTEN_PASSES) {
+            failures.set(request.runId, timelineTooLong(tokens));
+            throw new Error("timeline-too-long");
+          }
+          const shorten = {
+            ...request,
+            kind: "timeline",
+            messages: timelineShortenMessages(condensed, headWords(tokens)),
+          };
+          condensed = cleanSummary(
+            (await call("timeline-shorten", withRules(shorten, job), TIMELINE_OUTPUT_TOKENS)).summary,
+          );
+        }
+        condenseDrafts.delete(request.runId);
+        head = condensed;
         pending = pending.slice(take);
       }
       return serializeTimeline({ head, entries: keptPart(timeline) });

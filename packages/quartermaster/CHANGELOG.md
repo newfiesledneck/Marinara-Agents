@@ -1,5 +1,9 @@
 # Quartermaster changelog
 
+## 0.1.40 — 2026-11-17
+- Item and outfit pictures paint in the Android app here too: this version carries the 0.1.34
+  fix that sends the app's local secret with Quartermaster's requests to the Engine.
+
 ## 0.1.39 — 2026-11-14
 - New **Image style** picker in Settings → Image Generation: choose one of your Engine's image
   style presets and it is applied to item and outfit pictures. Needs Engine 2.5.2 or later.
@@ -22,13 +26,15 @@
   game's world) to that world's sheet, so the scene uses the same inventory.
 
 ## 0.1.35 — 2026-11-14
-- No changes you'll notice in a chat. Other packages can now open Quartermaster on a sheet of
-  their own, read what is worn, and run the tracker themselves.
-
-## 0.1.34 — 2026-11-14
 - No changes you'll notice in a chat. Other packages can now keep their own Quartermaster sheets
-  (for example one per world in a game), separate from your chats' sheets.
+  (for example one per world in a game), separate from your chats' sheets, open Quartermaster on
+  them, read what is worn, and run the tracker themselves.
 - Safer handling of the ids in Quartermaster's addresses.
+
+## 0.1.34 — 2026-11-17
+- Item and outfit pictures paint when Marinara was installed with its Android app. The Engine
+  there refused Quartermaster's requests with "401: Android local authentication required"; they
+  now carry the app's local secret, as the `mari` command's do.
 
 ## 0.1.33 — 2026-11-01
 - The item editor's Delete file / Unlink choice closes if the item's image changes while it's

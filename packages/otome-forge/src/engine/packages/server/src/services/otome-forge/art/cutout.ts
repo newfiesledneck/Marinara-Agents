@@ -15,8 +15,8 @@
 // Cut-outs cost no model or image call. They run one at a time in this process, outside the background lane (which
 // takes a model connection's admission slot). Those a view queues for its lists (the Wardrobe's, Wish's) wait behind
 // the ones Home and the reader stand on stage, and are not what the run view or a scene polls for.
-// ponytail: a cut-out of a look that was repainted stays until the run is deleted; the upgrade path is pruning it with
-// the expressions kit's stale sets.
+// ponytail: a cut-out of a look or (#2299) a sticker that was repainted stays until the run is deleted; the upgrade path
+// is pruning it with the expressions kit's stale sets.
 import type { CapabilityRuntimeHost } from "@marinara-engine/shared";
 import type { Cutout, LiId, Unit } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
 import { isEngineAvatar } from "../../../../../client/src/features/otome-forge/shared/engine-art.js";
@@ -26,7 +26,7 @@ import { normalizeSideCast } from "../schemas/side-cast.js";
 import { readyCutout } from "../schemas/state.js";
 import { normalizeUnit } from "../schemas/unit.js";
 import type { OtomeStore } from "../store.js";
-import { galleryRef, loopbackBaseUrl, type PaintedImage } from "./image-client.js";
+import { galleryRef, loopbackBaseUrl, withEngineLocalAuth, type PaintedImage } from "./image-client.js";
 
 /** The Engine's own cleanup settings for a sprite sheet (sprites.routes.ts uses 35 for its cells). */
 export const CUTOUT_STRENGTH = 35;
@@ -57,9 +57,10 @@ function pngSize(bytes: Buffer): { width?: number; height?: number } {
 /** The loopback client: read, clean up, upload. */
 export function createCutoutClient({
   baseUrl = loopbackBaseUrl(),
-  fetch: fetchImpl = globalThis.fetch,
+  fetch: injectedFetch = globalThis.fetch,
   timeoutMs = CUTOUT_TIMEOUT_MS,
 }: { baseUrl?: string; fetch?: Fetch; timeoutMs?: number } = {}): CutoutClient {
+  const fetchImpl = withEngineLocalAuth(injectedFetch);
   // A timeout throws inside cutOut, which records the cut-out as failed (Home pans over the uncut look instead).
   const timeout = () => AbortSignal.timeout(timeoutMs);
   async function json(path: string, init: RequestInit): Promise<unknown> {

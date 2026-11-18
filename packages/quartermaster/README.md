@@ -413,6 +413,11 @@ overwrite an already-released version's artifact file if you forget to bump `VER
 
 ## Changelog
 
+### 0.1.40
+- **Pictures paint in the Android app** on this version too. It carries the 0.1.34 fix, which
+  sends the Android app's local secret with Quartermaster's requests to the Engine on the same
+  device.
+
 ### 0.1.39
 - **Image style.** Settings → Image Generation has a new **Image style** picker listing your
   Engine's image style presets (Engine 2.5.2 or later). The chosen style's words are added to item
@@ -451,15 +456,20 @@ overwrite an already-released version's artifact file if you forget to bump `VER
 - **New routes for other packages:** what is worn, the narrator's summary, the settings with their
   defaults, and the tracker in two steps (`tracker/context`, `tracker/apply`) for a package that
   calls the model itself. `/status` also lists the equip slots, Feed modes and size limits.
-- Roleplay chats work exactly as before.
-
-### 0.1.34
 - **Other packages can keep their own sheets.** A package can use a scope (`<package id>:<key>`) in
   place of a chat id on every inventory route, name the sheet's owner itself, list a scope's owners
   and delete a scope. See "For other packages". Roleplay chats work exactly as before.
 - **`GET /api/quartermaster/status`** reports the installed version and what it can do.
 - **Chat, scope and owner ids are checked** before any route uses them. An id with characters a
   real id never has (like `/` or `..`) is refused, so it can no longer reach a folder path.
+
+### 0.1.34
+- **Pictures paint in the Android app.** On a Marinara installed with its Android app, the Engine
+  answered Quartermaster's connection read and image generation with "401: Android local
+  authentication required", so no item image or outfit portrait could be generated. Those requests
+  now carry the app's local secret (`MARINARA_ANDROID_SECRET`, or the first line of
+  `~/.marinara-engine/android-secret`), read the way the `mari` command reads it. They only ever go
+  to the Engine on the same device.
 
 ### 0.1.33
 - **Delete file always deletes the file it names.** If the item's image changed while the item

@@ -47,7 +47,9 @@
 //   ("# Canon to date, continued"), up to three earlier chapters by their original summaries ("# Chapter 3 in detail"),
 //   in story order: only chapters the head condensed, so none the prompt has otherwise (an entry, the previous chapter
 //   or his side of it, the last Character Story), and with `cached` only those every call of its chapter may know,
-//   otherwise those this one may (mayKnow). A main chapter's plan chooses them by meaning (`chooseBy`: its arc's purpose,
+//   otherwise those this one may (mayKnow); #2304: a main chapter's Lead's own route and repair chapters too, titled
+//   private (`recallLed`), and its plan chooses only among its Lead's chapters. A main chapter's plan chooses them by
+//   meaning (`chooseBy`: its arc's purpose,
 //   lead and cast, the player's thoughts, and here how the previous chapter ended) and saves them on the chapter, and
 //   each of its scenes sends exactly those, in that order (`recalled`), so the cached story context stays the same. No
 //   index, no embedding model or none similar enough: none, and the context is as it was without them;
@@ -74,10 +76,10 @@
 //   has none, as above; it goes in even when the timeline covers it, its entry left out of the timeline, or beside the
 //   condensed head that holds it;
 // - the hand-off (`handOff`, the maintainer's, 2026-11-09): when that last Character Story is the newest thing that
-//   happened (no chapter but his side, a figurine scene or a birthday scene completed after it) and its block went
-//   in, the main story's prompts get its title, so a main chapter's plan and first scene pick up from how it ended, as
-//   chapter 1 picks up from the prologue (S/prompts.ts storyHandOff). A figurine or birthday scene is never the last
-//   Character Story (isFigurineOrBirthday);
+//   happened (no chapter but his side or a figurine, birthday or clear-the-air scene completed after it) and its block
+//   went in, the main story's prompts get its title, so a main chapter's plan and first scene pick up from how it
+//   ended, as chapter 1 picks up from the prologue (S/prompts.ts storyHandOff). A figurine, birthday or clear-the-air scene is
+//   never the last Character Story (isFigurineOrBirthday);
 // - the recall pool (S/memory/memory.ts: the newest small memories this prompt may know, within 5k tokens, each date the
 //   timeline covers by its summary among them), after the timeline or, when `cached`, as a context of its own that the
 //   prompt sends after its cached part. A recall that fails is the same story context without it.
@@ -107,7 +109,8 @@
 // after chapter 3] …", in the timeline's entries and every block above; the condensed head opens with the main
 // chapters it holds ("[Chapters 1–4]"), and an earlier chapter recalled by meaning goes as "# Chapter 3 in detail". The
 // tags are worked out each time from the keys and story order, never saved, so a story already in progress has them
-// on its next prompt, its summaries untouched; a chapter that saved its story context (0.24.2) keeps it as it was.
+// on its next prompt, its summaries untouched; a chapter that saved its story context (0.24.2) keeps it as it was, but
+// for one read from an earlier timeline form (0.34.0, ChapterContext.form), replaced once the rebuild is done.
 // 0.20.4, a chapter's small memories (`pool`, the maintainer's: cached, and never switching between scenes): with
 // `cached`, the recall pool is everyone's in the chapter, chosen once (`memories`, which S/story/beats.ts saves on the
 // chapter) and a context of its own (`pool`), which the prompt sends as its own cached part after the story context.
@@ -127,11 +130,12 @@ import type {
 } from "../../../../../client/src/features/otome-forge/shared/api-types.js";
 import { CLIMAX_MOVES, climaxOf } from "../../../../../client/src/features/otome-forge/shared/arcs.js";
 import { birthdayOfKey } from "../../../../../client/src/features/otome-forge/shared/birthdays.js";
+import { clearAirOfKey, dateCast } from "../../../../../client/src/features/otome-forge/shared/dates.js";
 import { figurineLiOf } from "../../../../../client/src/features/otome-forge/shared/shop.js";
 import { beatId, chapterId, isItemStoryKey, mainChapterNumber, memoryId, playerId, stateId, unitId } from "../ids.js";
 import type { OtomeMemory, RecallPoolOptions } from "../memory/memory.js";
 import { lastWords, type RecallIndex } from "../memory/recall-index.js";
-import { parseTimeline, renderTimeline, savedStory } from "../memory/timeline.js";
+import { OVERVIEW_STYLE, parseTimeline, renderTimeline, savedStory } from "../memory/timeline.js";
 import { normalizePlayer } from "../schemas/player.js";
 import { normalizeState } from "../schemas/state.js";
 import { normalizeBeat, normalizeChapter } from "../schemas/story.js";
@@ -338,7 +342,11 @@ export async function completedChapters(
     if (!chapter || chapter.kind === "prologue" || chapter.prestige) continue;
     const own = audienceOf(chapter);
     const others = new Map([...cast].filter(([li]) => !own?.includes(li)));
-    const cameos = own ? await cameosOf(store, runId, chapter, others) : [];
+    // #2303: a date taken with several is known to everyone who went on it, as a cameo knows a story: a won date's
+    // company, or an earlier Date Night double date's second love interest.
+    const company =
+      chapter.kind === "date" && chapter.date ? dateCast(chapter.date).filter((li) => others.has(li)) : [];
+    const cameos = own ? [...company, ...(await cameosOf(store, runId, chapter, others))] : [];
     const audience = own ? [...own, ...cameos] : undefined;
     const guests = cameos.map((li) => cast.get(li)!);
     chapters.push({
@@ -371,11 +379,12 @@ function titleOf({ chapter, owner, guests }: Completed & { guests?: string[] }):
 }
 
 /**
- * A Shop figurine's scene (#2128) or a birthday scene (#2153): a `story-` chapter with no story item behind it. Neither
- * counts toward the story (the maintainer's, 2026-11-10): it is never the last Character Story, and the hand-off looks
- * past it. It stays its love interest's own chapter, as before.
+ * A Shop figurine's scene (#2128), a birthday scene (#2153) or a scene that clears the air with him (#2303): a `story-`
+ * chapter with no story item behind it. None counts toward the story (the maintainer's, 2026-11-10): it is never the
+ * last Character Story, and the hand-off looks past it. It stays its love interest's own chapter, as before.
  */
-const isFigurineOrBirthday = (key: string) => figurineLiOf(key) !== null || birthdayOfKey(key) !== null;
+const isFigurineOrBirthday = (key: string) =>
+  figurineLiOf(key) !== null || birthdayOfKey(key) !== null || clearAirOfKey(key) !== null;
 
 /**
  * The last Character Story (#2126, see the header): the newest completed `story-<itemId>` chapter (a Memory's
@@ -573,6 +582,12 @@ export type RecallTextOptions = Omit<ForgeRecallOptions, "runId"> & {
    */
   chooseBy?: readonly string[];
   /**
+   * A main chapter's Lead (#2304, the maintainer's): its plan's long-term recall chooses only among the chapters they
+   * led (main chapters with them as Lead, and their own route and repair chapters), and the chapter's plan and scenes
+   * may recall their route and repair chapters, titled private, though those are not every call's to know.
+   */
+  recallLed?: LiId;
+  /**
    * A chapter's small memories (see the header): the recall pool for everyone in the chapter, or exactly its saved
    * `ids`. With `cached` they are the context's `pool`, and the ones sent come back as its `memories`.
    */
@@ -594,6 +609,11 @@ export type StoryContext = ForgeMemoryContext & {
    * thing that happened, and its block went in.
    */
   handOff?: string;
+  /**
+   * 0.34.0: read from the timeline in its current form with no rebuild under way, and the story and its memory both read:
+   * a chapter context saved from it is marked current (chapterContextOf), and one that is not may be replaced by it.
+   */
+  settled?: boolean;
 };
 
 /** The heading of a chapter's small memories (see the header), which the prompt sends as they are. */
@@ -663,27 +683,35 @@ function contextOf(
   return forgeMemoryContext(result, { prefix, optional: optional.map((entry) => entry.text), renderMemory });
 }
 
-/** 0.24.2: what a chapter keeps of its story context (Chapter.context): the parts it is rendered from (frozenContext). */
+/**
+ * 0.24.2: what a chapter keeps of its story context (Chapter.context): the parts it is rendered from (frozenContext).
+ * 0.34.0: marked with the timeline form it was read from when it was read whole (StoryContext `settled`).
+ */
 export const chapterContextOf = ({
   overview,
   details,
   prefix,
   fate,
   optional,
-}: ForgeMemoryContext): ChapterContext => ({
+  settled,
+}: StoryContext): ChapterContext => ({
   overview,
   details: details.map(({ kind, title, content }) => ({ kind, title, content })),
   prefix,
   fate,
   optional: [...optional],
+  ...(settled ? { form: OVERVIEW_STYLE } : {}),
 });
+
+/** 0.34.0: a saved chapter context read from the timeline in its current form (chapterContextOf). */
+export const currentContext = (context: ChapterContext | undefined) => context?.form === OVERVIEW_STYLE;
 
 /**
  * 0.24.2: `live` with the chapter's story context in place of its own: rebuilt from what the chapter kept, not only its
  * text, so the fitter, which renders a context again from its parts when the prompt must shed some, sheds this one's.
  * The connection's limit, the recalls and the pool stay `live`'s.
  */
-export const frozenContext = (saved: ChapterContext, live: StoryContext): StoryContext => ({
+export const frozenContext = (saved: ChapterContext, { settled: _live, ...live }: StoryContext): StoryContext => ({
   ...live,
   ...forgeMemoryContext(
     { overview: saved.overview, details: saved.details, maxContext: live.maxContext },
@@ -708,10 +736,12 @@ export async function recallText(
   runId: string,
   options: RecallTextOptions,
 ): Promise<StoryContext> {
-  const { debugMode, continues, cached, lastStory: withLastStory, recalled, chooseBy, ...recall } = options;
+  const { debugMode, continues, cached, lastStory: withLastStory, recalled, chooseBy, recallLed, ...recall } = options;
   const chapterPool = !!cached && !!recall.pool;
   const warn = (what: string, error: unknown) =>
     deps.runtime?.logger.warn("[otome-forge] %s: %s", what, error instanceof Error ? error.message : String(error));
+  // 0.34.0: either read failing leaves the context unsettled (StoryContext `settled`).
+  let unread = false;
   const [story, saved] = await Promise.all([
     (async () => {
       const [state, player] = await Promise.all([
@@ -724,11 +754,13 @@ export async function recallText(
       };
     })().catch((error: unknown) => {
       warn("The story could not be read", error);
+      unread = true;
       return { chapters: [] as Completed[], protagonist: "" };
     }),
     // What the memory has saved, read as it is whatever the memory's phase (see the header).
     deps.store.readDoc(memoryId(runId), savedStory).catch((error: unknown) => {
       warn("The saved story memory could not be read", error);
+      unread = true;
       return null;
     }),
   ]);
@@ -894,7 +926,13 @@ export async function recallText(
     lastStoryKey,
     ...sideKeys.map((key) => JSON.stringify(["chapter", key])),
   ];
-  // Long-term recall (see the header): what the condensed head holds and nothing else in the prompt does.
+  // Long-term recall (see the header): what the condensed head holds and nothing else in the prompt does. #2304: a main
+  // chapter's plan chooses only among its Lead's chapters, and their own route and repair chapters may be recalled,
+  // titled private (titleOf), in every call of it.
+  const ledOwn = ({ chapter }: Completed) =>
+    !!recallLed && (chapter.kind === "route" || chapter.kind === "repair") && chapter.li === recallLed;
+  const led = (completed: Completed) =>
+    !recallLed || (completed.chapter.kind === "main" && completed.chapter.lead === recallLed) || ledOwn(completed);
   const sourceKey = ({ chapter }: Completed) => JSON.stringify([kindOf(chapter), chapter.key]);
   const entries = new Set(timeline.entries.map((entry) => entry.key));
   const recallable = (completed: Completed) =>
@@ -905,12 +943,12 @@ export async function recallText(
     completed.chapter.key !== previousKey &&
     !sideKeys.includes(completed.chapter.key) &&
     completed !== lastStory &&
-    (cached ? !own(completed.chapter) : mayKnow(recall, completed.audience));
+    (ledOwn(completed) || (cached ? !own(completed.chapter) : mayKnow(recall, completed.audience)));
   const candidates = chapters.filter(recallable);
   let earlier: Completed[] = [];
   if (recalled) {
     earlier = recalled.flatMap((key) => candidates.filter(({ chapter }) => chapter.key === key));
-  } else if (chooseBy && deps.recall && candidates.length) {
+  } else if (chooseBy && deps.recall && candidates.some(led)) {
     // How the previous chapter ended, its last scene's last words, with what the chapter is about.
     const ending = lastWords(scenes.at(-1) ?? "", ENDING_WORDS);
     const chosen = await deps.recall.choose(runId, {
@@ -918,7 +956,7 @@ export async function recallText(
         .map((part) => part.trim())
         .filter(Boolean)
         .join("\n"),
-      candidates: candidates.map((completed) => ({
+      candidates: candidates.filter(led).map((completed) => ({
         completed,
         key: sourceKey(completed),
         title: titleOf(completed),
@@ -964,6 +1002,7 @@ export async function recallText(
     summaries,
   );
   if (earlier.length) context.recalled = earlier.map(({ chapter }) => chapter.key);
+  if (!unread && !saved?.rebuilding) context.settled = true;
   // Only a pool that was read: one that failed sends none, and is chosen again on the next call.
   if (chapterPool && result && !result.poolFailed) context.memories = recalls.map(({ id }) => id).reverse();
   // The hand-off (see the header): only when nothing but his side, a figurine or a birthday scene came after the last

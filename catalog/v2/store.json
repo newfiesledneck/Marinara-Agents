@@ -199,13 +199,6 @@
       "bannerPath": "../../store/banners/memory-nag.webp",
       "bannerSmallPath": "../../store/banners/memory-nag-1200.webp"
     },
-    "modern-life-sim": {
-      "section": "apps",
-      "tagline": "A town, a job and rent with your cast.",
-      "iconPath": "../../store/icons/modern-life-sim.webp",
-      "bannerPath": "../../store/banners/modern-life-sim.webp",
-      "bannerSmallPath": "../../store/banners/modern-life-sim-1200.webp"
-    },
     "noodle": {
       "section": "apps",
       "tagline": "A pretend social network for your characters.",
@@ -275,13 +268,6 @@
       "bannerPath": "../../store/banners/rock-paper-scissors.webp",
       "bannerSmallPath": "../../store/banners/rock-paper-scissors-1200.webp"
     },
-    "ruleset-5e-2014": {
-      "section": "adventure",
-      "tagline": "Play Game Mode by the 5e rules.",
-      "iconPath": "../../store/icons/ruleset-5e-2014.webp",
-      "bannerPath": "../../store/banners/ruleset-5e-2014.webp",
-      "bannerSmallPath": "../../store/banners/ruleset-5e-2014-1200.webp"
-    },
     "saucelings": {
       "section": "apps",
       "tagline": "A little pet that your characters raise.",
@@ -341,12 +327,12 @@
       "bannerPath": "../../store/banners/uno.webp",
       "bannerSmallPath": "../../store/banners/uno-1200.webp"
     },
-    "wanderworld": {
-      "section": "adventure",
-      "tagline": "A low-poly 3D world to walk around in.",
-      "iconPath": "../../store/icons/wanderworld.webp",
-      "bannerPath": "../../store/banners/wanderworld.webp",
-      "bannerSmallPath": "../../store/banners/wanderworld-1200.webp"
+    "wordle": {
+      "section": "games",
+      "tagline": "One word a day, raced with your characters.",
+      "iconPath": "../../store/icons/wordle.webp",
+      "bannerPath": "../../store/banners/wordle.webp",
+      "bannerSmallPath": "../../store/banners/wordle-1200.webp"
     },
     "world-state": {
       "section": "trackers",
@@ -388,7 +374,8 @@
         "chess",
         "poker",
         "blackjack",
-        "uno"
+        "uno",
+        "wordle"
       ]
     }
   ]

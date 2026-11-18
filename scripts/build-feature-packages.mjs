@@ -98,6 +98,13 @@ const HOST_CHARACTERS_BUILT_AGAINST = Object.freeze({
   engineVersion: "2.5.2",
   engineCommit: "c18c1af639cd2c253c13f8ca392ac450065025d3",
 });
+// Capability API 1.830 hands packages the Engine's Switch, Checkbox and Spinner (Pasta-Devs/Marinara-Engine#9383), so
+// Noodle and Slurp draw the same controls as the Engine. An older Engine refuses the manifest.
+const HOST_COMPONENTS_CAPABILITY_API = Object.freeze({ major: 1, minor: 830 });
+const HOST_COMPONENTS_BUILT_AGAINST = Object.freeze({
+  engineVersion: "2.5.2",
+  engineCommit: "611557bc28a57e63dc634742f59f1769cc1c261c",
+});
 const hierarchicalMapsOwnedSourcePaths = [
   "packages/server/src/routes/spatial-context.routes.ts",
   "packages/server/src/services/spatial-context",
@@ -235,6 +242,18 @@ const blackjackOwnedSourcePaths = [
   "packages/client/src/hooks/use-blackjack.ts",
   "packages/client/src/stores/blackjack-game.store.ts",
 ];
+// Wordle is written here in Blackjack's layout. Its server entry also keeps each chat's daily results through
+// api.runtime.persistence, so it needs no host runtime overlay. Offered to staging testers only until the maintainer
+// promotes it (STAGING_ONLY_PACKAGE_IDS in scripts/catalog-incomplete.mjs).
+const wordleSourceRoot = join(packagesDir, "wordle/src/engine");
+const wordleOwnedSourcePaths = [
+  "packages/shared/src/features/turn-games/wordle",
+  "packages/server/src/services/wordle",
+  "packages/client/src/components/chat/WordleBoard.tsx",
+  "packages/client/src/components/chat/WordleSetup.tsx",
+  "packages/client/src/hooks/use-wordle.ts",
+  "packages/client/src/stores/wordle-game.store.ts",
+];
 // Story Writer is written here too. Its server keeps stories through api.runtime.persistence, so it needs no host
 // runtime overlay. A directory entry owns everything under it (ownedCapturePaths matches by prefix).
 const storyWriterSourceRoot = join(packagesDir, "story-writer/src/engine");
@@ -258,6 +277,10 @@ const otomeForgeOwnedSourcePaths = [
   "packages/client/src/features/otome-forge",
   "packages/server/src/services/otome-forge",
 ];
+// 0.35.0: Kitty Cards' 20 pre-made kittens, one per colour and value (C/lib/kitty-cards.ts kittyCardUrl).
+const otomeForgeServedAssetPaths = ["rose", "sky", "lemon", "mint"].flatMap((colour) =>
+  [1, 2, 3, 4, 5].map((value) => `kitty/${colour}-${value}.webp`),
+);
 // The forge kit: plain .mjs modules Gacha Forge pastes into its bundles and Otome Forge imports as
 // `@forge-kit/<module>.mjs`. Package sources are copied into a temporary build root, so a relative import out of it
 // cannot resolve; both bundles alias the name instead. The gates and source capture skip files outside the build root.
@@ -431,10 +454,10 @@ async function removeOwnedSourceSnapshots(excludedPaths) {
 const features = [
   {
     id: "noodle",
-    version: "1.5.16",
-    minEngineVersion: HOST_CHARACTERS_BUILT_AGAINST.engineVersion,
-    capabilityApi: HOST_CHARACTERS_CAPABILITY_API,
-    builtAgainst: HOST_CHARACTERS_BUILT_AGAINST,
+    version: "1.5.19",
+    minEngineVersion: HOST_COMPONENTS_BUILT_AGAINST.engineVersion,
+    capabilityApi: HOST_COMPONENTS_CAPABILITY_API,
+    builtAgainst: HOST_COMPONENTS_BUILT_AGAINST,
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "Noodle",
     description: "A pretend social network where your characters post, share photos, and talk about your chats.",
@@ -511,8 +534,8 @@ const features = [
   },
   {
     id: "slurp2",
-    version: "0.4.22",
-    minEngineVersion: HOST_CHARACTERS_BUILT_AGAINST.engineVersion,
+    version: "0.4.27",
+    minEngineVersion: HOST_COMPONENTS_BUILT_AGAINST.engineVersion,
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "Slurp",
     description:
@@ -566,8 +589,8 @@ const features = [
     clientImport: "packages/client/src/slp/slp-client-entry.tsx",
     packageSourceRoot: slurp2SourceRoot,
     ownedSourcePaths: slurp2OwnedSourcePaths,
-    capabilityApi: HOST_CHARACTERS_CAPABILITY_API,
-    builtAgainst: HOST_CHARACTERS_BUILT_AGAINST,
+    capabilityApi: HOST_COMPONENTS_CAPABILITY_API,
+    builtAgainst: HOST_COMPONENTS_BUILT_AGAINST,
     libraryHidden: true,
     // `slurpcoin.svg` is deliberately not shipped: the Engine keeps SVG out of its servable
     // package-asset content types, so the route 404s it whatever the manifest declares. The coin
@@ -587,7 +610,7 @@ const features = [
   },
   {
     id: "long-term-memory",
-    version: "1.6.1",
+    version: "1.6.3",
     // ponytail: Engine 2.5.2 is the newest release and predates Capability API 1.820, so a version cannot tell an Engine
     // with it from one without; the capabilityApi declaration is what makes an older Engine refuse this package. Raise
     // minEngineVersion to the first Engine release that carries 1.820 once it exists.
@@ -731,7 +754,7 @@ const features = [
   },
   {
     id: "hierarchical-maps",
-    version: "1.8.0",
+    version: "1.8.1",
     minEngineVersion: "2.5.1",
     maxEngineExclusive: MAX_ENGINE_EXCLUSIVE,
     name: "World Maps",
@@ -805,7 +828,7 @@ const features = [
   ].map(([id, name, description, clientName, command, aliases, playerLabel]) => ({
     id,
     name,
-    version: "1.0.6",
+    version: "1.0.7",
     maxEngineExclusive: "4.0.0",
     capabilityApi: PACKAGE_CAPABILITY_API,
     builtAgainst: PACKAGE_BUILT_AGAINST,
@@ -832,7 +855,7 @@ const features = [
   {
     id: "blackjack",
     name: "Blackjack",
-    version: "1.0.0",
+    version: "1.0.1",
     maxEngineExclusive: "4.0.0",
     capabilityApi: PACKAGE_CAPABILITY_API,
     builtAgainst: PACKAGE_BUILT_AGAINST,
@@ -857,8 +880,36 @@ const features = [
     ownedSourcePaths: blackjackOwnedSourcePaths,
   },
   {
+    id: "wordle",
+    name: "Wordle",
+    version: "1.1.0",
+    // Package storage and routes (api.runtime.persistence, registerPrivilegedRoutes) arrived in capability API 1.386.
+    minEngineVersion: "2.5.1",
+    capabilityApi: Object.freeze({ major: 1, minor: 386 }),
+    builtAgainst: { engineVersion: "2.5.1", engineCommit: "54e6848c818ae4150f108ab9614986bb7610891d" },
+    maxEngineExclusive: "4.0.0",
+    description: "A daily Wordle race with Conversation characters.",
+    agent: {
+      description: withPackageActivationGuidance("wordle", "A daily Wordle race with Conversation characters."),
+    },
+    kind: ["agent", "turn-game"],
+    modes: ["conversation"],
+    permissions: ["agent-runtime", "chat-read", "chat-write", "routes", "storage", "ui"],
+    serverImport: "packages/server/src/services/wordle/server-entry.ts",
+    serverEntry: true,
+    engineImport: "packages/shared/src/features/turn-games/wordle/engine.ts",
+    engineExport: "wordleEngine",
+    clientName: "Wordle",
+    command: "/wordle",
+    aliases: ["wordle", "word of the day", "daily word"],
+    playerLabel: "Daily word game",
+    commandType: "wordle",
+    packageSourceRoot: wordleSourceRoot,
+    ownedSourcePaths: wordleOwnedSourcePaths,
+  },
+  {
     id: "story-writer",
-    version: "0.2.0",
+    version: "0.4.0",
     minEngineVersion: "2.5.1",
     // The browser tab's openConnection prop and the debugMode field of /generate/raw arrived in capability API 1.386.
     capabilityApi: Object.freeze({ major: 1, minor: 386 }),
@@ -890,7 +941,7 @@ const features = [
   },
   {
     id: "otome-forge",
-    version: "0.30.0",
+    version: "0.36.2",
     minEngineVersion: "2.5.1",
     // The browser tab's openConnection prop and the debugMode field of /generate/raw arrived in capability API 1.386.
     capabilityApi: Object.freeze({ major: 1, minor: 386 }),
@@ -902,14 +953,15 @@ const features = [
     category: "misc",
     kind: ["agent"],
     modes: ["conversation", "roleplay", "game"],
-    permissions: ["routes", "storage", "ui"],
+    // 0.34.0: `network` for the Engine's haptics (api.runtime.integrations.haptics, Capability API 1.341).
+    permissions: ["network", "routes", "storage", "ui"],
     serverImport: "packages/server/src/services/otome-forge/server-entry.ts",
     serverEntry: true,
     clientImport: "packages/client/src/features/otome-forge/client-entry.tsx",
     packageSourceRoot: otomeForgeSourceRoot,
     ownedSourcePaths: otomeForgeOwnedSourcePaths,
     // The fonts are embedded in client.js as data: URIs; their licence ships beside them.
-    assetPaths: ["otome-hearth-icon.png", "otome-hearth-tab-heart.png", "fonts/OFL.txt"],
+    assetPaths: ["otome-hearth-icon.png", "otome-hearth-tab-heart.png", "fonts/OFL.txt", ...otomeForgeServedAssetPaths],
     libraryHidden: true,
     contributions: {
       slots: ["home-browser-tab"],
@@ -918,6 +970,7 @@ const features = [
         ariaLabel: "Open Otome Hearth",
         iconPaths: ["otome-hearth-tab-heart.png"],
       },
+      assets: { paths: otomeForgeServedAssetPaths },
     },
   },
 ];
@@ -1039,12 +1092,14 @@ import * as ownerTurn from ${JSON.stringify(resolve(prepared.buildRoot, "package
 import * as gameMapBinding from ${JSON.stringify(resolve(prepared.buildRoot, "packages/server/src/services/spatial-context/game-map-binding.ts"))};
 import { configurePackageRuntime } from ${JSON.stringify(resolve(prepared.buildRoot, "packages/server/src/services/spatial-context/package-runtime.ts"))};
 import { createSpatialContextStorage } from ${JSON.stringify(resolve(prepared.buildRoot, "packages/server/src/services/storage/spatial-context.storage.ts"))};
+import { forgeEngineInjectHeaders } from "@forge-kit/engine-local-auth.mjs";
 let readinessStorage = null;
 export async function activate({ app, api }) {
+  // app.inject arrives from 127.0.0.1, so on an Android app install it carries the app's local secret (#2358).
   const cleanupRuntime = configurePackageRuntime(
     api.runtime,
     async (agentType) => {
-      const response = await app.inject({ method: "GET", url: "/api/agents" });
+      const response = await app.inject({ method: "GET", url: "/api/agents", headers: forgeEngineInjectHeaders() });
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw new Error("Could not read global agent settings (" + response.statusCode + ")");
       }
@@ -1058,7 +1113,7 @@ export async function activate({ app, api }) {
       const response = await app.inject({
         method: "PATCH",
         url: "/api/agents/type/" + encodeURIComponent(agentType),
-        headers: { "x-marinara-csrf": "1" },
+        headers: { "x-marinara-csrf": "1", ...forgeEngineInjectHeaders() },
         payload: patch,
       });
       if (response.statusCode < 200 || response.statusCode >= 300) {

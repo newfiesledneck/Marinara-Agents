@@ -19,7 +19,14 @@ import { homeQueryKey } from "../screens/home/HomeScreen";
 import type { Paint, RunView } from "../shared/api-types";
 import { deckKey, type Arcana } from "../shared/tarot";
 import type { AlbumView, ItemOpenResult, WardrobeView } from "../shared/wardrobe";
-import { collectionOf, isLookKind, type BannerView, type ItemKind, type ItemView } from "../shared/wish";
+import {
+  collectionOf,
+  datePlacePaintable,
+  isLookKind,
+  type BannerView,
+  type ItemKind,
+  type ItemView,
+} from "../shared/wish";
 import { runPath } from "./use-reader";
 import { runQueryKey } from "./use-run";
 
@@ -30,10 +37,12 @@ export const albumQueryKey = (runKey: string) => ["otome-forge", "album", runKey
 export const shopQueryKey = (runKey: string) => ["otome-forge", "shop", runKey] as const;
 /** #2151: Tarot night's deck and open reading (C/screens/dates/TarotNight.tsx), one query per love interest under it. */
 export const tarotQueryKey = (runKey: string) => ["otome-forge", "tarot", runKey] as const;
+/** GET /runs/:run/dates (C/screens/dates/DateNight.tsx useDates): the dates won from Wish, with their place pictures. */
+export const datesQueryKey = (runKey: string) => ["otome-forge", "dates", runKey] as const;
 
 /**
- * Everything an item can change: what Wish (and its Shop), the Wardrobe, the Album, Home, Tarot night's deck and the run
- * view show.
+ * Everything an item can change: what Wish (and its Shop), the Wardrobe, the Album and its Dates, Home, Tarot night's
+ * deck and the run view show. 0.34.8: the dates too, so a date's Paint it shows the painting it started at once.
  * Resolves once the screens on show have read it again, so a button that waited on the change never shows the old item
  * in between.
  */
@@ -45,6 +54,7 @@ export async function invalidateCollection(queryClient: QueryClient, runKey: str
     albumQueryKey(runKey),
     homeQueryKey(runKey),
     tarotQueryKey(runKey),
+    datesQueryKey(runKey),
   ];
   await Promise.all([...keys, runQueryKey(runKey)].map((queryKey) => queryClient.invalidateQueries({ queryKey })));
 }
@@ -123,9 +133,14 @@ const WRITTEN_KINDS: ReadonlySet<ItemKind> = new Set(["memory5", "moment4", "his
 
 export const writesOnOpen = (item: Pick<ItemView, "kind">) => WRITTEN_KINDS.has(item.kind);
 
-/** An illustrated reward or look whose first open can paint, with images on. */
-export const paintsOnOpen = (item: Pick<ItemView, "kind">, images: boolean) =>
-  images && (item.kind === "memory5" || item.kind === "moment4" || item.kind === "snapshot3" || isLookKind(item.kind));
+/** An illustrated reward or look whose first open can paint, with images on (#2303: a 4★ date paints its place). */
+export const paintsOnOpen = (item: Pick<ItemView, "kind" | "place">, images: boolean) =>
+  images &&
+  (item.kind === "memory5" ||
+    item.kind === "moment4" ||
+    item.kind === "snapshot3" ||
+    datePlacePaintable(item) ||
+    isLookKind(item.kind));
 
 /**
  * True while an owned item's first open has not finished: its story is unwritten, or its art never started (as the

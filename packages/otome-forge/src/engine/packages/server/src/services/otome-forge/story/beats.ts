@@ -74,6 +74,7 @@ import type {
   AffectionChange,
   Beat,
   Chapter,
+  ChapterContext,
   ChapterNode,
   ChoiceOption,
   Effect,
@@ -103,8 +104,10 @@ import {
   sameName,
   type MusicMood,
 } from "../../../../../client/src/features/otome-forge/shared/faces.js";
+import { hapticsOn, normalizeHapticCues } from "../../../../../client/src/features/otome-forge/shared/haptics.js";
 import { generateJson, readOrGenerate, runForeground } from "../generation.js";
 import type { OtomeArt } from "../art/expressions.js";
+import type { OtomeHaptics } from "../haptics.js";
 import { beatMessages, closerMessages, confrontationMessages, explicitCgAllowed, prologueEnding } from "../prompts.js";
 import { OtomeForgeError } from "../http.js";
 import { PROLOGUE_KEY, beatId, chapterId, mainChapterKey, runDocTarget, stateId, unitId, worldId } from "../ids.js";
@@ -123,6 +126,7 @@ import {
   OWN_ANSWER_LABEL,
   type StoryContext,
   chapterContextOf,
+  currentContext,
   frozenContext,
   chapterScenes,
   chapterSoFar,
@@ -166,6 +170,8 @@ export interface BeatDeps extends ChapterDeps, Pick<SideCastDeps, "background" |
   cancellation?: ForgeStoryCancellation;
   /** The story's art (S/art, M2b); without it nothing is painted. */
   art?: OtomeArt;
+  /** 0.34.0: the toys (S/haptics.ts), whose connected list the scene's prompt names; without it none is named. */
+  haptics?: Pick<OtomeHaptics, "devicesText">;
 }
 
 /** How a request paints: its debug mode, and whether the player reviews image prompts first (an automatic paint waits). */
@@ -211,6 +217,10 @@ export interface BeatContext {
   sideWith?: ReadonlyArray<Pick<Unit, "id" | "name">>;
   /** #2155: his side: told from this love interest's point of view, so only he has thoughts, and no choice is offered. */
   pov?: LiId;
+  /** 0.34.0: the story's haptics are on (SH/haptics.ts hapticsOn): a segment keeps its haptic cues. */
+  haptics?: boolean;
+  /** 0.34.0: the world's Emotion cues are on: a spoken line keeps its bracketed cues in `voiced`, never in `text`. */
+  cues?: boolean;
 }
 
 interface NormalizeOptions {
@@ -290,18 +300,116 @@ function maskedThought(context: BeatContext, raw: unknown): boolean {
   return !!li && (context.state.lis[li.id]?.stage ?? 1) < 2;
 }
 
+/** The least length (letters and digits) a line needs for a longer one that starts with it to count as its repeat. */
+const REPEAT_MIN = 12;
+/** How much of the longer line the shorter must be for it to count as a repeat: one of a few words added at its end. */
+const REPEAT_SHARE = 0.85;
+
+/**
+ * 0.34.0: one delivery cue in a spoken line ("[hushed whisper]", "[gasps]"), written when the world's Emotion cues are
+ * on, with the blanks before it and any punctuation right after it. The voice model performs it; the reader never shows
+ * it (withoutCues).
+ */
+const CUE = /[ \t]*\[[^\[\]\n]{1,80}\]([.!?,;:…]*)/gu;
+const HAS_CUE = /\[[^\[\]\n]{1,80}\]/u;
+
+/**
+ * The line as shown: its cues dropped. Punctuation right after a cue (or a run of them) stays only when the words before
+ * it need it ("No [whispers]..." keeps its dots; "Dottore. [gasps] [moans]." loses the second full stop). A cue between
+ * two words with no space leaves one; a cue between dashes leaves one dash.
+ */
+export function withoutCues(text: string): string {
+  let shown = "";
+  let at = 0;
+  for (const match of text.matchAll(CUE)) {
+    const index = match.index ?? 0;
+    shown += text.slice(at, index);
+    at = index + match[0].length;
+    const after = match[1] ?? "";
+    const before = shown.trimEnd();
+    const next = text.slice(at);
+    if (after && before && !/[.!?,;:…—–-]$/u.test(before)) shown = before + after;
+    else if (/[—–-]$/u.test(before) && /^\s*[—–-]/u.test(next)) {
+      // "I—[gasps]—can't": the second dash goes with the cue.
+      shown = before;
+      at += next.length - next.replace(/^\s*[—–-]/u, "").length;
+    } else if (/\S$/u.test(shown) && /^[^\s.!?,;:…—–-]/u.test(next)) shown += " ";
+  }
+  shown += text.slice(at);
+  return shown
+    .replace(/ {2,}/gu, " ")
+    .replace(/^[\s.!?,;:…]+/u, "")
+    .trim();
+}
+
+/** A line's letters and digits, lower case: what two lines are compared by (spaces, punctuation and cues aside). */
+const lineKey = (value: unknown) =>
+  withoutCues(str(value, SEGMENT_TEXT_MAX))
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "");
+
+/**
+ * True when `text` repeats `before`: the same words, or one of them the other with a few words more at its end ("…and
+ * swings." then "…and swings there."). The model sometimes writes a line twice in a row.
+ */
+export function repeatsLine(before: unknown, text: unknown): boolean {
+  const a = lineKey(before);
+  const b = lineKey(text);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  return short.length >= REPEAT_MIN && long.startsWith(short) && short.length >= long.length * REPEAT_SHARE;
+}
+
+/** A raw segment's fields, or null for one that is not an object. */
+const rawSegment = (value: unknown) => (value && typeof value === "object" ? (value as Record<string, unknown>) : null);
+
+/**
+ * True when `segment` repeats the line before it (`previous`, a raw segment of the same list, or the text of the choice
+ * option's selection just before its branch): the same speaker, both thoughts or neither, and the same words
+ * (repeatsLine). A selection is compared by its words only, as the kit tells it never to be the branch's first line.
+ */
+function repeatsPrevious(previous: unknown, segment: unknown): boolean {
+  const line = rawSegment(segment);
+  if (!line) return false;
+  if (typeof previous === "string") return repeatsLine(previous, line.text);
+  const before = rawSegment(previous);
+  if (!before) return false;
+  const thought = (value: Record<string, unknown>) => value.thought === true || value.thought === "true";
+  return (
+    lineKey(before.speaker) === lineKey(line.speaker) &&
+    thought(before) === thought(line) &&
+    repeatsLine(before.text, line.text)
+  );
+}
+
 /**
  * The list without the thought lines of love interests still behind their mask: the model sometimes writes one anyway,
- * and only that line goes, instead of the whole reply. `at` maps an index into the list as written to the list kept: it
- * moves back past each dropped line, and an index on a dropped line moves to the line before it (0 at the least).
+ * and only that line goes, instead of the whole reply. #2306: also without a line that repeats the one kept before it
+ * (repeatsPrevious), the first line compared with `after` (a branch's option selection) when there is one; a repeat is
+ * kept when it is the list's only line, as a branch needs one. `at` maps an index into the list as written to the list
+ * kept: it moves back past each dropped line, and an index on a dropped line moves to the line before it (0 at the least).
  */
 export function withoutMaskedThoughts(
   context: BeatContext,
   raw: unknown,
+  { after }: { after?: string } = {},
 ): { segments: unknown; at(index: unknown): unknown } {
-  const dropped = Array.isArray(raw)
-    ? raw.flatMap((segment, index) => (maskedThought(context, segment) ? [index] : []))
-    : [];
+  const dropped: number[] = [];
+  if (Array.isArray(raw)) {
+    // The masked thoughts go first, so a repeat is dropped only while another line that stays is left (Dottore, #2307).
+    const masked = new Set(raw.flatMap((segment, index) => (maskedThought(context, segment) ? [index] : [])));
+    let staying = raw.length - masked.size;
+    let previous: unknown = after?.trim() ? after : undefined;
+    raw.forEach((segment, index) => {
+      if (masked.has(index)) dropped.push(index);
+      else if (previous !== undefined && staying > 1 && repeatsPrevious(previous, segment)) {
+        dropped.push(index);
+        staying -= 1;
+      } else previous = segment;
+    });
+  }
   if (!dropped.length) return { segments: raw, at: (index) => index };
   return {
     segments: (raw as unknown[]).filter((_, index) => !dropped.includes(index)),
@@ -371,14 +479,22 @@ export function normalizeBeatBody(raw: unknown, options: NormalizeOptions): Beat
   for (const entry of reply.segments) {
     if (!entry || typeof entry !== "object") continue;
     const source = entry as Record<string, unknown>;
-    const text = str(source.text, SEGMENT_TEXT_MAX);
-    if (!text) continue;
+    const written = str(source.text, SEGMENT_TEXT_MAX);
+    if (!written) continue;
+    // A line that is only a cue ("[gasps]") stays a line, shown as "…", so no choice's `at` moves.
+    const cued = !!options.context.cues && HAS_CUE.test(written);
+    const text = cued ? withoutCues(written) || "…" : written;
     const segment: Segment = { speaker: str(source.speaker, NAME_MAX), text };
     if (source.thought === true || source.thought === "true") segment.thought = true;
+    // Narration and thoughts are never voiced, so their cues are only dropped.
+    if (cued && segment.speaker && !segment.thought) segment.voiced = written;
     const expression = segment.speaker ? normalizeForgeStoryExpression(source.expression, FACES) : "";
     if (expression) segment.expression = expression as Segment["expression"];
     const exits = exitsOf(options.context, source.exits);
     if (exits.length) segment.exits = exits;
+    // A cue that cannot be read is left out, never the line it is on (a lost line would move every choice's `at`).
+    const haptic = options.context.haptics ? normalizeHapticCues(source.haptic) : [];
+    if (haptic.length) segment.haptic = haptic;
     place = resolve(source.place) || place || (options.start ? resolve(options.start) : "");
     if (place) segment.place = place;
     segments.push(segment);
@@ -412,8 +528,9 @@ export function normalizeBeatBody(raw: unknown, options: NormalizeOptions): Beat
 type NormalizedBeat = BeatBody & { choices: ForgeChoice[]; sideWith?: Beat["sideWith"] };
 
 /**
- * The reply with every masked love interest's thought line dropped (withoutMaskedThoughts), from its segments and each
- * choice's branches, and the choices' and the CG's `at` moved to match.
+ * The reply with every masked love interest's thought line, and (#2306) every line that repeats the one before it,
+ * dropped (withoutMaskedThoughts), from its segments and each choice's branches (whose first line is compared with the
+ * option's selection), and the choices' and the CG's `at` moved to match.
  */
 function unmasked(reply: BeatReply, context: BeatContext): BeatReply {
   const main = withoutMaskedThoughts(context, reply.segments);
@@ -425,8 +542,14 @@ function unmasked(reply: BeatReply, context: BeatContext): BeatReply {
         const options = Array.isArray(choice.options)
           ? choice.options.map((option) => {
               const fields = record(option);
+              const selection = rawSegment(fields?.selection)?.text;
               return fields
-                ? { ...fields, segments: withoutMaskedThoughts(context, fields.segments).segments }
+                ? {
+                    ...fields,
+                    segments: withoutMaskedThoughts(context, fields.segments, {
+                      ...(typeof selection === "string" ? { after: selection } : {}),
+                    }).segments,
+                  }
                 : option;
             })
           : choice.options;
@@ -440,6 +563,24 @@ function unmasked(reply: BeatReply, context: BeatContext): BeatReply {
     choices,
     ...(cg ? { cg: { ...cg, at: main.at(cg.at) } } : {}),
   };
+}
+
+/** Every line a reply holds: its mainline and each choice's branches (what unmasked may drop from). */
+function lineCount(reply: BeatReply): number {
+  const length = (value: unknown) => (Array.isArray(value) ? value.length : 0);
+  const options = (choice: unknown) => (choice as { options?: unknown } | null)?.options;
+  return (
+    length(reply.segments) +
+    (Array.isArray(reply.choices) ? reply.choices : []).reduce<number>(
+      (sum, choice) =>
+        sum +
+        (Array.isArray(options(choice)) ? (options(choice) as unknown[]) : []).reduce<number>(
+          (inner, option) => inner + length((option as { segments?: unknown } | null)?.segments),
+          0,
+        ),
+      0,
+    )
+  );
 }
 
 /** The reply as a beat body with its choices, or the reason it is refused (the repair turn names it). */
@@ -466,16 +607,43 @@ export function normalizeBeatReply(written: BeatReply, context: BeatContext): No
     }
     counts = most;
   }
+  // 0.34.5: the kit says which rule the reply broke, so the repair turn names it. A reply that broke a rule the old
+  // note did not list (an "at" past the last segment, a fifth place, a big choice before the last beat) came back
+  // broken the same way, and the scene failed.
+  let refused = "";
   const beat = forgeNormalizeChoiceBeat(
     reply,
     { start: context.node.place, cgOpen: !!context.node.cg, context } as NormalizeOptions,
     normalizeBeatBody,
-    { enabled: !context.pov, terminal: context.last && !context.date, label: forgeChoiceLabel },
+    {
+      enabled: !context.pov,
+      terminal: context.last && !context.date,
+      label: forgeChoiceLabel,
+      reject: (why) => (refused = why),
+    },
   );
   if (!beat) {
-    return "the segments or choices did not follow the format (check the PLAYER CHOICES rules: 2-4 options, a selection each, branches of 1-8 segments, distinct `at` indexes)";
+    // 0.34.6 (review of #2339): the kit counts the lines kept, so after a dropped repeat or masked thought
+    // its numbers are not the model's own; the note says so. His side's prompt has no PLAYER CHOICES rules to point to.
+    const removed = lineCount(written) - lineCount(reply);
+    return [
+      refused || "the segments or choices did not follow the format",
+      context.pov ? "" : " (see the PLAYER CHOICES rules)",
+      removed > 0
+        ? `. Before this check, ${removed} line(s) you wrote were removed (a line that repeats the one before it, the same words or the same start with a few words more${context.pov ? "" : ", or a thought of a love interest who is still masked"}), and any segment number above counts the lines without them: leave such lines out`
+        : "",
+    ].join("");
   }
   const choices = (beat.choices ?? []) as ForgeChoice[];
+  // The protagonist's own words are shown, never voiced: a cue there is only dropped (Dottore on #2325).
+  if (context.cues) {
+    for (const choice of choices) {
+      for (const option of choice.options) {
+        option.text = withoutCues(option.text) || option.text;
+        option.selection = { ...option.selection, text: withoutCues(option.selection.text) || option.selection.text };
+      }
+    }
+  }
   if (context.mustChoose && !choices.some((choice) => choice.kind === "big")) {
     return "this node must end on ONE big choice (see the PLAYER CHOICES rules for a big choice)";
   }
@@ -494,6 +662,7 @@ export function segmentLists(context: BeatContext): SegmentLists {
       return typeof places === "string" ? places : "";
     },
     list: (raw, start) => normalizeBeatBody(raw, { start, context }),
+    shown: (text) => (context.cues ? withoutCues(text) || text : text),
     thoughts: (raw, counts) => thoughtProblem(context, raw, counts),
     unmask: (raw) => withoutMaskedThoughts(context, raw),
   };
@@ -755,8 +924,10 @@ async function generateBeat(
       ...(chapter.kind === "main" ? { continues: "main" as const } : {}),
       ...((chapter.kind === "route" || chapter.kind === "repair") && chapter.li ? { continues: chapter.li } : {}),
       lastStory: chapter.kind === "main" || chapter.kind === "route" || chapter.kind === "repair",
-      // Long-term recall: exactly the earlier chapters its plan chose, in their order (S/story/canon.ts).
+      // Long-term recall: exactly the earlier chapters its plan chose, in their order (S/story/canon.ts), its Lead's
+      // route and repair chapters among them (#2304).
       ...(chapter.recalled ? { recalled: chapter.recalled } : {}),
+      ...(chapter.kind === "main" && chapter.recalled ? { recallLed: chapter.lead } : {}),
       pool: { cast: everyone, ...(memories ? { ids: memories } : {}) },
       query: {
         cues: [storySoFar.join("\n\n").slice(-2000), node.guide].filter(Boolean),
@@ -786,18 +957,22 @@ async function generateBeat(
   // and a cache that misses every time the text moves. The context is saved on the chapter by its plan (a main one)
   // or its first scene, and every scene sends it, as `recalled` and the pool ids already are: rebuilt from its parts,
   // so a scene that must shed some of it sheds the chapter's, never the story as it is now (frozenContext).
+  // 0.34.0: one exception, once: a context read from an earlier timeline form (or saved while its rebuild ran) is
+  // replaced by the first scene that reads the rebuilt timeline whole (StoryContext `settled`), so a chapter in progress
+  // learns what the earlier timeline had lost. Until then it keeps its own; after, the new one is kept as before.
   if (!told) {
     const live = memory;
+    const keeps = (context: ChapterContext | undefined) => !!context && (currentContext(context) || !live.settled);
     const saved =
-      chapter.context ??
+      (keeps(chapter.context) ? chapter.context : undefined) ??
       (live.text
         ? // Another scene wrote first: the first save wins, so every scene sends that one.
-          (
+          ((
             await deps.store.updateDoc(runDocTarget("chapter", chapterId(runId, key)), normalizeChapter, (current) =>
-              !current || current.context ? current : { ...current, context: chapterContextOf(live) },
+              !current || keeps(current.context) ? current : { ...current, context: chapterContextOf(live) },
             )
-          )?.context
-        : undefined);
+          )?.context ?? chapter.context)
+        : chapter.context);
     // ponytail: the chapter keeps its context even when a later, longer scene cannot fit what of it cannot give way
     // (the summaries that always stay, the previous chapter's first and last scenes); that scene answers `capacity`
     // until the connection is larger, where before upkeep folding the backlog could have rescued it. Ceiling: a
@@ -817,6 +992,8 @@ async function generateBeat(
     last,
     mustChoose,
     cgExplicit,
+    ...(hapticsOn(run.world) ? { haptics: true } : {}),
+    ...(run.world.audio.emotionCues && run.world.audio.tts ? { cues: true } : {}),
     ...(chapter.kind === "date" ? { date: { goesWrong: chapter.date?.goesWrong ?? false } } : {}),
     ...(side ? { sideWith: side } : {}),
     ...(pov ? { pov } : {}),
@@ -850,6 +1027,7 @@ async function generateBeat(
     // A main chapter's first scene picks up from the last Character Story, as its plan does (S/story/canon.ts).
     handOff: memory.handOff ?? "",
     ...(told ? { hisSide: told.text } : {}),
+    ...(hapticsOn(run.world) ? { toys: deps.haptics?.devicesText() ?? "" } : {}),
   };
   let body: Omit<Beat, "key" | "i" | "kind" | "choiceCanon" | "applied" | "readThrough" | "written" | "rewrites">;
   let written: { connectionId: string; model: string };

@@ -84,6 +84,8 @@ ${R} .of-place-check {
 /* The looks: the two of them side by side. */
 ${R} .of-looks { display: flex; flex-direction: column; gap: 8px; }
 ${R} .of-looks-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+/* #2303: a pulled date shows only her looks. */
+${R} .of-looks-pair[data-single] { grid-template-columns: minmax(0, 1fr); }
 ${R} .of-looks-person { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
 ${R} .of-looks-who {
   padding: 0; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
@@ -112,8 +114,9 @@ ${R} .of-look-name svg { color: var(--of-champagne-text); }
 ${R} .of-looks-note { display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center; }
 
 /* #2128: Bring a gift: small cards in a row (No gift first), ringed like a look when picked. */
-${R} .of-date-gifts .of-section-title { display: flex; align-items: center; gap: 8px; }
-${R} .of-date-gifts .of-section-title svg { flex: none; color: var(--of-champagne-text); }
+/* 0.34.8: Take them along and the Dates hub's pick share the gifts' title row, icon beside the words. */
+${R} .of-date-gifts .of-section-title, ${R} .of-partners .of-section-title { display: flex; align-items: center; gap: 8px; }
+${R} .of-date-gifts .of-section-title svg, ${R} .of-partners .of-section-title svg { flex: none; color: var(--of-champagne-text); }
 ${R} .of-date-gift-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 10px; }
 ${R} .of-date-gift {
   display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; cursor: pointer; text-align: center;
@@ -166,6 +169,27 @@ ${R} .of-date-memory-text { display: flex; flex-direction: column; gap: 1px; fle
 ${R} .of-date-memory-title {
   font-family: var(--of-font-display); font-weight: 600; font-size: 1.06rem; line-height: 1.1; overflow-wrap: anywhere;
 }
+/* Album → Dates (#2303): a card's picture and text side by side, then its badge and button in a row below, so the
+   text keeps the card's width on a phone instead of being squeezed beside the buttons. */
+${R} .of-album-date {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px 12px; padding: 10px;
+  border-radius: 16px; background: var(--of-surface-hover); border-inline-start: 3px solid var(--of-li-accent, var(--of-rose));
+}
+${R} .of-album-date > .of-date-memory-text { grid-column: 2; gap: 3px; }
+${R} .of-album-date > .of-date-memory-text:first-child { grid-column: 1 / -1; }
+${R} .of-album-date-art {
+  width: 64px; height: 64px; border-radius: 12px; object-fit: cover; background: var(--of-surface);
+}
+${R} .of-album-date-actions {
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px;
+}
+${R} .of-album-date-actions > .of-badge { margin-inline-end: auto; }
+${R} .of-album-date-error { flex-basis: 100%; }
+${R} .of-album-date .of-body { max-width: none; }
+/* The pin stays on the place's first line. */
+${R} .of-album-date-place { display: flex; align-items: baseline; gap: 4px; }
+${R} .of-album-date-place > svg { flex: none; align-self: center; }
+${R} .of-album-date-who { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 2px; }
 
 /* How the evening went. */
 ${R} .of-date-counting { margin-top: 18px; }

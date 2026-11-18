@@ -1,8 +1,8 @@
-// Quartermaster 0.1.39 — Marinara Engine roleplay-tracker capability (single-file client bundle)
+// Quartermaster 0.1.40 — Marinara Engine roleplay-tracker capability (single-file client bundle)
 // Built from packages/quartermaster/src (12 modules) by scripts/build-quartermaster-package.mjs. Do not edit; edit src/ and rebuild.
 (() => {
 "use strict";
-const QM_VERSION = "0.1.39";
+const QM_VERSION = "0.1.40";
 // ===== 00-api.js =====
 // Quartermaster — client-side fetch helpers for the package's own privileged
 // routes (server.mjs). QM is the shared namespace concatenated files use to
