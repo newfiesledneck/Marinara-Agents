@@ -234,6 +234,22 @@ export function createQuestPlay(core, api) {
     const s = save();
     if (!reserve?.key || !reserve.kind || !core.settings.regionPurposes) return;
     if (s.purposes?.[reserve.key] || s.regions?.[reserve.key]) return;
+    // Through the regions' own hook when there is one (main.js questRegion): the same region, planned with
+    // its purpose and heard of on the map of regions. Else only the purpose is kept.
+    const [fx, fz] = here().split(",").map(Number);
+    const [tx, tz] = reserve.key.split(",").map(Number);
+    const planned = api.planRegion?.({
+      side: reserve.side,
+      distance: Math.max(1, Math.abs(tx - fx), Math.abs(tz - fz)),
+      purpose: reserve.kind,
+      faction: reserve.faction ?? "",
+      quest: reserve.quest ?? "",
+      from: here(),
+    });
+    if (planned?.key === reserve.key) {
+      core.factionsChanged = true;
+      return;
+    }
     core.save = {
       ...s,
       purposes: { ...s.purposes, [reserve.key]: { kind: reserve.kind, faction: reserve.faction ?? "", from: "quest" } },

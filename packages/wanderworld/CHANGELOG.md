@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.7.42 — 2026-11-20
+
+- Quests: from the noticeboard, "Any work going?" or lore (ww:quest). The game's own always work; the AI can write them too (off by default). Stages can lead into caves and other regions, with failure branches. Journal → Quests and a quest line.
+- A new built-in body, male and female from MakeHuman's CC0 base: sliders for build and face, colours, underwear styles and presets in the Look card. Townsfolk get varied looks.
+- Fights: names and HP over heads, readable turn cards, tap a name for its SRD details; beaten, your foes stay over you to carry on the scene.
+- Regions: lands of their own (forest, marsh, snowy highlands, badlands, lakeside), towns with lasting people, an inn and a shop; travel by road or coach from Journal → Map.
+
 ## 0.7.41 — 2026-11-20
 
 - Twelve new monsters made in Blender: a skeleton of Wanderworld's own (in place of the old one), a zombie, a see-through ghost and a specter with glowing eyes (both at night), earth, fire, water and air elementals, and hill, stone, frost and fire giants. The elementals and giants are rare; the giants can grab and throw. Each has its own switch under Settings → Creatures → Kinds, lives where it would be found, and fights by its SRD stat block.

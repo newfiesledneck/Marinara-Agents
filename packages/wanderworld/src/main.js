@@ -8645,6 +8645,8 @@ const questPlay = createQuestPlay(core, {
   fighting: () => fighting(),
   animalAllowed: (kind) => animalAllowed(kind),
   regionName: (key) => regionNameAt(key),
+  // (The regions and travel hook: plans the region's land and purpose, and shows it on the map as heard of.)
+  planRegion: (ask) => questRegion(ask),
   addItem: (item) => addItem(item),
   readItems: () => readItems(),
   money: () => purse().name,

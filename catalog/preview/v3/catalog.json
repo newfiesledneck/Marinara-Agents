@@ -293,7 +293,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.7.41",
+        "version": "0.7.42",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -469,6 +469,12 @@
               "kit/generic/art/street-cobbles.webp",
               "kit/generic/art/water.webp",
               "kit/generic/art/wood-beam.webp",
+              "kit/generic/avatar/avatar-female-1.webp",
+              "kit/generic/avatar/avatar-female.json",
+              "kit/generic/avatar/avatar-female.webp",
+              "kit/generic/avatar/avatar-male-1.webp",
+              "kit/generic/avatar/avatar-male.json",
+              "kit/generic/avatar/avatar-male.webp",
               "kit/generic/nature/bark-birchtree.webp",
               "kit/generic/nature/bark-deadtree.webp",
               "kit/generic/nature/bark-normaltree.webp",
@@ -513,13 +519,13 @@
           },
           {
             "path": "client.js",
-            "sha256": "3d8feed830b401ecc4ad97867afafe02614e115c806a6649326555e485a6a909",
-            "bytes": 3297535
+            "sha256": "a026bbf093ecc46f0b09c7931a1a8181ab9926fb7366b02e1a88fc7c7287893a",
+            "bytes": 3468122
           },
           {
             "path": "server.mjs",
-            "sha256": "9670367a71a6fad595be3e2bb7e936472906dd65fe4aca219aa2bac2bf7a0985",
-            "bytes": 166849
+            "sha256": "2e3d464038a7c0857eb95babf533637eec77540efc933a7e25093088cf5235cc",
+            "bytes": 175708
           },
           {
             "path": "wanderworld-icon.webp",
@@ -1272,6 +1278,36 @@
             "bytes": 38302
           },
           {
+            "path": "kit/generic/avatar/avatar-female-1.webp",
+            "sha256": "5e36b4f336d9d36c897d48acb98feb35c0c940e98083468d382caab37339cddf",
+            "bytes": 111740
+          },
+          {
+            "path": "kit/generic/avatar/avatar-female.json",
+            "sha256": "36af6cc621254d20cdb9efa585263e4c181012283ee2210e330805769538a393",
+            "bytes": 2169482
+          },
+          {
+            "path": "kit/generic/avatar/avatar-female.webp",
+            "sha256": "b8578ad192cced931e733c85880938a6c2417cbd4d23133556ed6f02d9c143e8",
+            "bytes": 75292
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male-1.webp",
+            "sha256": "1ba9e494548ccda11df713de5de9673abe9a75eb4eef12713a1ee52bc96121db",
+            "bytes": 125084
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male.json",
+            "sha256": "210a78804df3465c5db492d6e3ed8cfcec6cadffa34047aa092b5e464369c43b",
+            "bytes": 2007244
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male.webp",
+            "sha256": "4087da5ea5ee8c32230f1194d807baafcff38723a2660c9982e3d81e597bd3e8",
+            "bytes": 70274
+          },
+          {
             "path": "kit/generic/nature/bark-birchtree.webp",
             "sha256": "7048041ea3329881b81075d9b1f78ccbf1a1fd7fa75a6cb06205b922da180e61",
             "bytes": 7830
@@ -1449,9 +1485,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.7.41.zip",
-        "sha256": "ae77a9fda608795c8da449331725c83b58d74a9e234249e176eba21e405dce4b",
-        "bytes": 62498432
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.7.42.zip",
+        "sha256": "655df9676006c2e9ba7f5a4b2e0f7816fc0114275a300304eac9df913dc12cd6",
+        "bytes": 67239224
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     }
