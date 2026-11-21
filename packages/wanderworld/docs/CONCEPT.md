@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.7.46, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.7.47, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, an AI assistant that changes a world on request, and the
@@ -494,7 +494,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.7.46: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.7.47: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -690,7 +690,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.7.46, 2026-11-14)
+## Outstanding (as of 0.7.47, 2026-11-14)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -1141,6 +1141,7 @@ swingReach`); "+N Max" worn and used (`sheet.js bonusesIn / wornMax / useItem`, 
        _In (0.7.44):_ `underwearByDefault` (avatar.js setUnderwearByDefault); HAIRSTYLES widened, with the older kit wearing the nearest of its own.
        _In (0.7.45):_ skins, ages (`age_middle`, `age_old`), eye pictures (`avatar-eyes.webp` atlas), brows and lashes as pieces, in `avatar.js` and `looks.js`; credits for MakeHuman's system assets (CC0).
        _In (0.7.46):_ review fixes (change-driven saves, compare-and-set revisions, a world list from the records, picture and world cleanup routes, a size gate on the build, a distant low-detail index per model, one credits list) and the flee rework (`foeNerve`, `RALLY_SECONDS`, `GOT_AWAY`).
+       _In (0.7.47):_ party movement in fights (ww:party-moves), sitting and lying together (ww:party-sits, seat sharing up to 4), tents' Lie down, and own abilities (ww:own-abilities, `allySheets`, `abilityDay`).
        _Not yet:_ other reactions beyond Shield and Counterspell; difficult terrain; a companion's own slots;
        people fighting back by turns, companions joining in against them, creatures at range; more
        effects (poison, burning, slowed) and effects on the player; the 5e ruleset as a source of

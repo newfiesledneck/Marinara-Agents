@@ -192,6 +192,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.47",
+          "date": "2026-11-20",
+          "notes": "- Your party moves about a fight by how they fight (melee closes in, archers keep their distance, casters stay back), follows more loosely day to day (Settings → People → Your party: close, normal or loose), and wanders a little when you stand still.\n- When you sit or lie down, companions take a seat nearby, sit on the ground, or ask to squeeze in beside you, up to four on a log, bench or bed. Tents and beds have Lie down as well as Sleep.\n- Abilities of your own in the sheet: uses that come back by rest or day, dice, a save; used from the fight bar or /use. Companions can have them too.",
+          "highlight": false
+        },
+        {
           "version": "0.7.46",
           "date": "2026-11-20",
           "notes": "- Fights: creatures flee less (only when badly hurt, and undead, oozes and constructs never), a fleeing one can be chased and struck until it gets away, and one that comes back rejoins a turn-based fight once, with no more repeated \"joins the fight\".\n- Saving reaches the Engine while you play, worlds made on another device no longer vanish from Load world, and outfits chosen by hand are kept. Rules fixes: heavy armour ignores Dexterity, a critical hit doubles only the dice, Multiattack uses each attack's own numbers.\n- Settings → Display → Creature detail distance: creatures further off are drawn with fewer triangles from the same model.",
@@ -303,12 +309,6 @@
           "version": "0.7.28",
           "date": "2026-11-20",
           "notes": "- Seven more monsters of Wanderworld's own: hobgoblins in mail with sword and shield, bugbears with morningstars, orcs with greataxes, gnolls with spears, kobolds with daggers, lizardfolk with clubs and spiked shields, and ghouls, who come out at night. Each has its own switch in Menu → Settings → Creatures and the SRD's numbers in a fight.\n- The goblin, ogre and minotaur now carry their weapons: a scimitar, a spiked club and a double axe. A monster's weapon swings with its arm.\n- An orc in your lore is now an orc rather than a puglin, and lizardmen are lizardfolk.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.27",
-          "date": "2026-11-20",
-          "notes": "- Four monsters of Wanderworld's own: goblins, and now and then an ogre, a troll or a minotaur, out in the country with the other monsters. They're built in code from simple shapes, so they need no download, and they walk, run and strike with the people's animations. Each has its own switch in Menu → Settings → Creatures, the SRD's numbers in a fight, and spoils of its own.\n- A goblin in your lore is now a goblin rather than a puglin (ww:monster:goblin:pack4). An orc is still a puglin.",
           "highlight": false
         }
       ]
