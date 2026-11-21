@@ -63,6 +63,7 @@ export function encounterFor(land, odds, steps, how, allowed, seed) {
       ANIMALS[kind].group === "monsters" &&
       !ANIMALS[kind].rare &&
       !ANIMALS[kind].fly &&
+      !ANIMALS[kind].when && // (nothing that keeps to the night: an encounter comes whatever the hour)
       allowed(kind) &&
       (HABITATS[kind] ?? ["open"]).includes(word),
   );

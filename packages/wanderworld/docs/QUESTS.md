@@ -311,9 +311,29 @@ mouth beside them, and caves are a rugged hillside with three cave mouths. Purpo
 - **The map:** Journal → Map draws the regions known (`knownRegions`: the ones visited, plus any that
   lore, a quest or the player told of) under the region map, each faction's land in its colour. On a
   faction's land the region map has a border in that colour.
-- **Not yet:** a faction's land has no townsfolk of its own beyond its guards and any lore members who
-  live there. The guards are the `bandit` kind, named "<Faction> guard"; a guard body of its own would
-  need a model and an SRD stat block.
+- **Not yet:** a faction's land has the region's own people (below), its guards and any lore members
+  who live there, but its people aren't members of the faction. The guards are the `bandit` kind, named
+  "<Faction> guard"; a guard body of its own would need a model and an SRD stat block.
+
+**Built: lands, each region's people, and travel (`src/regions.js`, `src/travel.js`).** README "Regions
+and travel" and "Regions beyond home and the quest hook" have the whole of it.
+
+- A new region has a land (farmland, forest, hills, marsh, snowy highlands, rocky badlands, lakeside)
+  from the world's seed and its place on the map, with its own landscape, trees, ground, weather and
+  monsters (`animals.js HABITATS` has the words "forest", "marsh", "snow" and "badlands").
+- Its settlement always has an inn and a shop, and people of its own, made once from its buildings and
+  kept in `save.regions[key].folk` (ids `local:folk.<x>.<z>.<n>`). Only the region you're in has its
+  people about.
+- Journal → Map lists the regions known, with Walk there (by road through known regions; the hours
+  pass; an encounter may wait) and Coach (from an inn, for a fare from the purse).
+- **For quests:** `main.js questRegion({ side, distance, land, purpose, faction, quest })` finds or plans
+  a region of a land and purpose (built on `purposeAhead`'s rule: never a purpose given before), and
+  `questTarget({ id, quest, region, kind, name, what, near })` puts a person, an item, a creature or a
+  deep place's entrance there. Each is kept in `save.travel`, marked on both maps, and given its spot
+  when its region is built. `questTargets(quest)` reports where they are and whether a creature was
+  beaten; `finishTarget(id)` takes one off the map.
+- **Not yet:** quests themselves (phase 1) calling the hook; a deep entrance in a region already made;
+  journeys with anything on the way but an encounter at the end; region people's lore.
 
 ---
 
