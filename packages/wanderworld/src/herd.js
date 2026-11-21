@@ -1089,6 +1089,11 @@ export function createHerd() {
           hostile: beast.angry || (ANIMALS[beast.kind].hostile && temperOf(beast) !== "tame"),
           fled: beast.temper === "timid", // (it has had enough, and runs)
           stunned: (beast.stunUntil ?? 0) > clock,
+          // (For the fight display: it's after someone or fighting back, and what holds or calms it.)
+          engaged: !!(beast.angry || beast.chasing),
+          slowed: (beast.slowUntil ?? 0) > clock,
+          rooted: (beast.rootUntil ?? 0) > clock,
+          calmed: (beast.calmUntil ?? 0) > clock,
           room: (ANIMALS[beast.kind].back > 0 ? 0.75 : 0.45) * (beast.scale ?? 1),
         }));
     },

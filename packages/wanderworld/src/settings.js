@@ -245,6 +245,16 @@ export const SETTINGS = {
   fightBack: { value: true },
   // Whether the party joins a real-time fight (each by their class: main.js alliesTick).
   partyFights: { value: true },
+  // The fight display (fighthud.js, plates.js, fightbar.js): a name and an HP bar over those in a fight ("some":
+  // only the hurt, the aimed at and whose turn it is), and over hostile creatures in sight too; the list of who
+  // is in a real-time fight; foes' HP as numbers or a word; and how much the info card tells of a creature.
+  nameplates: { value: "all", options: ["off", "some", "all"] },
+  platesHostile: { value: false },
+  fightList: { value: true },
+  foeNumbers: { value: true },
+  foeKnowledge: { value: "learned", options: ["all", "learned"] },
+  // After a defeat with `defeat` "stay": those who beat the player stay over them (main.js overTick).
+  victorsStay: { value: true },
   // How many minutes something beaten lies where it fell (0: until it's harvested or cleared).
   bodyMinutes: { value: 3, min: 0, max: 120 },
   /** How many of the world's days a felled tree takes to stand again (0: it never does). */
@@ -465,6 +475,9 @@ export const DEVICE_SETTINGS = new Set([
   "place",
   "questLine",
   "textSize",
+  "nameplates",
+  "platesHostile",
+  "fightList",
   "sound",
   "volume",
 ]);
