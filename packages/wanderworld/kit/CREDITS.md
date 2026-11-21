@@ -29,6 +29,15 @@ modelled in Blender by ThatOneCan with the scripts in `packages/wanderworld/asse
 (`rigged-<name>.webp`): the mimic, awakened shrub, shambling mound, grick, otyugh, roper, gelatinous cube, basilisk, skeleton, zombie, ghost, specter, earth, fire, water and air elementals, and the hill, stone, frost and fire giants, made the same
 way. The models themselves are in `packages/wanderworld/assets/models/`.
 
+## The built-in body
+
+`generic/avatar/avatar-male.json`, `avatar-female.json` and their textures (`avatar-<sex>.webp`,
+`avatar-<sex>-1.webp`), with the hair styles (`avatar-hair.json`) and outfit pieces
+(`fantasy/avatar/avatar-outfits.json`) when there are some: Base mesh and shapes: MakeHuman (CC0), adapted
+in Blender by ThatOneCan, with `packages/wanderworld/assets/scripts/make_avatar.py`, and packed by
+`scripts/build-wanderworld-people.mjs --avatar`. MakeHuman's hm08 base mesh and morph targets are public
+domain (CC0 1.0); they're read as data, and MakeHuman itself is neither run nor copied.
+
 ## Under the Quaternius Asset License
 
 `fantasy/folk/folk.json` and its textures (the imp and the puglin) are converted from Quaternius's Bestiary - Dungeon Monsters Kit

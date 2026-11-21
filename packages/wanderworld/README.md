@@ -73,15 +73,33 @@ whole: don't play one world in two browsers at the same moment.
 
 ### People
 
-- **Play as** one of your personas, in its 3D Avatars model (VRM, GLB, FBX or MMD) or a built-in person.
-- **Up to thirty characters live in each world,** in their own 3D models or dressed townsfolk (Quaternius's
-  character packs, chosen from their name; a body picker sets Auto, Male or Female, per world).
-- **Choose a look:** for anyone without a 3D model, your persona included, the Look button beside the
-  body choice opens a card: an outfit (townsfolk, or the ranger), or each piece of one from either (top,
+- **Play as** one of your personas, in its 3D Avatars model (VRM, GLB, FBX or MMD) or the built-in body.
+- **Up to thirty characters live in each world,** in their own 3D models or the built-in body (or
+  Quaternius's dressed townsfolk, with Settings → People → Townsfolk use the new bodies off), each looking
+  as their name and lore have them; a body picker sets Auto, Male or Female, per world.
+- **The built-in body** (`src/avatar.js`, docs/AVATAR.md): Wanderworld's own person, male or female, made
+  in Blender from MakeHuman's CC0 base mesh and shapes, in plain underwear (outfits are coming). The
+  Look card shapes it, a section at a time, each folding away, with a small turning picture of them at
+  the top:
+  - **Presets:** start from one of your own or a ready-made one (a few for each body), save the look
+    under a name, delete one, or export it as a small JSON file and import one back. Your presets are
+    kept with your settings, so they're in every world and every browser.
+  - **Body:** gender (how they're spoken of), and the male or the female body (as their gender unless
+    chosen). Anthro bodies come later.
+  - **Build:** height, weight, muscle, chest (her bust), hips, waist, belly, shoulders, neck, arm length,
+    leg length and head size. **Face:** jaw, cheekbones, nose, eyes and pointed ears. Each slider's middle
+    is an everyday person and says what it changes; dragged, the picture follows, and let go it's set.
+  - **Colours:** skin, eyes, lips, nails and brows, from a list or any colour. **Underwear:** a top and a
+    bottom of the styles that body has (or none), and its colour; an outfit covering it hides it.
+    **Hair:** style and colour (the hair meshes are still being made: until then the body is bald).
+  - Anything left unset comes from their name, within an everyday range, and from their lore's
+    `ww:looks:` keywords (tall, stocky, red hair, elf…). A look saved before keeps its height, skin,
+    hair and colour.
+- **Choose clothes for the older townsfolk** (Look card → Older kit's clothes, for Quaternius's people): an outfit (townsfolk, or the ranger), or each piece of one from either (top,
   sleeves, legs, boots) or None for any of them (the body shows there, in dark underclothes: bare arms,
   a bare chest, bare feet), the ranger's hood and pauldrons on or off (on anyone), each outfit's cloth, a
-  colour of your own for any piece (the square beside it), hair, hair colour and skin (from a list, or
-  any colour you pick), beard and height. The colour picker has its own Use this colour, No colour and
+  colour of your own for any piece (the square beside it), and a beard (hair, skin and height are the
+  built-in body's, above). The colour picker has its own Use this colour, No colour and
   Cancel buttons. Changes show at once and are kept with the world; Reset forgets them. About one in
   four people is dressed as a ranger unless you choose.
 - **A living town:** townsfolk visit shops and the tavern, sit on benches, find their way along the streets,
@@ -387,7 +405,7 @@ only walk about.
   so a world's horses are a mix. A world's animals, and their coats, come from its seed.
 - **Avatar:** when a persona's or a character's card has a 3D model, their Look card has Avatar at the
   top: the card's own model (the default), another kind the card has (VRM, GLB / FBX, MMD), or the
-  built-in person, dressed by the rest of the card. Kept with the world.
+  built-in body, shaped by the rest of the card. Kept with the world.
 - **Animals of your own:** the Look card (Menu, Look beside your persona) has Dog and Horse: the kind,
   the coat, the size, a name of its own, and whether each is with you or at home. With you, it follows, swims after you, and turns up beside you if left
   far behind or kept from you by something for a few seconds; at home it keeps by your door (or the tavern's, with no home of your own), and a horse got
@@ -810,15 +828,16 @@ lists any it didn't understand, and why.
 
 **People**
 
-| Keyword                                                                                | On                  | What it does                                                                               |
-| -------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------ |
-| `ww:body:woman (or man)`                                                               | a character's entry | Their body, when they have no 3D model.                                                    |
-| `ww:lives in:home6, ww:works at:smithy1, ww:owner of:tavern1`                          | a character's entry | Home and work.                                                                             |
-| `ww:work:10:15-18:45, ww:home:22-7:15, ww:eat:12-13 at tavern1`                        | a character's entry | Their day (home, work, eat, visit, sit, walk), in quarter hours, over midnight if need be. |
-| `ww:temperament:aggressive (passive, gentle, calm, grumpy, fierce, aggressive)`        | a character's entry | What they're like with anyone they're against: how readily they square up.                 |
-| `ww:manner:shy (shy, quiet, friendly, outgoing)`                                       | a character's entry | How readily they come over and greet people.                                               |
-| `ww:voice:gruff (natural, cosy, dramatic, witty, terse, gruff, formal, cheerful, sly)` | a character's entry | How they talk, instead of the setting's way.                                               |
-| `ww:member of:Thieves Guild`                                                           | a character's entry | Puts them in that faction.                                                                 |
+| Keyword                                                                                | On                  | What it does                                                                                                                                                                                                                                                         |
+| -------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ww:body:woman (or man)`                                                               | a character's entry | Their body, when they have no 3D model.                                                                                                                                                                                                                              |
+| `ww:looks:tall, ww:looks:red hair, ww:looks:elf`                                       | a character's entry | How their built-in body looks: height (tall, short), build (slim, stocky, muscular, heavy…), pointed ears (elf, half-elf), hair (bald, long hair, red hair, blond…), skin (pale, tanned, dark skin), eyes (blue eyes…). One word a key; their Look card comes first. |
+| `ww:lives in:home6, ww:works at:smithy1, ww:owner of:tavern1`                          | a character's entry | Home and work.                                                                                                                                                                                                                                                       |
+| `ww:work:10:15-18:45, ww:home:22-7:15, ww:eat:12-13 at tavern1`                        | a character's entry | Their day (home, work, eat, visit, sit, walk), in quarter hours, over midnight if need be.                                                                                                                                                                           |
+| `ww:temperament:aggressive (passive, gentle, calm, grumpy, fierce, aggressive)`        | a character's entry | What they're like with anyone they're against: how readily they square up.                                                                                                                                                                                           |
+| `ww:manner:shy (shy, quiet, friendly, outgoing)`                                       | a character's entry | How readily they come over and greet people.                                                                                                                                                                                                                         |
+| `ww:voice:gruff (natural, cosy, dramatic, witty, terse, gruff, formal, cheerful, sly)` | a character's entry | How they talk, instead of the setting's way.                                                                                                                                                                                                                         |
+| `ww:member of:Thieves Guild`                                                           | a character's entry | Puts them in that faction.                                                                                                                                                                                                                                           |
 
 **People and you**
 
@@ -981,7 +1000,9 @@ still count, and come first.
   `scripts/build-wanderworld-clips.mjs`): walking and running by speed, and what's done on the spot
   (`ACTS`: work, rest, sitting or lying on the ground), a jump and one-off gestures; `src/motion.js` is the hand-made motion; `src/models.js` loads
   3D Avatars models (VRM, GLB, FBX, MMD) into three-vrm humanoids; `src/people.js` and `src/figure.js`
-  build the default people (`people.js` also the monsters on two legs); `src/looks.js` is what a look can be.
+  build the default people (`people.js` also the monsters on two legs); `src/avatar.js` builds the built-in
+  body (docs/AVATAR.md) and `src/preview.js` the Look card's turning picture of it; `src/looks.js` is what a
+  look can be, with presets.
 - `server.mjs` is the server part (hand-written, syntax-checked by the build): routes under
   `/api/wanderworld` for status, the connection and preset lists, conversation replies, moments, day
   plans, world setup from cards and lorebooks, pictures and the gallery, the AI assistant, scene plans, scene creation, and scene contexts and recaps, plus a
@@ -1098,6 +1119,9 @@ The gallows, pillory, cage, signposts and crystals are by iPoly3D (Medieval Tort
 and Crystal Pack on Poly Pizza), also CC0 1.0. Thank you, iPoly3D.
 
 The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, which is under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html) and not CC0: free to use in a game, not to pass on as assets.
+
+Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan: the built-in body
+(`assets/scripts/make_avatar.py`, read by our own code from MakeHuman's hm08 mesh and morph targets).
 
 Made in Blender by ThatOneCan: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, and the mimic, awakened shrub, shambling mound, grick, otyugh, roper, gelatinous cube, basilisk, skeleton, zombie, ghost, specter, earth, fire, water and air elementals, and the hill, stone, frost and fire giants (`assets/scripts/make_*.py`).
 
