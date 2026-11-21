@@ -5216,7 +5216,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.7.39",
+        "version": "0.7.40",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -5248,6 +5248,10 @@
               "kit/creatures/monsters.json",
               "kit/creatures/rigged-awakened_shrub.json",
               "kit/creatures/rigged-awakened_shrub.webp",
+              "kit/creatures/rigged-basilisk.json",
+              "kit/creatures/rigged-basilisk.webp",
+              "kit/creatures/rigged-gelatinous_cube.json",
+              "kit/creatures/rigged-gelatinous_cube.webp",
               "kit/creatures/rigged-grick.json",
               "kit/creatures/rigged-grick.webp",
               "kit/creatures/rigged-mimic.json",
@@ -5408,8 +5412,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "e18685b8ab5fbb7957e46ca62b3ec4b4dbd8f6f72961095e8347dfc098f87cb1",
-            "bytes": 3226529
+            "sha256": "8690d863e0c7d91732d72b9640bc07d7e51c24ea1ef91d5ba8396546183e308d",
+            "bytes": 3287384
           },
           {
             "path": "server.mjs",
@@ -5447,6 +5451,26 @@
             "bytes": 124558
           },
           {
+            "path": "kit/creatures/rigged-basilisk.json",
+            "sha256": "feb3335b9d1adf1e6f2c1968ac663d9b31903c3a45c40b48c5a1a8119b17e544",
+            "bytes": 2537986
+          },
+          {
+            "path": "kit/creatures/rigged-basilisk.webp",
+            "sha256": "401b3f639555fb4943a13238d50d3776e0949874acf0b69b83346029feb3d282",
+            "bytes": 120004
+          },
+          {
+            "path": "kit/creatures/rigged-gelatinous_cube.json",
+            "sha256": "9ef7661e86eddb51eb52410fa8695cdc5e69466c204a1b3e79ac26fd8c646b04",
+            "bytes": 1117683
+          },
+          {
+            "path": "kit/creatures/rigged-gelatinous_cube.webp",
+            "sha256": "d5e81222250633229100825b65a822678786df8b64cc2e8df019678ea540f04d",
+            "bytes": 17908
+          },
+          {
             "path": "kit/creatures/rigged-grick.json",
             "sha256": "d46ad30347c5853fe70b5c00ebee041bb6712e51f104346fd6c26d2f5c8235a9",
             "bytes": 1029791
@@ -5468,23 +5492,23 @@
           },
           {
             "path": "kit/creatures/rigged-otyugh.json",
-            "sha256": "4faca711d807bc2e0dc1d53fc600d77dd24de5479d8010e2a8bfd9a581559ade",
-            "bytes": 1247343
+            "sha256": "c9884eeb8ef34a73d6dd123b730463321ae54c082e8809b10ac96abf97c17b52",
+            "bytes": 1532147
           },
           {
             "path": "kit/creatures/rigged-otyugh.webp",
-            "sha256": "62a710ff1101a827f9308feb842e3ff7d099d9f6f59162f05f025514df706c63",
-            "bytes": 76336
+            "sha256": "cfe9d4d8e127cc43607c811faeb3da3bf6d6f9e9aa549c1c9fbaa21d3638b18f",
+            "bytes": 65638
           },
           {
             "path": "kit/creatures/rigged-roper.json",
-            "sha256": "2d5dbc2381df1d921f2a2a81a85efa03cab51917117952ee413cbe6a68237644",
-            "bytes": 1580146
+            "sha256": "01f598e0488084a4e9bf11cc25ba280a785e20973ba402eec1678e422160e073",
+            "bytes": 2112919
           },
           {
             "path": "kit/creatures/rigged-roper.webp",
-            "sha256": "70208ff7b661955dcbda20c314e3df8dfcbb986087f1ebc6360586c360b578b8",
-            "bytes": 83142
+            "sha256": "f9c64723e5e03f384fddf814d210de189be9068ffae853f601c644f1d8f9c129",
+            "bytes": 88898
           },
           {
             "path": "kit/creatures/rigged-shambling_mound.json",
@@ -6204,9 +6228,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.7.39.zip",
-        "sha256": "395f8d86f846677dd9cf3b827697e67714216abcb18b595b7ca8242e15d2a039",
-        "bytes": 48490179
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.7.40.zip",
+        "sha256": "cb7a1804c33ede1dad26a65235dabe0090cea7b5cb17aa5c194f7e528477cf87",
+        "bytes": 53158751
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },
