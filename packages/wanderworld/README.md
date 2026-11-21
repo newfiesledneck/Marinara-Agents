@@ -886,10 +886,10 @@ lists any it didn't understand, and why.
 
 **Quests**
 
-| Keyword                                                                          | On                | What it does                                                                                                                                                                                                                                   |
-| -------------------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ww:quest:The miller's missing son`                                              | any entry         | The entry is a quest, and its text is what it's about. With AI quests on, one AI call turns it into stages; without, it's a short quest from the keys below. Asking the giver "Any work going?" offers it, or the noticeboard when it has no giver. |
-| `ww:quest giver:Mira, ww:quest place:the mill, ww:quest reward:a sack of flour` | a quest's entry   | Who gives it (someone in this world, by name), where it takes you (a place, by name or kind), and what's said of the reward when it's done.                                                                                                    |
+| Keyword                                                                         | On              | What it does                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ww:quest:The miller's missing son`                                             | any entry       | The entry is a quest, and its text is what it's about. With AI quests on, one AI call turns it into stages; without, it's a short quest from the keys below. Asking the giver "Any work going?" offers it, or the noticeboard when it has no giver. |
+| `ww:quest giver:Mira, ww:quest place:the mill, ww:quest reward:a sack of flour` | a quest's entry | Who gives it (someone in this world, by name), where it takes you (a place, by name or kind), and what's said of the reward when it's done.                                                                                                         |
 
 **Creatures**
 
