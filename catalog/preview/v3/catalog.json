@@ -293,7 +293,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.7.45",
+        "version": "0.7.46",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -540,13 +540,13 @@
           },
           {
             "path": "client.js",
-            "sha256": "1c1e0b657ec164e4f6d46be43efd6d12d7def3340066b112cf291001eb844ed8",
-            "bytes": 3473540
+            "sha256": "b90a6f1df74258c230eb62b6d198f1065cb5065166df0589476d6376999a8fa7",
+            "bytes": 3480743
           },
           {
             "path": "server.mjs",
-            "sha256": "2e3d464038a7c0857eb95babf533637eec77540efc933a7e25093088cf5235cc",
-            "bytes": 175708
+            "sha256": "8caed47a8453aa8802646f5fdf2d1e876fda95e7b6625bb79d81cfb0a165abea",
+            "bytes": 184157
           },
           {
             "path": "wanderworld-icon.webp",
@@ -570,8 +570,8 @@
           },
           {
             "path": "kit/creatures/rigged-air_elemental.json",
-            "sha256": "64f60bcab232ec6e1bb8e267cc283b6c2b3be472349033bb71782e08876a197e",
-            "bytes": 1339475
+            "sha256": "7982633ba0b5fd1599857270f3d34d3a0ae025db0097eadbe0dde2f165170b02",
+            "bytes": 1376291
           },
           {
             "path": "kit/creatures/rigged-air_elemental.webp",
@@ -580,8 +580,8 @@
           },
           {
             "path": "kit/creatures/rigged-awakened_shrub.json",
-            "sha256": "b22dde62d3e5338166dfb5c8f251660cf62295d928b6da2f573b9763bb87b056",
-            "bytes": 970047
+            "sha256": "55d2cacab3ead2dfb4f953e5d709f375304884f69e36d7bc6144188e52b18fa4",
+            "bytes": 1029987
           },
           {
             "path": "kit/creatures/rigged-awakened_shrub.webp",
@@ -590,8 +590,8 @@
           },
           {
             "path": "kit/creatures/rigged-basilisk.json",
-            "sha256": "6b6f189eb1784f917e286fd6cdf9f30db1df5de014247cbb80f5af6bdbdeec5b",
-            "bytes": 1594854
+            "sha256": "1f6a19ce8b6415878ff3bee3de22f2041367a5f7bfa2cb5f1b1ec09fe9183be1",
+            "bytes": 1659934
           },
           {
             "path": "kit/creatures/rigged-basilisk.webp",
@@ -600,8 +600,8 @@
           },
           {
             "path": "kit/creatures/rigged-fire_elemental.json",
-            "sha256": "78f239644aaae339b0abc98602dc1b7a2a58d5996c0281a8c5e1f0a8e97d2b0d",
-            "bytes": 1546407
+            "sha256": "f0c8d7d66389718efc1d6bea06b296549ef16567bbb679ebb18afa045215609a",
+            "bytes": 1606815
           },
           {
             "path": "kit/creatures/rigged-fire_elemental.webp",
@@ -610,8 +610,8 @@
           },
           {
             "path": "kit/creatures/rigged-gelatinous_cube.json",
-            "sha256": "cfca3e41a884a2af5f31700857ca8d597077cf1cfc271875183574d126c62519",
-            "bytes": 687667
+            "sha256": "6391ae569a7c1013a12157a586656609722c7e1eba2f488355cd141fd1d4dfeb",
+            "bytes": 751939
           },
           {
             "path": "kit/creatures/rigged-gelatinous_cube.webp",
@@ -620,8 +620,8 @@
           },
           {
             "path": "kit/creatures/rigged-grick.json",
-            "sha256": "89ae885f678c5cf6fe484146db07cd6d7566f50609797d66a13d645132595afa",
-            "bytes": 712711
+            "sha256": "1f7bf922bee1f7ee742fef9cacfd5c4e03be47f154c454d5a7d76e3e40567b56",
+            "bytes": 798383
           },
           {
             "path": "kit/creatures/rigged-grick.webp",
@@ -630,8 +630,8 @@
           },
           {
             "path": "kit/creatures/rigged-mimic.json",
-            "sha256": "9d6843f4af23e456865529150ea9a8db827109bddce20d58d05c95b407ef74fa",
-            "bytes": 581511
+            "sha256": "96fab552c49b70337d885a02472d5a6f3125e83ddfe678309ff9aaee02343ecb",
+            "bytes": 636999
           },
           {
             "path": "kit/creatures/rigged-mimic.webp",
@@ -640,8 +640,8 @@
           },
           {
             "path": "kit/creatures/rigged-otyugh.json",
-            "sha256": "2d2e687bba54457fe2a27ca4dd26a6f735b1a0edf7f8cbc531e1aaf10592cd2d",
-            "bytes": 1001039
+            "sha256": "c5d57692efc3aa6c242d98d3f6d7d637b3948edd1805d60f84615089bcc2cd61",
+            "bytes": 1082303
           },
           {
             "path": "kit/creatures/rigged-otyugh.webp",
@@ -650,8 +650,8 @@
           },
           {
             "path": "kit/creatures/rigged-roper.json",
-            "sha256": "99db9753b3d447d75c5e76728f07bc7b78d46399c568679dfc6fe5664aaa9bf5",
-            "bytes": 1454563
+            "sha256": "3d36d5dc22798b6314e3be7471a2cf40495e1545e5953528f51347d4ee8b4cc4",
+            "bytes": 1530947
           },
           {
             "path": "kit/creatures/rigged-roper.webp",
@@ -660,8 +660,8 @@
           },
           {
             "path": "kit/creatures/rigged-shambling_mound.json",
-            "sha256": "94b011ca9d1f5a9ed5b848ef19cf72db5cb7382421e9ee0466cb546f39724d9d",
-            "bytes": 1020335
+            "sha256": "4f2192e69bcb3e02e9a86796d46a4d39c7787c60262e38d48f3a7746d1805c03",
+            "bytes": 1083039
           },
           {
             "path": "kit/creatures/rigged-shambling_mound.webp",
@@ -670,8 +670,8 @@
           },
           {
             "path": "kit/creatures/rigged-water_elemental.json",
-            "sha256": "88091b92e5905737e7b9ad7675307086c1db8c17a26bcf484834911b0b60693d",
-            "bytes": 787807
+            "sha256": "3203d4bebb554d3dd1d707d732cd1ebd6fcf9505989b8fe0807e4f8504263ce5",
+            "bytes": 852655
           },
           {
             "path": "kit/creatures/rigged-water_elemental.webp",
@@ -700,103 +700,103 @@
           },
           {
             "path": "kit/fantasy/folk/folk-built-bugbear.json",
-            "sha256": "e12ef430a2b8606eb07b078450aa92e2a32da368e70f69ca7a117186ca0948a8",
-            "bytes": 877541
+            "sha256": "4591442b01fda8a33477c28ae4845a27b8fc969be0cd6d290f2265722e64dde6",
+            "bytes": 929198
           },
           {
             "path": "kit/fantasy/folk/folk-built-earth_elemental.json",
-            "sha256": "db335b3bb60747890e4bde1d8d189b18f8be08a00c9280b4a27f2d1179b3bdf0",
-            "bytes": 963446
+            "sha256": "53cc9c11fb1b1826cbc76d74b596e429b9d05842adf6a90a3d3299e2f88f3dc2",
+            "bytes": 997007
           },
           {
             "path": "kit/fantasy/folk/folk-built-fire_giant.json",
-            "sha256": "b87c487a5002d03ba54b864f538c34ea5a5b41783dcf97c395ffcbd3a8a2155a",
-            "bytes": 1197325
+            "sha256": "84671c80d436a327c4738f618841a4541f38413fb0f8ddb348149159a45a67ba",
+            "bytes": 1255422
           },
           {
             "path": "kit/fantasy/folk/folk-built-frost_giant.json",
-            "sha256": "b07ae2201a4052ddf0f75badae7d7d2f47bff0a0ce3feb9e408c60bbf102d60c",
-            "bytes": 1204532
+            "sha256": "b9f6121237af0330ff0dd5b06fb56ecbb733aedc902e3f1919a57e7c0499fa99",
+            "bytes": 1262213
           },
           {
             "path": "kit/fantasy/folk/folk-built-ghost.json",
-            "sha256": "34ee57916a425b5a4a088f30d2c4297bdc49e447b658ac12f1877c5f5cc3d90c",
-            "bytes": 805569
+            "sha256": "2ffd45077071903873413a64acfb00c56feb46e151d46ee87ce74ad018e59703",
+            "bytes": 874130
           },
           {
             "path": "kit/fantasy/folk/folk-built-ghoul.json",
-            "sha256": "c7d122f74de8191c058b482d1a7ec644eb27cf1dc5063946718de47a800c86c5",
-            "bytes": 666775
+            "sha256": "a0df432733fa61c5be7d1cd936458916aea5bd84a06e6353f8ce2fc7c91bca24",
+            "bytes": 743840
           },
           {
             "path": "kit/fantasy/folk/folk-built-gnoll.json",
-            "sha256": "959c62e5e8f1a43dcdf2b38d2d016c6df6609362ed884034f76111fc1d6e13d9",
-            "bytes": 709460
+            "sha256": "949fee96ad2455b5f1b5a8871b610e7c32e07018b4dc53786b24e06a16136d21",
+            "bytes": 767261
           },
           {
             "path": "kit/fantasy/folk/folk-built-goblin.json",
-            "sha256": "a74d08b9a53d8ead3319dd2eb1991bdc5a4395f0daae52f3e78e74887812a503",
-            "bytes": 663194
+            "sha256": "e4cfeea7f817152374dfe4b4c7a182be1b5f0e176b28f17d500f829516f7915c",
+            "bytes": 742011
           },
           {
             "path": "kit/fantasy/folk/folk-built-hill_giant.json",
-            "sha256": "31d5d858bb369a8e94b3048776930b58fc86922affe727e4b587203dc0cd851f",
-            "bytes": 978753
+            "sha256": "8297b8f9b71348d34bfad2d0ce3b1b6003c1993ee55b84a9b966806d89f1f5a3",
+            "bytes": 1042770
           },
           {
             "path": "kit/fantasy/folk/folk-built-hobgoblin.json",
-            "sha256": "c3787ca8038f9119635401312481395f9aa70efdf4262ec38a13ed01453f1e83",
-            "bytes": 724117
+            "sha256": "12bd5b32d0553b701daf92d2b9901b90714bb49213eb7f0fa4571a9ecbfff9ce",
+            "bytes": 795294
           },
           {
             "path": "kit/fantasy/folk/folk-built-kobold.json",
-            "sha256": "2d5289d75628e1580d9254eff4310195b641a163090eef75f01083f0640513f8",
-            "bytes": 697072
+            "sha256": "d499c17bd96b4accacb10a7b9b3f8cb0109bea1c60ce56c9f8de6cd1584e0060",
+            "bytes": 769449
           },
           {
             "path": "kit/fantasy/folk/folk-built-lizardfolk.json",
-            "sha256": "3d8313bd039266c0194fa77cb41c6504426f5b5203ab3ae8d50ae5abbf7c7aba",
-            "bytes": 733859
+            "sha256": "e7fd03a95a9977ab02a6da999c574f096d50de7d214dbb7ac5dff8a0676be220",
+            "bytes": 803884
           },
           {
             "path": "kit/fantasy/folk/folk-built-minotaur.json",
-            "sha256": "b68055289d3957b33e32f9fef0edc2fc139b3a6b5d6d5849c514987eca566551",
-            "bytes": 709852
+            "sha256": "997315a5d3045a748e2d5c19d58342189b51b19fe69612b9ea6c7582dd47ac62",
+            "bytes": 782885
           },
           {
             "path": "kit/fantasy/folk/folk-built-ogre.json",
-            "sha256": "363910add3abab88179473b3a419271c51737eb40bdc64a79e96ae09368325c6",
-            "bytes": 751822
+            "sha256": "c2ef6ed77274d22ee6476f0238b6064f5a00678e0cfb83595344cc3b88ee57f1",
+            "bytes": 817671
           },
           {
             "path": "kit/fantasy/folk/folk-built-orc.json",
-            "sha256": "62afc256e91bf16c1eeca23fffa12f93ec218fee21719ef14b9fbd1802d4c453",
-            "bytes": 691473
+            "sha256": "fa6397b42ce7196cde0608eafb4aa9701e97b0422f644bb9fee2e0cc6c87bbf8",
+            "bytes": 757802
           },
           {
             "path": "kit/fantasy/folk/folk-built-skeleton.json",
-            "sha256": "ce99fcb3843449fcca2eaf1390af608ba7cb6ceb4c9133aa7606cdc89f7a5435",
-            "bytes": 1101382
+            "sha256": "1be25867f321fdd13f05e75a048396a8fdee3b5df4fab0021bb10f9f74269e3c",
+            "bytes": 1169999
           },
           {
             "path": "kit/fantasy/folk/folk-built-specter.json",
-            "sha256": "8cb932a596fcdf52380dde2169177f4ec6c2686071ad52eb8daa8b7b94407af8",
-            "bytes": 691825
+            "sha256": "c3689c54fedb57c84c89e625759fb7dcc113bf61ef9a86a1c1805c2f31a6d616",
+            "bytes": 757002
           },
           {
             "path": "kit/fantasy/folk/folk-built-stone_giant.json",
-            "sha256": "7f1bcf27a30a454e30d6397806ab3570daa96cc4f80b73bddf231aa44b1402e5",
-            "bytes": 840179
+            "sha256": "f7a57582fd08353793a205c81baae62445b6ab7621ae46b79657c0b7615d527e",
+            "bytes": 902308
           },
           {
             "path": "kit/fantasy/folk/folk-built-troll.json",
-            "sha256": "e36ab34377d0ebfe2a125e8856d9c7901b124fa652f902d7d99400ccc13bb8a5",
-            "bytes": 653775
+            "sha256": "478c4ed22137ff1e3b46d033943b799e9297266cf33e96a45c3f97d150deff4d",
+            "bytes": 728504
           },
           {
             "path": "kit/fantasy/folk/folk-built-zombie.json",
-            "sha256": "94edc68f797a0f9b67ece0d44907572658d1d19a0002d598e8ccce9bc40b0b85",
-            "bytes": 947072
+            "sha256": "0e68797cf081163484909ce3fff194263980b6257af4be3ec8ba41a97280f48e",
+            "bytes": 1011881
           },
           {
             "path": "kit/fantasy/folk/folk-earth_elemental.webp",
@@ -1355,8 +1355,8 @@
           },
           {
             "path": "kit/generic/avatar/avatar-female.json",
-            "sha256": "f7698508dd9046a02d6c655da9f3cda3e8c53257c89601da6e2e3ef9374db0fd",
-            "bytes": 11359287
+            "sha256": "69f74d9dad3bb5313460f911c3e2b9acd9a03abbb30023e5ebd0212a1d9968cf",
+            "bytes": 11445934
           },
           {
             "path": "kit/generic/avatar/avatar-female.webp",
@@ -1425,8 +1425,8 @@
           },
           {
             "path": "kit/generic/avatar/avatar-male.json",
-            "sha256": "4b1176a1bff44bd37a4b1818ee5649b5f66918ef2aa9616de9c43464147b9848",
-            "bytes": 5728603
+            "sha256": "708ba6668d71224706bdfe13046ae5bd8e9b497dc0693862c81f5e23a00d79f5",
+            "bytes": 5821774
           },
           {
             "path": "kit/generic/avatar/avatar-male.webp",
@@ -1611,9 +1611,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.7.45.zip",
-        "sha256": "b4c3156f2cd0cc5966b804e9b13b751a70e9030c120ae3a965eeba920fd6c1bf",
-        "bytes": 83965639
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.7.46.zip",
+        "sha256": "ce61e76a453c0ea38cef704965540f59e77c06d5d9a107f875a9c0a2c3c6a464",
+        "bytes": 86175496
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     }

@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.46 — 2026-11-20
+
+- Fights: creatures flee less (only when badly hurt, and undead, oozes and constructs never), a fleeing one can be chased and struck until it gets away, and one that comes back rejoins a turn-based fight once, with no more repeated "joins the fight".
+- Saving reaches the Engine while you play, worlds made on another device no longer vanish from Load world, and outfits chosen by hand are kept. Rules fixes: heavy armour ignores Dexterity, a critical hit doubles only the dice, Multiattack uses each attack's own numbers.
+- Settings → Display → Creature detail distance: creatures further off are drawn with fewer triangles from the same model.
+
 ## 0.7.45 — 2026-11-20
 
 - The built-in body gets MakeHuman's CC0 skins: young, middle-aged and old, each Caucasian, African or Asian, with an Age choice that also ages the face and body (adults only). Or keep a skin colour of your own.
