@@ -8,6 +8,7 @@
 //   node scripts/build-wanderworld-kit.mjs nature "<…>/Stylized Nature MegaKit[Pro]/glTF"
 //   (props also takes the Farm Buildings pack's FBX folder, for the barn and the windmill)
 //   node scripts/build-wanderworld-kit.mjs props "<…>/Fantasy Props MegaKit[Standard]/Exports/glTF" "<…>/Medieval Village MegaKit[Standard]/glTF"
+//   node scripts/build-wanderworld-kit.mjs dungeon "<…>/Updated Modular Dungeon - May 2019/FBX"
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -201,6 +202,36 @@ const SETS = {
     ],
     textureSize: () => 512,
   },
+  // Dungeon and keep pieces for the deep places (src/dungeon.js): Updated Modular Dungeon (May 2019),
+  // which ships FBX and no glTF: flat colours, no textures, so the set is its models.json and index.json.
+  // The structure (2 m pieces, drawn at twice the size on dungeon.js's 4 m grid), torches, and the few
+  // props a dungeon has that the props kit doesn't; barrels, crates, beds and tables come from the props kit.
+  //   node scripts/build-wanderworld-kit.mjs dungeon "<…>/Updated Modular Dungeon - May 2019/FBX"
+  dungeon: {
+    dir: "fantasy/dungeon",
+    source: "Updated Modular Dungeon (May 2019) by Quaternius, CC0 1.0",
+    models: [],
+    fbx: [
+      "Floor_Modular",
+      "Wall_Modular",
+      "Arch",
+      "Arch_Door",
+      "Arch_bars",
+      "Column",
+      "Stairs_Modular",
+      "Torch",
+      "Banner_wall",
+      "Pedestal",
+      "Trapdoor",
+      "Skull",
+      "Cobweb",
+      "Woodfire",
+    ],
+    // Blender wrote this pack's FBX colours as linear values, which three's FBXLoader takes for sRGB and
+    // darkens a second time (the stone came out nearly black), so they're kept as they were written.
+    fbxLinear: true,
+    textureSize: () => 256,
+  },
   props: {
     dir: "fantasy/props",
     source: "Fantasy Props MegaKit (Standard) and Medieval Village MegaKit (Standard) by Quaternius, CC0 1.0",
@@ -361,7 +392,7 @@ function quantize(values, size) {
  * One model from a static FBX, as packModel gives one: its meshes by material, each a flat colour (the
  * older packs have no textures), in metres (the packs are in centimetres).
  */
-async function packFbx(path) {
+async function packFbx(path, linear = false) {
   // (The loader only wants these to exist: nothing is drawn here.)
   globalThis.self ??= globalThis;
   globalThis.document ??= {
@@ -390,7 +421,8 @@ async function packFbx(path) {
       : [{ start: 0, count: geometry.index ? geometry.index.count : p.count, materialIndex: 0 }];
     for (const run of runs) {
       const material = materials[run.materialIndex] ?? materials[0];
-      const group = groups.get(material.name) ?? { positions: [], normals: [], indices: [], colour: material.color };
+      const colour = linear ? material.color.clone().convertLinearToSRGB() : material.color;
+      const group = groups.get(material.name) ?? { positions: [], normals: [], indices: [], colour };
       groups.set(material.name, group);
       for (let k = run.start; k < run.start + run.count; k++) {
         const i = geometry.index ? geometry.index.getX(k) : k;
@@ -543,7 +575,7 @@ async function main() {
     const file = glb.get(model) ?? `${model}.${fbx ? "fbx" : "gltf"}`;
     const path = sourceDirs.map((dir) => join(dir, file)).find((candidate) => existsSync(candidate));
     if (!path) throw new Error(`No pack has ${file}`);
-    const packed = fbx ? await packFbx(path) : packModel(path, textureName);
+    const packed = fbx ? await packFbx(path, set.fbxLinear) : packModel(path, textureName);
     for (const image of packed.textures) images.add(image);
     const name = model.toLowerCase().replace(/_/gu, "-");
     models[name] = { meshes: packed.meshes };
@@ -585,7 +617,7 @@ async function main() {
   }
   writeFileSync(join(out, "models.json"), JSON.stringify({ models }));
   writeFileSync(join(out, "index.json"), JSON.stringify(index, null, 2));
-  console.log(`wrote ${out}: ${set.models.length} models, ${images.size} textures`);
+  console.log(`wrote ${out}: ${Object.keys(index.models).length} models, ${images.size} textures`);
   for (const [name, info] of Object.entries(index.models))
     console.log(`  ${name.padEnd(22)} ${info.size.join(" × ")} m, ${info.triangles} triangles`);
 }
