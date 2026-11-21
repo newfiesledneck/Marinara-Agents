@@ -10,13 +10,16 @@ import {
   entryOf,
   gainXp,
   modifier,
+  rechargeAbilities,
   rollDice,
   sheetWords,
+  spendAbility,
   useItem,
   valueOf,
   wornBonuses,
   xpNeeded,
 } from "../packages/wanderworld/src/sheet.js";
+import { checkWorld } from "../packages/wanderworld/src/saves.js";
 
 // A new sheet has the built-in entries; what was saved is kept, within reason.
 let sheet = checkSheet(null);
@@ -222,6 +225,66 @@ assert.deepEqual([middling.roll, middling.hit, middling.damage], [11, true, 3]);
     [valueOf(whole, "hp"), valueOf(whole, "mana"), valueOf(whole, "strength")],
     [20, entryOf(whole, "mana").max, 10],
   );
+}
+
+// Abilities of your own: uses that are counted down and come back by rests, dice, a save; edited, told, kept.
+{
+  let mine = changeSheet(checkSheet(null), {
+    add: {
+      kind: "ability",
+      name: "Fire Breath",
+      about: "a gout of flame",
+      max: 2,
+      recharge: "short",
+      dice: "2d6 + 1",
+      dc: 13,
+      save: "dexterity",
+    },
+  });
+  mine = changeSheet(mine, { add: { kind: "ability", name: "War Cry", about: "rallies everyone near" } });
+  mine = changeSheet(mine, {
+    add: { kind: "ability", name: "Second Breath", max: 1, recharge: "day", dice: "1d8", effect: "heal" },
+  });
+  const breath = entryOf(mine, "own:fire-breath");
+  assert.deepEqual(
+    [breath.value, breath.max, breath.recharge, breath.dice, breath.effect, breath.dc, breath.save],
+    [2, 2, "short", "2d6+1", "damage", 13, "dexterity"],
+    "uses, when they come back, dice, a save",
+  );
+  assert.ok(
+    !("max" in entryOf(mine, "own:war-cry")) && entryOf(mine, "own:war-cry").recharge === "will",
+    "no uses: at will",
+  );
+  // Kept in the save as it was (a world's save keeps the sheet; the sheet is checked when it's read).
+  const kept = checkSheet(checkWorld({ id: "w", seed: "s", sheets: { p: JSON.parse(JSON.stringify(mine)) } }).sheets.p);
+  assert.deepEqual(entryOf(kept, "own:fire-breath"), breath, "kept in the save");
+  // Used: counted down, and none left once they're spent; at will never runs out.
+  let used = spendAbility(mine, "Fire Breath");
+  assert.ok(used.spent && valueOf(used.sheet, "own:fire-breath") === 1);
+  used = spendAbility(used.sheet, "fire breath");
+  assert.equal(valueOf(used.sheet, "own:fire-breath"), 0);
+  const none = spendAbility(used.sheet, "Fire Breath");
+  assert.ok(!none.spent && none.sheet === used.sheet, "none left: not used, nothing changes");
+  assert.ok(spendAbility(used.sheet, "War Cry").spent, "at will, always");
+  assert.equal(spendAbility(used.sheet, "Strength"), null, "only an ability is used");
+  // Rests: a short rest brings back the short-rest ones; a new day the day's; a long rest all of them.
+  const spent = spendAbility(used.sheet, "Second Breath").sheet;
+  const short = rechargeAbilities(spent, "short");
+  assert.deepEqual(short.back, ["Fire Breath"]);
+  assert.deepEqual([valueOf(short.sheet, "own:fire-breath"), valueOf(short.sheet, "own:second-breath")], [2, 0]);
+  assert.deepEqual(rechargeAbilities(spent, "day").back, ["Second Breath"]);
+  assert.deepEqual(rechargeAbilities(spent, "long").back, ["Fire Breath", "Second Breath"]);
+  // Told to the AI with the sheet.
+  assert.match(
+    sheetWords(spent),
+    /Abilities: Fire Breath \(2d6\+1 damage, DC 13 Dexterity save; 0 of 2 left, per short rest\): a gout of flame, War Cry \(at will\): rallies everyone near, Second Breath \(1d8 healing; 0 of 1 left, per day\)\./u,
+  );
+  // Edited (its id kept, its uses full again when their number changes) and deleted.
+  const edited = changeSheet(spent, { edit: "own:fire-breath", to: { name: "Dragon Breath", max: 3, dice: "3d6" } });
+  const dragon = entryOf(edited, "own:fire-breath");
+  assert.deepEqual([dragon.name, dragon.max, dragon.value, dragon.dice], ["Dragon Breath", 3, 3, "3d6"]);
+  assert.equal(changeSheet(edited, { edit: "own:fire-breath", to: { name: "War Cry" } }), edited, "no two of a name");
+  assert.equal(entryOf(changeSheet(edited, { remove: "own:fire-breath" }), "own:fire-breath"), null, "deleted");
 }
 
 console.log("ok: the character sheet");

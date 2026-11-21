@@ -203,10 +203,18 @@ Keep it to one short line, under 15 words, in keeping with who is speaking, the 
 Answer with JSON only, nothing before or after it:
 {"line":"..."}`;
 
-/** The messages for one thing said in a fight. */
-export function combatLineMessages({ worldName, setting, speaker, talks, moment, foe, recent }) {
+/** The same, out of a fight (`calm`): one thing a companion says, such as asking to share a seat. */
+export const CALM_LINE_INSTRUCTION = `You write one thing said by one person in a roleplay world, for one moment of it: a companion of the player's speaking to them, in their own voice, about what the moment says.
+
+Keep it to one short line, under 20 words, in keeping with who is speaking, the moment and the world. No name before it, no quotation marks, and nothing about dice or numbers.
+
+Answer with JSON only, nothing before or after it:
+{"line":"..."}`;
+
+/** The messages for one thing said in a fight (or, `calm`, out of one). */
+export function combatLineMessages({ worldName, setting, speaker, talks, moment, foe, recent, calm = false }) {
   return [
-    { role: "system", content: COMBAT_LINE_INSTRUCTION },
+    { role: "system", content: calm ? CALM_LINE_INSTRUCTION : COMBAT_LINE_INSTRUCTION },
     {
       role: "user",
       content: [
@@ -3115,6 +3123,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           moment: text(body.moment, 200) || "the fight goes on",
           foe: text(body.foe, 200),
           recent: block(body.recent, 1500),
+          calm: body.calm === true, // (a companion asking to share a seat: Settings → People → Your party)
         };
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });

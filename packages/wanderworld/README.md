@@ -39,7 +39,7 @@ there, so a phone and a computer stay in step. Each browser writes only the worl
 made on one never drops out of another's list. If one world is played in two browsers at the same moment,
 the browser that saved it first keeps it and the other one loads that save, so don't do that.
 
-## What it does now (0.7.46)
+## What it does now (0.7.47)
 
 ### The world
 
@@ -126,7 +126,8 @@ the browser that saved it first keeps it and the other one loads that save, so d
   sworn enemy comes to have words. Settings decide how often people come up to you, how many at once, and
   where confrontations may happen.
 - **A party:** ask someone along in a conversation, or bring everyone standing round you (Journal → Party).
-  They follow you, run to keep up, sit near you, wait where you ask, and cross water the way you did.
+  They follow you (close, normal or loose), run to keep up, sit and lie down with you, move about a fight
+  by how they fight, wait where you ask, and cross water the way you did (see "Your party" below).
 
 ### Lore and the world's setup
 
@@ -493,12 +494,14 @@ only walk about.
   with no bridge can be crossed. E, Esc or Get down gets you off beside it (not in deep water). Its saddle
   and its rider go up and down with its back. It stays where you leave it, and your party runs to keep up.
 - **Campsites:** a campsite or two outside each settlement: a fire that flickers, lights the ground as
-  it gets dark and smokes, two logs to sit on, and a tent. Use the tent to sleep: choose how long (an
-  hour to eight, or until morning or evening), the screen dims and the clock jumps on. The party and
-  anyone close by stay as they are; everyone else is where that hour has them (home, work, or out at
-  their door). With Settings → Time fixed, you rest but the hour stays. Townsfolk nap in the tent too.
+  it gets dark and smokes, two logs to sit on, and a tent. The tent's card has Lie down, Sleep and Not
+  now. Lie down lies you down awake, to rest and talk as on a bench, with the time going on as usual.
+  Sleep: choose how long (an hour to eight, or until morning or evening), the screen dims and the clock
+  jumps on. The party and anyone close by stay as they are; everyone else is where that hour has them
+  (home, work, or out at their door). With Settings → Time fixed, you rest but the hour stays. Townsfolk
+  nap in the tent too.
 - **Jump, sit, lie down:** Space jumps. C sits you down on the ground where you stand, C again lies you
-  down, and moving (or E) gets you up; the party waits with you. The chat window has Jump and Sit buttons
+  down, and moving (or E) gets you up; the party sits or lies down with you. The chat window has Jump and Sit buttons
   (Sit becomes Lie down, then Get up), and on a touch screen they're by your thumb as well. Settings →
   Moving has a toggle for each: the C key, the touch Jump button, the touch Sit button, and the chat
   window's buttons. You reach out a hand to what you use, pick something up or take a drink when that's
@@ -627,8 +630,9 @@ every roll, and no AI call is made in a real-time fight.
 - **Resting.** Mana and HP come back slowly while you sit or lie down, and fully when you sleep.
 - **Your companions fight too.** Each has a class from the SRD (Inventory → Sheet → Your
   companions), which gives them a weapon and spells. They strike what comes within reach, cast at
-  what doesn't, and a healer mends you below half your HP. They move with the fight, creatures
-  go for them as well as for you, and one at 0 HP is out of the fight for a while.
+  what doesn't, and a healer mends you below half your HP. They move about the fight by how
+  they fight (see "Your party" below), creatures go for them as well as for you, and one at 0 HP is out
+  of the fight for a while.
 - **Running from a fight.** A creature runs only when badly hurt. The blow that first leaves it a
   quarter of its HP or less (half, for a coward) has it make a Wisdom saving throw against DC 10, and
   it runs if it fails. Undead, oozes, constructs, the mindless and anything that can't be frightened
@@ -807,6 +811,67 @@ under Combat.
   Respawn gets you up at home at any time. Overridden by Undefeatable (you never go down), being indoors,
   and places where "Where people may confront you" keeps fights out (there they let you be). A quest can
   later take the player captive through `core.captive` (`fighthud.js overRole`); none does yet.
+
+### Your party
+
+How the people travelling with you follow you, sit and lie down with you, and move in a fight. It's all
+rules, with no AI call unless you turn on the AI's words for asking. Settings → People → Your party has
+a switch for each part, each explained.
+
+- **Following, closely or loosely.** "How closely they follow": Close is the tight line just behind you;
+  Normal (to begin with) is a little further back and out to the sides; Loose further still. In Normal
+  and Loose, when you stand still a few seconds each wanders a step or two about their place and looks
+  round. They come back when you move off, and run when they fall behind (`npcs.js FOLLOW_SPREAD`).
+- **Sitting and lying down with you.** When you sit or lie down (a bench, a log by a campfire, a bed, a
+  tent, or the ground with C), each takes a free seat near you, or a free bed when you lie down on one.
+  With none free they sit on the ground beside you, with the people's sit-on-the-ground pose, and they
+  get up when you do. "They sit and lie down when you do" off: they stand by.
+- **Sharing your seat.** On a log, a bench, a bed or a tent's bedroll, those on the ground can share it.
+  "With no seat for them": Ask (to begin with) has the first of them ask in the chat, with Yes and No
+  to answer (or type yes or no; getting up is a no); Squeeze in has them just do it; Sit on the ground
+  never shares. Up to four of you fit on one, packed closer the more there are (0.62 m apart for two,
+  0.52 for three, 0.44 for four, closer than two bodies' width), sitting or lying side by side. The chat
+  says how tight it is, and the AI is told (a companion is "sitting on a log by the campfire, squeezed
+  together with" you; you are "squeezed together with" them). "The AI words their asking" (off to begin
+  with) has the AI write the line they ask with, in one short call (`/combat-line` with `calm`); off, it's
+  a plain line of the game's own.
+- **Lying down in a tent.** A campsite's tent has Lie down as well as Sleep: you lie down awake on its
+  bedroll to rest and talk, as on a bench, and the time goes on as usual. Your party may lie down beside
+  you.
+- **Moving about a fight.** "They move about in a fight" (on to begin with): in real time and in
+  turn-based combat each companion goes where their role has them (`tactics.js allySpot`), instead of
+  keeping their place behind you. One who strikes (a barbarian, fighter, monk, paladin or rogue) closes
+  in on the nearest creature and works round it; an archer (a ranger) keeps a good distance, moving round
+  to where nothing is in the way of a shot; a caster stays back behind you, never so far that their
+  spells fall short. With "Creatures fight by their sort" on, archers and casters take cover behind a
+  tree or a rock first, as creatures do. They walk and run with the same collisions as everyone else. In
+  turn-based combat they move on their own turn, as far as a turn allows, and stay there until their
+  next one; when the fight ends they come back to follow you. Off: they keep their place behind you,
+  and in turn-based combat one who strikes still closes in.
+
+### Abilities of your own
+
+Inventory → Sheet → "Add your own ability" puts something you can do on your sheet, like the other lines
+you add: a name, a few words on what it does, and if you like:
+
+- **Uses** and when they come back: per short rest (the Sheet's Short rest button), per long rest (a
+  sleep, which brings back the per-day ones too), or per day (each new day of the world). Left empty,
+  it's at will. Uses left show as a number you can change by hand.
+- **Dice** for what it does: damage, or healing. Damage goes at what's in front of you, played as a spell
+  (an attack roll, or with a save, a saving throw for half); healing heals you.
+- **A saving throw**: a DC and the ability it's made with (Dexterity, Wisdom…).
+
+Use it with its Use button, from Abilities on the fight bar (in turn-based combat it takes your action),
+a number key (Inventory → Hotkeys), or by typing `/use <ability>` in the chat. Each use is counted off,
+and the chat says which come back after a rest. One with damage dice needs combat on; one with no dice
+is told in the chat as done. Edit writes it afresh; untick it and Delete takes it away. The AI is told
+your abilities with your sheet ("Fire Breath (2d6 damage, DC 13 Dexterity save; 1 of 2 left, per short
+rest): a gout of flame"), and they're kept in the world's save (`sheet.js checkAbility`).
+
+Companions can have abilities too (Inventory → Sheet → Your companions → "Add an ability for…"), kept on
+a sheet of their own in the save. In a fight they use theirs now and then while they have uses: damage
+at the creature they're after, healing on you when you're hurt, or on themselves. Their uses come back
+with your rests, and the AI is told of them with your sheet.
 
 ### Factions and regions
 
@@ -1086,6 +1151,10 @@ still count, and come first.
   at a stall don't talk to each other.
 - Sleeping is in a campsite's tent only (not a bed, nor your own "/camp" fire), and nothing happens
   while you sleep but the clock: no events, no dreams, no AI call.
+- Your party shares only the seat you're on, never one beside it, and squeezed in they can overlap a
+  little, or the end of a bench. They don't follow you into a building's room, so a bed indoors is
+  shared only with whoever is in there with you. Asking is for the first sit or lie-down; those who
+  arrive later sit on the ground.
 - A group out together is brought into a moment as one; a conversation (E on one of them) is still with
   that one person.
 - Hamlets and inns have no stalls, so a shop's people there work indoors. The player can't work a spot.

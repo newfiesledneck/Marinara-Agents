@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.47 — 2026-11-20
+
+- Your party moves about a fight by how they fight (melee closes in, archers keep their distance, casters stay back), follows more loosely day to day (Settings → People → Your party: close, normal or loose), and wanders a little when you stand still.
+- When you sit or lie down, companions take a seat nearby, sit on the ground, or ask to squeeze in beside you, up to four on a log, bench or bed. Tents and beds have Lie down as well as Sleep.
+- Abilities of your own in the sheet: uses that come back by rest or day, dice, a save; used from the fight bar or /use. Companions can have them too.
+
 ## 0.7.46 — 2026-11-20
 
 - Fights: creatures flee less (only when badly hurt, and undead, oozes and constructs never), a fleeing one can be chased and struck until it gets away, and one that comes back rejoins a turn-based fight once, with no more repeated "joins the fight".

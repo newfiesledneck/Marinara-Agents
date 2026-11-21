@@ -65,7 +65,7 @@ import { checkLook, mergeLooks } from "./looks.js";
 // ── The base avatar (avatar.js): the player's own body, and the townsfolk's ──
 import { avatarChoices, avatarLook, createAvatar, setUnderwearByDefault } from "./avatar.js";
 import { lookFromWords } from "./keywords.js";
-import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
+import { approachAngle, createCrowd, MAX_PEOPLE, SHARE_MOST } from "./npcs.js";
 import { afloatAt, createHerd, MONSTER_SIZES } from "./herd.js";
 import { createSocial } from "./social.js";
 import { ago, createMemories, heardBy, heardLines, linesHere, MEMORY, toldShares } from "./memory.js";
@@ -242,7 +242,7 @@ import {
   tossArc,
   tossOf,
 } from "./grapple.js";
-import { greaterCasts, mendSpell, pickSpell, roleOf, roleStats, standoff, standSpot } from "./tactics.js";
+import { allySpot, greaterCasts, mendSpell, pickSpell, roleOf, roleStats, standoff, standSpot } from "./tactics.js";
 import {
   SRD_FEATS,
   abilities,
@@ -281,6 +281,7 @@ import {
 } from "./srd.js";
 import { chopTree, gatherHere, gatherRoll, GATHER_KINDS, spotKey, spotReady, spotUsed, treesDown } from "./gather.js";
 import {
+  abilityWords,
   applyChanges,
   attackRoll,
   bracketed,
@@ -292,9 +293,12 @@ import {
   entryOf,
   gainXp,
   modifier,
+  rechargeAbilities,
+  RECHARGES,
   rollDice,
   sheetList,
   sheetWords,
+  spendAbility,
   toppedUp,
   useItem,
   valueOf,
@@ -1982,9 +1986,12 @@ const SLEEP_NEAR = 30;
 function sleepIn(camp, length) {
   // (`camp`: the tent slept in, { bed, mouth }: a campsite's first, or any of its others.)
   if (core.mode !== "walk" || core.interior) return;
+  const bed = { ...camp.bed, approach: camp.mouth, pose: "lie", lift: 0, tent: true, taken: null };
+  // (ww:party-sits: "lie" is lying down awake, to rest and talk, the time going on as it does.)
+  if (length === "lie") return void sit({ ...bed, awake: true });
   const until = length === "morning" ? 7 : length === "evening" ? 19 : null;
   const hours = until === null ? Number(length) || 8 : (until - core.hour + 24) % 24 || 24;
-  sit({ ...camp.bed, approach: camp.mouth, pose: "lie", lift: 0, tent: true, taken: null });
+  sit(bed);
   core.input?.release();
   later(1.4, () => {
     core.hud?.setFade(true);
@@ -2012,6 +2019,7 @@ function sleepIn(camp, length) {
         };
         core.saves.write(core.save);
       }
+      rechargeOwn("long"); // (ww:own-abilities)
       if (core.settings.sheet && core.settings.restRestores) {
         setSheet(toppedUp(sheetNow()));
         core.hud?.refreshInventory?.();
@@ -4474,12 +4482,100 @@ function sit(seat) {
   glideTo(seat.x, seat.z, seat.angle, 0.45);
   // People round about may say something to someone sitting down by them.
   const action = seat.tent
-    ? "lies down in the tent to sleep"
+    ? seat.awake
+      ? "lies down in the tent"
+      : "lies down in the tent to sleep"
     : seat.pose === "lie"
       ? "lies down on the bed"
       : `sits down on ${seat.what ?? "a seat"}`;
   later(0.6, () => void runMoment({ action, needListeners: true, source: "seat" }));
+  if (!seat.tent || seat.awake) later(1.8, () => offerShare(seat)); // (ww:party-sits)
 }
+
+// ── ww:party-sits (companions sit and lie down with the player, and share their seat: npcs.js shareSeat) ──
+/** What the player is on, in a few words: "the log by the campfire", "the bench", "the bed", "the tent". */
+const seatWords = (seat) =>
+  seat.tent
+    ? "the tent's bedroll"
+    : seat.pose === "lie"
+      ? "the bed"
+      : (seat.what ?? "the seat").replace(/^an? /u, "the ");
+const memberName = (id) => nameFor(id, core.crowd.party().find((member) => member.id === id)?.name ?? "");
+const andList = (names) => (names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0]);
+
+/**
+ * A little after the player sits or lies down on something (a log, a bench, a bed, a tent's bedroll),
+ * companions with no seat of their own (on the ground beside them) ask to squeeze in, or just do, or don't
+ * (Settings → People → Your party). The first of them asks in the chat, with Yes and No (or "yes" or "no"
+ * typed), in a line of the game's own or, with that setting on, the AI's.
+ */
+function offerShare(seat) {
+  const way = core.settings.partyShare;
+  if (core.seat !== seat || !core.settings.partySits || way === "off") return;
+  const ids = core.crowd.seatless().slice(0, SHARE_MOST - 1);
+  if (!ids.length) return;
+  if (way === "always") return void shareWith(ids, seat);
+  const where = seatWords(seat);
+  const lying = seat.pose === "lie";
+  const plain =
+    ids.length === 1
+      ? `Mind if I ${lying ? "lie down" : "squeeze in"} beside you on ${where}?`
+      : `Room for ${ids.length > 2 ? "all of" : "both of"} us on ${where}? We can squeeze in.`;
+  const ask = (line) => {
+    if (core.seat !== seat) return;
+    const who = memberName(ids[0]);
+    narrate(who, line);
+    const group = core.crowd.groupOf(ids[0]);
+    if (group) core.talk.say(group, line, 5, who);
+    core.shareAsk?.close?.();
+    core.shareAsk = { ids, seat, close: core.hud?.answers(["Yes", "No"], (index) => answerShare(index === 0)) };
+  };
+  if (!core.settings.shareAiLine) return ask(plain);
+  const others = ids.slice(1).map(memberName);
+  void core.ai
+    .combatLine({
+      calm: true,
+      worldName: core.save?.name ?? "",
+      setting: core.save?.setting ?? "",
+      speaker: `${memberName(ids[0])}, ${personaName()}'s companion`,
+      moment: `${personaName()} has just ${lying ? "lain down on" : "sat down on"} ${where} and there's no other place near: they ask to squeeze in beside ${personaName()}${others.length ? `, with ${andList(others)}` : ""}`,
+      recent: recentWords(),
+      connectionId: core.settings.textConnection || null,
+    })
+    .then((answer) => ask(answer?.line || plain))
+    .catch(() => ask(plain));
+}
+
+/** The player's answer to a companion asking to share their seat: yes, and they squeeze in; no, they stay where they are. */
+function answerShare(yes) {
+  const asked = core.shareAsk;
+  core.shareAsk = null;
+  asked?.close?.();
+  if (asked && yes && core.seat === asked.seat) shareWith(asked.ids, asked.seat);
+}
+
+/** `ids` squeeze onto the player's seat beside them (as many as fit), and the chat says how tight it is. */
+function shareWith(ids, seat) {
+  const placed = core.crowd.shareSeat(ids, seat);
+  if (!placed.length) return;
+  const tight = ["", "", "side by side", "a tight squeeze", "packed in shoulder to shoulder"][placed.length + 1];
+  const verb = seat.pose === "lie" ? "lie down" : "squeeze in";
+  const one = placed.length === 1;
+  narrate(
+    null,
+    `${andList(placed.map(memberName))} ${one ? verb.replace(/^(\w+)/u, "$1s") : verb} beside ${personaName()} on ${seatWords(seat)}: ${tight}.`,
+  );
+}
+
+/** "squeezed together with Mira and Tam" for whoever shares the player's seat; "" when nobody does. */
+function sharingWords() {
+  const names = core.crowd
+    .snapshot()
+    .filter((person) => person.squeezed && core.crowd.inParty(person.id))
+    .map((person) => nameFor(person.id, person.name));
+  return names.length ? `squeezed together with ${andList(names)}` : "";
+}
+// ── /ww:party-sits ──
 
 function standUp() {
   const seat = core.seat;
@@ -4487,6 +4583,7 @@ function standUp() {
   core.mode = "walk";
   core.seat = null;
   if (seat.taken === "player") seat.taken = null;
+  if (core.shareAsk) answerShare(false); // (ww:party-sits: up before answering is a no)
   // Up off the ground takes a moment (getting up from lying, longer): no walking till they're on their feet.
   if (seat.ground) core.stillUntil = core.clock + (seat.ground === "lie" ? LIE_SECONDS : 0.45);
   else glideTo(seat.approach.x, seat.approach.z, seat.angle, seat.pose === "lie" ? LIE_SECONDS : 0.35);
@@ -6456,7 +6553,12 @@ const VOICE_RANGE = { whisper: 2.5, talk: 9, shout: 28 };
 
 /** What someone is doing, in a few words, for a moment's listeners and the Illustrate prompt. */
 function doingWords(person) {
-  if (person.seated) return `sitting on ${person.seatWhat ?? "a seat"}${person.with ? ` with ${person.with}` : ""}`;
+  // (ww:party-sits: lying on a bed or in the tent, and squeezed onto the player's seat with them.)
+  if (person.seated) {
+    const others = person.squeezed > 2 ? ` and ${person.squeezed - 2} more` : "";
+    const how = person.squeezed ? `, squeezed together with ${personaName()}${others}` : "";
+    return `${person.lying ? "lying" : "sitting"} on ${person.seatWhat ?? "a seat"}${how || (person.with ? ` with ${person.with}` : "")}`;
+  }
   if (person.doing && actWords(person.doing)) return actWords(person.doing);
   if (person.state === "chat" || person.with) return person.with ? `chatting with ${person.with}` : "chatting";
   if (person.state === "walk") return "walking along";
@@ -6755,7 +6857,16 @@ async function runMoment({
  * people round about answer).
  */
 function speak(typed) {
-  const command = /^\/(scene|camp|call|roll|check)\b\s*(.*)$/isu.exec(typed.trim());
+  const command = /^\/(scene|camp|call|roll|check|use)\b\s*(.*)$/isu.exec(typed.trim());
+  // (ww:own-abilities: "/use Fire Breath", an ability of their own on the sheet, by its name.)
+  if (command?.[1].toLowerCase() === "use") {
+    const entry = entryNamed(sheetNow(), command[2].trim());
+    if (entry?.kind === "ability") return void useOwnAbility(entry.id);
+    return void core.hud?.setNotice(`No ability called "${command[2].trim()}" on your sheet (Inventory → Sheet).`);
+  }
+  // (ww:party-sits: "yes" or "no" typed answers a companion asking to share the player's seat, and is said too.)
+  if (core.shareAsk && /^(?:y(?:es|eah|ep)?|sure|ok(?:ay)?|of course)\b/iu.test(typed.trim())) answerShare(true);
+  else if (core.shareAsk && /^(?:no(?:pe)?|sorry)\b/iu.test(typed.trim())) answerShare(false);
   if (["roll", "check"].includes(command?.[1].toLowerCase()))
     return rollCommand(command[1].toLowerCase(), command[2].trim());
   // "/call", "/call horse", "/call dog": your own animals come to you.
@@ -6780,8 +6891,12 @@ function playerDoing() {
   if (core.mode === "sit" && core.seat?.ground)
     return core.seat.ground === "lie" ? "lying on the ground" : "sitting on the ground";
   if (core.mode === "ride") return `riding ${mountName(core.mount).replace(/^the /u, "a ")}`;
-  if (core.mode === "sit" && core.seat?.pose === "lie") return "lying on a bed";
-  if (core.mode === "sit") return `sitting on ${core.seat?.what ?? "a seat"}`;
+  // (ww:party-sits: in the tent, and with whoever squeezed in beside them.)
+  const squeezed = core.mode === "sit" ? sharingWords() : "";
+  const beside = squeezed ? `, ${squeezed}` : "";
+  if (core.mode === "sit" && core.seat?.tent) return `lying in the tent${beside}`;
+  if (core.mode === "sit" && core.seat?.pose === "lie") return `lying on a bed${beside}`;
+  if (core.mode === "sit") return `sitting on ${core.seat?.what ?? "a seat"}${beside}`;
   if (core.talking) return `talking with ${core.talking.name}`;
   if (core.swimming) return "swimming";
   if (core.interior) return "standing inside";
@@ -7794,7 +7909,7 @@ function usable() {
     for (const tent of camp.tents ?? [camp]) {
       list.push({
         kind: "thing",
-        label: "Sleep in the tent",
+        label: "Lie down or sleep in the tent",
         x: tent.mouth.x,
         z: tent.mouth.z,
         y: 1.2,
@@ -9191,7 +9306,12 @@ function setSheet(sheet) {
 function sheetTold() {
   if (!core.save || !core.settings.sheet || !core.settings.sheetTold) return "";
   const sheet = sheetNow();
-  return [sheetWords(sheet, wornNow(sheet)), buildWords()].filter(Boolean).join(" ");
+  // (ww:own-abilities: and the abilities given the companions with them.)
+  const theirs = core.crowd.party().map((member) => {
+    const list = allyAbilities(member.id).map(abilityWords);
+    return list.length ? `${nameFor(member.id, member.name)}'s abilities: ${list.join(", ")}.` : "";
+  });
+  return [sheetWords(sheet, wornNow(sheet)), buildWords(), ...theirs].filter(Boolean).join(" ");
 }
 /** Quartermaster's items for the sheet being played, read again (kept in `core.items` for the bonuses). */
 async function readItems() {
@@ -9390,8 +9510,157 @@ function abilitiesNow() {
     wisdom: modifier(valueOf(sheet, "wisdom")),
   })
     .map((ability) => ({ ...ability, left: ability.max ? Math.max(0, ability.max - usedOf(ability.pool)) : null }))
-    .concat(movesNow());
+    .concat(movesNow(), ownAbilities(sheet));
 }
+
+// ── ww:own-abilities (abilities of the player's own on the sheet: sheet.js checkAbility) ──
+/** The abilities the player wrote on their sheet, as the fight bar, the hotkeys and /use list them (each an action). */
+const ownAbilities = (sheet) =>
+  sheet.entries
+    .filter((entry) => entry.kind === "ability" && entry.on)
+    .map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      about: abilityWords(entry),
+      cost: "action",
+      spend: 1,
+      left: "max" in entry ? entry.value : null,
+      own: true,
+    }));
+
+/**
+ * The rule a fight plays an ability of their own by, written as a spell's (combat.js spellIn): its dice of
+ * damage (a save for half where it has one, else an attack roll) or of healing. "" for one with no dice.
+ */
+const abilityRule = (entry) =>
+  !entry.dice
+    ? ""
+    : entry.effect === "heal"
+      ? `+${entry.dice} HP.`
+      : `${entry.dice} damage.${entry.dc ? ` ${entry.save} save for half.` : ""} Range 18.`;
+/** An ability as the spell it's played as (told as "uses", not "casts"), or null for one with no dice. */
+const abilitySpell = (entry) => {
+  const spell = spellIn({ about: abilityRule(entry) });
+  return spell && { ...spell, verb: "uses" };
+};
+
+/**
+ * One of the player's own abilities used (`id`: its sheet line; the fight bar, a number key, the Sheet or
+ * /use): a use is spent where it has them, and it does what its dice say: damage at what's in front of them
+ * (played as a spell, with its save DC), healing on them, or with no dice, it's told as done.
+ */
+function useOwnAbility(id) {
+  const entry = entryOf(sheetNow(), id);
+  const notice = (words) => void core.hud?.setNotice(words);
+  if (!entry || entry.kind !== "ability" || !entry.on || !core.save || core.downed) return;
+  if (afflicted().helpless) return notice("You can't act: it has to wear off first.");
+  if ("max" in entry && entry.value < 1)
+    return notice(`No ${entry.name} left: it comes back ${RECHARGES[entry.recharge]}.`);
+  const spend = () => {
+    const spent = spendAbility(sheetNow(), id);
+    if (spent?.spent) setSheet(spent.sheet);
+    core.hud?.refreshInventory?.();
+  };
+  const who = personaName();
+  const spell = abilitySpell(entry);
+  if (spell?.damage) {
+    if (!fighting()) return notice(`${entry.name} is for a fight (Settings → Inventory → Combat).`);
+    // (Its DC is its own: a spell's is 8 + proficiency + the caster's modifier, so the modifier is set to match.)
+    const wit = entry.dc ? entry.dc - 8 - spellProf() : undefined;
+    return void cast(null, { id, name: entry.name, spell, wit, spend });
+  }
+  const hp = entryOf(sheetNow(), "hp");
+  if (spell?.heal && hp && hp.value >= hp.max) return notice("You're not hurt.");
+  if (core.battle && !battleSpend("action")) return;
+  spend();
+  if (spell?.heal) {
+    const mended = Math.max(1, rollDice(spell.heal).total);
+    setSheet(applyChanges(sheetNow(), [{ stat: "hp", by: mended }]).sheet);
+    const now = entryOf(sheetNow(), "hp");
+    spellFx().motes(core.space.scene, chest(core.player.position.x, core.player.position.z, 0), spellColour("heal"));
+    core.hud?.refreshInventory?.();
+    return void narrate(null, `${who} uses ${entry.name}: +${mended} HP (${now?.value ?? 0} of ${now?.max ?? 0}).`);
+  }
+  narrate(null, `${who} uses ${entry.name}${entry.about ? `: ${entry.about.replace(/[.!]*$/u, "")}` : ""}.`);
+}
+
+/** A rest or a new day brings back the uses of the player's abilities, and the party's, that it should; the chat says which. */
+function rechargeOwn(rest) {
+  if (!core.save) return;
+  const mine = rechargeAbilities(sheetNow(), rest);
+  if (mine.back.length) setSheet(mine.sheet);
+  const sheets = { ...core.save.allySheets };
+  const back = [...mine.back];
+  for (const [id, raw] of Object.entries(sheets)) {
+    const theirs = rechargeAbilities(checkSheet(raw), rest);
+    sheets[id] = theirs.sheet;
+    back.push(...theirs.back);
+  }
+  core.save = { ...core.save, allySheets: sheets };
+  core.saves.write(core.save);
+  if (back.length) narrate(null, `Back again: ${andList([...new Set(back)])}.`);
+}
+
+/** Each new day of the world, "per day" abilities come back. */
+function abilitiesDayTick() {
+  const day = core.social?.day;
+  if (!core.save || !Number.isFinite(day) || core.save.abilityDay === day) return;
+  const first = core.save.abilityDay === null || core.save.abilityDay === undefined;
+  core.save = { ...core.save, abilityDay: day };
+  if (!first) rechargeOwn("day");
+  else core.saves.write(core.save);
+}
+
+/** A companion's own sheet, for the abilities given them (Inventory → Sheet → Your companions). */
+const allySheet = (id) => checkSheet(core.save?.allySheets?.[id]);
+function setAllySheet(id, sheet) {
+  if (!core.save) return;
+  core.save = { ...core.save, allySheets: { ...core.save.allySheets, [id]: sheet } };
+  core.saves.write(core.save);
+}
+/** The abilities a companion has, switched on: their sheet's lines. */
+const allyAbilities = (id) => allySheet(id).entries.filter((entry) => entry.kind === "ability" && entry.on);
+
+/**
+ * A companion uses one of their own abilities in a fight (allyActs), now and then, while they have uses:
+ * one that heals mends the player when they're hurt (else themselves), one that harms goes at the creature
+ * (`foe`, `distance` off), played as a spell. Returns whether they did.
+ */
+function allyOwnAbility(person, foe, distance, hurt) {
+  if (Math.random() > 0.35) return false;
+  const name = nameFor(person.id, person.name);
+  for (const entry of allyAbilities(person.id)) {
+    if (("max" in entry && entry.value < 1) || !entry.dice) continue;
+    const spell = abilitySpell(entry);
+    if (!spell || (spell.damage && (!foe || distance > spell.range))) continue;
+    if (!spell.damage && !hurt && allyHp(person.id).hp >= allyHp(person.id).max / 2) continue; // (nobody needs it)
+    const spent = spendAbility(allySheet(person.id), entry.id);
+    setAllySheet(person.id, spent.sheet);
+    if (spell.heal) {
+      const mended = Math.max(1, rollDice(spell.heal).total);
+      if (hurt) {
+        setSheet(applyChanges(sheetNow(), [{ stat: "hp", by: mended }]).sheet);
+        const hp = entryOf(sheetNow(), "hp");
+        core.hud?.refreshInventory?.();
+        narrate(
+          null,
+          `${name} uses ${entry.name} on ${personaName()}: +${mended} HP (${hp?.value ?? 0} of ${hp?.max ?? 0}).`,
+        );
+      } else {
+        const own = allyHp(person.id);
+        own.hp = Math.min(own.max, own.hp + mended);
+        narrate(null, `${name} uses ${entry.name}: +${mended} HP (${own.hp} of ${own.max}).`);
+      }
+      return true;
+    }
+    const wit = entry.dc ? entry.dc - 8 - spellProf() : ALLY_WIT;
+    core.crowd.gesture(person.id, "cast", null, foe.x, foe.z);
+    spellLands(foe, name, entry.name, spell, wit, person.position);
+    return true;
+  }
+  return false;
+}
+// ── /ww:own-abilities ──
 
 /** What anyone can do in a fight besides attacking (a setting): shove, grapple, help, hide, and an off-hand blow with two light weapons. */
 const MOVES = [
@@ -9651,6 +9920,7 @@ function strikeSpent(mods, result, foe) {
 function useAbility(id) {
   const ability = abilitiesNow().find((entry) => entry.id === id);
   if (!ability || !core.save || core.downed) return;
+  if (ability.own) return useOwnAbility(id); // (ww:own-abilities)
   const who = personaName();
   const notice = (words) => void core.hud?.setNotice(words);
   if (afflicted().helpless) return notice("You can't act: it has to wear off first.");
@@ -9887,6 +10157,7 @@ function shortRest() {
     null,
     `${who} takes a short rest${spent ? `: ${spent} hit ${spent === 1 ? "die" : "dice"} for +${healed} HP (${hp?.value ?? 0} of ${hp?.max ?? 0})` : ""}. What a short rest restores is back.${back}`,
   );
+  rechargeOwn("short"); // (ww:own-abilities)
 }
 
 /** The build for the Sheet tab: what's chosen, what can be, what the class can call on, and the hit dice. */
@@ -9911,7 +10182,7 @@ function buildInfo() {
     skillCount: choices.count,
     skillList: choices.from.map((id) => ({ id, label: skillNamed(id)?.name ?? id })),
     given: choices.given.map((id) => skillNamed(id)?.name ?? id),
-    abilities: abilitiesNow(),
+    abilities: abilitiesNow().filter((ability) => !ability.own), // (the player's own are with the sheet's lines)
     hitDice: { die: dice.die, max: dice.max, left: Math.max(0, dice.max - usedOf("hitDice")) },
     prof: profNow() || 2,
     // (A turn's numbers as they are now, and the spell slots: each can be changed in the Sheet tab.)
@@ -10854,17 +11125,18 @@ const chest = (x, z, up = 1.2) => ({ x, y: (core.interior ? core.player.position
  * caster; the rest fly at the nearest creature (or person, where blows can land on people) ahead and in
  * the spell's range, which takes a spell attack or makes its saving throw as the bolt lands.
  */
-function cast(id = null) {
+function cast(id = null, given = null) {
+  // (`given`, ww:own-abilities: an ability of their own played as a spell, { id, name, spell, wit, spend() }.)
   if (!fighting() || core.downed || core.carrying || !afoot() || core.clock < (core.castUntil ?? 0)) return;
   if (core.shape) return void core.hud?.setNotice("You can't cast in a beast's shape.");
   if (afflicted().helpless) return void core.hud?.setNotice("You can't act: it has to wear off first.");
   const spells = spellsNow();
-  const chosen = (id && spells.find((entry) => entry.id === id)) || readySpell(spells);
+  const chosen = given ?? ((id && spells.find((entry) => entry.id === id)) || readySpell(spells));
   if (!chosen)
     return void core.hud?.setNotice(
       "You have no spell to cast. Inventory → Sheet has a list of the 5e SRD's to add from, and you can write your own.",
     );
-  core.readySpell = chosen.id;
+  if (!given) core.readySpell = chosen.id;
   const { name } = chosen;
   let spell = chosen.spell;
   if (spell.reaction)
@@ -10905,6 +11177,7 @@ function cast(id = null) {
     core.save = { ...core.save, slotsUsed: { ...core.save.slotsUsed, [slot]: (core.save.slotsUsed?.[slot] ?? 0) + 1 } };
     core.saves.write(core.save);
   } else if (!slotted && spell.cost > 0) setSheet(applyChanges(sheet, [{ stat: "mana", by: -spell.cost }]).sheet);
+  given?.spend?.(); // (an ability's use)
   core.gesture = "cast";
   core.castUntil = core.clock + 1.1;
   if (buffed("hidden")) core.buffs = lift(core.buffs, "hidden"); // (a spell gives them away)
@@ -10920,7 +11193,7 @@ function cast(id = null) {
     const at = core.player.position;
     const scene = core.space.scene;
     const now = sheetNow();
-    const wit = witOf(now, wornNow(now), castingNow());
+    const wit = given?.wit ?? witOf(now, wornNow(now), castingNow());
     core.hud?.refreshInventory?.();
     if (spell.heal && !spell.damage) {
       const mended = Math.max(1, rollDice(spell.heal).total + Math.max(0, wit));
@@ -11357,6 +11630,7 @@ function battleEnd(words) {
   if (!core.battle) return;
   core.battle.ring?.remove();
   core.battle = null;
+  core.crowd.fightOver(); // (ww:party-moves: the companions follow again)
   core.herd.hold([]);
   core.herd.calm();
   core.hud?.setBattle(null);
@@ -11595,15 +11869,20 @@ function battleTick(dt, moved) {
       const foe = foes.reduce((best, entry) =>
         Math.hypot(entry.x - from.x, entry.z - from.z) < Math.hypot(best.x - from.x, best.z - from.z) ? entry : best,
       );
+      // (ww:party-moves: to where their role has them, as far as a turn allows, and they stay there till their
+      // next turn or the fight's end; with that off, one who strikes closes in and the rest stay by the player.)
       const caster = allyKeepsOff(person.id);
-      const far = Math.hypot(foe.x - from.x, foe.z - from.z);
-      const go = caster || allyMods(person.id).still ? 0 : Math.max(0, Math.min(TURN_MOVE, far - (1.5 + foe.room)));
+      const spot = allyMods(person.id).still
+        ? null
+        : (allyGoes(person, foe, caster) ?? (caster ? null : { x: foe.x, z: foe.z, short: 1.5 + foe.room }));
+      const far = spot ? Math.hypot(spot.x - from.x, spot.z - from.z) : 0;
+      const go = spot ? Math.max(0, Math.min(TURN_MOVE, far - (spot.short ?? 0))) : 0;
       if (go > 0.3)
         core.crowd.fightTo(
           person.id,
-          from.x + ((foe.x - from.x) / far) * go,
-          from.z + ((foe.z - from.z) / far) * go,
-          2.2,
+          from.x + ((spot.x - from.x) / far) * go,
+          from.z + ((spot.z - from.z) / far) * go,
+          core.settings.partyMoves ? 600 : 2.2,
         );
       battle.step = "act";
       battle.wait = Math.min(2.2, 0.4 + go / 4);
@@ -12399,6 +12678,14 @@ function allyAttacked(event, what, with_ = null) {
  */
 function allyMoves(person, foe, caster) {
   if (allyMods(person.id).still) return; // (down, or held where they are)
+  const spot = allyGoes(person, foe, caster);
+  if (spot) core.crowd.fightTo(person.id, spot.x, spot.z, 1.2);
+}
+
+// ── ww:party-moves (companions move about a fight by their role: tactics.js allySpot; Settings → People → Your party) ──
+/** Where a companion goes next in a fight ({ x, z }), or null to stay as they are (the setting off, or water there). */
+function allyGoes(person, foe, caster) {
+  if (!core.settings.partyMoves) return null;
   core.allySide ??= new Map();
   let side = core.allySide.get(person.id);
   if (!side || core.clock > side.until) {
@@ -12408,13 +12695,14 @@ function allyMoves(person, foe, caster) {
   const from = person.position;
   // (One who keeps off, with creatures that fight by their sort: behind a tree or a rock, where there's one near.)
   const hide = caster && tacticsOn() ? coverSpot(from, foe, 18) : null;
-  if (hide) return void core.crowd.fightTo(person.id, hide.x, hide.z, 1.2);
-  const around = Math.atan2(from.x - foe.x, from.z - foe.z) + side.way * (caster ? 0.35 : 0.6);
-  const ring = caster ? 7.5 : 1.5 + foe.room;
-  const spot = { x: foe.x + Math.sin(around) * ring, y: 0, z: foe.z + Math.cos(around) * ring };
-  if (!core.interior && waterAt(spot.x, spot.z).depth > 0.3) return;
-  core.crowd.fightTo(person.id, spot.x, spot.z, 1.2);
+  if (hide) return hide;
+  const role = allyRole(person.id);
+  const range = role === "ranged" ? (SRD_CLASSES[classOf(person.id)].ranged?.range ?? 18) : 18;
+  const sees = (x, z) => !coverBetween({ x, z }, foe) && (core.space.clearSight?.(x, z, foe.x, foe.z) ?? 1) > 0.95;
+  const spot = allySpot({ role, from, foe, player: core.player.position, way: side.way, range, sees });
+  return !core.interior && waterAt(spot.x, spot.z).depth > 0.3 ? null : spot;
 }
+// ── /ww:party-moves ──
 
 /** One companion's turn (alliesTick). Returns whether they did anything. */
 function allyActs(person, foes, hurt) {
@@ -12497,6 +12785,7 @@ function allyActs(person, foes, hurt) {
     }
   }
   if (!foe) return false;
+  if (allyOwnAbility(person, foe, distance, hurt)) return true; // (ww:own-abilities)
   // A spell: a cantrip mostly, now and then one of the first level; only what reaches.
   const inReach = distance <= ALLY_REACH + foe.room;
   const castable = spells.attack.filter(
@@ -14506,6 +14795,7 @@ function stepClock(dt) {
   core.weatherTime = (core.weatherTime ?? 0) + dt;
   const setting = core.settings.weather ?? "off";
   turnSeason();
+  abilitiesDayTick(); // (ww:own-abilities)
   core.world.setSeason(seasonNow(), core.settings.seasonLook);
   let kind = setting === "off" ? "clear" : setting;
   if (setting === "changing") {
@@ -15024,6 +15314,10 @@ function step(dt) {
     space: core.space,
     apart: core.settings.keepApart,
     playerSitting: core.mode === "sit",
+    // (ww:party-sits: lying down too, how loosely the party follows, and whether they sit with the player.)
+    playerLying: core.mode === "sit" && (core.seat?.pose === "lie" || core.seat?.ground === "lie"),
+    followSpread: core.settings.followSpread,
+    sitWith: core.settings.partySits,
     playerAngle: core.player.rotation.y,
     playerSpeed: speed,
     hour: core.hour,
@@ -15430,7 +15724,9 @@ function attach(element) {
         id: member.id,
         name: nameFor(member.id, member.name),
         classId: classOf(member.id),
+        abilities: allySheet(member.id).entries.filter((entry) => entry.kind === "ability"), // (ww:own-abilities)
       })),
+    onAllySheet: (id, change) => setAllySheet(id, changeSheet(allySheet(id), change)),
     classList: () =>
       Object.entries(SRD_CLASSES).map(([id, entry]) => ({ id, label: `${entry.name} (${entry.weapon.name})` })),
     onSetClass: (id, classId) => {
