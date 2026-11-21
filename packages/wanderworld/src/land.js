@@ -70,10 +70,14 @@ const ROAD_WIDTH = 3.2;
 const OUTPOST_FLAT = 11; // metres round an inn or cottage that are level
 const OUTPOST_BLEND = 12; // and then blend back into the hills
 /** Metres of level ground round a place of this kind (a cave's is its own, see createLand). */
-const flatOf = (kind) =>
-  ({ hamlet: HAMLET_FLAT, farm: FARM_FLAT, ruins: 13, watchtower: 8, stones: 11, graveyard: 11, mill: 9, pond: 13 })[
-    kind
-  ] ?? OUTPOST_FLAT;
+const flatOf = (kind, lake = false) =>
+  lake
+    ? LAKE_RADIUS + 6
+    : ({ hamlet: HAMLET_FLAT, farm: FARM_FLAT, ruins: 13, watchtower: 8, stones: 11, graveyard: 11, mill: 9, pond: 13 }[
+        kind
+      ] ?? OUTPOST_FLAT);
+/** A lake (a lakeside region's: a pond outpost made `lake`, regions.js): water this wide from its middle to the shore. */
+export const LAKE_RADIUS = 24;
 const MOUNTAIN_REACH = 62; // how far in from the edge a range rises
 const BRIDGE_HALF_WIDTH = 1.6;
 const MAX_OUTPOSTS = 14; // places out in the country (a few per side)
@@ -266,6 +270,7 @@ export function checkLandscape(raw, seed) {
           side: entry.side,
           ...(typeof entry.name === "string" && entry.name.trim() ? { name: entry.name.trim().slice(0, 60) } : {}),
           ...(entry.kind === "cave" && DEEP_KINDS.includes(entry.deep) ? { deep: entry.deep } : {}),
+          ...(entry.kind === "pond" && entry.lake === true ? { lake: true } : {}),
         }))
     : fallback.outposts;
   return {
@@ -276,6 +281,8 @@ export function checkLandscape(raw, seed) {
     settlement: checkSettlement(raw.settlement),
     // Two places of one kind are kept well apart (worlds made with one of everything).
     ...(raw.apart === true ? { apart: true } : {}),
+    // A region's land (regions.js LANDS: its trees, rocks and ground in world.js); home has none.
+    ...(typeof raw.land === "string" && /^[a-z]{1,12}$/u.test(raw.land) ? { land: raw.land } : {}),
   };
 }
 
@@ -371,11 +378,15 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
   // the same side share the side, spread apart.
   const perSide = {};
   const placed = []; // the places so far, to keep each one's level ground clear of the others'
-  const roomOf = (kind) => (kind === "cave" ? 14 : flatOf(kind));
+  const roomOf = (kind, lake = false) => (kind === "cave" ? 14 : flatOf(kind, lake));
   // How far apart two places must be: clear of each other's ground, and well apart when they're of one
   // kind and the land asks for that (no two farms side by side).
   const sameKindGap = landscape.apart ? Math.min(150, worldHalf * 0.3) : 0;
-  const gapFor = (one, other) => Math.max(roomOf(one) + roomOf(other) + 4, one === other ? sameKindGap : 0);
+  const gapFor = (one, other) =>
+    Math.max(
+      roomOf(one.kind, one.lake) + roomOf(other.kind, other.lake) + 4,
+      one.kind === other.kind ? sameKindGap : 0,
+    );
   const outposts = landscape.outposts.map((original, index) => {
     // A graveyard close by the town goes on a side the river doesn't cut it off on, and so does a hamlet
     // or farm when there's no room for its ground between the river and the world's edge.
@@ -405,7 +416,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
     }
     if (entry.kind === "graveyard") out = townHalf + 24 + random() * 10; // just outside town
     // Inside the world, however small; a hamlet, farm or landmark with all its ground inside too.
-    const inside = OUTPOST_KINDS.includes(entry.kind) ? 14 : Math.max(14, roomOf(entry.kind) + 6);
+    const inside = OUTPOST_KINDS.includes(entry.kind) ? 14 : Math.max(14, roomOf(entry.kind, entry.lake) + 6);
     out = Math.min(out, edge - inside);
     // A graveyard keeps close by the town, level with it; the rest spread along their side.
     const spread = entry.kind === "graveyard" ? Math.max(-townHalf * 0.6, Math.min(townHalf * 0.6, across)) : across;
@@ -413,7 +424,8 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
     let lateral = Math.max(-edge + sideways, Math.min(edge - sideways, spread));
     const spot = (distance) => (dx !== 0 ? { x: dx * distance, z: lateral } : { x: lateral, z: dz * distance });
     // Never on the river: a place whose ground would reach the water or its banks steps further out.
-    const dry = entry.kind === "hamlet" || entry.kind === "farm" ? flatOf(entry.kind) + 6 : 14; // more for a hamlet or farm
+    const dry =
+      entry.kind === "hamlet" || entry.kind === "farm" || entry.lake ? flatOf(entry.kind, entry.lake) + 6 : 14; // more for a hamlet, farm or lake
     const clearOfRiver = (at) => !river || toLine(river.points, at.x, at.z).distance > RIVER_WIDTH / 2 + BANK + dry;
     if (entry.kind === "mill" && river) {
       // On the town's bank (its road needn't cross): beside the nearest bit of river, its back to the water
@@ -440,7 +452,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
     let away = 0;
     for (let tries = 0; tries < 30; tries++) {
       const at = spot(out);
-      const clash = placed.find((other) => Math.hypot(other.x - at.x, other.z - at.z) < gapFor(other.kind, entry.kind));
+      const clash = placed.find((other) => Math.hypot(other.x - at.x, other.z - at.z) < gapFor(other, entry));
       if (!clash && clearOfRiver(at)) break;
       if (!away) away = clash ? Math.sign(dx !== 0 ? at.z - clash.z : at.x - clash.x) || 1 : 1;
       if (Math.abs(lateral + away * 9) > edge - sideways) away = -away;
@@ -450,15 +462,14 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
     let { x, z } = spot(out);
     let side = entry.side;
     const free = (at) =>
-      clearOfRiver(at) &&
-      placed.every((other) => Math.hypot(other.x - at.x, other.z - at.z) >= gapFor(other.kind, entry.kind));
+      clearOfRiver(at) && placed.every((other) => Math.hypot(other.x - at.x, other.z - at.z) >= gapFor(other, entry));
     if (!free({ x, z })) {
       // Its side is full: the free spot nearest where it wanted to be, anywhere out in the country (and
       // the side that spot is on).
       let best = null;
       for (let gx = -edge + inside; gx <= edge - inside; gx += 8) {
         for (let gz = -edge + inside; gz <= edge - inside; gz += 8) {
-          if (Math.max(Math.abs(gx), Math.abs(gz)) < townHalf + 24 + roomOf(entry.kind)) continue;
+          if (Math.max(Math.abs(gx), Math.abs(gz)) < townHalf + 24 + roomOf(entry.kind, entry.lake)) continue;
           const distance = Math.hypot(gx - x, gz - z);
           if ((!best || distance < best.distance) && free({ x: gx, z: gz })) best = { x: gx, z: gz, distance };
         }
@@ -471,6 +482,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
     // The front looks back toward town, squared to a quarter turn like every building in town.
     const facing = ((Math.round(Math.atan2(-x, -z) / (Math.PI / 2)) % 4) + 4) % 4;
     const place = { ...entry, side, index, x, z, facing, angle: (facing * Math.PI) / 2 };
+    if (entry.lake) place.radius = LAKE_RADIUS;
     placed.push(place);
     return place;
   });
@@ -547,7 +559,9 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
     Math.abs(at.z) < edge - 18 &&
     Math.max(Math.abs(at.x), Math.abs(at.z)) > townHalf + 12 &&
     (!river || toLine(river.points, at.x, at.z).distance > RIVER_WIDTH / 2 + BANK + 14) &&
-    outposts.every((other) => other === except || Math.hypot(other.x - at.x, other.z - at.z) > flatOf(other.kind) + 9);
+    outposts.every(
+      (other) => other === except || Math.hypot(other.x - at.x, other.z - at.z) > flatOf(other.kind, other.lake) + 9,
+    );
   // Inns by the roads: beside the main road on their side, part way along it, wherever there's room.
   for (const inn of outposts.filter((outpost) => outpost.kind === "inn")) {
     const road = mainRoads.find((entry) => outposts[entry.to].side === inn.side);
@@ -734,7 +748,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
         }
         continue;
       }
-      const flat = flatOf(outpost.kind);
+      const flat = flatOf(outpost.kind, outpost.lake);
       if (distance < flat + OUTPOST_BLEND) {
         height = outpost.ground + (height - outpost.ground) * smooth((distance - flat) / OUTPOST_BLEND);
       }
@@ -784,7 +798,7 @@ export function createLand(landscape, seed, { townHalf, worldHalf, streetLines, 
         return true;
     }
     for (const outpost of outposts) {
-      const reach = outpost.kind === "cave" ? 13 : flatOf(outpost.kind) + 1;
+      const reach = outpost.kind === "cave" ? 13 : flatOf(outpost.kind, outpost.lake) + 1;
       if (Math.hypot(x - outpost.x, z - outpost.z) < reach + margin) return true;
     }
     return false;

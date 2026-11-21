@@ -1,6 +1,7 @@
 # Wanderworld quest plan
 
-Status: a plan, written 2026-11-20; section 8 (deep places) is partly built, as it says there. It covers quests, deep places and regions
+Status: a plan, written 2026-11-20; section 8 (deep places) is partly built, as it says there, and the
+first three stages of quests (section 15) are built, as "What's built of quests" below says. It covers quests, deep places and regions
 with a purpose. It collects what was agreed in conversation on
 2026-11-19 and 2026-11-20, and follows the design principles in [CONCEPT.md](CONCEPT.md): it works with
 or without AI, every part can be switched off and is explained where it's switched, lore comes first,
@@ -273,8 +274,8 @@ loads one level at a time; `src/deepcave.js` makes the cave and cavern plans. Wh
 - The party comes along; anyone told to wait, and the player's own dog and horse, stay outside. Saving
   while below ground saves the cave's mouth as where you are.
 
-Still to come: quest-owned spawns, captives and escorts, the plan's `captive` spots, light spells, and a
-stronghold on the surface with its cellars leading down.
+Still to come: escorts, light spells, and a stronghold on the surface with its cellars leading down.
+Quest-owned spawns and captives at the plan's `captive` spots are built (see "What's built of quests").
 
 ---
 
@@ -311,9 +312,29 @@ mouth beside them, and caves are a rugged hillside with three cave mouths. Purpo
 - **The map:** Journal → Map draws the regions known (`knownRegions`: the ones visited, plus any that
   lore, a quest or the player told of) under the region map, each faction's land in its colour. On a
   faction's land the region map has a border in that colour.
-- **Not yet:** a faction's land has no townsfolk of its own beyond its guards and any lore members who
-  live there. The guards are the `bandit` kind, named "<Faction> guard"; a guard body of its own would
-  need a model and an SRD stat block.
+- **Not yet:** a faction's land has the region's own people (below), its guards and any lore members
+  who live there, but its people aren't members of the faction. The guards are the `bandit` kind, named
+  "<Faction> guard"; a guard body of its own would need a model and an SRD stat block.
+
+**Built: lands, each region's people, and travel (`src/regions.js`, `src/travel.js`).** README "Regions
+and travel" and "Regions beyond home and the quest hook" have the whole of it.
+
+- A new region has a land (farmland, forest, hills, marsh, snowy highlands, rocky badlands, lakeside)
+  from the world's seed and its place on the map, with its own landscape, trees, ground, weather and
+  monsters (`animals.js HABITATS` has the words "forest", "marsh", "snow" and "badlands").
+- Its settlement always has an inn and a shop, and people of its own, made once from its buildings and
+  kept in `save.regions[key].folk` (ids `local:folk.<x>.<z>.<n>`). Only the region you're in has its
+  people about.
+- Journal → Map lists the regions known, with Walk there (by road through known regions; the hours
+  pass; an encounter may wait) and Coach (from an inn, for a fare from the purse).
+- **For quests:** `main.js questRegion({ side, distance, land, purpose, faction, quest })` finds or plans
+  a region of a land and purpose (built on `purposeAhead`'s rule: never a purpose given before), and
+  `questTarget({ id, quest, region, kind, name, what, near })` puts a person, an item, a creature or a
+  deep place's entrance there. Each is kept in `save.travel`, marked on both maps, and given its spot
+  when its region is built. `questTargets(quest)` reports where they are and whether a creature was
+  beaten; `finishTarget(id)` takes one off the map.
+- **Not yet:** quests themselves (phase 1) calling the hook; a deep entrance in a region already made;
+  journeys with anything on the way but an encounter at the end; region people's lore.
 
 ---
 
@@ -412,6 +433,71 @@ Each one explained where it's set, as every setting is.
 4. **Deep places:** creatures and fights indoors, then small caves, caverns, dungeons and strongholds
    with connected depths, and quest-owned spawns, captives and escorts.
 5. **The wider world:** faction standing, regions with a purpose, faction maps, and quest chains.
+
+### What's built of quests (2026-11-21)
+
+`src/quests.js` holds the rules as plain data; `src/questplay.js` connects them to the game, called from
+main.js at places marked "Quests". `tests/wanderworld-quests.regression.mjs` plays them in a pretend world.
+
+**Stage 1, the structure: built.**
+
+- `save.quests` holds every quest in the shape of section 2, with `owned` (captives), a `log`, and
+  `reserve` (a region's purpose to keep). Beside it: `questParts` (the parts of the last eight quests),
+  `questTracked`, `questBoard` (the noticeboard's posted quest), `questOffered` and `loreQuests`.
+- Goal verbs built: talk, go, bring, gather, defeat near, deep (go down into a cave, to a depth), rescue
+  (free a captive), region (reach another region) and choose. Not yet: defeat a named foe, escort, find
+  (searching a spot), come back later.
+- Section 1's checks: `checkQuest` before a quest is offered (every id is here, the settings allow each
+  verb: no gather or bring without an inventory, no deep or rescue with the deep places off, no defeat
+  with fights off; every stage leads to an end), and `questCheck` on load, on each change of region and
+  every ten seconds (a person deleted, a place or cave gone, a creature that can't be met any more, a
+  time limit passed). A place or cave is swapped for the nearest of its kind; what can't be repaired
+  fails to its branch or ends the quest, and the Journal says why.
+- Journal → Quests (open first, then finished; stages done, the current one, how many to come; Track,
+  Give up, a choice's answers, an (i) fold with the intro, the reward and the log). The line at the top
+  of the screen shows the tracked quest's stage; a tap opens Journal → Quests. The waypoint follows the
+  tracked stage, or the edge toward another region; the region map marks a target region with "!".
+- A quest card on offer: who's asking, what they want, the first step, the reward, Accept or Decline.
+- Built-in quests from seven archetypes: hunt (defeat near), supply (gather, then bring), word (ask a
+  witness, look round a place, tell the giver), investigate (two witnesses with clues, then choose the
+  thief), delve (go down into a cave), rescue (free a captive) and scout (reach a region with a purpose,
+  go in at its way in). Motives and complications (in a hurry, more than they said, keep it quiet) vary
+  by the recent parts.
+- Errands are one-stage quests in the Journal and on the quest line. `save.errand` stays the record the
+  assistant and its Undo work on; a finished or dropped errand is kept in `save.quests`.
+- Quest-owned spawns: a defeat stage's creatures go to `herd.js setSpawns` with the lore's, and their ids
+  into `respawn`'s `keep`. Captives sit at a level's `captive` spot (a stronghold's cell), else the spot
+  furthest from the way in, on the first level below the quest's cave, which always leads down while a
+  quest needs it. "Free <name>" frees them. A captive is a person from the kit, sitting.
+- Settings → Debug: "Finish this stage", "Fail this stage", "Show this quest's state", for the tracked one.
+- Rewards: coins by length and level (into Quartermaster's inventory when it's there), the giver thinks
+  better of you (+8), and a faction member's quest raises that faction's standing by 6, counted whole.
+
+**Stage 2, AI-written quests: built.**
+
+- One call per quest (`/quest-write`, about 700 tokens out at most) with short lists of names (twelve
+  people and places, eight creatures and items, four caves and regions) and the last four quests to
+  avoid. `questFromWords` maps every name to an id or turns the quest down; a built-in one stands in.
+- When: the noticeboard is read and it's time for a new note (written in the background, a notice says
+  when it's up), or someone is asked "Any work going?" (the conversation waits 20 s at most).
+- Quests from lore: `ww:quest:<title>`, `ww:quest giver:`, `ww:quest place:`, `ww:quest reward:`. With AI
+  the entry's text is the premise of the call; without, `loreQuest` makes talk to the giver, go to the
+  place, back to the giver. The giver offers it when asked for work; one with no giver goes on the board.
+- Settings → Quests: on or off, built-in, the AI writes quests (off to begin with), the adapt call, how
+  often work is offered (rarely, sometimes, often: the hours between board notes and how likely someone
+  asked has work), how many open at once, failure branches, time limits, and the quest line (each
+  device's own). Every one is explained under it. The two AI switches are in Token use too.
+
+**Stage 3, branching: partly built.**
+
+- Built: failure branches on the built-in quests (the witness gone: ask someone else; the giver gone:
+  tell someone close to them; too late: tell the giver, and it ends failed; naming the wrong thief: make
+  it right with them, and it ends failed), choices with their own next stages, clues learned in what a
+  witness says (written to the log and the chat), time limits (off by default), and the adapt call
+  (`/quest-adapt`) for a failure with no branch, checked like any stage.
+- Not yet: scenes as stages and the scene review (sections 5 and 6), clues placed in what the AI is told
+  for a townsperson, quest items marked so they can't be sold (section 12), chains (a quest's ending
+  starting the next), and which quests a faction offers by its standing.
 
 ---
 

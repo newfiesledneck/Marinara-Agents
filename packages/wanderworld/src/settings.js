@@ -3,6 +3,7 @@
 // part is there (store.js), and those win: they're the same in every browser. Graphics, controls, sound
 // and what's shown on screen stay each device's own. Every value is checked on the way in, so a damaged
 // or old saved copy falls back to the defaults instead of breaking the game.
+import { checkPresets } from "./looks.js";
 
 const KEY = "wanderworld.settings";
 
@@ -48,9 +49,15 @@ export const SETTINGS = {
   deepCreatures: { value: true },
   /** Buildings assembled from the village kit; off keeps the simple ones. */
   buildings: { value: true },
-  /** People without a 3D model: "kit" dresses them from the Quaternius characters; "simple" uses the
-   *  built-in low-poly person (lighter on slow devices). */
+  /** People without a 3D model: "kit" is the base avatar (avatar.js) for you and the people in town (or the
+   *  Quaternius characters, `newBodies` off); "simple" the built-in low-poly person (lighter on slow devices). */
   people: { value: "kit", options: ["kit", "simple"] },
+  /** Townsfolk without a 3D model are the base avatar, shaped from their name and lore; off, they're dressed
+   *  from the Quaternius characters, lighter on a slow phone. (You are the base avatar either way.) */
+  newBodies: { value: true },
+  /** The player's own looks to start a Look card from (looks.js checkPresets): [{ name, look }]. Kept with the
+   *  game's settings, so they're there in every world and every browser. */
+  lookPresets: { value: [], check: checkPresets },
   /** "recorded" plays the Universal Animation Library clips; "builtin" the hand-made motion. */
   animation: { value: "recorded", options: ["recorded", "builtin"] },
   /** Your walking and running speed, as a multiple. */
@@ -144,7 +151,7 @@ export const SETTINGS = {
   // Whether the inventory's tracker is told how item stats are written, so a new item it adds may have some (and ones that have them are left alone).
   trackItemStats: { value: true },
   // How much of Help the AI assistant reads for a how-to question, in tokens (about four characters each).
-  assistantHelp: { value: 10000, min: 1000, max: 20000 },
+  assistantHelp: { value: 10000, min: 1000, max: 25000 },
   inventoryTrack: { value: "moments", options: ["off", "moments", "all"] },
   // A scene's chat uses the world's sheet; and Quartermaster's window in Wanderworld's parchment colours.
   inventoryScenes: { value: true },
@@ -238,6 +245,16 @@ export const SETTINGS = {
   fightBack: { value: true },
   // Whether the party joins a real-time fight (each by their class: main.js alliesTick).
   partyFights: { value: true },
+  // The fight display (fighthud.js, plates.js, fightbar.js): a name and an HP bar over those in a fight ("some":
+  // only the hurt, the aimed at and whose turn it is), and over hostile creatures in sight too; the list of who
+  // is in a real-time fight; foes' HP as numbers or a word; and how much the info card tells of a creature.
+  nameplates: { value: "all", options: ["off", "some", "all"] },
+  platesHostile: { value: false },
+  fightList: { value: true },
+  foeNumbers: { value: true },
+  foeKnowledge: { value: "learned", options: ["all", "learned"] },
+  // After a defeat with `defeat` "stay": those who beat the player stay over them (main.js overTick).
+  victorsStay: { value: true },
   // How many minutes something beaten lies where it fell (0: until it's harvested or cleared).
   bodyMinutes: { value: 3, min: 0, max: 120 },
   /** How many of the world's days a felled tree takes to stand again (0: it never does). */
@@ -381,6 +398,33 @@ export const SETTINGS = {
   factionGuards: { value: true },
   factionLand: { value: true },
   factionTold: { value: true },
+  /**
+   * Quests (quests.js, questplay.js): on or off; the game's own; written by the AI (one call a quest, off to
+   * begin with) and changed by it when something goes wrong; how often work is offered and how much can be
+   * open at once; failure branches and time limits; the quest line on screen (each device's own).
+   */
+  quests: { value: true },
+  questsBuiltIn: { value: true },
+  questsAi: { value: false },
+  questAdapt: { value: true },
+  questOffers: { value: "sometimes", options: ["rarely", "sometimes", "often"] },
+  questMax: { value: 3, options: [1, 2, 3, 5] },
+  questFailures: { value: true },
+  questTimeLimits: { value: false },
+  questLine: { value: true },
+  /**
+   * Regions and travel (regions.js, travel.js): new regions with a land of their own and their own people,
+   * the AI describing a region on arrival, journeys by road and coach from Journal → Map, what a coach costs
+   * a region, how long a region takes on foot, and how often something meets you on the road.
+   */
+  regionLands: { value: true },
+  regionFolk: { value: true },
+  regionFlavourAi: { value: false },
+  travelRoads: { value: true },
+  travelCoach: { value: true },
+  coachFare: { value: 10, options: [0, 5, 10, 20, 40] },
+  journeyHours: { value: 5, options: [2, 3, 5, 8] },
+  travelEncounters: { value: "rare", options: ["off", "rare", "often"] },
   /** Each person remembers what they themselves saw and heard (memory.js), and the model is told theirs alone. */
   memories: { value: true },
   /** People in sight remember what the player does (getting on a horse, going into a house), not only what's said. */
@@ -428,6 +472,7 @@ export const DEVICE_SETTINGS = new Set([
   "props",
   "buildings",
   "people",
+  "newBodies",
   "animation",
   "lookSpeed",
   "invertLook",
@@ -441,7 +486,11 @@ export const DEVICE_SETTINGS = new Set([
   "stats",
   "clock",
   "place",
+  "questLine",
   "textSize",
+  "nameplates",
+  "platesHostile",
+  "fightList",
   "sound",
   "volume",
 ]);
@@ -458,6 +507,7 @@ export const frameLimitOf = (settings, painting) =>
 export function checkSetting(name, value) {
   const setting = SETTINGS[name];
   if (!setting) return undefined;
+  if (setting.check) return setting.check(value);
   if (setting.text) return typeof value === "string" ? value.trim().slice(0, 120) : setting.value;
   if (setting.options) return setting.options.includes(value) ? value : setting.value;
   if (typeof setting.value === "boolean") return typeof value === "boolean" ? value : setting.value;

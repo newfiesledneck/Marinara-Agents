@@ -334,4 +334,23 @@ export function drawRegions(canvas, cells, here) {
       context.strokeRect(x + 2, y + 2, cell - 4, cell - 4);
     }
   }
+  // The roads between regions known side by side (`roads`: the keys of the neighbours east and south),
+  // dashed from middle to middle, under the letters.
+  context.strokeStyle = "rgba(107, 74, 43, 0.75)";
+  context.lineWidth = 2;
+  context.setLineDash([4, 3]);
+  const middle = (key) => {
+    const [x, z] = key.split(",").map(Number);
+    return [(x - hx + reach + 0.5) * cell, (z - hz + reach + 0.5) * cell];
+  };
+  for (const entry of cells)
+    for (const next of entry.roads ?? []) {
+      const [ax, ay] = middle(entry.key);
+      const [bx, by] = middle(next);
+      context.beginPath();
+      context.moveTo(ax + Math.sign(bx - ax) * cell * 0.22, ay + Math.sign(by - ay) * cell * 0.22);
+      context.lineTo(bx - Math.sign(bx - ax) * cell * 0.22, by - Math.sign(by - ay) * cell * 0.22);
+      context.stroke();
+    }
+  context.setLineDash([]);
 }

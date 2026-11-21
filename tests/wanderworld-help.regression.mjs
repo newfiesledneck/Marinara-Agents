@@ -28,6 +28,7 @@ for (const title of titles(small)) {
 assert.ok(titles(small).includes("Gathering, crafting and shops"), "what matches fits first");
 
 // All of Help is well within the most it can be set to.
-assert.ok(helpFor("", 1e9).length < 80000);
+// (The most the assistant can be given is Settings → AI assistant → Help at its highest, 25,000 tokens: about 100,000 characters.)
+assert.ok(helpFor("", 1e9).length < 100000);
 
 console.log("ok: help for the assistant");

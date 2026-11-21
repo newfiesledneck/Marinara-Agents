@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.41)
+## What it does now (0.7.42)
 
 ### The world
 
@@ -60,9 +60,10 @@ whole: don't play one world in two browsers at the same moment.
   hamlet or farm. Each world chooses its own in New world, or leaves it to the seed (`src/land.js`,
   `src/caves.js`).
 - **Regions:** at the edge of the world, "Travel to <region>" takes you and your party into the next
-  region, with its own land and settlement made from the world's seed. Each region keeps its own place
-  names, lore and groups; characters who didn't come along wait at home. Each trip saves a travel scene
-  request with the world.
+  region, with its own land, settlement and people made from the world's seed. Each region keeps its own
+  place names, lore, groups, homes and shops; characters who didn't come along wait at home. Each trip
+  saves a travel scene request with the world. Journal → Map also takes you by road or by coach to a
+  region you know (see Regions and travel).
 - **Built to its lore:** with places linked by their keywords, a world is built with at least every numbered place
   its lorebooks mention (smithy3 makes three smithies; town2 brings a hamlet; farm2 two farms; a cave
   brings mountains for it). Past that, random.
@@ -73,15 +74,33 @@ whole: don't play one world in two browsers at the same moment.
 
 ### People
 
-- **Play as** one of your personas, in its 3D Avatars model (VRM, GLB, FBX or MMD) or a built-in person.
-- **Up to thirty characters live in each world,** in their own 3D models or dressed townsfolk (Quaternius's
-  character packs, chosen from their name; a body picker sets Auto, Male or Female, per world).
-- **Choose a look:** for anyone without a 3D model, your persona included, the Look button beside the
-  body choice opens a card: an outfit (townsfolk, or the ranger), or each piece of one from either (top,
+- **Play as** one of your personas, in its 3D Avatars model (VRM, GLB, FBX or MMD) or the built-in body.
+- **Up to thirty characters live in each world,** in their own 3D models or the built-in body (or
+  Quaternius's dressed townsfolk, with Settings → People → Townsfolk use the new bodies off), each looking
+  as their name and lore have them; a body picker sets Auto, Male or Female, per world.
+- **The built-in body** (`src/avatar.js`, docs/AVATAR.md): Wanderworld's own person, male or female, made
+  in Blender from MakeHuman's CC0 base mesh and shapes, in plain underwear (outfits are coming). The
+  Look card shapes it, a section at a time, each folding away, with a small turning picture of them at
+  the top:
+  - **Presets:** start from one of your own or a ready-made one (a few for each body), save the look
+    under a name, delete one, or export it as a small JSON file and import one back. Your presets are
+    kept with your settings, so they're in every world and every browser.
+  - **Body:** gender (how they're spoken of), and the male or the female body (as their gender unless
+    chosen). Anthro bodies come later.
+  - **Build:** height, weight, muscle, chest (her bust), hips, waist, belly, shoulders, neck, arm length,
+    leg length and head size. **Face:** jaw, cheekbones, nose, eyes and pointed ears. Each slider's middle
+    is an everyday person and says what it changes; dragged, the picture follows, and let go it's set.
+  - **Colours:** skin, eyes, lips, nails and brows, from a list or any colour. **Underwear:** a top and a
+    bottom of the styles that body has (or none), and its colour; an outfit covering it hides it.
+    **Hair:** style and colour (the hair meshes are still being made: until then the body is bald).
+  - Anything left unset comes from their name, within an everyday range, and from their lore's
+    `ww:looks:` keywords (tall, stocky, red hair, elf…). A look saved before keeps its height, skin,
+    hair and colour.
+- **Choose clothes for the older townsfolk** (Look card → Older kit's clothes, for Quaternius's people): an outfit (townsfolk, or the ranger), or each piece of one from either (top,
   sleeves, legs, boots) or None for any of them (the body shows there, in dark underclothes: bare arms,
   a bare chest, bare feet), the ranger's hood and pauldrons on or off (on anyone), each outfit's cloth, a
-  colour of your own for any piece (the square beside it), hair, hair colour and skin (from a list, or
-  any colour you pick), beard and height. The colour picker has its own Use this colour, No colour and
+  colour of your own for any piece (the square beside it), and a beard (hair, skin and height are the
+  built-in body's, above). The colour picker has its own Use this colour, No colour and
   Cancel buttons. Changes show at once and are kept with the world; Reset forgets them. About one in
   four people is dressed as a ranger unless you choose.
 - **A living town:** townsfolk visit shops and the tavern, sit on benches, find their way along the streets,
@@ -387,7 +406,7 @@ only walk about.
   so a world's horses are a mix. A world's animals, and their coats, come from its seed.
 - **Avatar:** when a persona's or a character's card has a 3D model, their Look card has Avatar at the
   top: the card's own model (the default), another kind the card has (VRM, GLB / FBX, MMD), or the
-  built-in person, dressed by the rest of the card. Kept with the world.
+  built-in body, shaped by the rest of the card. Kept with the world.
 - **Animals of your own:** the Look card (Menu, Look beside your persona) has Dog and Horse: the kind,
   the coat, the size, a name of its own, and whether each is with you or at home. With you, it follows, swims after you, and turns up beside you if left
   far behind or kept from you by something for a few seconds; at home it keeps by your door (or the tavern's, with no home of your own), and a horse got
@@ -680,7 +699,8 @@ every roll, and no AI call is made in a real-time fight.
   stays gone for two days.
 - **Defeat.** At 0 HP you go down, then come to where you fell, wake at home, or stay down until
   you press Respawn, as you set it. It can cost a quarter of your money or your experience toward
-  the next level. Undefeatable holds your HP and mana at their most.
+  the next level. Undefeatable holds your HP and mana at their most. Staying down, what beat you
+  can stay over you (see "Fight display and defeat" below).
 - **Keys.** With a keyboard, Settings → Controls → Keys gives any action another key.
 - **Hotkeys.** The number keys 1 to 0 each do what you set in Inventory → Hotkeys: cast one spell,
   use up something you carry, or put on and take off something that has a slot in Quartermaster.
@@ -722,6 +742,53 @@ By turns, "grapple" and "throw" are among the moves the AI can choose for a crea
 narrated moment, who is held or thrown is in the lines the AI tells, so it hears of it only when AI
 narration is on.
 
+### Fight display and defeat
+
+What a fight shows, and what happens when you're beaten and stay down (`src/fighthud.js` for the data,
+`src/plates.js` for the nameplates, `src/fightbar.js` for the bar and the cards). None of the display
+changes how a fight goes. It's in Settings → Inventory → Fight display, except the last switch, which is
+under Combat.
+
+- **Nameplates.** Each creature in a fight has its name, an HP bar coloured by how hurt it is (green,
+  yellow, orange, red) and a mark for each condition on it (↓ prone, ☠ poisoned, ! frightened, ✋ held,
+  # restrained, ✶ stunned, ≈ slowed, ✕ down). Companions and people fighting you have the bar over their
+  name tag. A bigger creature's plate floats higher (its body is measured once). Plates fade with distance,
+  fade out close to the camera, and ten at most are up at once; each is one canvas sprite, drawn again only
+  when what it shows changes, and disposed as soon as it's not wanted. "Name and HP over heads": Always in
+  fights, Sometimes (only one that's hurt, has a condition, is aimed at, or whose turn it is) or Off.
+  "Also over hostile creatures in sight" shows them before a fight begins.
+- **The turn order.** By turns, the bar at the top shows a card for each fighter in initiative order: name,
+  HP bar and numbers, conditions, and a gold edge for whose turn it is. Under it, the last thing that
+  happened in a few words ("The wolf bites at Zoey: a hit, 4 damage · 14 vs AC 12"); Before opens the
+  lines before it, and the chat keeps every roll whole. The cards wrap, and scroll past a few rows, so it
+  fits a phone.
+- **In real time** a smaller list at the top shows you, your companions and what you're fighting, the same
+  way ("Real time: who's in the fight, at the top").
+- **Foes' numbers.** With "Show foes' exact HP" off, a foe's HP is a word (Unhurt, Scratched, Wounded,
+  Badly wounded, Near death) and its bar moves in quarters.
+- **Info cards.** Tap or click a name on a card, or a plate, for that one's card. A creature's comes from the
+  5e SRD (`srd.js`, built by `scripts/build-wanderworld-srd.mjs`): size, type and alignment, AC, HP,
+  speed, senses, challenge, ability scores, damage resistances, immunities and vulnerabilities, the
+  conditions it can't be put in, and its traits and actions shortened to a line each. A companion's or a
+  person's shows their class, level, HP, AC and conditions. "What you know of a creature": Everything, or
+  Only what you've learned (to begin with): its attacks once you've seen it attack, its AC once you've
+  fought it, and how each kind of damage you've dealt it went. The first time you open a kind's card you
+  roll Intelligence (Arcana for dragons, elementals and monstrosities, Nature for beasts, giants, oozes and
+  plants, Religion for the undead and fiends, History for people) against DC 10 plus its challenge rating;
+  pass and you know all of it. It's rolled once a kind and kept with the world.
+- **After a defeat.** With "When your HP runs out" at Stay down until you choose and "Staying down: those who
+  beat you stay over you" on (Combat, on to begin with), what beat you stays near you and isn't counted away
+  by New monsters every (it's in `herd.js respawn`'s keep set). An outlaw stands over you and, if a defeat
+  costs money, takes it there and then (not again when you get up); a beast circles you; a monster stands
+  guard. A line in the chat says who stands over you, and a card offers Plead (Charisma (Persuasion), or
+  Wisdom (Animal Handling) with beasts alone, against DC 10 plus the strongest one's challenge rating, 2 more
+  each try; the mindless can't be pleaded with), Wait (they may lose interest and go) and Struggle
+  (Constitution against DC 10: up with 1 HP, and the fight is on again). With AI moments on, the narrator is
+  told in one short line who stands over you, and the plea is told too, so you can play it out in the chat.
+  Respawn gets you up at home at any time. Overridden by Undefeatable (you never go down), being indoors,
+  and places where "Where people may confront you" keeps fights out (there they let you be). A quest can
+  later take the player captive through `core.captive` (`fighthud.js overRole`); none does yet.
+
 ### Factions and regions
 
 Factions come from lore: `ww:faction:Thieves Guild` on an entry makes it the faction's lore,
@@ -753,7 +820,7 @@ and that can be switched off.
 
   `ww:region:east` on a faction's entry makes the region east of home its land. On any entry,
   `ww:region:north-east:stronghold` or `ww:region:far north:ruin` give a region a purpose.
-  Journal → Factions can give the next region one way a purpose by hand, and quests will do the same.
+  Journal → Factions can give the next region one way a purpose by hand, and quests do the same.
   Otherwise the world's seed decides, the same for the same world, giving a faction's land only to a
   faction that has none yet. Once a region has a purpose it keeps it. Off (Settings → World → Factions
   → New regions can have a purpose), every new region is countryside and hamlets.
@@ -765,9 +832,100 @@ and that can be switched off.
   shows the regions round you that you've been to, plus any your lore or a quest told of (paler). Each
   faction's land is in its colour, and a letter marks the other purposes.
 
-A faction's town has no townsfolk of its own yet: only its guards and any of its people your lore puts
-there. The guards wear the bandits' clothes until there's a guard model, and with bandits switched off
+A faction's town has the region's own people (see Regions and travel), its guards, and any of its
+people your lore puts there; the region's own people aren't members of the faction. The guards wear the bandits' clothes until there's a guard model, and with bandits switched off
 in Settings → Creatures there are none.
+
+### Quests
+
+Work to take on, from the noticeboard, from asking someone "Any work going?" in a conversation, or from
+a lorebook entry keyed `ww:quest:<title>`. The game makes its own quests from what your world has, with
+no AI; the AI can write them too, one call a quest (Settings → Quests, off to begin with).
+
+- **Offered.** A card shows who's asking, what they want, the first step and the reward, with Accept and
+  Decline. The noticeboard posts one note at a time, and a new one only a while after you take one
+  (Settings → Quests → How often work is offered). Errands from the noticeboard are one-stage quests.
+- **Stages.** Each stage is one thing the game can see happen: talk to someone, go somewhere, find so many
+  of something, bring it to someone, beat so many creatures near a place, go down into a cave, free a
+  captive held there, travel to another region, or choose an answer. Every stage is checked against the
+  world before a quest is offered, so a quest you can see can always be finished.
+- **The game's own.** Hunts near a place out in the country, things to find and bring, someone to ask and
+  somewhere to look, a theft to get to the bottom of, a cave to go down into, a captive to free and a
+  region to scout. The quests you've had lately are remembered, so the next one is a different kind.
+- **The AI's.** One call writes a quest, all its stages at once, from short lists of the people, places,
+  creatures, items, caves and regions here, and the lore entry's text for a `ww:quest`. Anything it names
+  that the world hasn't got is matched to something close (the mill by its kind), and if that can't be
+  done the quest is turned down and the game's own is offered. A conversation waits 20 seconds at most.
+- **Other regions.** A stage in another region puts your waypoint at the edge that way, and the map of
+  regions marks it with "!". A region a quest sends you to is given its purpose (a bandit stronghold,
+  outposts, a ruin, a hillside of caves) when you accept, and keeps it.
+- **What a quest owns.** A hunt's creatures are put in the world at its spot and stay through the
+  monsters' respawns until it's done. A captive sits on the first level below the quest's cave (in a
+  gaol's cell when there is one), and that cave always leads down while the quest needs it.
+- **When things go wrong.** If someone a quest needs is gone from the world, a place has changed, or
+  time ran out, the quest repairs itself where it can (another place of the kind), takes a turn when it
+  has one (someone else saw it too, their kin hears the news, you make it right with the one you wrongly
+  named), or ends, and the Journal says why. With the AI's quests on, one more call can write a new stage
+  for a quest with no plan for what happened. Failure branches and time limits each have a switch.
+- **Journal → Quests** lists open quests first, with their stages so far, then the finished ones. Track
+  puts one on the line at the top of the screen and on the map; Give up keeps it, given up. Settings →
+  Debug has "Finish this stage", "Fail this stage" and "Show this quest's state".
+
+The game sets the rewards, not the AI: coins by the quest's length and your level, put in your inventory
+when Quartermaster keeps it. Whoever gave you the work thinks better of you for it, and work for one of
+a faction's people raises your standing with that faction.
+
+### Regions and travel
+
+Every region beyond home is made the first time you go there, from the world's seed and where it lies
+on the map of regions, so the same world always makes the same regions. All of it runs on the game's
+own rules. The AI is only called to describe a region when you arrive, and only if you switch that on.
+
+- **Lands.** Each region is farmland, forest, hills, marsh, snowy highlands, rocky badlands or a
+  lakeside. The far north is cold, and two slow patterns (how wet, how high) decide the rest, so
+  neighbouring regions tend to be alike. A land has its own:
+  - hills, mountain ranges, river and places out in the country (farms and a mill in farmland,
+    cottages in the forest, ponds in a marsh, a lake about 50 m across at a lakeside, caves in the hills
+    and badlands);
+  - trees, rocks and ground (pines under snow in the highlands, dead trees and mud in a marsh, bare
+    dirt and boulders in the badlands);
+  - weather: a marsh is often misty, the badlands seldom see rain, and the highlands are always in
+    winter;
+  - monsters, with Settings → Creatures → Only where they'd be found on: forest, marsh, snow and
+    badlands kinds turn up three times as often in their own land.
+
+  Home keeps its own land, as it always had. A region's name and its settlement's name come from its
+  land: the Reed Fens and Reedwick, Frostmark and Rimestead.
+
+- **People.** Each region's settlement has an inn and a shop, and people of its own: someone at each
+  inn, shop, smithy, temple, hall and farm (a few of each at most), and the rest in its houses with the
+  land's work (woodcutters, eel-catchers, trappers, miners). Each has a name, a job, a home, a temper
+  and a usual day (`schedules.js usualDay`). A hamlet has six people, a village nine, a town twelve, a
+  city fourteen. They're made the first time the region is built and kept with it, so they're the
+  same people when you come back, and what they think of you and remember is kept with the world.
+  Only the people of the region you're in are about. Someone who joins your party comes with you to
+  other regions and is about wherever you are.
+- **Travel.** Walking off the edge works as before. Journal → Map lists every region you know (the
+  ones you've been to, and the ones your lore or a quest told you of), nearest first, with its land,
+  its purpose and whether a quest has something there. The map of regions above the list shows each
+  land in its colour, the roads between neighbouring regions you know, and a ! where a quest has
+  something for you.
+  - **Walk there** goes by road through regions you know. Each region takes five hours on foot
+    (Settings: two to eight), and a journey takes 20 hours at most. You arrive at the edge you came in
+    by.
+  - **Coach**, at an inn or a tavern, goes to any region you've been to in half the time, for a fare
+    for each region on the way (Settings: free to 40 coins), taken from your coins. You arrive at the
+    inn there.
+  - The hours pass on the way (not with Settings → World → Time standing still), and everyone is
+    where that hour has them. Your party and their animals come along.
+  - Sometimes two or three hostile creatures of the land you arrive in are waiting on the road ahead
+    (Settings: off, rare or often; half as often by coach; only kinds that are on in Settings →
+    Creatures).
+- **Settings → World → Regions and travel** has a switch for each part: lands, the regions' own people,
+  the AI describing a region you arrive in (off at first; it needs AI moments), travel by road and
+  coaches. It also sets the coach fare, the hours a region takes on foot and how often something meets
+  you on the road. With lands off, a new region is plain countryside as before; regions already made
+  keep their land, and a region's purpose (Factions) is given either way.
 
 ### Lorebook keywords
 
@@ -810,15 +968,16 @@ lists any it didn't understand, and why.
 
 **People**
 
-| Keyword                                                                                | On                  | What it does                                                                               |
-| -------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------ |
-| `ww:body:woman (or man)`                                                               | a character's entry | Their body, when they have no 3D model.                                                    |
-| `ww:lives in:home6, ww:works at:smithy1, ww:owner of:tavern1`                          | a character's entry | Home and work.                                                                             |
-| `ww:work:10:15-18:45, ww:home:22-7:15, ww:eat:12-13 at tavern1`                        | a character's entry | Their day (home, work, eat, visit, sit, walk), in quarter hours, over midnight if need be. |
-| `ww:temperament:aggressive (passive, gentle, calm, grumpy, fierce, aggressive)`        | a character's entry | What they're like with anyone they're against: how readily they square up.                 |
-| `ww:manner:shy (shy, quiet, friendly, outgoing)`                                       | a character's entry | How readily they come over and greet people.                                               |
-| `ww:voice:gruff (natural, cosy, dramatic, witty, terse, gruff, formal, cheerful, sly)` | a character's entry | How they talk, instead of the setting's way.                                               |
-| `ww:member of:Thieves Guild`                                                           | a character's entry | Puts them in that faction.                                                                 |
+| Keyword                                                                                | On                  | What it does                                                                                                                                                                                                                                                         |
+| -------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ww:body:woman (or man)`                                                               | a character's entry | Their body, when they have no 3D model.                                                                                                                                                                                                                              |
+| `ww:looks:tall, ww:looks:red hair, ww:looks:elf`                                       | a character's entry | How their built-in body looks: height (tall, short), build (slim, stocky, muscular, heavy…), pointed ears (elf, half-elf), hair (bald, long hair, red hair, blond…), skin (pale, tanned, dark skin), eyes (blue eyes…). One word a key; their Look card comes first. |
+| `ww:lives in:home6, ww:works at:smithy1, ww:owner of:tavern1`                          | a character's entry | Home and work.                                                                                                                                                                                                                                                       |
+| `ww:work:10:15-18:45, ww:home:22-7:15, ww:eat:12-13 at tavern1`                        | a character's entry | Their day (home, work, eat, visit, sit, walk), in quarter hours, over midnight if need be.                                                                                                                                                                           |
+| `ww:temperament:aggressive (passive, gentle, calm, grumpy, fierce, aggressive)`        | a character's entry | What they're like with anyone they're against: how readily they square up.                                                                                                                                                                                           |
+| `ww:manner:shy (shy, quiet, friendly, outgoing)`                                       | a character's entry | How readily they come over and greet people.                                                                                                                                                                                                                         |
+| `ww:voice:gruff (natural, cosy, dramatic, witty, terse, gruff, formal, cheerful, sly)` | a character's entry | How they talk, instead of the setting's way.                                                                                                                                                                                                                         |
+| `ww:member of:Thieves Guild`                                                           | a character's entry | Puts them in that faction.                                                                                                                                                                                                                                           |
 
 **People and you**
 
@@ -845,6 +1004,13 @@ lists any it didn't understand, and why.
 | `ww:region:west:ruin (faction, stronghold, outposts, town, hamlets, ruin, caves)` | any entry         | What that region is made for, when you first travel there: a bandit stronghold, a few outposts, a smaller town, several hamlets, a ruin over a dungeon, a hillside of caves. Kept once given. |
 | `ww:enemy of:The Crown`                                                           | a faction's entry | The two factions are enemies: helping one lowers your standing with the other a little.                                                                                                       |
 
+**Quests**
+
+| Keyword                                                                         | On              | What it does                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ww:quest:The miller's missing son`                                             | any entry       | The entry is a quest, and its text is what it's about. With AI quests on, one AI call turns it into stages; without, it's a short quest from the keys below. Asking the giver "Any work going?" offers it, or the noticeboard when it has no giver. |
+| `ww:quest giver:Mira, ww:quest place:the mill, ww:quest reward:a sack of flour` | a quest's entry | Who gives it (someone in this world, by name), where it takes you (a place, by name or kind), and what's said of the reward when it's done.                                                                                                         |
+
 **Creatures**
 
 | Keyword                                                                                           | On                                                       | What it does                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -868,8 +1034,14 @@ still count, and come first.
   The built-in styles' words are a copy of the Engine's, and a profile of your own is read from this
   browser's saved Engine settings, so on a device that has never opened the Engine's settings a custom
   default adds nothing.
-- Another region has no townsfolk until you ask the assistant for some there (or add them one by one);
-  they count toward the world's thirty people. Engine characters all live in the home region.
+- A region's own people are made by rules, with a name, a job, a home, a usual day and a line of
+  description; they have no lore of their own until you give them some. People you or the assistant add
+  in a region still count toward the world's thirty people. Engine characters all live in the home region.
+- A journey of more than one region is told in a line and takes its hours at once; nothing happens in
+  the regions on the way, and it takes 20 hours at most. A coach needs the Quartermaster inventory for
+  its fare, and it goes only to regions you've been to.
+- A deep place's entrance asked for by a quest is only added to a region that isn't made yet; a region's
+  land is made once and kept.
 - Walk-in rooms are unfinished and off by default (Settings → Walk into buildings). Furnishing your home
   needs them on. The room's own furniture can't be moved or taken away, only what you add; a piece is
   put down in front of you, not dragged about.
@@ -981,7 +1153,9 @@ still count, and come first.
   `scripts/build-wanderworld-clips.mjs`): walking and running by speed, and what's done on the spot
   (`ACTS`: work, rest, sitting or lying on the ground), a jump and one-off gestures; `src/motion.js` is the hand-made motion; `src/models.js` loads
   3D Avatars models (VRM, GLB, FBX, MMD) into three-vrm humanoids; `src/people.js` and `src/figure.js`
-  build the default people (`people.js` also the monsters on two legs); `src/looks.js` is what a look can be.
+  build the default people (`people.js` also the monsters on two legs); `src/avatar.js` builds the built-in
+  body (docs/AVATAR.md) and `src/preview.js` the Look card's turning picture of it; `src/looks.js` is what a
+  look can be, with presets.
 - `server.mjs` is the server part (hand-written, syntax-checked by the build): routes under
   `/api/wanderworld` for status, the connection and preset lists, conversation replies, moments, day
   plans, world setup from cards and lorebooks, pictures and the gallery, the AI assistant, scene plans, scene creation, and scene contexts and recaps, plus a
@@ -1067,6 +1241,90 @@ The same seed, depth and kind always give the same level.
   every room, spawn and the way down can be walked to at the player's size, that doorways meet their
   corridors and nothing stands in them, and that no two pieces stand in each other.
 
+### Quests
+
+`src/quests.js` is the rules, as plain data in and out (docs/QUESTS.md sections 1 to 4); `src/questplay.js`
+connects them to the running game, and main.js calls it from a few places marked "Quests".
+
+- A quest is saved in `save.quests`: its stages, the one it's at, its state (offered, active, done,
+  failed, given up), what it owns (a captive), its reward and its log. Each stage has one goal, a verb
+  naming what it needs by id: `talk` (a person), `go` (a place), `bring` and `gather` (an item and how
+  many), `defeat` (a kind of creature, how many and the spot), `deep` and `rescue` (a cave), `region` (a
+  region's key) and `choose` (options, each with its own next stage). A stage's `fails` say which branch
+  a failure goes to: someone `gone`, or `late`.
+- `builtInQuest(key, world, { giver, recent })` makes one from the world's facts (`questplay.js facts`:
+  who's here and where, named places, country places, the creatures that can be met, what can be
+  gathered, caves, the regions ahead), the same for the same key. `checkQuest` checks every stage
+  against the world and that every stage leads to an end; `questCheck` does it again on load, on each
+  change of region and every ten seconds, repairing a stage or failing it to its branch.
+- `questEvent(quest, event)` is the only way a stage moves on. The events come from the game: a
+  conversation begun (`talk`), the zone check once a second (`at`, `have`), a creature beaten (`beat`),
+  a level entered (`deep`), a captive freed (`free`), a choice in the Journal (`choose`).
+- `questFromWords` checks what the AI wrote (server.mjs `/quest-write`, one call, 700 tokens at most),
+  matching each name to an id by whole words or by a place's kind. `adaptQuest` puts in the stage the
+  `/quest-adapt` call wrote. Both calls show in Settings → Debug like any other.
+- What a quest puts in the world: `questSpawns` gives a hunt's creatures to `herd.js setSpawns` (as the
+  lore's are), and `spawnKeep` their ids for `respawn`'s `keep`. `captivesAt` and `captiveSpot` put a
+  captive on a cave's first level, and `needsCave` makes that cave lead down.
+- Regions: `questplay.js questRegion` gives the region a quest targets its purpose on Accept, through
+  the same rule as `factions.js purposeAhead`, and the regions it can target come from `aheadOf`. Those
+  two are where richer travel between regions connects.
+- `simulateQuest` plays a quest to its end by the events that finish each stage, failing the ones asked
+  for. `tests/wanderworld-quests.regression.mjs` plays every built-in kind through, fails each stage
+  in turn, feeds in AI-shaped quests with names the world hasn't got, round-trips the save, and checks
+  that a quest's region keeps its purpose and its creatures stay through a respawn.
+
+### Regions beyond home and the quest hook
+
+`src/regions.js` holds the rules for regions beyond home, and `src/travel.js` the rules for journeys
+between them. Both take plain data and give plain data back. `main.js` ("Regions and travel") builds the
+region, moves the party, passes the time and takes the fare.
+
+- `landAt(worldSeed, key)` gives a region's land from the seed and its place on the map: smooth value
+  noise for wetness and height, plus coldness that grows to the north. `landOf(save, key)` gives the land
+  a region was made with, else one a quest planned, else the seed's. `LANDS` describes each land's
+  landscape, weather, monster habitat word and work. `world.js LAND_LOOK` sets its trees, rocks, plants
+  and ground, and `landscape.land` carries the land into `createWorld` and onto `world.layout.land`.
+- `makeRegion(worldSeed, key, { land, purpose, arrive, deep, number, name })` gives a new region's
+  record. It starts from the seed's landscape (`landscapeWith`), then applies `landscapeForLand` and
+  `factions.js landscapeForPurpose`, and adds the cave a quest asked for. It also sets `needs: { tavern:
+1, shop: 1 }`, which `world.js` builds as extras, so every settlement has an inn and a shop. A lake is
+  a pond outpost with `lake: true` (`land.js LAKE_RADIUS`, 24 m).
+- `regionFolk(worldSeed, key, zones, { land, settlement, town })` makes the people from the region's
+  zones. It returns `{ folk, housing }`. Their ids are `local:folk.<x>.<z>.<n>`: "local:" so the server
+  takes their card from the client, with no comma, so the server's id check passes. `main.js settleRegion`
+  runs once, the first time the region is built, and keeps them in `save.regions[key].folk`. Their homes
+  and work go into the region's setup (`housing`), and from then on they're `peopleOf`'s like any local.
+  `folkHere(save)` gives the people of the region you're in and any party members from other regions.
+  They're added to the cast while you're in their region and left out of `save.cast`.
+- `routeTo(save, from, to)` finds the shortest way through known regions (`knownKeys`: home, the regions
+  made, purposes lore or a quest gave, and `travel.heard`). `journeyTo(save, to, how, settings, atInn)`
+  gives `{ path, hours, fare }` or `{ problem }`. `chargeFare(items, currency, fare)` says what to do to
+  the purse. `encounterFor(land, odds, steps, how, allowed, seed)` gives what waits on the road, if
+  anything. `regionSpawns()` puts it in the herd as lore spawns until you leave the region.
+
+**The quest hook** (`main.js`, at the end of "Regions and travel"). The functions are also on
+`core.travelHook` for the console, with "wanderworld-debug" on.
+
+- `questRegion({ side, distance, land, purpose, faction, quest, from })`: Finds or plans a region `distance` regions (1–6, default 1) `side` of `from` (default: where the player is; no side: one the quest's id picks) that fits `land` (a `LAND_KINDS` name) and `purpose` (a `factions.js PURPOSES` kind; `faction` for a faction's land). A region already made fits only if it already is what's asked; one not made yet is planned (its land in `save.travel.planned`, its purpose in `save.purposes` with `from: "quest"`) and goes on the map as heard of. It walks on up to five regions further to find one that fits. Returns `{ key, name, made }` or null.
+- `questTarget({ id, quest, region, kind, name, what, near })`: Puts a target in a region. `kind` is "person" (made one of the region's people, with `what` as their description), "item" (a gold marker to pick up into the inventory), "creature" (`what` is the kind: one hostile spawn) or "deep" (a cave mouth leading to `what`: cave, cavern, dungeon or stronghold; only in a region not made yet). `near` is a kind of place to put it by ("inn", "ruins", "cave"…). The target gets its spot when its region is built, is marked ★ on the region map and ! on the map of regions, and is kept in `save.travel.targets`. Returns the target or null.
+- `questTargets(quest)`: Lists the targets with `here` (it's in the player's region), `at` (its spot), `person` (the region person's id) and `beaten` (a creature target beaten: `save.beaten["<region>|lore:quest|<id>:0"]`).
+- `finishTarget(id)`: Marks a target done: it leaves the map and the world. Picking up an item does this by itself.
+- `journey(key, how)`: Sets off by road (`"walk"`) or coach (`"coach"`), as Journal → Map does. Returns "" or a reason it can't.
+
+**What a save keeps** (`saves.js`, each part checked; older saves load with the defaults):
+
+- `regions[key].landscape.land`: the land (none in regions made before lands).
+- `regions[key].needs`: `{ tavern, shop }`.
+- `regions[key].folk`: the people, as `[{ id, name, body, job, temper, of, about?, quest? }]`, about 100
+  bytes each. Regions made before have none until their next visit.
+- `regions[key].vendors` and `homeSetup.vendors`: each region's shops, swapped in and out with the rest of
+  its setup. A region made before this kept home's, and home gets its own back.
+- `travel`: `{ planned: { [key]: { land?, quest?, deep? } }, heard: [keys], targets: [...] }`.
+
+A region person's relationships and memories are kept by id in `relationships` and `memories`, as
+everyone's are.
+
 ## Building and testing
 
 ```bash
@@ -1085,7 +1343,8 @@ of the Coast LLC (https://dnd.wizards.com/resources/systems-reference-document),
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode), in the machine-readable form of
 the [Open5e API](https://github.com/open5e/open5e-api) project, taken from this repository's
 `ruleset-5e-2014` package by `scripts/build-wanderworld-srd.mjs`. It has been adapted: only names,
-levels, classes, dice, damage types, saving throws and ranges are kept, and what a spell costs in
+levels, classes, dice, damage types, saving throws and ranges are kept (and for creatures their ability
+scores, speeds, senses, what they resist, and their traits and actions shortened to a line each), and what a spell costs in
 mana is Wanderworld's own. Not affiliated with or endorsed by Wizards of the Coast.
 
 The buildings, props, nature, townsfolk and recorded animations are converted from free packs by
@@ -1098,6 +1357,9 @@ The gallows, pillory, cage, signposts and crystals are by iPoly3D (Medieval Tort
 and Crystal Pack on Poly Pizza), also CC0 1.0. Thank you, iPoly3D.
 
 The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, which is under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html) and not CC0: free to use in a game, not to pass on as assets.
+
+Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan: the built-in body
+(`assets/scripts/make_avatar.py`, read by our own code from MakeHuman's hm08 mesh and morph targets).
 
 Made in Blender by ThatOneCan: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, and the mimic, awakened shrub, shambling mound, grick, otyugh, roper, gelatinous cube, basilisk, skeleton, zombie, ghost, specter, earth, fire, water and air elementals, and the hill, stone, frost and fire giants (`assets/scripts/make_*.py`).
 

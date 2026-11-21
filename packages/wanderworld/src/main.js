@@ -16,6 +16,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
+  OctahedronGeometry,
   PerspectiveCamera,
   Plane,
   PointLight,
@@ -59,8 +60,11 @@ import {
   VOICES,
   worldFromLore,
 } from "./keywords.js";
-import { createPerson, lookChoices, setGenderShares } from "./people.js";
-import { checkLook } from "./looks.js";
+import { lookChoices, setGenderShares } from "./people.js";
+import { checkLook, mergeLooks } from "./looks.js";
+// ── The base avatar (avatar.js): the player's own body, and the townsfolk's ──
+import { avatarChoices, avatarLook, createAvatar } from "./avatar.js";
+import { lookFromWords } from "./keywords.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { afloatAt, createHerd, MONSTER_SIZES } from "./herd.js";
 import { createSocial } from "./social.js";
@@ -126,6 +130,7 @@ import {
   isCreature,
   creaturesFromLore,
   placeTargets,
+  placesOfKind,
   plainWord,
   zoneAt,
   HOME_REGION,
@@ -144,6 +149,11 @@ import {
 } from "./interactions.js";
 import { drawMap, drawRegions } from "./map.js";
 import * as factionRules from "./factions.js";
+import { createQuestPlay } from "./questplay.js";
+import { questsFromLore } from "./quests.js";
+// Regions and travel: lands, each region's people, journeys and the quest hook (main.js "Regions and travel").
+import * as regionRules from "./regions.js";
+import { chargeFare, encounterFor, journeyTo } from "./travel.js";
 import { createAi, savesRemote, styleWords } from "./ai.js";
 import { createInventory, sheetFor } from "./inventory.js";
 import {
@@ -176,6 +186,7 @@ import {
 import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolBonus, toolFor, TOOLS } from "./craft.js";
 import {
   TURN_MOVE,
+  armourOf,
   bowOf,
   castAtWords,
   dealtWords,
@@ -288,6 +299,29 @@ import {
   wornMax,
 } from "./sheet.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
+// (The fight display: nameplates, the bar along the top, info cards, and who stands over a beaten player.)
+import {
+  creatureCard,
+  fighterView,
+  keepIds,
+  knowCheck,
+  knowSkill,
+  learned,
+  logged,
+  overRole,
+  overSpots,
+  overTold,
+  overWords,
+  personCard,
+  plateData,
+  plateShown,
+  pleaOf,
+  turnCards,
+  victorList,
+  victorsOf,
+  waitsOut,
+} from "./fighthud.js";
+import { createPlates } from "./plates.js";
 import {
   checkTraits,
   createRelationships,
@@ -302,8 +336,10 @@ import {
   createWorld,
   hashString,
   heightAt,
+  LAND_LOOK,
   NATURE_MODELS,
   previewMap,
+  rng,
   SPAWN,
   waterAt,
   WORLD_SIZE,
@@ -384,7 +420,7 @@ const core = {
   momentLog: [],
   momentBusy: false,
   /** The server part (ai.js): conversations, pictures, scenes. */
-  ai: createAi(() => core.save?.locals ?? []),
+  ai: createAi(() => [...folkHere(core.save), ...(core.save?.locals ?? [])]),
   /** What the persona wears and carries, kept by Quartermaster when it's installed (inventory.js). */
   inventory: createInventory({
     ai: () => core.ai,
@@ -619,6 +655,7 @@ function applySettings() {
   if (core.relations) refreshNames();
   else core.crowd.setNamesVisible(settings.names !== "none");
   core.crowd.setDressed(settings.people === "kit");
+  core.crowd.setNewBodies(settings.newBodies); // (avatar.js, or the older kit)
   core.sound.setEnabled(settings.sound);
   core.sound.setVolume(settings.volume);
   core.hud?.setSettings(settings, gendersNow().name);
@@ -639,6 +676,11 @@ function changeSetting(name, value) {
   if (name.startsWith("faction") && core.world) {
     syncSpawns(); // (guards keep the peace or don't)
     core.factionsChanged = true;
+  }
+  if (name === "regionFolk" && core.world && core.save) {
+    settleRegion(); // (made now, if this region has none yet)
+    core.characters = peopleOf(core.save);
+    updateCast();
   }
   saveSettings(core.settings);
   // The game's and the AI's settings are the same in every browser: the Engine keeps them.
@@ -668,12 +710,13 @@ function buildWorld(seed, place = null) {
   core.world = createWorld(
     hashString(seed),
     own ? core.save.landscape : (region?.landscape ?? null),
-    own ? core.save.needs : {},
+    own ? core.save.needs : (region?.needs ?? {}), // (a region of a land has its inn and shop: regions.js)
     own || region ? core.save.worldSize : "normal",
   );
   // A world keeps the land it was first built with, even if the seed's own choices change later.
   if (core.save?.seed === seed && !core.save.landscape) core.save = { ...core.save, landscape: core.world.landscape };
   core.zones = buildZones(core.world.layout, hashString(seed));
+  settleRegion(); // (a region's own people, made the first time, and a quest's targets there)
   useHousing();
   // A new world's lore links up first (it may give the player a home to start at); the loading screen waits.
   core.linking = core.save?.lorePending ? linkLore() : null;
@@ -835,7 +878,7 @@ function savePlace(now = false, thumbnail = null) {
     playedAt: Date.now(),
     hour: core.hour,
     persona: core.personaId,
-    cast: [...(core.cast ?? [])],
+    cast: [...(core.cast ?? [])].filter((id) => !regionRules.isFolkId(id)), // (a region's people aren't cast: they're its own)
     party: core.crowd.party().map((member) => member.id),
     // (What's moved by itself since: how people stand with each other, and the record of it.)
     relationships: core.relations.all,
@@ -1091,7 +1134,7 @@ const LORE_ENTRIES = 200;
 
 /** Everyone a world can cast: the Engine's characters, and the people it made for itself. */
 function peopleOf(save) {
-  return [...(core.engineCharacters ?? []), ...(save?.locals ?? [])];
+  return [...(core.engineCharacters ?? []), ...(save?.locals ?? []), ...folkHere(save)];
 }
 
 /** The lore written for a world (`save.book`), as a lorebook of its own, under the id "world". */
@@ -1608,6 +1651,9 @@ function drawJournalMap(canvas, view = null) {
       z: zone.shape?.circle?.z ?? 0,
       text: names[zone.id] ?? zone.name,
     }));
+  // A quest's targets here, marked (regions.js).
+  for (const target of regionRules.targetsIn(core.save.travel, core.save.region))
+    if (target.at) labels.push({ x: target.at.x, z: target.at.z, text: `★ ${target.name}` });
   const edges = Object.fromEntries(
     ["north", "east", "south", "west"].map((side) => [side, regionNameAt(regionNext(core.save.region, side))]),
   );
@@ -2118,6 +2164,7 @@ function finishErrand(atDoor = false) {
     const here = core.interior ? person.inRoom : person.state !== "inside" && !person.inRoom;
     if (!here || Math.hypot(person.x - at.x, person.z - at.z) > 3.5) return;
   }
+  questPlay.errandOver(errand); // Quests: kept as a one-stage quest done
   core.save = { ...core.save, errand: null, errandsDone: (core.save.errandsDone ?? 0) + 1, waypoint: null };
   const now = core.relations.get(errand.person, "player");
   setRelation(errand.person, "player", {
@@ -2207,6 +2254,7 @@ function linkLore() {
         })),
         // What lives where, and whose animals are whose, as the lore's keywords say.
         spawns: spawnsFromLore(chosen),
+        loreQuests: questsFromLore(chosen), // Quests: ww:quest entries
         petLore: petsFromLore(chosen),
         quiet: quietFromLore(chosen),
       };
@@ -2437,6 +2485,7 @@ function nameFromLore(books = []) {
 function setupCharactersFromLore(books) {
   const entries = new Map(books.flatMap((book) => book.entries.map((entry) => [`${book.id}/${entry.id}`, entry])));
   let set = 0;
+  const lookedBefore = JSON.stringify(core.save.loreLooks ?? {});
   for (const character of core.characters ?? []) {
     if (!core.cast?.has(character.id)) continue;
     const name = character.name.toLowerCase().trim();
@@ -2446,6 +2495,12 @@ function setupCharactersFromLore(books) {
       .flatMap((entry) => entry.keys ?? [])
       .concat(core.save.loreKeys?.[`cards/${character.id}`] ?? []) // what the AI read in their card
       .filter((word) => word.toLowerCase().trim() !== name);
+    // How they look, from words like "looks tall" (keywords.js): kept apart from what's chosen by hand.
+    const looks = lookFromWords(words);
+    const loreLooks = { ...core.save.loreLooks };
+    if (Object.keys(looks).length) loreLooks[character.id] = looks;
+    else delete loreLooks[character.id];
+    core.save = { ...core.save, loreLooks };
     const traits = traitsFromWords(words);
     if (Object.keys(traits).length && !core.save.traits?.[character.id]) {
       setTraits(character.id, traits);
@@ -2526,6 +2581,8 @@ function setupCharactersFromLore(books) {
     setRelation(PLAYER_ID, to, link.relation, false);
     set++;
   }
+  // (Lore that changes how someone looks shows at once.)
+  if (JSON.stringify(core.save.loreLooks ?? {}) !== lookedBefore) updateCast();
   return set;
 }
 
@@ -3194,6 +3251,7 @@ function stepPlaces(dt) {
     if (arrive(zone, names) !== false) core.arriveZone = zone.id;
   }
   finishErrand();
+  questPlay.tick(zone); // Quests: arrivals, what's held, the checks on load and on a change of region
   if (core.clock - (core.peopleAt ?? -9) > 2) {
     core.peopleAt = core.clock;
     refreshPeopleHere();
@@ -3333,6 +3391,7 @@ function journalData(zone, snapshot, residents, names) {
     partyChanged: core.partyChanged,
     factions: factionsData(),
     factionsChanged: core.factionsChanged,
+    ...questsData(), // Quests: Journal → Quests
     worldLore: { id: WORLD_ID, name: core.save?.name ?? "This world", lore: (lore[WORLD_ID] ?? []).length },
     characters: (core.characters ?? [])
       .filter((character) => core.cast?.has(character.id))
@@ -3491,10 +3550,10 @@ async function choosePersona(id, redress = false) {
   if (!model && core.settings.people !== "kit" && avatar !== BUILT_IN) return;
   if (model) core.hud?.setStatus(`Loading ${persona.name}'s model…`);
   try {
-    // Their own 3D model, or else a person dressed from the kit.
+    // Their own 3D model, or else the base avatar (avatar.js).
     const character = model
       ? await loadModelCharacter(model)
-      : await createPerson(persona?.name ?? "", core.bodies[persona?.id] ?? "auto", core.looks[persona?.id] ?? {});
+      : await createAvatar(core.looks[persona?.id] ?? {}, persona?.name ?? "", core.bodies[persona?.id] ?? "auto");
     core.personaHasModel = !!model;
     if (load !== core.personaLoad) {
       character.dispose();
@@ -3510,18 +3569,26 @@ async function choosePersona(id, redress = false) {
 
 function updateCast() {
   // Whoever lives in this region, and the party that came along (isHere).
+  // (A region's own people always live there: they're in the cast while the player is.)
+  for (const id of core.cast) if (regionRules.isFolkId(id)) core.cast.delete(id);
+  for (const person of folkHere(core.save)) core.cast.add(person.id);
   const chosen = (core.characters ?? [])
     .filter((character) => core.cast.has(character.id) && isHere(character))
     .map((character) => ({
       ...character,
-      body: core.bodies[character.id] ?? "auto",
-      look: core.looks[character.id] ?? {},
+      body: core.bodies[character.id] ?? character.body ?? "auto",
+      // (What lore says they look like, under what's chosen by hand: the base avatar's build, hair, ears…)
+      look: mergeLooks(loreLookOf(character), core.looks[character.id] ?? {}),
     }));
   core.crowd.setCast(chosen);
   useSchedules();
   core.crowd.setShadows(core.settings.shadows);
   refreshNames();
-  core.hud?.setCharacters(core.characters ?? [], core.cast, core.bodies);
+  core.hud?.setCharacters(
+    (core.characters ?? []).filter((character) => !character.folk),
+    core.cast,
+    core.bodies,
+  );
   savePlace(true);
 }
 
@@ -4014,6 +4081,9 @@ function syncSpawns() {
         creature.when === "night" || creature.when === "day" ? creature.when : "",
       ),
     );
+  // Quests: the creatures an open hunt owns, at its spot (kept through respawns: questPlay.keep).
+  for (const entry of questPlay.spawns()) list.push({ ...entry, scale: 1, sized: false, when: "" });
+  list.push(...regionSpawns()); // (a quest's creatures in this region, and what met you on the road)
   outdoorHerd().setSpawns(list);
 }
 
@@ -4168,6 +4238,21 @@ function petsOf(id) {
   };
 }
 
+/** What lore says `character` looks like: their lore's words (save.loreLooks), and what's written of
+ *  their appearance if the world made them (keywords.js lookFromWords). */
+function loreLookOf(character) {
+  const written = character.appearance ? lookFromWords(character.appearance) : {};
+  return mergeLooks(written, core.save?.loreLooks?.[character.id] ?? {});
+}
+
+/** The base avatar of `id` with `chosen` (a look) for the Look card's preview: a walking character. */
+function previewAvatar(id, chosen) {
+  const persona = id === core.personaId ? core.personas?.find((entry) => entry.id === id) : null;
+  const character = persona ?? (core.characters ?? []).find((entry) => entry.id === id) ?? { id, name: "" };
+  const lore = persona ? {} : loreLookOf(character);
+  return createAvatar(mergeLooks(lore, checkLook(chosen)), character.name, core.bodies[id] ?? "auto");
+}
+
 /** What the Look card needs for `id`: their name, how they look now, and whether a 3D model hides it. */
 async function lookOf(id) {
   const persona = id === core.personaId ? core.personas?.find((entry) => entry.id === id) : null;
@@ -4186,6 +4271,16 @@ async function lookOf(id) {
       pets: core.save ? petsOf(id) : null,
       body: core.bodies[id] ?? "auto",
       now: await lookChoices(name, core.bodies[id] ?? "auto", chosen),
+      // The base avatar's (avatar.js): how they look now, and what its kit offers for their body.
+      avatar: await (async () => {
+        const character = persona ?? (core.characters ?? []).find((entry) => entry.id === id) ?? { id };
+        const now = avatarLook(
+          name,
+          core.bodies[id] ?? "auto",
+          mergeLooks(persona ? {} : loreLookOf(character), chosen),
+        );
+        return { now, choices: await avatarChoices(now.body).catch(() => null), presets: core.settings.lookPresets };
+      })(),
     };
   } catch {
     return null; // the kit's people couldn't be loaded
@@ -4433,6 +4528,7 @@ function talkTo(person) {
   const x = group.position.x + (dx / distance) * TALK_DISTANCE;
   const z = group.position.z + (dz / distance) * TALK_DISTANCE;
   core.talking = { id: person.id, name: person.name, group, said: 0, asked: [], history: [] };
+  questPlay.talked(person.id); // Quests: a talk or bring stage with them
   glideTo(x, z, Math.atan2(-dx, -dz), 0.5);
   core.hud?.setBusy(true);
   core.hud?.setPrompt(null);
@@ -4442,7 +4538,11 @@ function talkTo(person) {
   void looksOf([person.id]).then((looks) => core.talking?.id === person.id && core.talk.setLooks(looks[person.id]));
   core.talk.setInParty(core.crowd.inParty(person.id));
   core.talk.setChoices(
-    [{ id: "join", label: joiningOf(person).label }, ...choicesFor([], choiceContext(core.talking))],
+    [
+      { id: "join", label: joiningOf(person).label },
+      ...questPlay.choices(), // Quests: "Any work going?"
+      ...choicesFor([], choiceContext(core.talking)),
+    ],
     choose,
   );
   later(0.6, () => answer(core.talking, "greet"));
@@ -5352,6 +5452,7 @@ function isHere(person) {
   const save = core.save;
   if (!save) return true;
   if ((save.party ?? []).includes(person.id)) return true;
+  if (person.folk) return person.region === save.region; // (a region's own people: regions.js)
   const lives = save.locals.find((entry) => entry.id === person.id)?.region ?? HOME_REGION;
   return lives === save.region;
 }
@@ -6466,6 +6567,7 @@ function narrate(who, text, heard = [], place = false) {
     core.saves.write(core.save);
   }
   core.hud?.narrate(who, text, !!who && who === personaName());
+  if (!who && (core.battle || core.fighters?.length)) core.fightLog = logged(core.fightLog, text); // (fight display)
 }
 
 /**
@@ -6855,7 +6957,8 @@ function placeTold() {
   const beside = besideNow(zoneAt(core.zones, at.x, at.z))
     .filter((entry) => names[entry.id])
     .map((entry) => besideWords(entry, names[entry.id]));
-  return [[here, ...beside].join(", "), ...around.map((entry) => names[entry.id])].join(", in ");
+  const told = [[here, ...beside].join(", "), ...around.map((entry) => names[entry.id])].join(", in ");
+  return core.over && !core.over.gone ? `${told}. ${overTold(core.over.victors, personaName())}` : told; // (fight display)
 }
 
 /** The weather now, in a word, when there is any to speak of. */
@@ -6956,6 +7059,18 @@ function choose(id) {
       (done) =>
         !done && narrate(null, pickLine(joining.lines, `${person.id}:${Math.floor(core.clock / 30)}`, lineWords())),
     );
+    return;
+  }
+  if (id === "work") {
+    // Quests: asking after work. They answer with a quest (its card comes up) or say there's none.
+    const asked = "Any work going?";
+    core.talk.line(personaName(), asked);
+    core.talk.say(core.player, asked, 3, personaName());
+    talking.asked.push(id);
+    core.talk.setChoices(choicesFor(talking.asked, choiceContext(talking)), choose);
+    void questPlay
+      .askWork(talking)
+      .then((reply) => reply && core.talking === talking && showReply(talking, asked, reply));
     return;
   }
   const text = labelOf(id, personaName());
@@ -7400,7 +7515,9 @@ function noticeboardNotes() {
   }));
   // One note asks for something (the setting pack's errands): a new one once the last is done.
   const errand = core.save?.errand ? null : boardErrand(names);
+  const quest = questPlay.boardNote(); // Quests: the one posted now, if any
   return [
+    ...(quest ? [quest] : []),
     ...(errand ? [{ id: errand.id, text: errand.text, by: null, errand: true }] : []),
     ...pick.map((note, i) => ({ id: `town:${i}`, ...note })),
     ...mine,
@@ -7439,6 +7556,7 @@ function openNoticeboard() {
           show();
         },
         onTake: (id) => {
+          if (questPlay.takeBoard(id, () => show())) return; // Quests: its card, then Accept or Decline
           const errand = boardErrand(namedZones(residentsOf(core.crowd.snapshot())));
           if (!core.save || !errand || errand.id !== id) return;
           // Marked on the map: the place's middle is where to go.
@@ -7470,7 +7588,11 @@ function openNoticeboard() {
 
 /** A cave's mouth: down into what's below it, if it leads down (enterDeep); else a card like a door's. */
 function enterCave(cave) {
-  if (core.settings.deepPlaces && leadsDown(`${core.seed}:${cave.outpost}`, core.settings.deepShare))
+  // (One a quest needs always does: Quests.)
+  if (
+    core.settings.deepPlaces &&
+    (leadsDown(`${core.seed}:${cave.outpost}`, core.settings.deepShare) || questPlay.wantsCave(cave))
+  )
     return void enterDeep(cave, ["cave"]);
   const zone = core.zones?.byId.get(`cave:${cave.outpost}`);
   const title = zone ? zoneName(zone) : "A cave";
@@ -7493,6 +7615,7 @@ function leaveInterior(now = false) {
       core.herd.detach();
       core.herd = core.outdoors;
       core.outdoors = null;
+      questPlay.enterDeep(); // Quests: the captives' figures go with the level
       if (core.world) core.crowd.moveParty(core.world, inside.door);
     }
     inside.room.dispose();
@@ -7550,6 +7673,7 @@ function enterDeep(cave, kinds, up = false) {
     core.crowd.moveParty(level, at);
     before?.room.dispose();
     showBeaten();
+    questPlay.enterDeep(level, plan, cave, kinds.length); // Quests: a deep stage, and captives held here
   });
 }
 
@@ -7728,6 +7852,19 @@ function usable() {
       act: () => travel(edge),
     });
   }
+  // A quest's item lying here (regions.js targets), to pick up.
+  if (!core.interior)
+    for (const target of regionRules.targetsIn(core.save?.travel, core.save?.region))
+      if (target.kind === "item" && target.at)
+        list.push({
+          kind: "thing",
+          label: `Pick up ${target.name}`,
+          x: target.at.x,
+          z: target.at.z,
+          y: heightAt(target.at.x, target.at.z) + 0.5,
+          reach: 2.6,
+          act: () => void pickUpTarget(target),
+        });
   const deep = core.interior?.deep;
   if (deep) {
     // Below ground: out (or back up a level) where they came in, and further down where it goes on.
@@ -7751,6 +7888,7 @@ function usable() {
         reach: 2.2,
         act: () => enterDeep(deep.cave, [...deep.kinds, down.kind]),
       });
+    list.push(...questPlay.usable()); // Quests: a captive to free
   } else if (core.interior) {
     const { exit } = core.interior.room;
     list.push({ kind: "exit", label: "Leave", x: exit.x, z: exit.z, y: 1.6, act: () => leaveInterior() });
@@ -7786,6 +7924,9 @@ function usable() {
 }
 
 // ── Regions and travel ───────────────────────────────────────────────────────
+// Regions beyond home are regions.js's (their land, their people, what a quest asks of one) and journeys
+// are travel.js's; these are the game's hooks into them. Only the region the player is in is built, and
+// only its own people (and the party) are about.
 
 /** The seed of the region a save is in: the world's own at home. */
 function regionSeed(save) {
@@ -7796,10 +7937,205 @@ function homeRegionName() {
   return regionName(core.save.seed, HOME_REGION);
 }
 
-/** The name of the region at `key` (made or not yet). */
+/** The name of the region at `key` (made or not yet): its own once made; before that, its land's (regions.js). */
 function regionNameAt(key) {
   if (key === HOME_REGION) return homeRegionName();
-  return core.save.regions?.[key]?.name ?? regionName(core.save.seed, key);
+  const made = core.save.regions?.[key];
+  if (made) return made.name;
+  const land = core.settings.regionLands ? regionRules.landOf(core.save, key) : "";
+  return (land && regionRules.landName(core.save.seed, key, land)) || regionName(core.save.seed, key);
+}
+
+/** The land of the region the player is in (regions.js LANDS), "" at home and in regions made without one. */
+const landHereKind = () => (core.save ? regionRules.landOf(core.save, core.save.region) : "");
+
+/**
+ * The people of the region a save is in (Settings → Regions have their own people), and any from another
+ * region who are in the party: as the crowd and the AI take people (regions.js folkPerson).
+ */
+function folkHere(save) {
+  if (!save || !core.settings?.regionFolk) return [];
+  const party = new Set(save.party ?? []);
+  return Object.entries(save.regions ?? {}).flatMap(([key, region]) =>
+    (region.folk ?? [])
+      .filter((entry) => key === save.region || party.has(entry.id))
+      .map((entry) => regionRules.folkPerson(entry, key)),
+  );
+}
+
+/**
+ * Once a region is built (buildWorld): the first time, its people are made from its houses and workplaces
+ * and kept with it (regions.js regionFolk), their homes and work in its setup; and a quest's targets there
+ * are given their spots (and a person, theirs among its people). Home has neither.
+ */
+function settleRegion() {
+  const save = core.save;
+  const key = save?.region;
+  const region = save?.regions?.[key];
+  if (!region || key === HOME_REGION || !core.zones) return;
+  let folk = region.folk;
+  let housing = save.housing ?? {};
+  // A region of a land names its settlement for it (kept with its other names, so it can be renamed).
+  const land = region.landscape?.land ?? "";
+  const names =
+    land && !save.names?.town ? { ...save.names, town: regionRules.townName(save.seed, key, land) } : save.names;
+  const town = names?.town || core.zones.town;
+  if (!folk && core.settings.regionFolk) {
+    const made = regionRules.regionFolk(save.seed, key, core.zones.zones, {
+      land,
+      settlement: core.world.layout.settlement?.kind,
+      town,
+    });
+    folk = made.folk;
+    housing = { ...made.housing, ...housing };
+  }
+  // A quest's targets here, each given a spot the first time (a person also joins the region's people).
+  const homes = core.zones.zones.filter((zone) => zone.kind === "building" && zone.buildingKind === "home");
+  const targets = (save.travel?.targets ?? []).map((target, n) => {
+    if (target.region !== key || target.done || target.at) return target;
+    const at = targetSpot(target);
+    if (target.kind !== "person") return { ...target, at };
+    const id = regionRules.folkId(key, 100 + n);
+    const home = homes[hashString(target.id) % Math.max(1, homes.length)];
+    folk = [
+      ...(folk ?? []),
+      {
+        id,
+        name: target.name,
+        body: hashString(target.id) % 2 ? "female" : "male",
+        job: "stranger",
+        temper: "",
+        of: town,
+        about: target.what ? `${target.name}: ${target.what}` : "",
+        quest: target.quest,
+      },
+    ];
+    if (home) housing = { ...housing, [id]: { home: home.id, work: null, owner: false } };
+    return { ...target, at, person: id };
+  });
+  const changed =
+    folk !== region.folk ||
+    housing !== save.housing ||
+    names !== save.names ||
+    targets.some((t, i) => t !== save.travel.targets[i]);
+  if (changed) {
+    core.save = {
+      ...save,
+      regions: { ...save.regions, [key]: { ...region, ...(folk ? { folk } : {}) } },
+      names,
+      housing,
+      travel: { ...save.travel, targets },
+    };
+    core.saves.write(core.save);
+    core.characters = peopleOf(core.save);
+  }
+  markTargets();
+}
+
+/** Open ground near (x, z), dry and clear of buildings, searched outward in rings. */
+function openNear(x, z, from = 0) {
+  for (let ring = from; ring < 40; ring += 2)
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2 + ring;
+      const px = x + Math.cos(angle) * ring;
+      const pz = z + Math.sin(angle) * ring;
+      const half = (core.world.size ?? WORLD_SIZE) / 2 - 8;
+      if (Math.abs(px) > half || Math.abs(pz) > half) continue;
+      if (!core.world.blocked(px, pz, 0.8) && waterAt(px, pz).depth <= 0) return { x: px, z: pz };
+    }
+  return { x, z };
+}
+
+/**
+ * Where a quest's target goes in the region the player is in: by a place of the kind it names (`near`:
+ * "inn", "ruins", "cave"…), a deep place at a cave mouth leading to its kind, a creature out in the country,
+ * and anything else by the market.
+ */
+function targetSpot(target) {
+  const middle = (id) => {
+    const shape = core.zones.byId.get(id)?.shape;
+    if (shape?.circle) return { x: shape.circle.x, z: shape.circle.z };
+    if (shape?.box) return { x: (shape.box.minX + shape.box.maxX) / 2, z: (shape.box.minZ + shape.box.maxZ) / 2 };
+    return null;
+  };
+  if (target.kind === "deep") {
+    const cave = (core.world.caves ?? []).find((entry) => entry.deep === target.what) ?? core.world.caves?.[0];
+    if (cave) return { x: cave.x, z: cave.z };
+  }
+  const near = target.near ? placesOfKind(core.zones, target.near).map(middle).find(Boolean) : null;
+  const plaza = core.world.layout.plaza;
+  if (near) return openNear(near.x, near.z, 3);
+  if (target.kind === "creature") {
+    const random = rng(hashString(`target:${target.id}`));
+    const half = core.world.size / 2 - 30;
+    const angle = random() * Math.PI * 2;
+    const far = core.world.layout.townHalf + 30 + random() * Math.max(10, half - core.world.layout.townHalf - 30);
+    return openNear(Math.cos(angle) * far, Math.sin(angle) * far);
+  }
+  return openNear(plaza.x + 3, plaza.z + 5, 2);
+}
+
+/** A small gold marker over each open item a quest left in this region, so it can be found (gone once taken). */
+function markTargets() {
+  for (const mark of core.targetMarks ?? []) {
+    mark.removeFromParent();
+    mark.geometry.dispose();
+    mark.material.dispose();
+  }
+  core.targetMarks = [];
+  for (const target of regionRules.targetsIn(core.save?.travel, core.save?.region))
+    if (target.kind === "item" && target.at) {
+      const mark = new Mesh(
+        new OctahedronGeometry(0.16),
+        new MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x5a3c00 }),
+      );
+      mark.position.set(target.at.x, heightAt(target.at.x, target.at.z) + 0.45, target.at.z);
+      core.world.scene.add(mark);
+      core.targetMarks.push(mark);
+    }
+}
+
+/** Picks up a quest's item where it lies: into the inventory (or, without one, it's just found), and done. */
+async function pickUpTarget(target) {
+  if (core.inventory.ready()) await addItem({ name: target.name, description: target.what, quantity: 1 });
+  finishTarget(target.id);
+  narrate(null, `${personaName()} picks up ${target.name}.`);
+  await readItems().catch(() => []);
+}
+
+/**
+ * What a region adds to the herd's spawns (syncSpawns): a quest's creatures in this region, and whatever met
+ * the party on the road (`core.roadEncounter`, until they leave the region).
+ */
+function regionSpawns() {
+  const list = [];
+  for (const target of regionRules.targetsIn(core.save?.travel, core.save?.region)) {
+    const kind = target.kind === "creature" ? animalKind(target.what || target.name) : null;
+    if (kind && target.at && animalAllowed(kind))
+      list.push({
+        id: `quest|${target.id}`,
+        kind,
+        scale: 1,
+        sized: false,
+        count: 1,
+        at: target.at,
+        temper: "hostile",
+        when: "",
+      });
+  }
+  const met = core.roadEncounter;
+  if (met?.region === core.save?.region && animalAllowed(met.kind))
+    list.push({
+      id: `road|${met.id}`,
+      kind: met.kind,
+      scale: 1,
+      sized: false,
+      count: met.count,
+      at: met.at,
+      temper: "hostile",
+      when: "",
+    });
+  return list;
 }
 
 /** Which edge of the world the player is near enough to travel across, or null. */
@@ -7815,17 +8151,24 @@ function edgeSide() {
   return sides.sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
-/**
- * Travels across the world's `side` edge into the next region (made the first time, from the world's seed),
- * with the party that's following. This region's setup is kept for coming back; a travel scene request is
- * saved for the AI part (encounters on the way, later). The player arrives at the facing edge.
- */
+/** Travels across the world's `side` edge into the next region, arriving at the facing edge where they left. */
 function travel(side) {
+  const { x, z } = core.player.position;
+  goToRegion(regionNext(core.save.region, side), { side, lateral: side === "east" || side === "west" ? z : x });
+}
+
+/**
+ * Takes the player and the party that's following into the region at `to` (made the first time, from the
+ * world's seed: regions.js makeRegion), keeping this region's setup for coming back; a travel scene request
+ * is saved for the AI part. `side`: the edge of the last region they left by (they arrive at the facing
+ * one, at `lateral` along it); `how`: "edge" (walked off the map), "walk" (a road from the map, `hours`
+ * long) or "coach" (they arrive at the inn). `encounter`: what meets them there (travel.js encounterFor).
+ */
+function goToRegion(to, { side, lateral = 0, how = "edge", hours = 0, encounter = null } = {}) {
   const save = core.save;
-  if (!save || core.interior || core.mode !== "walk") return;
+  if (!save || core.interior || core.mode !== "walk" || to === save.region) return;
   savePlace(true);
   const from = save.region;
-  const to = regionNext(from, side);
   const party = core.crowd
     .party()
     .filter((member) => !member.waiting)
@@ -7840,25 +8183,30 @@ function travel(side) {
     housing: save.housing,
     furnished: save.furnished,
     place: save.place,
+    vendors: save.vendors, // (each region's shops are its own: zone ids are the same in every region)
   };
   let homeSetup = save.homeSetup;
   if (from === HOME_REGION) homeSetup = setup;
   else regions[from] = { ...regions[from], ...setup };
   const purposes = { ...save.purposes };
   if (to !== HOME_REGION && !regions[to]) {
-    const seed = `${save.seed}|${to}`;
-    let landscape = landscapeWith(hashString(seed), {});
-    // Arriving across the facing edge: no mountain range in the way there.
-    landscape.mountains = landscape.mountains.filter((edge) => edge !== OPPOSITE[side]);
     // What it's made for (factions.js): lore's or a quest's, else the seed's; none with the setting off.
     if (core.settings.regionPurposes)
       purposes[to] ??= factionRules.seededPurpose(save.seed, to, save.factions, purposes);
     if (!core.settings.regionPurposes || !purposes[to]) delete purposes[to];
-    landscape = factionRules.landscapeForPurpose(landscape, purposes[to], hashString(seed), OPPOSITE[side]);
-    regions[to] = { name: regionName(save.seed, to), number: Object.keys(regions).length + 2, seed, landscape };
+    const planned = save.travel?.planned?.[to] ?? {};
+    regions[to] = regionRules.makeRegion(save.seed, to, {
+      land: core.settings.regionLands ? regionRules.landOf(save, to) : "",
+      purpose: purposes[to] ?? null,
+      arrive: OPPOSITE[side],
+      deep: planned.deep ?? null,
+      number: Object.keys(regions).length + 2,
+      name: regionNameAt(to),
+    });
   }
   const target = (to === HOME_REGION ? homeSetup : regions[to]) ?? {};
-  const name = regionNameAt(to);
+  const name = to === HOME_REGION ? homeRegionName() : regions[to].name;
+  const first = !save.regions?.[to] && to !== HOME_REGION;
   const request = sceneRequest({
     thing: { kind: "travel", name: `the road to ${name}`, chain: [regionNameAt(from)] },
     action: "go",
@@ -7868,7 +8216,6 @@ function travel(side) {
     persona: { id: "player", name: personaName() },
     hour: core.hour,
   });
-  const lateral = side === "east" || side === "west" ? core.player.position.z : core.player.position.x;
   core.save = {
     ...save,
     regions,
@@ -7880,27 +8227,80 @@ function travel(side) {
     groups: target.groups ?? null,
     housing: target.housing ?? {},
     furnished: target.furnished ?? {},
+    // (A region made before regions kept their shops shares home's, as it did; home gets its own back.)
+    vendors: target.vendors ?? (first ? {} : save.vendors),
     party: party.map((member) => member.id),
     place: null,
     scenes: [...(save.scenes ?? []), request].filter(Boolean).slice(-30),
   };
   core.saves.write(core.save);
+  core.characters = peopleOf(core.save); // (that region's people, and the party)
   core.hud?.closePanels();
-  core.hud?.setLoading(`Travelling to ${name}…`);
+  core.hud?.setLoading(how === "edge" ? `Travelling to ${name}…` : `On the road to ${name}…`);
   const load = ++core.worldLoad;
   setTimeout(() => {
     if (load !== core.worldLoad) return;
     const detail = buildWorld(regionSeed(core.save), null);
-    arriveFrom(side, lateral);
+    if (how === "coach") arriveAtInn();
+    else arriveFrom(side, lateral);
+    // The hours on the road (Settings → World → Time standing still keeps the clock where it is).
+    const fixed = core.settings.time === "day" || core.settings.time === "night";
+    if (hours > 0 && !fixed) {
+      core.hour = (core.hour + hours) % 24;
+      core.dark = core.world.setTime(core.hour);
+    }
     updateCast();
     core.crowd.restoreParty(core.save.party, core.player.position);
+    if (hours > 0) core.crowd.resettle(core.hour, core.player.position, SLEEP_NEAR);
+    syncPets(); // (the party's animals come along, by the player now)
+    core.roadEncounter = null;
+    if (encounter) {
+      const { x, z } = core.player.position;
+      const ahead = openNear(x + Math.sin(core.player.rotation.y) * 18, z + Math.cos(core.player.rotation.y) * 18);
+      core.roadEncounter = { ...encounter, id: `${core.clock}`, region: to, at: ahead };
+    }
+    syncSpawns();
     core.journalAt = 0;
     Promise.race([detail, new Promise((done) => setTimeout(done, BUILD_WAIT * 1000))]).then(() => {
       if (load !== core.worldLoad) return;
       core.hud?.setLoading(null);
       resume();
+      arrivalWords(to, first, how, hours, encounter);
     });
   }, 60);
+}
+
+/** What's said on arriving in a region: the road behind, what's met there, and (the first time) what the place is like. */
+function arrivalWords(key, first, how, hours, encounter) {
+  const name = regionNameAt(key);
+  // (One line, so the road and what waits on it are told in order.)
+  const whole = Math.floor(hours);
+  const long = hours < 1.5 ? "an hour" : `${whole}${hours - whole >= 0.5 ? "½" : ""} hours`;
+  const road =
+    how === "coach"
+      ? `After ${long} in the coach, it sets you down at the inn in ${name}.`
+      : how === "walk"
+        ? `After ${long} on the road, you come into ${name}.`
+        : "";
+  const met = encounter
+    ? `Something waits on the road ahead: ${encounter.count} ${encounter.kind}s, and they've seen you.`
+    : "";
+  if (road || met) narrate(null, [road, met].filter(Boolean).join(" "));
+  if (!first || key === HOME_REGION) return;
+  const region = core.save.regions[key];
+  const words = regionRules.regionFlavour(
+    core.save.seed,
+    key,
+    region.landscape?.land ?? "",
+    core.save.names?.town ?? core.zones?.town ?? "",
+    core.world.layout.settlement?.kind,
+  );
+  const said = () => words && narrate(null, words, [], true);
+  if (core.settings.regionFlavourAi && core.settings.aiMoments)
+    void runMoment({ action: `arrives in ${name} for the first time and looks about. ${words}`, source: "thing" }).then(
+      (done) => !done && said(),
+    );
+  else said();
 }
 
 /** Puts the player just inside the edge they came in by (having left across `side`), on open dry ground. */
@@ -7922,6 +8322,183 @@ function arriveFrom(side, lateral) {
   core.freshStart = false;
   savePlace(true);
 }
+
+/** Puts the player in front of the inn (or the tavern; else by the market) of the region they've come to. */
+function arriveAtInn() {
+  const door = innDoors()[0];
+  const spot = door
+    ? openNear(door.x + Math.sin(door.angle) * 2.5, door.z + Math.cos(door.angle) * 2.5)
+    : openNear(core.world.spawn.x, core.world.spawn.z);
+  core.player.position.set(spot.x, heightAt(spot.x, spot.z), spot.z);
+  core.player.rotation.y = door ? door.angle : 0;
+  core.cameraYaw = core.player.rotation.y + Math.PI;
+  core.freshStart = false;
+  savePlace(true);
+}
+
+/** The doors of the inns and taverns of the region the player is in, from the zones. */
+function innDoors() {
+  return (core.zones?.zones ?? [])
+    .filter((zone) => zone.kind === "building" && (zone.buildingKind === "inn" || zone.buildingKind === "tavern"))
+    .map((zone) => core.world.doors[zone.door])
+    .filter(Boolean);
+}
+
+/** Whether the player is at an inn or a tavern (inside, or within a few steps of its door): where coaches leave. */
+function atInn() {
+  if (core.interior)
+    return ["inn", "tavern"].includes(core.zones?.byId.get(`building:${core.interior.door.index}`)?.buildingKind);
+  const at = core.player.position;
+  return innDoors().some((door) => Math.hypot(door.x - at.x, door.z - at.z) < 12);
+}
+
+/**
+ * Journal → Map's list of the regions the player knows (regions.js knownKeys), nearest first, each with what
+ * it is and the ways to go there now: { rows: [{ key, name, words, here, walk, coach }], note }. `walk` and
+ * `coach` are { hours, fare } or { problem }.
+ */
+function travelPlaces() {
+  if (!core.save) return { rows: [], note: "" };
+  const inn = atInn();
+  const rows = regionRules.knownKeys(core.save).map((key) => {
+    const [x, z] = key.split(",").map(Number);
+    const [hx, hz] = core.save.region.split(",").map(Number);
+    const made = core.save.regions?.[key];
+    const land = regionRules.landOf(core.save, key);
+    const purpose = core.save.purposes?.[key];
+    const faction = factionById(purpose?.faction)?.name ?? "";
+    const open = regionRules.targetsIn(core.save.travel, key).length;
+    const words = [
+      key === HOME_REGION ? "where you began" : regionRules.LANDS[land]?.label.toLowerCase() || "countryside",
+      purpose ? factionRules.purposeWords(purpose, faction) : "",
+      made || key === HOME_REGION ? "" : "heard of",
+      open ? `${open} thing${open === 1 ? "" : "s"} for a quest` : "",
+    ].filter(Boolean);
+    const plan = (how) => {
+      if (key === core.save.region) return null;
+      const journey = journeyTo(core.save, key, how, core.settings, inn);
+      return journey.problem ? { problem: journey.problem } : { hours: journey.hours, fare: journey.fare };
+    };
+    return {
+      key,
+      name: regionNameAt(key),
+      words: words.join(", "),
+      here: key === core.save.region,
+      far: Math.abs(x - hx) + Math.abs(z - hz),
+      walk: plan("walk"),
+      coach: plan("coach"),
+    };
+  });
+  rows.sort((a, b) => a.far - b.far || a.name.localeCompare(b.name));
+  const note =
+    !core.settings.travelRoads && !core.settings.travelCoach
+      ? "Travel from the map is off (Settings → World → Regions and travel): walk off the map's edge."
+      : inn
+        ? "You're at an inn: a coach can take you anywhere you've been."
+        : "Coaches leave from inns and taverns.";
+  return { rows, note, currency: purse().name };
+}
+
+/**
+ * Sets off for the region at `key` from Journal → Map: on foot along the road, or by coach for its fare
+ * (taken from the purse first). The hours pass on the way; something may meet you (Encounters on the road).
+ * Returns words for the Journal when it can't go.
+ */
+async function journey(key, how) {
+  const plan = journeyTo(core.save, key, how, core.settings, atInn());
+  if (plan.problem) return plan.problem;
+  if (core.mode !== "walk") return "Finish what you're doing first.";
+  if (core.interior && how !== "coach") return "Go outside first.";
+  if (plan.fare > 0) {
+    if (!core.inventory.ready())
+      return "A coach needs coins, and coins need the inventory (the Quartermaster package).";
+    const money = purse();
+    const paid = chargeFare(await readItems(), money.name, plan.fare);
+    if (paid.problem) return paid.problem;
+    await core.inventory.change(paid.change.id, paid.change.gone ? null : { quantity: paid.change.quantity });
+    await readItems();
+    narrate(null, `${personaName()} pays ${plan.fare} ${money.name} for the coach to ${regionNameAt(key)}.`);
+  }
+  if (core.interior) leaveInterior(true);
+  const last = plan.path.at(-1);
+  const land = core.settings.regionLands ? regionRules.landOf(core.save, key) : "";
+  const met = encounterFor(
+    land,
+    core.settings.travelEncounters,
+    plan.path.length,
+    how,
+    animalAllowed,
+    `${core.save.id}:${core.clock}`,
+  );
+  goToRegion(key, { side: last.side, lateral: 0, how, hours: plan.hours, encounter: met });
+  return "";
+}
+
+// ── For quests: a region of a kind, and things to find there ─────────────────
+// (QUEST HOOK, for the quests' code. Plain data in and out; what's asked is kept in the save.)
+
+/**
+ * Finds or plans a region for a quest (regions.js regionForQuest): `ask` { side, distance, land, purpose,
+ * faction, quest, from }. A region not made yet is planned to fit (its land and purpose kept, on the map
+ * as heard of) and made so when the player first arrives. Returns { key, name, made } or null.
+ */
+function questRegion(ask = {}) {
+  if (!core.save) return null;
+  const found = regionRules.regionForQuest(core.save, ask);
+  if (!found) return null;
+  core.save = { ...core.save, travel: found.travel, purposes: found.purposes };
+  core.saves.write(core.save);
+  core.journalAt = 0;
+  return { key: found.key, name: regionNameAt(found.key), made: found.made };
+}
+
+/**
+ * Puts a quest's target in a region (regions.js placeTarget): `target` { id, quest, region, kind ("person",
+ * "item", "creature" or "deep"), name, what, near }. It's marked on the map and given its spot when the
+ * region is next built (now, if the player is there). Returns the target as kept, or null.
+ */
+function questTarget(target) {
+  if (!core.save) return null;
+  const travel = regionRules.placeTarget(core.save.travel, target, !!core.save.regions?.[target.region]);
+  if (!travel) return null;
+  core.save = { ...core.save, travel };
+  core.saves.write(core.save);
+  if (target.region === core.save.region) {
+    settleRegion();
+    updateCast();
+    syncSpawns();
+  }
+  core.journalAt = 0;
+  return core.save.travel.targets.find((entry) => entry.id === target.id) ?? null;
+}
+
+/**
+ * A quest's targets with what's become of them: [{ …target, here (in the region the player is in), beaten
+ * (a creature target beaten: save.beaten) }]. `quest`: its id ("" for all).
+ */
+function questTargets(quest = "") {
+  return (core.save?.travel?.targets ?? [])
+    .filter((target) => !quest || target.quest === quest)
+    .map((target) => ({
+      ...target,
+      here: target.region === core.save.region,
+      beaten: !!core.save.beaten?.[`${target.region}|lore:quest|${target.id}:0`],
+    }));
+}
+
+/** Marks a target done (found, met, beaten or given up): it leaves the map and the world. */
+function finishTarget(id) {
+  if (!core.save) return;
+  const targets = core.save.travel.targets.map((target) => (target.id === id ? { ...target, done: true } : target));
+  core.save = { ...core.save, travel: { ...core.save.travel, targets } };
+  core.saves.write(core.save);
+  markTargets();
+  syncSpawns();
+  core.journalAt = 0;
+}
+
+/** The quest hook in one place (and, with "wanderworld-debug" on, at the console: __wanderworld.travelHook). */
+core.travelHook = { questRegion, questTarget, questTargets, finishTarget, journey };
 
 // ── Factions and regions with a purpose (factions.js) ────────────────────────
 
@@ -8057,6 +8634,51 @@ function purposeAhead(side, kind, faction = "", by = "quest") {
   return regionNameAt(next.key);
 }
 
+// ── Quests (questplay.js, quests.js) ─────────────────────────────────────────
+// Everything quests do lives there; these are what it needs of the game. The hooks elsewhere are each
+// marked "Quests".
+const questPlay = createQuestPlay(core, {
+  names: () => (core.zones ? namedZones(residentsOf(core.crowd.snapshot())) : {}),
+  narrate: (who, text) => narrate(who, text),
+  personaName: () => personaName(),
+  level: () => valueOf(sheetNow(), "level"),
+  fighting: () => fighting(),
+  animalAllowed: (kind) => animalAllowed(kind),
+  regionName: (key) => regionNameAt(key),
+  // (The regions and travel hook: plans the region's land and purpose, and shows it on the map as heard of.)
+  planRegion: (ask) => questRegion(ask),
+  addItem: (item) => addItem(item),
+  readItems: () => readItems(),
+  money: () => purse().name,
+  changeStanding: (id, by, why, options) => changeStanding(id, by, why, options),
+  warmer: (id, by) => {
+    const now = core.relations.get(id, "player");
+    setRelation(id, "player", {
+      kind: now?.kind ?? "acquaintance",
+      role: now?.role ?? "",
+      level: Math.min(100, (now?.level ?? 30) + by),
+    });
+  },
+  remember: (ids, text) => keep(ids, text),
+  syncSpawns: () => syncSpawns(),
+  finishErrand: () => finishErrand(true),
+  dropErrand: () => {
+    questPlay.errandOver(core.save.errand, "given up");
+    core.save = { ...core.save, errand: null, waypoint: null };
+    core.saves.write(core.save);
+  },
+  factionOf: (id) => factionsOf(id)[0]?.id ?? "",
+});
+let questsShown = "";
+/** What Journal → Quests shows, and whether it changed since it was last drawn. */
+function questsData() {
+  const quests = questPlay.journal();
+  const key = JSON.stringify(quests);
+  const questsChanged = key !== questsShown;
+  questsShown = key;
+  return { quests, questsChanged };
+}
+
 /** What Journal → Factions shows: each faction with its standing and what it means now, and the regions known. */
 const factionsData = () =>
   core.save
@@ -8065,8 +8687,26 @@ const factionsData = () =>
 
 /** Journal → Map's map of regions: each one known, a faction's land in its colour. False when there's only home. */
 function drawRegionMap(canvas) {
-  if (!core.save || !Object.keys(core.save.regions ?? {}).length) return false;
-  drawRegions(canvas, factionRules.regionCells(core.save), core.save.region);
+  if (!core.save || regionRules.knownKeys(core.save).length < 2) return false;
+  // Each known region in its faction's colour, else its land's; a ! where a quest has something; the roads between.
+  const known = new Set(regionRules.knownKeys(core.save));
+  // (With the regions a quest is sending you to marked "!" as well: Quests.)
+  const marks = questPlay.markRegions(factionRules.regionCells(core.save));
+  const cells = [...known].map((key) => {
+    const [x, z] = key.split(",").map(Number);
+    const cell = marks.find((entry) => entry.key === key);
+    const open = regionRules.targetsIn(core.save.travel, key).length > 0;
+    return {
+      key,
+      x,
+      z,
+      visited: key === HOME_REGION || key === core.save.region || !!core.save.regions?.[key],
+      colour: cell?.colour ?? regionRules.LAND_COLOUR[regionRules.landOf(core.save, key)] ?? null,
+      mark: open ? `${cell?.mark ?? ""}!` : (cell?.mark ?? ""),
+      roads: ["east", "south"].map((side) => regionNext(key, side)).filter((next) => known.has(next)),
+    };
+  });
+  drawRegions(canvas, cells, core.save.region);
   return true;
 }
 
@@ -8310,6 +8950,9 @@ function actionGroups() {
 
 /** A click or tap on the world: use (or walk to) what's under it, or walk to that spot on the ground. */
 function tap(clientX, clientY) {
+  // (Fight display: a nameplate opens its info card, whatever the player is doing, down or not.)
+  const stage = core.camera ? core.stage.getBoundingClientRect() : null;
+  if (stage && plateTap(clientX - stage.left, clientY - stage.top)) return;
   // (In the saddle a tap only aims.)
   if (core.mode === "ride" && core.camera && aiming()) {
     const box = core.stage.getBoundingClientRect();
@@ -8458,7 +9101,9 @@ function toggleFullscreen() {
  */
 function seasonNow() {
   const picked = core.settings.season ?? "world";
-  return picked === "world" ? (core.save?.season ?? "") : picked === "none" ? "" : picked;
+  // (A region of snowy highlands is always in winter: world.js LAND_LOOK.)
+  const own = LAND_LOOK[landHereKind()]?.season;
+  return picked === "world" ? (own ?? core.save?.season ?? "") : picked === "none" ? "" : picked;
 }
 
 /** Experience earned (sheet.js gainXp): kept, and a level gained is said in the chat with what it gave. */
@@ -8847,6 +9492,7 @@ function shapeStrike(foe) {
       ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
       : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
+  knowFrom(foe.kind, result); // (fight display)
   if (!struck) return false;
   const what = creatureWord(foe);
   const told = strikeWords({
@@ -9395,6 +10041,7 @@ function startDying() {
   core.walkTo = null;
   core.afflicted = {};
   breakConcentration("");
+  core.downFighters = fightersNow(); // (fight display: who beat them, for overBegin)
   core.herd.calm();
   core.angry?.clear();
   if (core.battle) battleEnd("");
@@ -10139,6 +10786,7 @@ function foeBeaten(foe, stats) {
   const key = `${core.save.region ?? HOME_REGION}|${foe.id}`;
   core.save = { ...core.save, beaten: { ...core.save.beaten, [key]: core.social?.day ?? 0 } };
   core.saves.write(core.save);
+  questPlay.beaten(foe); // Quests: a hunt's count
 }
 
 // ── Spells ──
@@ -10368,6 +11016,7 @@ function spellOnFoe(foe, who, name, spell, wit, from = null) {
         ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
         : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
+  knowFrom(foe.kind, result, result.type ?? spell.type); // (fight display)
   if (!struck) return 0;
   if (!struck.down) {
     const seconds = result.effect?.seconds ?? 0;
@@ -10934,7 +11583,8 @@ function battleTick(dt, moved) {
   const out = battle.from ? Math.hypot(at.x - battle.from.x, at.z - battle.from.z) : 0;
   core.hud?.setBattle({
     round: battle.round,
-    order: battle.order.map((entry, i) => ({ name: entry.name, kind: entry.kind, current: i === battle.at })),
+    order: battleCards(battle), // (fight display)
+    log: core.fightLog ?? [],
     mine: battleMine(),
     out: Math.round(out * 10) / 10,
     reach: battle.reach,
@@ -11074,6 +11724,7 @@ const ARROW = 0xd8c8a0;
  */
 function foeShoots(event, what) {
   const stats = statsOf(event);
+  knowOf(event.kind, { acts: true }); // (fight display)
   const ally = event.target ? fightingAllies().find((person) => person.id === event.target) : null;
   if (event.target ? !ally : core.downed || core.mode === "talk") return;
   const to = ally ? ally.position : core.player.position;
@@ -11671,6 +12322,7 @@ function allyHp(id) {
 function allyAttacked(event, what, with_ = null) {
   const person = fightingAllies().find((entry) => entry.id === event.target);
   if (!person) return;
+  knowOf(event.kind, { acts: true }); // (fight display)
   const name = nameFor(person.id, person.name);
   // (`with_`: what it attacks with when that isn't its own teeth: a bow's or a spell's numbers, and how it's told.)
   const stats = { ...statsOf(event), ...with_ };
@@ -12338,6 +12990,7 @@ function landOn(foe, weapon, cover = 0) {
       ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
       : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
+  knowFrom(foe.kind, result); // (fight display)
   if (!struck) return false;
   const what = creatureWord(foe);
   const told = strikeWords({ who: personaName(), what, weapon, result, left: struck.hp, max: struck.max });
@@ -12552,6 +13205,7 @@ function dodge() {
 /** A creature's attack on the player (herd.js's "attack"): rolled against their AC, their HP taken, and told. */
 function foeAttacks(event, what, with_ = null) {
   if (core.downed || core.mode === "talk") return;
+  knowOf(event.kind, { acts: true }); // (fight display)
   const who = personaName();
   // Mid-roll, nothing lands.
   if (core.clock < (core.dodgeUntil ?? 0))
@@ -12637,6 +13291,7 @@ function defeated(final = false) {
   core.downAt = performance.now();
   core.gesture = "fall";
   core.walkTo = null;
+  if (!final) core.downFighters = fightersNow(); // (fight display: who beat them, for overBegin)
   core.herd.calm();
   core.angry?.clear();
   const who = personaName();
@@ -12650,6 +13305,7 @@ function defeated(final = false) {
       core.seat = { x, z, angle: core.player.rotation.y, approach: { x, z }, ground: "lie", taken: "player" };
       core.mode = "sit";
       core.stayDown = true; // (the Respawn button is shown from this, every frame: needsRespawn)
+      overBegin(); // (fight display: those who beat them stay over them)
       return;
     }
     comeTo(core.settings.defeat === "home");
@@ -12669,6 +13325,7 @@ const needsRespawn = () =>
  * `free`: they weren't beaten (Settings → Debug → Respawn): it costs nothing and takes no HP from them.
  */
 function comeTo(home, free = false) {
+  const robbed = overEnd(); // (fight display)
   core.downed = false;
   core.stayDown = false;
   core.afflicted = {};
@@ -12697,7 +13354,7 @@ function comeTo(home, free = false) {
     line = door ? PACK.fight.home : PACK.fight.square;
   }
   narrate(null, line.replace("{who}", who));
-  if (!free) void defeatCost(who);
+  if (!free && !robbed) void defeatCost(who);
   core.hud?.refreshInventory?.();
 }
 
@@ -12735,6 +13392,396 @@ function respawn(force = false) {
   if (core.battle) battleEnd("");
   resetMode();
   comeTo(true, !beaten);
+}
+
+// ── The fight display (fighthud.js, plates.js, fightbar.js) ─────────────────────────────────────────────
+// Who is in a fight, gathered every few frames (core.fighters) for the nameplates, the bar along the top and
+// the info cards; what the player has learned of each kind of creature (core.save.bestiary); and, after a
+// defeat with "Stay down until you choose", those who beat them standing over them (core.over). A quest may
+// set core.captive = { takes(kind), begin(over) } for foes that would carry the player off: none does yet.
+
+/** What's on the player, a companion or a creature, as fighthud.js STATUS ids. */
+const playerMarks = () => [
+  ...(core.settings.conditions ? Object.keys(core.afflicted ?? {}) : []),
+  ...(core.hold ? ["held"] : []),
+  ...(core.dying ? ["dying"] : []),
+  ...["hidden", "raging"].filter(buffed),
+  ...(core.battle?.dodging ? ["dodging"] : []),
+];
+const allyMarks = (id) => [
+  ...(core.settings.conditions ? Object.keys(core.allyFx?.get(id) ?? {}) : []),
+  ...(core.allyHolds?.has(id) ? ["held"] : []),
+];
+const foeMarks = (foe) => [
+  ...["stunned", "slowed", "rooted", "calmed"].filter((name) => foe[name]),
+  ...(hindered(foe.id) ? ["hindered"] : []),
+  ...(marked(foe.id) ? ["marked"] : []),
+  ...(holding(foe.id) ? ["holding"] : []),
+];
+
+/** A creature as a fighter for the display (`foe`: herd.js foes). */
+function foeFighter(foe, name = "") {
+  const stats = statsOf(foe);
+  return {
+    id: foe.id,
+    kind: "foe",
+    breed: foe.kind,
+    name: name || creatureWord(foe),
+    hp: foe.hp ?? stats.hp,
+    max: foe.max ?? stats.hp,
+    statuses: foeMarks(foe),
+    x: foe.x,
+    z: foe.z,
+    group: core.herd.bodyOf(foe.id),
+    size: SRD_CREATURES[foe.kind]?.size,
+    scale: foe.scale,
+  };
+}
+
+/**
+ * Everyone in the fight now: [{ id, kind ("player" | "ally" | "foe" | "person"), name, hp, max, statuses, x,
+ * z, group (their body), current, aimed }]. By turns, the turn order; in real time, the player, their
+ * companions, the creatures after them or struck, and anyone fighting back; beaten, those standing over them.
+ */
+function fightersNow() {
+  if (!fighting() || !core.save || !core.player || inHouse()) return [];
+  const at = core.player.position;
+  const hp = entryOf(sheetNow(), "hp");
+  const player = { id: "player", kind: "player", name: personaName(), hp: hp?.value ?? 0, max: hp?.max ?? 1 };
+  Object.assign(player, { statuses: playerMarks(), x: at.x, z: at.z, group: null });
+  const allyOf = (person) => ({
+    id: person.id,
+    kind: "ally",
+    name: nameFor(person.id, person.name),
+    ...allyHp(person.id),
+    statuses: allyMarks(person.id),
+    x: person.position.x,
+    z: person.position.z,
+    group: core.crowd.groupOf(person.id),
+    down: core.crowd.isOut(person.id),
+  });
+  const foes = core.herd.foes(at, 45);
+  const aim = core.aim?.id ?? null;
+  const battle = core.battle;
+  if (battle) {
+    const allies = new Map(fightingAllies().map((person) => [person.id, person]));
+    const about = new Map(foes.map((foe) => [foe.id, foe]));
+    return battle.order
+      .map((entry, i) => {
+        const made =
+          entry.kind === "player"
+            ? player
+            : entry.kind === "ally"
+              ? allies.has(entry.id) && allyOf(allies.get(entry.id))
+              : about.has(entry.id) && foeFighter(about.get(entry.id), entry.name);
+        return made && { ...made, name: entry.name, current: i === battle.at, aimed: entry.id === aim };
+      })
+      .filter(Boolean);
+  }
+  const standing = new Set(core.over && !core.over.gone ? core.over.victors.map((victor) => victor.id) : []);
+  const near = (foe) => Math.hypot(foe.x - at.x, foe.z - at.z);
+  const against = foes
+    .filter((foe) => standing.has(foe.id) || (!foe.fled && (foe.engaged || (foe.hp !== undefined && near(foe) < 20))))
+    .map((foe) => ({ ...foeFighter(foe), aimed: foe.id === aim }));
+  const people = core.angry?.size
+    ? core.crowd
+        .present(core.space)
+        .filter((person) => core.angry.has(person.id))
+        .map((person) => {
+          const most = foeOf("person", foeTable()).hp;
+          const { x, z } = person.position;
+          const group = core.crowd.groupOf(person.id);
+          const left = core.peopleHp?.get(person.id) ?? most;
+          return {
+            id: person.id,
+            kind: "person",
+            name: nameFor(person.id, person.name),
+            hp: left,
+            max: most,
+            x,
+            z,
+            group,
+          };
+        })
+    : [];
+  if (!against.length && !people.length) return [];
+  return [player, ...fightingAllies().map(allyOf), ...against, ...people];
+}
+
+/** The turn order's cards for the bar (fighthud.js turnCards), from those gathered for the display. */
+function battleCards(battle) {
+  const known = new Map((core.fighters ?? []).map((entry) => [entry.id, entry]));
+  const order = battle.order.map((entry) => known.get(entry.id) ?? { ...entry, hp: 1, max: 1 });
+  return turnCards(order, battle.at, core.settings.foeNumbers);
+}
+
+/**
+ * Each frame, after the camera is placed: who's in the fight (looked at again every 0.15 seconds), the
+ * real-time list along the top, the nameplates, and those standing over a beaten player.
+ */
+function fightHudTick(dt) {
+  const settings = core.settings;
+  core.fightHudAt = (core.fightHudAt ?? 0) - dt;
+  if (core.fightHudAt <= 0) {
+    core.fightHudAt = 0.15;
+    core.fighters = fightersNow();
+    // (The log starts again once a fight has been over for a while.)
+    if (core.fighters.length || core.battle) core.fightQuiet = 0;
+    else if ((core.fightQuiet = (core.fightQuiet ?? 0) + 0.15) > 8) core.fightLog = [];
+    const listed =
+      !core.battle && settings.fightList && fightMode() === "realtime" && !core.over && core.fighters.length > 0;
+    core.hud?.setFighters?.(
+      listed
+        ? { fighters: core.fighters.map((entry) => fighterView(entry, settings.foeNumbers)), log: core.fightLog ?? [] }
+        : null,
+    );
+  }
+  platesTick();
+  overTick(dt);
+}
+
+/** The nameplates (plates.js), as "Name and HP over heads" says, and over hostile creatures in sight too. */
+function platesTick() {
+  core.plates ??= createPlates();
+  const scene = core.space?.scene ?? null;
+  const mode = core.settings.nameplates;
+  if (mode === "off" || !fighting() || !core.player) return void core.plates.update([], scene);
+  const at = core.player.position;
+  const list = (core.fighters ?? []).filter((entry) => entry.kind !== "player");
+  if (core.settings.platesHostile && !inHouse() && !core.downed)
+    for (const foe of core.herd.foes(at, 30))
+      if (foe.hostile && !foe.fled && !list.some((entry) => entry.id === foe.id)) list.push(foeFighter(foe));
+  const exact = core.settings.foeNumbers;
+  core.plates.update(
+    list
+      .filter((entry) => entry.group && plateShown(mode, entry))
+      .map((entry) => ({
+        id: entry.id,
+        group: entry.group,
+        data: plateData(entry, exact),
+        far: Math.hypot(entry.x - at.x, entry.z - at.z),
+        lift: entry.kind === "foe" ? 0 : 2.5, // (a person's plate over their name tag)
+        size: entry.size,
+        scale: entry.scale,
+      })),
+    scene,
+    core.camera,
+  );
+}
+
+/** A tap on a nameplate opens its info card. Whether the tap was taken. */
+function plateTap(x, y) {
+  const id = core.plates?.hit(x, y, toScreen);
+  if (!id) return false;
+  fighterInfo(id);
+  return true;
+}
+
+/** What the player has learned of a kind of creature (fighthud.js learned), kept with the world. */
+const knownOf = (kind) => core.save?.bestiary?.[kind] ?? {};
+function keepKnown(kind, record) {
+  if (!core.save || record === knownOf(kind)) return;
+  core.save = { ...core.save, bestiary: { ...core.save.bestiary, [kind]: record } };
+  core.saves.write(core.save);
+}
+const knowOf = (kind, what) => keepKnown(kind, learned(knownOf(kind), what));
+/** The player struck a creature (`result`: the roll): its AC is known, and what that kind of damage did to it. */
+const knowFrom = (kind, result, type = result?.type) =>
+  knowOf(kind, { struck: true, ...(type && (result.how || result.damage > 0) ? { type, how: result.how } : {}) });
+
+/** The info card for the fighter `id` (a tap on their name or their plate). */
+function fighterInfo(id) {
+  const entry = (core.fighters ?? []).find((fighter) => fighter.id === id);
+  if (!entry || !core.save) return;
+  const settings = core.settings;
+  if (entry.kind !== "foe") {
+    const sheet = sheetNow();
+    const mine = entry.kind === "player";
+    const cls = mine ? playerClass() : classOf(id);
+    return void core.hud?.showInfo(
+      personCard({
+        ...entry,
+        foe: entry.kind === "person",
+        role: mine ? "You" : entry.kind === "ally" ? "Companion" : "Fighting you",
+        cls: SRD_CLASSES[cls]?.name ?? "",
+        level: mine ? valueOf(sheet, "level") : entry.kind === "ally" ? allyLevel(id) : 0,
+        ac: mine ? armourOf(sheet, wornNow(sheet)) : foeTable()[entry.kind === "ally" ? "ally" : "person"]?.ac,
+        statuses: entry.statuses ?? [],
+      }),
+    );
+  }
+  const kind = entry.breed;
+  const srd = SRD_CREATURES[kind] ?? {};
+  const own = statsOf({ kind, id, scale: entry.scale });
+  let record = knownOf(kind);
+  // (Recalling what it is: rolled the first time its card is opened, once a kind.)
+  if (settings.foeKnowledge === "learned" && srd.name && !record.check) {
+    record = knowCheck(record, { kin: srd.kin, cr: srd.cr, add: skillAdd(knowSkill(srd.kin)) });
+    keepKnown(kind, record);
+    const { skill, total, dc, passed } = record.check;
+    narrate(
+      null,
+      `${personaName()} tries to recall what a ${entry.name} is (${skillNamed(skill)?.name ?? skill} ${total} against DC ${dc}): ${passed ? "they know it well." : "little comes to mind."}`,
+    );
+  }
+  const card = creatureCard({
+    name: entry.name,
+    stats: { ...srd, size: srd.size ?? "", ac: own.ac, hp: own.hp },
+    record,
+    mode: settings.foeKnowledge,
+    fighter: entry,
+    exact: settings.foeNumbers,
+  });
+  if (!settings.damageTypes) card.notes.push("Kinds of damage don't matter here (Settings → 5e rules).");
+  if (!srd.name) card.notes.push("Not in the 5e SRD: it fights by the game's own numbers.");
+  core.hud?.showInfo(card);
+}
+
+/** Whether those who beat the player stay over them (Settings → Inventory → Combat), here and now. */
+const overOn = () => core.settings.victorsStay && core.settings.defeat === "stay" && fighting() && !inHouse();
+
+/**
+ * The player is down and staying down: those who beat them (fighthud.js victorsOf, from who was in the fight
+ * as they fell) stay over them, each as it would (overRole); a robber goes through their purse.
+ */
+function overBegin() {
+  if (!overOn() || core.over || !core.player) return;
+  const at = core.player.position;
+  if (!aggressionAllowed(at.x, at.z)) return; // (somewhere fights are kept out: they let them be)
+  const about = new Map(core.herd.foes(at, 30).map((foe) => [foe.id, foe]));
+  let ids = victorsOf(core.downFighters ?? [], at).filter((id) => about.has(id));
+  if (!ids.length)
+    ids = victorsOf([...about.values()].filter((foe) => foe.hostile && !foe.fled).map(foeFighter), at, 10);
+  const victors = ids.map((id) => {
+    const foe = about.get(id);
+    const srd = SRD_CREATURES[foe.kind] ?? {};
+    const speaks = talks(foe.kind);
+    const role = overRole({ kind: foe.kind, talks: speaks, kin: srd.kin ?? "", captors: core.captive?.takes });
+    return { id, kind: foe.kind, name: creatureWord(foe), role, talks: speaks, kin: srd.kin ?? "", cr: srd.cr ?? 0 };
+  });
+  core.downFighters = null;
+  if (!victors.length) return;
+  for (const victor of victors) victor.temperament = SRD_CREATURES[victor.kind]?.temperament ?? "";
+  core.over = { victors, step: 0, next: 0, tries: 0, waits: 0, robbed: false, gone: false };
+  core.herd.hold(ids);
+  const who = personaName();
+  narrate(null, overWords(victors, who));
+  if (victors.some((victor) => victor.role === "captive")) core.captive?.begin?.(core.over);
+  const robber = victors.find((victor) => victor.role === "rob");
+  if (robber && core.settings.defeatCost === "coins") {
+    core.over.robbed = true;
+    narrate(null, `The ${robber.name} goes through ${who}'s things.`);
+    void defeatCost(who);
+  }
+}
+
+/** Those standing over the player: where each stands (a robber close, a guard off, a beast circling), and the card. */
+function overTick(dt) {
+  const over = core.over;
+  if (!over) return;
+  if (!core.downed || !overOn()) return void overEnd();
+  const who = personaName();
+  if (over.gone) {
+    core.hud?.setOver({
+      text: `${who} lies alone.`,
+      choices: [{ id: "up", label: "Get up", title: "Get up where you are, with 1 HP", ready: true }],
+    });
+    return;
+  }
+  over.next -= dt;
+  if (over.next <= 0) {
+    over.next = 1.6;
+    over.step += 1;
+    const at = core.player.position;
+    core.herd.hold(over.victors.map((victor) => victor.id)); // (a fight's end lets go of everything)
+    for (const spot of overSpots(over.victors, at, over.step)) core.herd.march(spot.id, spot.x, spot.z, at.x, at.z);
+  }
+  const plea = pleaOf(over.victors, over.tries);
+  core.hud?.setOver({
+    text: overWords(over.victors, who),
+    choices: [
+      {
+        id: "plead",
+        label: "Plead",
+        title: plea
+          ? `${plea.skill === "persuasion" ? "Charisma (Persuasion)" : "Wisdom (Animal Handling)"} against DC ${plea.dc}`
+          : "They can't be reasoned with",
+        ready: !!plea,
+      },
+      { id: "wait", label: "Wait", title: "Lie still: they may lose interest and go", ready: true },
+      {
+        id: "struggle",
+        label: "Struggle",
+        title: "A Constitution check against DC 10: up with 1 HP, and the fight is on again",
+        ready: true,
+      },
+    ],
+  });
+}
+
+/** One of the choices on the card over a beaten player (the card's buttons). */
+function overChoice(id) {
+  const over = core.over;
+  if (!over || !core.downed) return;
+  const who = personaName();
+  if (id === "up") return void comeTo(false);
+  if (over.gone) return;
+  const list = victorList(over.victors);
+  const many = over.victors.length > 1;
+  const told = (action) => void runMoment({ action, voice: "talk", audience: "nearby", line: "", source: "fight" });
+  if (id === "plead") {
+    const plea = pleaOf(over.victors, over.tries);
+    if (!plea) return;
+    over.tries += 1;
+    const roll = 1 + Math.floor(Math.random() * 20);
+    const total = roll + skillAdd(plea.skill);
+    const skill = skillNamed(plea.skill)?.name ?? plea.skill;
+    const passed = total >= plea.dc;
+    narrate(
+      null,
+      `${who} pleads with ${list} (${skill} ${total} against DC ${plea.dc}): ${passed ? `${many ? "they let" : "it lets"} ${who} be.` : `${many ? "they aren't" : "it isn't"} moved.`}`,
+    );
+    told(
+      `pleads with ${list} standing over them. Their ${skill} check came to ${total} against DC ${plea.dc}: ${passed ? "they are let be" : "it fails"}`,
+    );
+    if (passed) overLeave();
+  } else if (id === "wait") {
+    over.waits += 1;
+    const goes = waitsOut(over.waits);
+    narrate(
+      null,
+      `Time passes. ${list[0].toUpperCase()}${list.slice(1)} ${goes ? (many ? "lose interest and go." : "loses interest and goes.") : many ? "stay over them." : "stays over them."}`,
+    );
+    if (goes) overLeave();
+  } else if (id === "struggle") {
+    const roll = 1 + Math.floor(Math.random() * 20);
+    const total = roll + modifier(valueOf(sheetNow(), "constitution"));
+    if (total < 10)
+      return void narrate(null, `${who} struggles to rise (Constitution ${total} against DC 10), and can't.`);
+    narrate(null, `${who} struggles up (Constitution ${total} against DC 10), with 1 HP: the fight is on again.`);
+    const victors = over.victors;
+    comeTo(false);
+    // (Roused: they come at them again, as anything struck does.)
+    for (const victor of victors) core.herd.strike(victor.id, 0, statsOf(victor).hp);
+  }
+}
+
+/** Those standing over the player go off: let go, and calm for a while. */
+function overLeave() {
+  if (!core.over) return;
+  core.herd.hold([]);
+  core.herd.calm();
+  core.over.gone = true;
+}
+
+/** It's over (they're up, or the setting's off): whoever stood over them is let go. Whether they'd been robbed. */
+function overEnd() {
+  const over = core.over;
+  if (!over) return false;
+  if (!over.gone && !core.battle) core.herd.hold([]);
+  core.over = null;
+  core.hud?.setOver(null);
+  return over.robbed;
 }
 
 // ── Gathering (gather.js) and the purse ─────────────────────────────────────────────────────────────────
@@ -13431,6 +14478,9 @@ function stepClock(dt) {
     // A clear morning may start in mist (Settings → World).
     if (kind === "clear" && core.settings.morningMist && mistyMorning(seed, core.social?.day ?? 0, core.hour))
       kind = "mist";
+    // A region's land leans its own way: a marsh misty, the badlands dry (regions.js regionWeather).
+    const period = Math.floor(core.weatherTime / WEATHER_PERIOD);
+    kind = regionRules.regionWeather(kind, landHereKind(), (hashString(`${seed}:${period}`) % 1000) / 1000);
   }
   core.world.setWeather(kind);
   core.world.setLightning(core.settings.lightning);
@@ -13863,7 +14913,14 @@ function step(dt) {
       core.respawnAt ??= core.clock + every;
       if (core.clock >= core.respawnAt) {
         core.respawnAt = core.clock + every;
-        core.herd.respawn(at, new Set((core.battle?.order ?? []).map((entry) => entry.id)));
+        // (And the quests' own, Quests; and those standing over a downed player.)
+        core.herd.respawn(
+          at,
+          new Set([
+            ...keepIds(core.battle?.order ?? [], core.over && !core.over.gone ? core.over.victors : []),
+            ...questPlay.keep(),
+          ]),
+        );
       }
     } else core.respawnAt = null;
     core.herd.update(dt, {
@@ -13980,6 +15037,7 @@ function step(dt) {
   // The use prompt over whatever is in reach.
   core.target = core.mode === "walk" && !core.walkTo ? pickTarget() : null;
   core.hud?.setRespawn(needsRespawn());
+  fightHudTick(dt);
   const label = core.downed
     ? null // (down: the Respawn button is how they get up)
     : core.mode === "sit"
@@ -14258,6 +15316,7 @@ function attach(element) {
     onSetLook: setLook,
     onSetPet: setPet,
     lookOf,
+    previewAvatar,
     onSetting: changeSetting,
     onRegenerate: regenerateWorld,
     onRegeneratePreview: previewRegenerate,
@@ -14277,8 +15336,15 @@ function attach(element) {
     },
     onMap: drawJournalMap,
     onRegions: drawRegionMap,
+    onTravelPlaces: travelPlaces,
+    onJourney: journey,
     onStanding: setStandingByHand,
     onPurposeAhead: (side, kind, faction) => purposeAhead(side, kind, faction, "hand"),
+    // Quests: Journal → Quests and Settings → Debug.
+    onQuestTrack: (id) => questPlay.track(id),
+    onQuestGiveUp: (id) => questPlay.giveUp(id),
+    onQuestChoose: (id, option) => questPlay.choose(id, option),
+    onQuestDebug: (action) => questPlay.debug(action),
     onWaypoint: setWaypoint,
     onUse: () => {
       core.sound.unlock();
@@ -14345,6 +15411,8 @@ function attach(element) {
         setSheet(changeSheet(sheetNow(), { add: { kind: "spell", name: spell.name, about: spellRule(spell) } }));
     },
     onRespawn: () => respawn(),
+    onFighterInfo: (id) => fighterInfo(id), // (fight display)
+    onOverChoice: (id) => overChoice(id),
     onBreakFree: () => void breakFree(),
     onRespawnNow: () => respawn(true),
     onClearBodies: () => {

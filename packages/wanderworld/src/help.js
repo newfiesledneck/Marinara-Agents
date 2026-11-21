@@ -153,6 +153,16 @@ export const HELP = [
     ],
   },
   {
+    title: "Your look: the built-in body",
+    lines: [
+      "Without a 3D model of your own you are Wanderworld's own body, male or female, made in Blender. The Look button beside your persona (or Look on anyone in town) opens its card, with a small turning picture of them at the top. Each part folds away: Presets, Body, Build, Face, Colours, Underwear and Hair.",
+      "Build has height, weight, muscle, chest, hips, waist, belly, shoulders and neck, and arm length, leg length and head size. Face has the jaw, cheekbones, nose, eyes and pointed ears. Each slider's middle is an everyday person; drag one and the picture follows, let go and it's set. Anything you never touch comes from their name, so everyone in town looks a little different.",
+      "Colours: skin, eyes, lips, nails and brows, each from a list or a colour of your own. Underwear: a top and a bottom, or none, and their colour. An outfit piece covering it hides it.",
+      "Presets: save a look under a name and start anyone's Look card from it, or from a ready-made one. Yours are kept with your settings, so they're there in every world; Export saves one as a small file and Import reads one back.",
+      'Townsfolk without a model of their own get the same body, shaped by their name and by their lore: ww:looks:tall, ww:looks:stocky, ww:looks:red hair, ww:looks:elf for pointed ears. Menu → Settings → People → "Townsfolk use the new bodies" turns that off, for the lighter Quaternius townsfolk on a slow phone.',
+    ],
+  },
+  {
     title: "Making a world",
     lines: [
       "Where worlds are kept: by the Engine, in Wanderworld's own storage there, so they're the same from any browser or device that opens your Engine, and can grow as big as they need. The game's and the AI's settings (the living world, animals, memories, connections, narrators, what calls the AI) are kept there too; graphics, controls, sound and what's shown on screen belong to each device. If the menu says Wanderworld isn't fully loaded, restart the Engine.",
@@ -280,6 +290,15 @@ export const HELP = [
     ],
   },
   {
+    title: "Fight display and defeat",
+    lines: [
+      "In a fight, each creature has its name and an HP bar over its head, green, then yellow, orange and red as it's hurt, with a mark for each condition on it (↓ prone, ☠ poisoned, ! frightened, ✋ held, # restrained, ✶ stunned, ≈ slowed). Your companions and anyone fighting you have the bar over their name tag. A bigger creature has its plate higher, and plates fade with distance. Settings → Inventory → Fight display → \"Name and HP over heads\" sets them always in fights, only sometimes (when one is hurt, has a condition, is aimed at, or it's its turn), or off; another switch puts them over hostile creatures in sight before a fight begins.",
+      "By turns, the bar at the top shows the turn order as cards: each fighter's name, HP bar and numbers, what's on them, and a gold edge on whoever's turn it is. Under the cards, the last thing that happened is told in a few words (who did what to whom, the roll, the damage); Before opens the few lines before it, and the chat keeps them all. In real time a smaller list at the top shows you, your companions and what you're fighting the same way (a switch). With \"Show foes' exact HP\" off, a foe's HP is a word (Unhurt, Wounded, Near death) and a bar in quarters.",
+      "Tap or click a name on a card, or a creature's plate, for its info card. A creature's card comes from the 5e SRD: size and type, AC, HP, speed, senses, ability scores, what it resists and is immune or vulnerable to, the conditions it can't be put in, and its traits and actions in a line each. A companion's shows their class, level, HP, AC and conditions. With \"What you know of a creature\" at Only what you've learned, a creature's card shows only what you've seen: its attacks once it has attacked, its AC once you've fought it, and how each kind of damage you dealt it went. The first time you open a kind's card you roll to recall it (Intelligence: Arcana, Nature, Religion or History by its type, against DC 10 plus its challenge rating); pass and you know all of it. That roll is made once a kind and kept with the world.",
+      'With "When your HP runs out" at Stay down until you choose, and "Staying down: those who beat you stay over you" on (Settings → Inventory → Combat), what beat you stays by you: an outlaw stands over you and, if a defeat costs money, takes it then; a beast circles; a monster stands guard. They aren\'t counted away by New monsters every. A card offers Plead (Persuasion, or Animal Handling with beasts, against DC 10 plus the strongest one\'s challenge rating), Wait (they may lose interest) and Struggle (Constitution against DC 10: up with 1 HP, and the fight starts again). With AI moments on, the narrator is told in a line who stands over you, so you can play it out in the chat. Respawn still gets you up at home. In places where fights are kept out, and indoors, they let you be.',
+    ],
+  },
+  {
     title: "Factions and regions",
     lines: [
       "A faction comes from your lore: an entry keyed ww:faction:Thieves Guild is its lore, and ww:member of:Thieves Guild on someone's entry puts them in it. ww:enemy of:The Crown on a faction's entry makes the two enemies.",
@@ -287,6 +306,15 @@ export const HELP = [
       "What it changes, each with its own switch in Settings → World → Factions: a faction's vendors charge up to a fifth more or less; while you're Hostile or Hated its people won't talk to you, its guards come for you, and nowhere in its land is safe, not even its town. With AI conversations on, one short sentence tells the AI how a speaker's faction regards you.",
       "Travelling off the edge of the map makes a new region. It can be made for a purpose: a faction's walled town with its banners and guards, a bandit stronghold with its gate set into a hillside, a few outposts with watchtowers, a smaller town, several hamlets, a ruin over a dungeon, or a hillside of caves. ww:region:east on a faction's entry makes the region east of home its land (ww:region:far north, ww:region:north-east:stronghold, ww:region:west:ruin on any entry). Journal → Factions can give the next region one way a purpose by hand. Otherwise the world's seed chooses, the same every time, and once a region has a purpose it keeps it.",
       "A stronghold's gate and the mouths of ruins and caves are entrances to deep places. Journal → Map shows the regions round you that you know of under the region's map, each faction's land in its colour, and the edge of the region map is in that colour when you're on its land.",
+    ],
+  },
+  {
+    title: "Regions, travel and coaches",
+    lines: [
+      "Every region beyond home has a land of its own: farmland, forest, hills, marsh, snowy highlands, rocky badlands or a lakeside. It comes from the world's seed and where the region lies, so the same world always has the same lands, neighbours tend to be alike and the far north is cold. Each land has its own trees, rocks and ground, its own weather (a marsh is often misty, the badlands seldom see rain, the highlands are always under snow), its own places out in the country, and its own monsters, with Settings → Creatures → Only where they'd be found on.",
+      "Each region's settlement has an inn and a shop, and its own people: someone at the inn, the shops, the smithy, the temple, the hall and the farms, and the rest in the houses, each with a name, a job, a home and a usual day. They're made the first time you arrive and kept with the world, so you meet the same people when you come back, and what they think of you and remember is kept too. Only the people of the region you're in are about. Someone from another region who joins your party comes along wherever you go.",
+      "Walk off the edge of the map to go to the next region, as before. Journal → Map also lists every region you know (the ones you've been to, and those your lore or a quest told you of), nearest first, with what each one is. Walk there goes by road through regions you know: the hours pass on the way, and something may be waiting where you arrive. At an inn or tavern, a coach goes to any region you've been to, quicker, for a fare taken from your coins (the inventory needs the Quartermaster package). The map of regions shows each land in its colour, the roads between them, and a ! where a quest has something for you.",
+      "Settings → World → Regions and travel switches each part: lands, the regions' own people, the AI describing a region when you arrive (one call, off at first), travel by road, coaches, the coach fare, the hours a region takes on foot, and how often something meets you on the road. Settings → World → Time standing still keeps journeys from taking time, and regions already made keep their land with lands switched off.",
     ],
   },
   {
@@ -324,6 +352,18 @@ export const HELP = [
       "Below ground there can be dungeons and strongholds as well as caves. A dungeon is a crypt, a ruin or a sealed vault: rooms and corridors of stone with torches on the walls. A crypt has tombs and a pillared hall, a ruin has rubble, crates and sometimes a camp, and a vault has guardrooms and a treasure room behind a door at the end. Doors and bars don't lock yet.",
       "A stronghold is a bandit or faction keep: a gatehouse, a hall with a long table and banners, barracks with bunks, store rooms, a gaol with barred cells where captives are held, the leader's room behind a door, and a cellar.",
       "Each one is built from the world's seed, so the same way down always leads to the same rooms. Guards keep to the hall and barracks, the leader or the dungeon's master waits in the last room, captives sit in the cells, and others wander. Sometimes there's a way further down: a dungeon's far wall that has given way into natural rock, or a trapdoor in a keep's cellar, both leading to a cave below.",
+    ],
+  },
+  {
+    title: "Quests",
+    lines: [
+      'Quests are work to take on. The noticeboard posts one now and then (take the note down to see it), people you ask "Any work going?" in a conversation may have some, and an entry in your lore keyed ww:quest:<title> is a quest its giver offers. A card shows who\'s asking, what they want, the first step and the reward: Accept or Decline. Errands from the noticeboard are quests of one stage.',
+      "A quest is a few stages, each one thing to do: talk to someone, go somewhere, find or gather so many of something, bring it to someone, beat so many creatures near a place, go down into a cave, free a captive held in one, travel to another region. Each is done when it happens in the world: you arrive, you talk to them, the last creature goes down. The game checks every stage before a quest is offered, so every quest you see can be finished.",
+      "Journal → Quests lists them: open ones first, each with its stages done (✓), the one you're on (▸) and how many are still to come, then the finished ones. Track puts one on the line at the top of the screen and on the map; tap the line to open the Journal. Give up keeps it in the Journal, given up. A stage that asks you to choose (who took the ledger?) has its answers as buttons there.",
+      'Quests can take you away. A stage in another region marks the edge that way on your map, and the region map shows it with a "!". A region a quest sends you to is given what it\'s for (a bandit stronghold, outposts, a ruin, a hillside of caves) and keeps it. A cave a quest needs always leads down, and a captive sits on its first level: walk up and Free them, then take them home.',
+      "Things go wrong. If someone a quest needs is gone from your world, the place has changed, or time ran out, the quest takes a turn when it has one (someone else saw it too, their kin hears the news, you make it right with the one you wrongly named) or ends, and the Journal says why. With the AI's quests on, a quest with no plan for what happened can be given one more stage by one AI call (Settings → Quests).",
+      "The game makes its own quests from what your world has, with no AI. With \"The AI writes quests\" on (Settings → Quests, off to begin with), one AI call writes each quest, all its stages at once, from your people, places and lore; anything it names that your world hasn't got is turned down and the game's own quest is offered instead. The quests you've had lately are remembered, so the next one is different.",
+      'Settings → Debug has "Finish this stage", "Fail this stage" and "Show this quest\'s state" for the tracked quest, for when one is stuck or you want to see what it\'s waiting for.',
     ],
   },
   { title: "Lorebook keywords", keywords: true },
@@ -374,6 +414,10 @@ export const CREDITS = [
       "Universal Animation Library: Idle, Walk, Jog, Sprint, Idle Talking, Sitting (enter, idle, talking, exit), Swim (forward, idle), Jump (loop, land), Fixing Kneeling, Interact, Pick Up Table and Dance.",
       "Universal Animation Library 2: Tree Chopping (the smith's hammer), Farm Harvest, Plant Seed and Watering, Idle Fold Arms, Idle Rail, Lay To Idle (lying down and getting up) and Consume.",
     ],
+  },
+  {
+    title: "The built-in body",
+    lines: ["Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan."],
   },
   {
     title: "Art, and the code underneath",

@@ -116,7 +116,7 @@ for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", 
     // (no git: every model there counts)
   }
   const models = readdirSync(join(pkg, "assets/models"))
-    .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro)-|^giant-base/u.test(name))
+    .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro|outfit)-|^giant-base/u.test(name))
     .filter((name) => !tracked || tracked.has(name))
     .map((name) => name.slice(0, -4))
     .filter((name) => !rigged.includes(name));

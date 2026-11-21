@@ -13,6 +13,7 @@ import { ANIMALS, coatFor, createAnimal, dogBody, HABITATS, POPULATION } from ".
 import { blobShadow } from "./character.js";
 import { kitModel } from "./kit.js";
 import { hashString, heightAt as landHeight, rng, waterAt as landWater } from "./world.js";
+import { LANDS } from "./regions.js";
 
 const NEAR = 110; // metres from the player within which an animal is moved and drawn
 const FLEE_FROM = 8; // metres: a timid animal this close to the player runs
@@ -45,7 +46,8 @@ const RUINS = new Set(["ruins", "graveyard", "stones", "watchtower"]);
 /**
  * What kind of place (x, z) is, for where monsters live (animals.js HABITATS): a Set of "open", "hills"
  * (5 m up and more), "mountains" (12 m and more), "water" (within 10 m of it), "ruins" and "caves" (near a
- * landmark of that sort or a cave mouth).
+ * landmark of that sort or a cave mouth), and anywhere in a region of a land the land's own word (regions.js
+ * LANDS: "forest", "marsh", "snow", "badlands").
  */
 export function habitatsAt(world, x, z) {
   const here = new Set();
@@ -69,6 +71,8 @@ export function habitatsAt(world, x, z) {
     if (outpost.kind === "cave" || outpost.deep) here.add("caves");
   }
   if ((world.caves ?? []).some((cave) => Math.hypot(cave.x - x, cave.z - z) <= LANDMARK_REACH)) here.add("caves");
+  const land = LANDS[world.layout?.land]?.habitat;
+  if (land) here.add(land);
   return here;
 }
 
@@ -303,7 +307,12 @@ export function herdFor(
     let left = quiet.wild || !kinds.length ? 0 : want("monsters");
     // (How likely each kind is: a rare one, an ogre or a dragon, `RARE_SHARE` of a common one; one not
     // about yet when the monsters are counted out again, `favour`, twice as likely as it would be.)
-    const weightOf = (kind) => (ANIMALS[kind].rare ? RARE_SHARE : 1) * (favour.includes(kind) ? 2 : 1);
+    // (In a region of a land, a kind that lives in it is three times as likely: marsh things in a marsh.)
+    const landWord = habitats ? LANDS[world.layout?.land]?.habitat : null;
+    const weightOf = (kind) =>
+      (ANIMALS[kind].rare ? RARE_SHARE : 1) *
+      (favour.includes(kind) ? 2 : 1) *
+      (landWord && HABITATS[kind]?.includes(landWord) ? 3 : 1);
     const weighted = (list) => {
       let roll = random() * list.reduce((sum, kind) => sum + weightOf(kind), 0);
       for (const kind of list) if ((roll -= weightOf(kind)) < 0) return kind;
@@ -1089,6 +1098,11 @@ export function createHerd() {
           hostile: beast.angry || (ANIMALS[beast.kind].hostile && temperOf(beast) !== "tame"),
           fled: beast.temper === "timid", // (it has had enough, and runs)
           stunned: (beast.stunUntil ?? 0) > clock,
+          // (For the fight display: it's after someone or fighting back, and what holds or calms it.)
+          engaged: !!(beast.angry || beast.chasing),
+          slowed: (beast.slowUntil ?? 0) > clock,
+          rooted: (beast.rootUntil ?? 0) > clock,
+          calmed: (beast.calmUntil ?? 0) > clock,
           room: (ANIMALS[beast.kind].back > 0 ? 0.75 : 0.45) * (beast.scale ?? 1),
         }));
     },

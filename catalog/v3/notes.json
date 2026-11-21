@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.42",
+          "date": "2026-11-20",
+          "notes": "- Quests: from the noticeboard, \"Any work going?\" or lore (ww:quest). The game's own always work; the AI can write them too (off by default). Stages can lead into caves and other regions, with failure branches. Journal → Quests and a quest line.\n- A new built-in body, male and female from MakeHuman's CC0 base: sliders for build and face, colours, underwear styles and presets in the Look card. Townsfolk get varied looks.\n- Fights: names and HP over heads, readable turn cards, tap a name for its SRD details; beaten, your foes stay over you to carry on the scene.\n- Regions: lands of their own (forest, marsh, snowy highlands, badlands, lakeside), towns with lasting people, an inn and a shop; travel by road or coach from Journal → Map.",
+          "highlight": false
+        },
+        {
           "version": "0.7.41",
           "date": "2026-11-20",
           "notes": "- Twelve new monsters made in Blender: a skeleton of Wanderworld's own (in place of the old one), a zombie, a see-through ghost and a specter with glowing eyes (both at night), earth, fire, water and air elementals, and hill, stone, frost and fire giants. The elementals and giants are rare; the giants can grab and throw. Each has its own switch under Settings → Creatures → Kinds, lives where it would be found, and fights by its SRD stat block.\n- The fire elemental and the fire giant's hair glow, and the water and air elementals are see-through.\n- Creature files with skeletons of their own are about a third smaller.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.23",
           "date": "2026-11-17",
           "notes": "- Creatures of one kind fight differently. About half the bandits close in with a blade, some stand off with a crossbow, some cast (an acolyte's spells). Puglins and skeletons are fighters or archers.\n- One that shoots or casts keeps its distance, backs off when crowded and gets a tree or a boulder between you. Casters choose their spell: an area for a huddle, a hold now and then, mending when badly hurt.\n- Companions fight by class: barbarians, fighters, monks, paladins and rogues close in; rangers and casters keep off and take cover.\n- Talk in fights: threats, taunts, curses, a wolf's snarl, a companion's shout, now and then. The AI can write these (off to begin with).\n- By turns, the AI can choose each creature's move from what it really has (off to begin with). The game still rolls everything.\n- All four have switches in Settings → Inventory → 5e rules and Combat.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.22",
-          "date": "2026-11-17",
-          "notes": "- Illustrate → \"What the AI is told\" is no longer cut off at 4,000 characters. It now takes about 60,000, so a long instruction with conditions in it is sent whole. The picture template's limit went from 2,000 to 20,000.\n- A world's instructions for scenes go from 1,000 characters to 20,000.",
           "highlight": false
         }
       ]

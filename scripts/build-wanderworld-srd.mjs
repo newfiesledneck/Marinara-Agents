@@ -351,6 +351,92 @@ function holdOf(sheet, main) {
     };
   return hold;
 }
+/** Feet written in a rule's text, as metres: "within 60 ft." is "within 18 m". */
+const textInMetres = (text) =>
+  text.replace(/(\d+)(?:\s|-)?(?:feet|foot|ft\.?)(?![a-z])/gu, (_, feet) => `${feetToMetres(Number(feet))} m`);
+/** A rule's first sentence, in metres, "It" for the creature, and no longer than `most` characters. */
+function firstSentence(text, most = 80) {
+  const first = textInMetres(String(text ?? "").trim())
+    .split(/(?<!\bm|\bft)\.\s/u)[0]
+    .replace(/\.$/u, "")
+    .replace(/^The [a-z' -]+? (?=(?:has|can|is|regains|adheres|takes|sheds|makes|moves)\b)/iu, "It ");
+  return first.length > most ? `${first.slice(0, most - 1).replace(/\s+\S*$/u, "")}…` : first;
+}
+/**
+ * An action in a few words: "+7 to hit, 2d6+4 slashing, reach 1.5 m"; "7d6 fire, DC 13 Dexterity save for
+ * half, cone 4.5 m"; "+4 to hit, 2d4+2 piercing, DC 11 Strength save or prone".
+ */
+function actionWords(action, actions) {
+  if (Array.isArray(action.sequence))
+    return action.sequence
+      .map((step) => {
+        const name = actions.find((entry) => entry.id === step.action)?.name ?? step.action;
+        return step.times > 1 ? `${name} ×${step.times}` : name;
+      })
+      .join(", ");
+  const dice = diceWithFlat(action.damage);
+  const laid = [
+    ...new Set(
+      (action.applies ?? [])
+        .map((entry) => PLAYER_CONDITIONS[entry.condition] ?? CONDITIONS[entry.condition])
+        .filter(Boolean),
+    ),
+  ].join(" or ");
+  const parts = [];
+  if (Number.isInteger(action.toHit)) parts.push(`+${action.toHit} to hit`);
+  if (dice) parts.push(`${dice} ${action.damage.type ?? ""}`.trim());
+  const save = action.save ? `DC ${action.save.difficulty} ${SAVES[action.save.save]} save` : "";
+  if (save) parts.push(laid ? `${save} or ${laid}` : `${save}${action.save.onSuccess === "half" ? " for half" : ""}`);
+  else if (laid) parts.push(laid);
+  const reach = action.reach ? `reach ${feetToMetres(action.reach)} m` : "";
+  const range = action.range?.normal ? `range ${feetToMetres(action.range.normal)} m` : "";
+  if (reach || range) parts.push([reach, range].filter(Boolean).join(" or "));
+  if (action.area?.size) parts.push(`${action.area.shape ?? "area"} ${feetToMetres(action.area.size)} m`);
+  if (action.recharge?.from) parts.push(`recharge ${action.recharge.from}–6`);
+  return parts.join(", ");
+}
+/**
+ * What the info card shows of a creature besides its fighting numbers (fighthud.js creatureCard): its six
+ * ability scores, speed and senses in metres, the conditions it can't be put in, its alignment, and its
+ * traits and actions in a line each. Short on purpose: srd.js stays small.
+ */
+function cardFacts(sheet) {
+  const scores = sheet.abilities ?? sheet.sheet?.abilities ?? {};
+  const facts = {};
+  const order = ["str", "dex", "con", "int", "wis", "cha"];
+  if (order.every((id) => Number.isInteger(scores[id]))) facts.scores = order.map((id) => scores[id]);
+  const walk = sheet.speed ?? sheet.sheet?.fields?.speed ?? 0;
+  const speeds = [
+    ...(walk ? [`${feetToMetres(walk)} m`] : []),
+    ...Object.entries(sheet.speeds ?? {}).map(([how, feet]) => `${how} ${feetToMetres(feet)} m`),
+  ];
+  if (speeds.length) facts.speed = `${speeds.join(", ")}${sheet.hover ? " (hover)" : ""}`;
+  const senses = Object.entries(sheet.senses ?? {}).map(([sense, feet]) => `${sense} ${feetToMetres(feet)} m`);
+  if (senses.length) facts.senses = senses.join(", ");
+  // (Only the SRD's own conditions; a spell's own, "antipathy_frightened", is left out.)
+  const shrugs = (sheet.conditionImmunities ?? []).filter((name) => /^[a-z]+$/u.test(name));
+  if (shrugs.length) facts.unmoved = shrugs;
+  if (sheet.alignment) facts.alignment = sheet.alignment;
+  const actions = sheet.actions ?? [];
+  const named = new Set(actions.map((action) => action.name.toLowerCase()));
+  const traits = (sheet.traits ?? [])
+    .filter(
+      (trait) => !/^variant/iu.test(trait.name) && !named.has(trait.name.toLowerCase()) && !/^hit:/iu.test(trait.text),
+    )
+    .slice(0, 3)
+    .map((trait) => `${trait.name}: ${firstSentence(trait.text)}`);
+  if (traits.length) facts.traits = traits;
+  const acts = actions
+    .filter((action) => !/^multiattack \(/iu.test(action.name))
+    .slice(0, 5)
+    .map((action) => {
+      const words = actionWords(action, actions);
+      return words ? `${action.name}: ${words}` : action.name;
+    });
+  if (acts.length) facts.acts = acts;
+  return facts;
+}
+
 const creatures = {};
 for (const [kind, id] of Object.entries(CREATURE_OF)) {
   const entry = bestiary.get(id);
@@ -452,6 +538,7 @@ for (const [kind, id] of Object.entries(CREATURE_OF)) {
   if (sheet.loot) made.loot = sheet.loot;
   if (typeof entry.filters?.challenge === "number") made.cr = entry.filters.challenge;
   if (sheet.type) made.kin = sheet.type; // (what sort of thing it is: beast, undead, fiend, …)
+  Object.assign(made, cardFacts(sheet));
   // What it has for a distance: a bow or a crossbow before something thrown.
   const far = attacks.filter((action) => action.range?.normal);
   const shot = far.find((action) => !action.reach) ?? far[0];
@@ -660,7 +747,7 @@ const text = `// Generated by scripts/build-wanderworld-srd.mjs from packages/ru
 
 /** The credit this material needs, shown in Help → Credits. */
 export const SRD_CREDIT =
-  "Spells, classes, races, skills, fighting styles, weapons, armour, magic items and creatures' numbers include material from the System Reference Document 5.1 by Wizards of the Coast LLC (https://dnd.wizards.com/resources/systems-reference-document), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode), by way of the Open5e API project. Adapted: only names, levels, dice, damage types, saving throws, conditions, areas, ranges, weapons' and armour's numbers and creatures' hit points, Armor Class, attacks, saving throws and what they resist are kept. Not affiliated with or endorsed by Wizards of the Coast.";
+  "Spells, classes, races, skills, fighting styles, weapons, armour, magic items and creatures' numbers include material from the System Reference Document 5.1 by Wizards of the Coast LLC (https://dnd.wizards.com/resources/systems-reference-document), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode), by way of the Open5e API project. Adapted: only names, levels, dice, damage types, saving throws, conditions, areas, ranges, weapons' and armour's numbers and creatures' hit points, Armor Class, ability scores, speeds, senses, attacks, saving throws, what they resist or are immune to, and their traits and actions shortened to a line each, are kept. Not affiliated with or endorsed by Wizards of the Coast.";
 
 /**
  * The SRD's spells of level 0 (cantrips) to 3 that a fight here can play: { name, level, classes, range
@@ -684,7 +771,9 @@ export const SRD_CLASSES = ${JSON.stringify(classes)};
  * as), hp (its hit dice's average), ac, attack (what its attack up close adds to the roll), damage (dice),
  * dex (what it adds to initiative), and where it has them ranged { name, attack, damage, range (metres) },
  * spells (names from SRD_SPELLS) and wit (what its casting adds), size, str (its Strength) and hold (what it
- * grabs and holds with, with its escape DC) }.
+ * grabs and holds with, with its escape DC); and for the info card scores (the six ability scores, Strength
+ * first), speed and senses (in metres), unmoved (the conditions it is immune to), alignment, and traits and
+ * acts (a line each, shortened) }.
  */
 export const SRD_CREATURES = ${JSON.stringify(creatures)};
 

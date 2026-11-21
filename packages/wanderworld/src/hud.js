@@ -8,12 +8,38 @@ import { createIllustrateWindow, floatingFrame } from "./illustrate.js";
 import { createPersonEditor } from "./person.js";
 import { CREDITS, HELP, KEYWORD_GUIDE, keywordGroups } from "./help.js";
 import { makeFloating } from "./floating.js";
-import { BARE, COLOUR_FIELD, EXTRAS, HAIR_COLOURS, HAIRSTYLES, HEIGHTS, OUTFITS, PIECES, SKIN_TONES } from "./looks.js";
+import { cardRow, createInfoCard, createOverCard, logLines } from "./fightbar.js"; // (the fight display)
+import {
+  AVATAR_COLOURS,
+  BARE,
+  BODIES,
+  BUILT_IN_PRESETS,
+  checkPresets,
+  COLOUR_FIELD,
+  EXTRAS,
+  FACE,
+  HAIR_COLOURS,
+  HAIRSTYLES,
+  HEIGHTS,
+  LIMBS,
+  OUTFITS,
+  PIECES,
+  PRESET_FIELDS,
+  presetFile,
+  readPresetFile,
+  SHAPES,
+  SKIN_TONES,
+  UNDERWEAR_BOTTOMS,
+  UNDERWEAR_TOPS,
+} from "./looks.js";
+import { createPreview } from "./preview.js";
 import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
 import { SETTINGS } from "./settings.js";
 import { LAND_CHOICES } from "./land.js";
 import { FACTION_EXPLAIN, FACTION_SETTINGS } from "./factions.js";
+import { QUEST_EXPLAIN } from "./quests.js";
+import { REGION_EXPLAIN, REGION_SETTINGS } from "./regions.js";
 import { kindWords, SHEET_KINDS, xpNeeded } from "./sheet.js";
 import {
   INK_BUTTON,
@@ -212,9 +238,12 @@ export function createHud(root, handlers) {
 
   // The Look card: what someone without a 3D model wears and looks like. Every change shows at once.
   let lookCard = null;
+  let lookPreview = null; // the base avatar turning at the top of the card (preview.js)
   const closeLook = () => {
     lookCard?.remove();
     lookCard = null;
+    lookPreview?.dispose();
+    lookPreview = null;
   };
   async function openLook(id) {
     closeLook();
@@ -230,6 +259,40 @@ export function createHud(root, handlers) {
     let pets = info.pets;
     let picking = null; // which colour of one's own is being picked ("tint:top", "hairTint", "skinTint")
     let draft = null; // the colour in the picker, as { h, s, l }, until it's used or cancelled
+    // The base avatar (avatar.js): how it looks now (filled in), what its kit offers, the player's presets,
+    // which sections are open, and the preview, made again for each change (the latest wins).
+    let avatar = info.avatar;
+    let presets = avatar?.presets ?? [];
+    const opened = new Set(["Body"]);
+    let presetNote = "";
+    lookPreview = avatar && handlers.previewAvatar ? createPreview() : null;
+    let previewAsk = 0;
+    let previewTimer = null;
+    const showPreview = (look) => {
+      if (!lookPreview) return;
+      const ask = ++previewAsk;
+      const preview = lookPreview;
+      handlers
+        .previewAvatar(id, look)
+        .then((figure) => {
+          if (ask === previewAsk && preview === lookPreview) preview.show(figure);
+          else figure.dispose();
+        })
+        .catch((error) => console.warn("[wanderworld] the preview couldn't be made", error));
+    };
+    // While a slider is dragged: the preview follows, a few times a second; the look is set when it's let go.
+    const previewSoon = (look) => {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(() => showPreview(look), 120);
+    };
+    showPreview(chosen);
+    const refresh = (next) => {
+      if (!next || lookCard !== card) return;
+      now = next.now;
+      avatar = next.avatar ?? avatar;
+      pets = next.pets;
+      card.replaceChildren(...draw());
+    };
     const draw = () => {
       const title = document.createElement("div");
       title.style.cssText = "font-weight:700;font-size:14px;";
@@ -239,20 +302,79 @@ export function createHud(root, handlers) {
       const ownModel = info.models?.kinds.length > 0 && chosen.avatar !== "builtin";
       note.textContent = ownModel
         ? "Their card's 3D model is what's shown. The rest of this look is for the built-in person."
-        : "The built-in person, dressed as below. Changes show at once and are kept with this world.";
+        : "The built-in person, shaped and dressed as below. Changes show at once and are kept with this world.";
       const rows = [title, note];
+      if (lookPreview) rows.push(lookPreview.element);
       // `patch`: the choices to make; one given as undefined is unmade (back to how the name has it).
       const set = (patch) => {
         chosen = { ...chosen, ...patch };
         if ("skin" in patch) chosen.skinSet = 2; // (looks.js: which list its number is from)
         for (const key of Object.keys(chosen)) if (chosen[key] === undefined) delete chosen[key];
         handlers.onSetLook(id, chosen);
-        void handlers.lookOf(id).then((next) => {
-          if (!next || lookCard !== card) return;
-          now = next.now;
-          card.replaceChildren(...draw());
-        });
+        showPreview(chosen);
+        void handlers.lookOf(id).then(refresh);
       };
+      // A group of controls that folds away (it stays as it was left while the card is open).
+      const section = (name, build) => {
+        const start = rows.length;
+        build();
+        const inside = rows.splice(start);
+        if (!inside.length) return;
+        const fold = document.createElement("details");
+        fold.open = opened.has(name);
+        fold.addEventListener("toggle", () => (fold.open ? opened.add(name) : opened.delete(name)));
+        fold.style.cssText = "border-top:1px solid rgba(59,42,24,0.25);padding-top:2px;";
+        const head = document.createElement("summary");
+        head.textContent = name;
+        head.style.cssText = "font:700 14px system-ui,sans-serif;padding:10px 2px;min-height:24px;cursor:pointer;";
+        const body = document.createElement("div");
+        body.style.cssText = "display:flex;flex-direction:column;gap:8px;padding-bottom:8px;";
+        body.append(...inside);
+        fold.append(head, body);
+        rows.push(fold);
+      };
+      // A line under a section's title or a control, saying what it does.
+      const says = (text) => {
+        const line = document.createElement("div");
+        line.style.cssText = "font-size:11px;opacity:0.75;line-height:1.3;";
+        line.textContent = text;
+        rows.push(line);
+      };
+      // A slider for the base avatar: its name and value, then the slider across the card, then what it
+      // changes. Dragged, the preview follows; let go, it's set.
+      const slider = (label, what, value, [least, most, step], shown, onLive, onSet) => {
+        const block = document.createElement("div");
+        block.style.cssText = "display:flex;flex-direction:column;gap:2px;font-size:13px;";
+        const head = document.createElement("div");
+        head.style.cssText = "display:flex;justify-content:space-between;gap:8px;";
+        const name = document.createElement("span");
+        name.textContent = label;
+        const number = document.createElement("span");
+        number.style.cssText = "font:12px ui-monospace,monospace;opacity:0.8;";
+        number.textContent = shown(value);
+        head.append(name, number);
+        const range = document.createElement("input");
+        range.type = "range";
+        range.min = String(least);
+        range.max = String(most);
+        range.step = String(step);
+        range.value = String(value);
+        range.title = what;
+        range.setAttribute("aria-label", label);
+        range.style.cssText = "width:100%;min-height:32px;margin:0;";
+        range.addEventListener("input", () => {
+          number.textContent = shown(Number(range.value));
+          onLive(Number(range.value));
+        });
+        range.addEventListener("change", () => onSet(Number(range.value)));
+        const hint = document.createElement("div");
+        hint.style.cssText = "font-size:11px;opacity:0.7;line-height:1.3;";
+        hint.textContent = what;
+        block.append(head, range, hint);
+        rows.push(block);
+      };
+      const signed = (value) => (value > 0 ? `+${value.toFixed(2)}` : value.toFixed(2));
+      const share = (value) => `${Math.round(value * 100)}%`;
       const row = (label, control) => {
         // (Not a <label>: a row may hold a second control, the square for a colour of one's own.)
         const line = document.createElement("div");
@@ -298,34 +420,6 @@ export function createHud(root, handlers) {
           (value) => value || undefined,
         );
       }
-      // Their gender (what the People menu's picker sets; Auto leaves it to their name and the world's
-      // shares), and for the custom gender which of the two figures they have.
-      const gender = bodyPicker((value) => {
-        info.body = value;
-        handlers.onSetBody(id, value);
-        void handlers.lookOf(id).then((next) => {
-          if (!next || lookCard !== card) return;
-          now = next.now;
-          card.replaceChildren(...draw());
-        });
-      });
-      gender.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
-      gender.setAttribute("aria-label", "Gender");
-      gender.title = "Their gender, and so the body of the built-in person";
-      gender.value = info.body ?? "auto";
-      row("Gender", gender);
-      if (now.gender === "custom")
-        pick(
-          "Figure",
-          "figure",
-          [
-            ["", "Either (by their name)"],
-            ["male", "Male figure"],
-            ["female", "Female figure"],
-          ],
-          chosen.figure ?? "",
-          (value) => value || undefined,
-        );
       const hex = (value) => `#${value.toString(16).padStart(6, "0")}`;
       const outfitNames = now.outfits.map((name) => [name, OUTFITS[name].label]);
       // A colour of your own, for a piece, the hair or the skin: a small square beside its row opens the
@@ -425,228 +519,518 @@ export function createHud(root, handlers) {
           () => setTint(piece, null),
         );
       };
-      // A whole outfit: choosing one puts every piece back to it.
-      pick("Outfit", "outfit", outfitNames, now.outfit, (text) => text, {
-        top: undefined,
-        arms: undefined,
-        legs: undefined,
-        feet: undefined,
-        hood: undefined,
-        pauldrons: undefined,
-      });
-      // Its pieces, each from any outfit and in a colour of its own if you like; the ranger's hood and
-      // pauldrons on or off.
-      for (const [piece, label] of PIECES) {
-        pick(label, piece, [...outfitNames, [BARE, "None"]], now[piece]);
-        // (A piece left off is skin: its colour is the skin's.)
-        if (now[piece] !== BARE) tintRow(piece, label);
-      }
-      for (const [extra, label] of EXTRAS) {
-        pick(
-          label,
-          extra,
-          [
-            ["yes", "On"],
-            ["no", "Off"],
-          ],
-          now[extra] ? "yes" : "no",
-          (text) => text === "yes",
-        );
-        if (now[extra]) tintRow(extra, label);
-      }
-      // Each outfit's cloth has its own colours: only those with a piece on show.
-      for (const kind of now.worn) {
-        const field = COLOUR_FIELD[kind];
-        pick(now.worn.length > 1 ? `${OUTFITS[kind].label} cloth` : "Cloth", field, OUTFITS[kind].colours, now[field]);
-      }
-      pick(
-        "Hair",
-        "hair",
-        HAIRSTYLES.map(([style, text]) => [style, text]),
-        now.hair,
-      );
-      // Hair and skin: one from the list, or a colour of your own.
-      const listOrOwn = (label, list, at, own, key, ownKey) => {
+      // ── The base avatar (avatar.js): presets, body, build, face, colours, underwear, hair, clothes ──
+      const shape = avatar?.now;
+      // A colour from a list, or one of your own (the square beside it opens the picker under it).
+      const colourRow = (label, what, list, colour, key, onSet) => {
         const select = document.createElement("select");
         select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
         select.setAttribute("aria-label", label);
-        for (const [value, text] of [...list.map((name, i) => [String(i), name]), ["own", "Your own…"]]) {
+        select.title = what;
+        const inList = list.findIndex(([value]) => value === colour);
+        for (const [value, text] of [...list.map(([value, name]) => [String(value), name]), ["own", "Your own…"]]) {
           const item = document.createElement("option");
           item.value = value;
           item.textContent = text;
           select.append(item);
         }
-        select.value = own === null ? String(at) : "own";
+        select.value = inList >= 0 ? String(list[inList][0]) : "own";
         select.addEventListener("change", () => {
-          if (select.value === "own") {
-            // Nothing changes yet: the picker opens, and its button sets the colour.
-            picking = ownKey;
-            draft = null;
-            card.replaceChildren(...draw());
-          } else set({ [key]: Number(select.value), [ownKey]: undefined });
+          if (select.value !== "own")
+            return onSet(
+              Number(select.value),
+              list.findIndex(([value]) => String(value) === select.value),
+            );
+          picking = key;
+          draft = null;
+          card.replaceChildren(...draw());
         });
         row(label, select);
-        if (own !== null) rows[rows.length - 1].append(square(ownKey, own, `Change your own ${label.toLowerCase()}`));
-        picker(ownKey, own, (colour) => set({ [ownKey]: colour }));
+        rows.at(-1).append(square(key, colour, `Your own colour for the ${label.toLowerCase()}`));
+        says(what);
+        picker(key, colour, (picked) => onSet(picked, -1));
       };
-      listOrOwn(
-        "Hair colour",
-        HAIR_COLOURS.map(([, name]) => name),
-        now.hairColour,
-        now.hairTint,
-        "hairColour",
-        "hairTint",
-      );
-      listOrOwn(
-        "Skin",
-        SKIN_TONES.map(([, name]) => name),
-        now.skin,
-        now.skinTint,
-        "skin",
-        "skinTint",
-      );
-      if (now.sex === "male") {
-        pick(
-          "Beard",
-          "beard",
-          [
-            ["yes", "Bearded"],
-            ["no", "Clean-shaven"],
-          ],
-          now.beard ? "yes" : "no",
-          (text) => text === "yes",
-        );
+      if (shape) {
+        // Presets: start from one (your own or a ready-made one), or keep this look as one.
+        section("Presets", () => {
+          says(
+            "Start from a saved look, or save this one. Your presets are kept with your settings, so they're in every world.",
+          );
+          const choose = document.createElement("select");
+          choose.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+          choose.setAttribute("aria-label", "Start from a preset");
+          const groups = [
+            ["Your presets", presets.map((preset, i) => [`own:${i}`, preset.name])],
+            ["Ready-made", BUILT_IN_PRESETS.map((preset, i) => [`built:${i}`, preset.name])],
+          ];
+          choose.append(new Option(chosen.preset ? `From: ${chosen.preset}` : "Choose one…", ""));
+          for (const [label, options] of groups) {
+            if (!options.length) continue;
+            const group = document.createElement("optgroup");
+            group.label = label;
+            for (const [value, text] of options) group.append(new Option(text, value));
+            choose.append(group);
+          }
+          const presetAt = (value) =>
+            value.startsWith("own:") ? presets[Number(value.slice(4))] : BUILT_IN_PRESETS[Number(value.slice(6))];
+          choose.addEventListener("change", () => {
+            const preset = presetAt(choose.value);
+            if (!preset) return;
+            // The preset's choices in place of the base avatar's own; which of the card's 3D models shows stays.
+            const cleared = Object.fromEntries(PRESET_FIELDS.map((field) => [field, undefined]));
+            presetNote = "";
+            set({ ...cleared, ...preset.look, preset: preset.name });
+          });
+          row("Start from", choose);
+          const name = document.createElement("input");
+          name.maxLength = 40;
+          name.placeholder = "A name for this look";
+          name.value = chosen.preset ?? "";
+          name.style.cssText =
+            "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;box-sizing:border-box;";
+          name.setAttribute("aria-label", "Preset name");
+          row("Name", name);
+          const keep = (list, note) => {
+            presets = checkPresets(list);
+            handlers.onSetting("lookPresets", presets);
+            presetNote = note;
+            card.replaceChildren(...draw());
+          };
+          const actions = document.createElement("div");
+          actions.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+          const save = button("Save as preset", "Keep this look as a preset of your own", () => {
+            const called = name.value.trim() || `${info.name || "A"} look`;
+            keep(
+              [{ name: called, look: chosen }, ...presets.filter((preset) => preset.name !== called)],
+              `Saved "${called}".`,
+            );
+          });
+          const chosenOwn = presets.find((preset) => preset.name === chosen.preset);
+          const remove = button("Delete preset", "Forget the preset this look began from", () =>
+            keep(
+              presets.filter((preset) => preset !== chosenOwn),
+              `Deleted "${chosenOwn.name}".`,
+            ),
+          );
+          remove.disabled = !chosenOwn;
+          const exported = button("Export", "Save this look as a small file, to keep or pass on", () => {
+            const called = name.value.trim() || chosen.preset || `${info.name || "A"} look`;
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(
+              new Blob([presetFile({ name: called, look: chosen })], { type: "application/json" }),
+            );
+            link.download = `${called.replace(/[^\w -]+/gu, "").trim() || "look"}.json`;
+            document.body.append(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+          });
+          const file = document.createElement("input");
+          file.type = "file";
+          file.accept = ".json,application/json";
+          file.style.display = "none";
+          file.addEventListener("change", async () => {
+            const read = file.files?.[0] ? readPresetFile(await file.files[0].text()) : null;
+            if (!read) {
+              presetNote = "That file isn't a Wanderworld look.";
+              card.replaceChildren(...draw());
+              return;
+            }
+            let called = read.name;
+            for (let n = 2; presets.some((preset) => preset.name === called); n++) called = `${read.name} (${n})`;
+            keep([{ name: called, look: read.look }, ...presets], `Imported "${called}": choose it under Start from.`);
+          });
+          const imported = button("Import", "Add a look saved as a file to your presets", () => file.click());
+          for (const control of [save, remove, exported, imported])
+            control.style.cssText += "flex:1;padding:8px 6px;font-size:12px;";
+          actions.append(save, remove, exported, imported, file);
+          rows.push(actions);
+          if (presetNote) says(presetNote);
+        });
+        // Body: their gender (what the People menu's picker sets; Auto leaves it to their name and the
+        // world's shares), and the body, which follows the gender unless one is chosen here.
+        section("Body", () => {
+          const gender = bodyPicker((value) => {
+            info.body = value;
+            handlers.onSetBody(id, value);
+            showPreview(chosen);
+            void handlers.lookOf(id).then(refresh);
+          });
+          gender.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+          gender.setAttribute("aria-label", "Gender");
+          gender.title = "Their gender: how they're spoken of, and the body unless one is chosen below";
+          gender.value = info.body ?? "auto";
+          row("Gender", gender);
+          says("How they're spoken of, and which body they have unless one is chosen below.");
+          const body = document.createElement("select");
+          body.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+          body.setAttribute("aria-label", "Body");
+          body.append(new Option(`As their gender (${shape.body === "female" ? "female" : "male"})`, ""));
+          for (const [value, text] of BODIES) body.append(new Option(text, value));
+          // (Anthro bodies, a wolf or a dragon, go here when they're made: docs/AVATAR.md.)
+          const later = new Option("Anthro bodies (coming later)", "anthro");
+          later.disabled = true;
+          body.append(later);
+          body.value = chosen.body ?? "";
+          body.addEventListener("change", () => set({ body: body.value || undefined, figure: undefined }));
+          row("Body", body);
+          says("Which model they are: the male or the female body. Anthro bodies come later.");
+        });
+        // Build and face: shape keys, and the bones' lengths.
+        const shapeSlider = ([key, label, least, most, what]) => {
+          const set1 = (value) => ({ shape: { ...chosen.shape, [key]: value } });
+          slider(
+            key === "chest" && shape.body === "female" ? "Bust" : label,
+            what,
+            shape.shape[key],
+            [least, most, 0.05],
+            signed,
+            (value) => previewSoon({ ...chosen, ...set1(value) }),
+            (value) => set(set1(value)),
+          );
+        };
+        section("Build", () => {
+          says("Each slider's middle is an everyday person; anything you don't move comes from their name.");
+          slider(
+            "Height",
+            "Shorter or taller, all of them at once.",
+            shape.height,
+            [HEIGHTS[0], HEIGHTS[1], 0.01],
+            share,
+            (value) => previewSoon({ ...chosen, height: value }),
+            (value) => set({ height: value }),
+          );
+          for (const entry of SHAPES) shapeSlider(entry);
+          for (const [key, label, least, most, what] of LIMBS) {
+            const set1 = (value) => ({ limbs: { ...chosen.limbs, [key]: value } });
+            slider(
+              label,
+              what,
+              shape.limbs[key],
+              [least, most, 0.01],
+              share,
+              (value) => previewSoon({ ...chosen, ...set1(value) }),
+              (value) => set(set1(value)),
+            );
+          }
+        });
+        section("Face", () => {
+          for (const entry of FACE) shapeSlider(entry);
+        });
+        // Colours: each part from its list or a colour of one's own. (The skin is the older kit's too.)
+        section("Colours", () => {
+          for (const [part, label, list, what] of AVATAR_COLOURS) {
+            if (part === "underwear") continue; // (with the underwear, below)
+            colourRow(label, what, list, shape.colours[part], `colour:${part}`, (colour) =>
+              part === "skin"
+                ? set({ skinTint: colour, skin: undefined, colours: { ...chosen.colours, skin: undefined } })
+                : set({ colours: { ...chosen.colours, [part]: colour } }),
+            );
+          }
+        });
+        // Underwear: a top and a bottom of the styles this body has, or none, and its colour.
+        section("Underwear", () => {
+          says("What's worn under the outfit; an outfit covering it hides it.");
+          const styles = (list, have) => [[BARE, "None"], ...list.filter(([style]) => (have ?? []).includes(style))];
+          for (const [field, label, list] of [
+            ["top", "Top", UNDERWEAR_TOPS],
+            ["bottom", "Bottom", UNDERWEAR_BOTTOMS],
+          ]) {
+            const select = document.createElement("select");
+            select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+            select.setAttribute("aria-label", `Underwear ${label.toLowerCase()}`);
+            for (const [value, text] of styles(list, avatar.choices?.[field === "top" ? "tops" : "bottoms"]))
+              select.append(new Option(text, value));
+            select.value = shape.underwear[field];
+            select.addEventListener("change", () => set({ underwear: { ...chosen.underwear, [field]: select.value } }));
+            row(label, select);
+          }
+          const [, label, list, what] = AVATAR_COLOURS.find(([part]) => part === "underwear");
+          colourRow(`${label} colour`, what, list, shape.colours.underwear, "colour:underwear", (colour) =>
+            set({ colours: { ...chosen.colours, underwear: colour } }),
+          );
+        });
+        // Hair: the style and its colour (the older kit's people wear the same).
+        section("Hair", () => {
+          const style = document.createElement("select");
+          style.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+          style.setAttribute("aria-label", "Hair style");
+          for (const [value, text] of HAIRSTYLES) style.append(new Option(text, value));
+          style.value = shape.hair;
+          style.addEventListener("change", () => set({ hair: style.value }));
+          row("Style", style);
+          says(
+            (avatar.choices?.hair ?? []).length > 1
+              ? "The hair style. None is bald."
+              : "The hair style. None is bald. (The new bodies' hair is still being made: they're bald until it comes.)",
+          );
+          colourRow(
+            "Colour",
+            "The hair's colour (the brows follow it unless they have their own).",
+            HAIR_COLOURS,
+            shape.hairColour,
+            "hairTint",
+            (colour, at) => (at >= 0 ? set({ hairColour: at, hairTint: undefined }) : set({ hairTint: colour })),
+          );
+        });
+        // Clothes: the outfit pieces the kit has for this body, each on or off.
+        if (avatar.choices?.clothes?.length)
+          section("Clothes", () => {
+            says("Outfit pieces, each on or off. A piece hides the skin and underwear it covers.");
+            for (const piece of avatar.choices.clothes) {
+              const box = document.createElement("input");
+              box.type = "checkbox";
+              box.checked = shape.clothes.includes(piece);
+              box.style.cssText = "width:22px;height:22px;flex:0 0 auto;";
+              box.addEventListener("change", () => {
+                const clothes = box.checked
+                  ? [...shape.clothes, piece]
+                  : shape.clothes.filter((worn) => worn !== piece);
+                set({ clothes: clothes.length ? clothes : [] });
+              });
+              row(
+                piece.replace(/_/gu, " ").replace(/^./u, (first) => first.toUpperCase()),
+                box,
+              );
+            }
+          });
       }
-      const height = document.createElement("input");
-      height.type = "range";
-      height.min = String(HEIGHTS[0]);
-      height.max = String(HEIGHTS[1]);
-      height.step = "0.02";
-      height.value = String(now.height);
-      height.setAttribute("aria-label", "Height");
-      height.addEventListener("change", () => set({ height: Number(height.value) }));
-      row("Height", height);
-      // Their animals: a dog for anyone, and a horse of your own. Each is with them, or kept at home.
-      if (pets) {
-        const choose = (label, options, value, onChange) => {
+      // The older kit's people (Quaternius): what they wear, for townsfolk with Settings → People →
+      // "Townsfolk use the new bodies" off, or when the new bodies can't be loaded.
+      section(shape ? "Older kit's clothes" : "Clothes", () => {
+        if (shape)
+          says('For townsfolk dressed from the older kit: Settings → People → "Townsfolk use the new bodies" off.');
+        // A whole outfit: choosing one puts every piece back to it.
+        pick("Outfit", "outfit", outfitNames, now.outfit, (text) => text, {
+          top: undefined,
+          arms: undefined,
+          legs: undefined,
+          feet: undefined,
+          hood: undefined,
+          pauldrons: undefined,
+        });
+        // Its pieces, each from any outfit and in a colour of its own if you like; the ranger's hood and
+        // pauldrons on or off.
+        for (const [piece, label] of PIECES) {
+          pick(label, piece, [...outfitNames, [BARE, "None"]], now[piece]);
+          // (A piece left off is skin: its colour is the skin's.)
+          if (now[piece] !== BARE) tintRow(piece, label);
+        }
+        for (const [extra, label] of EXTRAS) {
+          pick(
+            label,
+            extra,
+            [
+              ["yes", "On"],
+              ["no", "Off"],
+            ],
+            now[extra] ? "yes" : "no",
+            (text) => text === "yes",
+          );
+          if (now[extra]) tintRow(extra, label);
+        }
+        // Each outfit's cloth has its own colours: only those with a piece on show.
+        for (const kind of now.worn) {
+          const field = COLOUR_FIELD[kind];
+          pick(
+            now.worn.length > 1 ? `${OUTFITS[kind].label} cloth` : "Cloth",
+            field,
+            OUTFITS[kind].colours,
+            now[field],
+          );
+        }
+        // (Hair, skin and height are the base avatar's sections' when there are any: the older kit wears the same.)
+        if (!shape)
+          pick(
+            "Hair",
+            "hair",
+            HAIRSTYLES.map(([style, text]) => [style, text]),
+            now.hair,
+          );
+        // Hair and skin: one from the list, or a colour of your own.
+        const listOrOwn = (label, list, at, own, key, ownKey) => {
           const select = document.createElement("select");
           select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
           select.setAttribute("aria-label", label);
-          for (const [option, text] of options) {
+          for (const [value, text] of [...list.map((name, i) => [String(i), name]), ["own", "Your own…"]]) {
             const item = document.createElement("option");
-            item.value = option;
+            item.value = value;
             item.textContent = text;
             select.append(item);
           }
-          select.value = value;
+          select.value = own === null ? String(at) : "own";
           select.addEventListener("change", () => {
-            handlers.onSetPet(id, ...onChange(select.value));
-            void handlers.lookOf(id).then((next) => {
-              if (!next || lookCard !== card) return;
-              pets = next.pets;
+            if (select.value === "own") {
+              // Nothing changes yet: the picker opens, and its button sets the colour.
+              picking = ownKey;
+              draft = null;
               card.replaceChildren(...draw());
-            });
+            } else set({ [key]: Number(select.value), [ownKey]: undefined });
           });
           row(label, select);
+          if (own !== null) rows[rows.length - 1].append(square(ownKey, own, `Change your own ${label.toLowerCase()}`));
+          picker(ownKey, own, (colour) => set({ [ownKey]: colour }));
         };
-        const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
-        // How big it is: the nearest of the three to what it is now (a keyword may have made it bigger).
-        const SIZES = [
-          ["0.82", "Small"],
-          ["1", "Usual"],
-          ["1.25", "Large"],
-          ["1.5", "Huge"],
-        ];
-        const sizing = (label, role, pet) =>
-          choose(
-            label,
-            SIZES,
-            SIZES.reduce(
-              (best, [value]) =>
-                Math.abs(Number(value) - (pet.scale ?? 1)) < Math.abs(Number(best) - (pet.scale ?? 1)) ? value : best,
-              "1",
-            ),
-            (value) => [role, { ...pet, lore: undefined, scale: Number(value) }],
+        if (!shape)
+          listOrOwn(
+            "Hair colour",
+            HAIR_COLOURS.map(([, name]) => name),
+            now.hairColour,
+            now.hairTint,
+            "hairColour",
+            "hairTint",
           );
-        // Its name: said in place of "your dog" wherever it's spoken of.
-        const naming = (label, role, pet) => {
-          const name = document.createElement("input");
-          name.maxLength = 30;
-          name.value = pet.name ?? "";
-          name.placeholder = "A name (optional)";
-          name.style.cssText =
-            "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;box-sizing:border-box;";
-          name.setAttribute("aria-label", label);
-          name.addEventListener("change", () => {
-            handlers.onSetPet(id, role, { ...pet, lore: undefined, name: name.value.trim() || undefined });
-            void handlers.lookOf(id).then((next) => {
-              if (!next || lookCard !== card) return;
-              pets = next.pets;
-              card.replaceChildren(...draw());
+        if (!shape)
+          listOrOwn(
+            "Skin",
+            SKIN_TONES.map(([, name]) => name),
+            now.skin,
+            now.skinTint,
+            "skin",
+            "skinTint",
+          );
+        if (now.sex === "male") {
+          pick(
+            "Beard",
+            "beard",
+            [
+              ["yes", "Bearded"],
+              ["no", "Clean-shaven"],
+            ],
+            now.beard ? "yes" : "no",
+            (text) => text === "yes",
+          );
+        }
+        const height = document.createElement("input");
+        height.type = "range";
+        height.min = String(HEIGHTS[0]);
+        height.max = String(HEIGHTS[1]);
+        height.step = "0.02";
+        height.value = String(now.height);
+        height.setAttribute("aria-label", "Height");
+        height.addEventListener("change", () => set({ height: Number(height.value) }));
+        if (!shape) row("Height", height);
+      });
+      // Their animals: a dog for anyone, and a horse of your own. Each is with them, or kept at home.
+      section("Animals", () => {
+        if (pets) {
+          const choose = (label, options, value, onChange) => {
+            const select = document.createElement("select");
+            select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+            select.setAttribute("aria-label", label);
+            for (const [option, text] of options) {
+              const item = document.createElement("option");
+              item.value = option;
+              item.textContent = text;
+              select.append(item);
+            }
+            select.value = value;
+            select.addEventListener("change", () => {
+              handlers.onSetPet(id, ...onChange(select.value));
+              void handlers.lookOf(id).then((next) => {
+                if (!next || lookCard !== card) return;
+                pets = next.pets;
+                card.replaceChildren(...draw());
+              });
             });
-          });
-          row(label, name);
-        };
-        const where = [
-          ["out", pets.mine ? "With you" : "With them"],
-          ["home", "At home"],
-        ];
-        const dog = pets.dog;
-        choose(
-          "Dog",
-          [
-            ["", "None"],
-            ["owned", "Owned"],
-          ],
-          dog ? "owned" : "",
-          (owned) => ["dog", owned ? { size: "medium", coat: pets.dogCoats[0][0], out: true } : null],
-        );
-        if (dog) {
+            row(label, select);
+          };
+          const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+          // How big it is: the nearest of the three to what it is now (a keyword may have made it bigger).
+          const SIZES = [
+            ["0.82", "Small"],
+            ["1", "Usual"],
+            ["1.25", "Large"],
+            ["1.5", "Huge"],
+          ];
+          const sizing = (label, role, pet) =>
+            choose(
+              label,
+              SIZES,
+              SIZES.reduce(
+                (best, [value]) =>
+                  Math.abs(Number(value) - (pet.scale ?? 1)) < Math.abs(Number(best) - (pet.scale ?? 1)) ? value : best,
+                "1",
+              ),
+              (value) => [role, { ...pet, lore: undefined, scale: Number(value) }],
+            );
+          // Its name: said in place of "your dog" wherever it's spoken of.
+          const naming = (label, role, pet) => {
+            const name = document.createElement("input");
+            name.maxLength = 30;
+            name.value = pet.name ?? "";
+            name.placeholder = "A name (optional)";
+            name.style.cssText =
+              "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;box-sizing:border-box;";
+            name.setAttribute("aria-label", label);
+            name.addEventListener("change", () => {
+              handlers.onSetPet(id, role, { ...pet, lore: undefined, name: name.value.trim() || undefined });
+              void handlers.lookOf(id).then((next) => {
+                if (!next || lookCard !== card) return;
+                pets = next.pets;
+                card.replaceChildren(...draw());
+              });
+            });
+            row(label, name);
+          };
+          const where = [
+            ["out", pets.mine ? "With you" : "With them"],
+            ["home", "At home"],
+          ];
+          const dog = pets.dog;
           choose(
-            "Dog's coat",
-            pets.dogCoats.map(([coat, word]) => [coat, capital(word)]),
-            dog.coat,
-            (coat) => ["dog", { ...dog, lore: undefined, coat }],
+            "Dog",
+            [
+              ["", "None"],
+              ["owned", "Owned"],
+            ],
+            dog ? "owned" : "",
+            (owned) => ["dog", owned ? { size: "medium", coat: pets.dogCoats[0][0], out: true } : null],
           );
-          // (Small and medium are the small dog's body, the rest the big dog's; huge and massive can be ridden.)
-          choose("Dog's size", pets.dogSizes, dog.size, (size) => [
-            "dog",
-            { ...dog, lore: undefined, kind: undefined, scale: undefined, size },
-          ]);
-          naming("Dog's name", "dog", dog);
-          choose("Dog is", where, dog.out !== false ? "out" : "home", (at) => [
-            "dog",
-            { ...dog, lore: undefined, out: at === "out" },
-          ]);
-        }
-        {
-          const horse = pets.horse;
-          choose(
-            "Horse",
-            [["", "None"], ...pets.horses.map(([coat, word]) => [coat, capital(word)])],
-            horse?.coat ?? "",
-            (coat) => ["horse", coat ? { ...horse, lore: undefined, coat, out: horse?.out !== false } : null],
-          );
-          if (horse) sizing("Horse's size", "horse", horse);
-          if (horse) naming("Horse's name", "horse", horse);
-          if (horse)
-            choose("Horse is", where, horse.out !== false ? "out" : "home", (at) => [
-              "horse",
-              { ...horse, lore: undefined, out: at === "out" },
+          if (dog) {
+            choose(
+              "Dog's coat",
+              pets.dogCoats.map(([coat, word]) => [coat, capital(word)]),
+              dog.coat,
+              (coat) => ["dog", { ...dog, lore: undefined, coat }],
+            );
+            // (Small and medium are the small dog's body, the rest the big dog's; huge and massive can be ridden.)
+            choose("Dog's size", pets.dogSizes, dog.size, (size) => [
+              "dog",
+              { ...dog, lore: undefined, kind: undefined, scale: undefined, size },
             ]);
+            naming("Dog's name", "dog", dog);
+            choose("Dog is", where, dog.out !== false ? "out" : "home", (at) => [
+              "dog",
+              { ...dog, lore: undefined, out: at === "out" },
+            ]);
+          }
+          {
+            const horse = pets.horse;
+            choose(
+              "Horse",
+              [["", "None"], ...pets.horses.map(([coat, word]) => [coat, capital(word)])],
+              horse?.coat ?? "",
+              (coat) => ["horse", coat ? { ...horse, lore: undefined, coat, out: horse?.out !== false } : null],
+            );
+            if (horse) sizing("Horse's size", "horse", horse);
+            if (horse) naming("Horse's name", "horse", horse);
+            if (horse)
+              choose("Horse is", where, horse.out !== false ? "out" : "home", (at) => [
+                "horse",
+                { ...horse, lore: undefined, out: at === "out" },
+              ]);
+          }
         }
-      }
+      });
       const buttons = document.createElement("div");
       buttons.style.cssText = "display:flex;gap:8px;";
       const reset = button("Reset", "Forget these choices: back to the look their name gives", () => {
         picking = null;
         chosen = {};
         handlers.onSetLook(id, null);
-        void handlers.lookOf(id).then((next) => {
-          if (!next || lookCard !== card) return;
-          now = next.now;
-          card.replaceChildren(...draw());
-        });
+        showPreview({});
+        void handlers.lookOf(id).then(refresh);
       });
       const done = button("Done", "Close", closeLook);
       for (const control of [reset, done]) control.style.cssText += "flex:1;padding:8px 10px;";
@@ -804,6 +1188,8 @@ export function createHud(root, handlers) {
       : `Now ${count}: one person gets ${count}, two get ${Math.ceil(count / 2)} each, three get ${Math.ceil(count / 3)} each.`;
   const EXPLAIN = {
     ...FACTION_EXPLAIN,
+    ...QUEST_EXPLAIN,
+    ...REGION_EXPLAIN,
     genderMale: (s) => {
       const total = s.genderMale + s.genderFemale + s.genderCustom;
       const of = (value) => (total ? Math.round((value / total) * 100) : 0);
@@ -834,7 +1220,10 @@ export function createHud(root, handlers) {
     nature: "On: detailed trees and plants. Off: simple shapes, which is faster.",
     props: "On: detailed barrels, crates, benches and stalls. Off: simple shapes.",
     buildings: "On: detailed buildings. Off: simple boxes.",
-    people: "How characters with no 3D model of their own look.",
+    people:
+      "How characters with no 3D model of their own look. Detailed: you are the base avatar (your Look card shapes it), and townsfolk are too, or are dressed from the Quaternius kit (Settings → People → Townsfolk use the new bodies). Simple: everyone is a plain low-poly person, the lightest of all.",
+    newBodies:
+      'On: townsfolk with no 3D model of their own are the new base bodies, each shaped from their name within an everyday range, and from their lore: "ww:looks:tall", "ww:looks:red hair", "ww:looks:elf" for pointed ears. Their Look card changes any of it. Off: they are dressed from the older Quaternius kit, which is lighter on a slow phone. You are the new body either way.',
     animation: "Recorded: motion from the animation library. Built-in: a simple hand-made walk.",
     walkSpeed: "How fast you walk.",
     runSpeed: "How fast you run (hold Shift).",
@@ -925,6 +1314,18 @@ export function createHud(root, handlers) {
       "How long something you've beaten lies where it fell before it goes. 0 keeps it until you harvest it or clear it with the button below. While it lies there, you can harvest an animal (hide, meat and the like go into your inventory, and the body goes) or search an outlaw (you take what they carried, and the body stays).",
     defeat:
       "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and whatever beat you has backed off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Stay down until you choose: you lie where you fell while the chat and narration go on, and a Respawn button at the top gets you up at home whenever you like. Nothing is lost either way, and nobody dies for good.",
+    victorsStay:
+      'Only with "When your HP runs out" set to Stay down until you choose. On: what beat you stays near you instead of drawing off, and isn\'t counted away by "New monsters every". What they do depends on who they are. An outlaw (a bandit, a witch, a wizard and the like) stands over you, and with "What a defeat costs" set to money takes it there and then (not again when you get up). A beast circles you. A monster stands guard. A line in the chat says who stands over you, and a card gives you three choices. Plead: Charisma (Persuasion), or Wisdom (Animal Handling) with beasts alone, against DC 10 plus the strongest one\'s challenge rating, 2 more for each plea; the mindless can\'t be pleaded with. Wait: they may lose interest and go. Struggle: a Constitution check against DC 10, and on a success you get up with 1 HP and the fight starts again. With AI moments on, the narrator is told in one short line who stands over you, so you can play it out in the chat. Respawn still gets you up at home at any time. Overridden by: Undefeatable (you never go down), being indoors, and places where "Where people may confront you" keeps fights out (there they let you be). Off: they draw off, as before.',
+    nameplates:
+      "Over each creature and person in a fight: their name, an HP bar that goes from green to yellow, orange and red as they're hurt, and a mark for each condition on them (↓ prone, ☠ poisoned, ! frightened, ✋ held or grappled, # restrained, ✶ stunned, ≈ slowed, ✕ down and so on). A bigger creature has its plate higher. Plates fade with distance, one close to the camera fades out so it never fills your view, and ten at most are up at once. People keep their own name tag, so theirs shows the bar alone. Sometimes: only over one that's hurt, has a condition, is aimed at, or whose turn it is. Always in fights: over everyone in the fight. Off: none. Tap or click a plate for its info card. \"Show foes' exact HP\" decides whether a foe's bar is exact or in quarters.",
+    platesHostile:
+      'On: a hostile creature you can see, within about 30 metres, has its plate before any fight begins (as "Name and HP over heads" says). Off: only those in a fight. Does nothing with plates off.',
+    fightList:
+      "Real-time combat only: a turn-based fight has its own bar with the turn order, always. On: a compact list at the top of you, your companions and each creature or person in the fight, each with an HP bar, numbers and what's on them, and under it the last thing that happened in a few words (Before opens a few more; the chat keeps every line). Tap or click a name for the info card. Off: only the chat tells the fight.",
+    foeNumbers:
+      "On: a creature's or an enemy's HP shows as numbers (7/11) on the cards and in the info card. Off: a word for how hurt it is (Unhurt, Scratched, Wounded, Badly wounded, Near death) and a bar in quarters. Your own and your companions' HP are always numbers. The chat still tells every roll as it happened.",
+    foeKnowledge:
+      "Everything: a creature's info card shows all the 5e SRD has of it here: AC, HP, speed, senses, ability scores, what it resists and is immune or vulnerable to, the conditions it can't be put in, its traits and its actions. Only what you've learned: the card shows its size and type and how hurt it is, its attacks once you've seen it attack, its AC once you've fought it, and how each kind of damage you've dealt it went (halved, doubled, nothing, or as rolled). The first time you open a kind's card you try to recall it: Intelligence (Arcana) for dragons, elementals, monstrosities and the like, (Nature) for beasts, giants, oozes and plants, (Religion) for the undead and fiends, (History) for people, against DC 10 plus its challenge rating. Pass, and you know everything of that kind. It's rolled once a kind and kept with the world. Neither changes how a fight goes.",
     srdSlots:
       "Only in turn-based combat. Off: a spell costs its level in mana, as in real time. On: a spell uses a spell slot of its level or higher, as in the 5e SRD, and no mana. Your sheet and the spell buttons then show spell slots instead of mana. You have the slots of a full caster of your level (two first-level at level 1, three at level 2, four first-level and two second-level at level 3, and so on up to third-level slots). A sleep gives them back. Cantrips need neither.",
     srdCreatures:
@@ -1231,7 +1632,7 @@ export function createHud(root, handlers) {
   );
   toggle("props", "Detailed furniture and props");
   toggle("buildings", "Detailed buildings");
-  choice("people", "People without a model", { kit: "Dressed (Quaternius)", simple: "Simple" });
+  choice("people", "People without a model", { kit: "Detailed", simple: "Simple" });
   choice("animation", "Animation", { recorded: "Recorded (Quaternius)", builtin: "Built-in" });
   at("Display", "On screen");
   choice("textSize", "Text size", { 0.85: "Small", 1: "Normal", 1.15: "Large", 1.3: "Larger", 1.5: "Largest" });
@@ -1324,6 +1725,7 @@ export function createHud(root, handlers) {
     "Time and weather",
     "Places",
     "Factions",
+    "Regions and travel",
     "Vendors",
   ]);
   at("World", "Time and weather");
@@ -1375,6 +1777,16 @@ export function createHud(root, handlers) {
     "How each faction regards you (Journal → Factions), what that changes, and the regions travel makes for a purpose. All of it runs on the game's own rules; only the last setting adds anything to what the AI is told.",
   );
   for (const [name, label] of FACTION_SETTINGS) toggle(name, label);
+  at("World", "Regions and travel");
+  intro(
+    'The regions beyond home: what land each one is, who lives there, and how you get between them. By the game\'s own rules; only "The AI describes a region" calls the AI. Settings → World → Factions decides what a new region is made for, and Time standing still stops journeys taking time.',
+  );
+  for (const [name, label] of REGION_SETTINGS.slice(0, 3)) toggle(name, label);
+  part("Journeys");
+  for (const [name, label] of REGION_SETTINGS.slice(3)) toggle(name, label);
+  choice("coachFare", "Coach fare (each region)", { 0: "Free", 5: "5", 10: "10", 20: "20", 40: "40" }, "travelCoach");
+  choice("journeyHours", "Hours on foot (each region)", { 2: "2", 3: "3", 5: "5", 8: "8" });
+  choice("travelEncounters", "Encounters on the road", { off: "Off", rare: "Rare", often: "Often" });
 
   // People: how they act round the player, how they get on, what they remember. Rules alone.
   heading(
@@ -1392,6 +1804,7 @@ export function createHud(root, handlers) {
     outsideSafe: "Outside safe places",
     off: "Nowhere",
   });
+  toggle("newBodies", "Townsfolk use the new bodies");
   choice("names", "Names over people", {
     all: "Show all names",
     known: "Only people I know",
@@ -1418,12 +1831,31 @@ export function createHud(root, handlers) {
   toggle("memoryToldCounted", "Count personal limits against the total", "memories");
   part("Keeping memories short");
   sumUpRow();
+  // Quests (quests.js): what's offered and who writes it, how quests go wrong, and the line on screen.
+  heading(
+    "Quests",
+    "Work to take on: from the noticeboard, from asking people, from your lore. The game makes its own with no AI; the AI can write them too, one call a quest. Journal → Quests keeps them, and Settings → Debug can finish or fail a stage.",
+  );
+  toggle("quests", "Quests");
+  toggle("questsBuiltIn", "The game's own quests", "quests");
+  toggle("questsAi", "The AI writes quests (one call each)", "quests");
+  toggle("questAdapt", "The AI changes a quest that goes wrong", "questsAi");
+  choice(
+    "questOffers",
+    "How often work is offered",
+    { rarely: "Rarely", sometimes: "Sometimes", often: "Often" },
+    "quests",
+  );
+  choice("questMax", "Open at once, at most", { 1: "1", 2: "2", 3: "3", 5: "5" }, "quests");
+  toggle("questFailures", "Quests can take a turn when things go wrong", "quests");
+  toggle("questTimeLimits", "Time limits", "quests");
+  toggle("questLine", "The quest line on screen", "quests");
   // Inventory: everything about what you carry and what you can do with it, in four parts. (Its tab comes
   // after People's; People's own last part, Genders, is added below.)
   heading(
     "Inventory",
     "What you carry, your character sheet, gathering, shops and fights. Your items are kept by the Quartermaster package, if it's installed. Your sheet is Wanderworld's own and works without it.",
-    ["Items", "Sheet", "Gathering", "Shops", "Combat", "5e rules"],
+    ["Items", "Sheet", "Gathering", "Shops", "Combat", "5e rules", "Fight display"],
   );
   at("Inventory", "Items");
   intro(
@@ -1483,6 +1915,7 @@ export function createHud(root, handlers) {
     { here: "Come to where you fell", home: "Wake at home", stay: "Stay down until you choose" },
     "sheet",
   );
+  toggle("victorsStay", "Staying down: those who beat you stay over you", "sheet"); // (fight display)
   choice(
     "defeatCost",
     "What a defeat costs",
@@ -1527,6 +1960,21 @@ export function createHud(root, handlers) {
   toggle("deathSaves", "Death saving throws at 0 HP", "sheet");
   toggle("concentration", "Concentration", "sheet");
   toggle("cover", "Trees and boulders give cover", "sheet");
+  // ── Fight display (fighthud.js, plates.js, fightbar.js) ──
+  at("Inventory", "Fight display");
+  intro(
+    "What a fight shows: names and HP over heads, who's in the fight at the top, and a card for each creature or person (tap or click a name). None of it changes how a fight goes. Needs combat set to Real time or Turn-based.",
+  );
+  choice("nameplates", "Name and HP over heads", { off: "Off", some: "Sometimes", all: "Always in fights" }, "sheet");
+  toggle("platesHostile", "Also over hostile creatures in sight", "sheet");
+  toggle("fightList", "Real time: who's in the fight, at the top", "sheet");
+  toggle("foeNumbers", "Show foes' exact HP", "sheet");
+  choice(
+    "foeKnowledge",
+    "What you know of a creature",
+    { all: "Everything", learned: "Only what you've learned" },
+    "sheet",
+  );
   at("Inventory", "Combat");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
   number("beatenDays", "Days before the beaten are about again", "sheet");
@@ -2025,6 +2473,8 @@ export function createHud(root, handlers) {
   toggle("aiJoin", "…when you join someone", "aiMoments");
   toggle("aiSeparate", "A separate call for each person who answers", "aiMoments");
   toggle("vendorAi", "The AI stocks shop shelves");
+  toggle("questsAi", "The AI writes quests (one call each)");
+  toggle("questAdapt", "The AI changes a quest that goes wrong", "questsAi");
   choice("sheetTrack", "The AI updates your sheet", {
     off: "Off",
     moments: "After moments",
@@ -2128,6 +2578,20 @@ export function createHud(root, handlers) {
   unstickBar.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;align-items:center;";
   unstickBar.append(unstick, unstickState);
   add(unstickBar);
+  // Quests: the tracked quest's stage finished or failed by hand, or its state shown (questplay.js debug).
+  const questState = document.createElement("div");
+  questState.style.cssText = `font-size:11px;color:${INK_SOFT};white-space:pre-wrap;`;
+  questState.textContent =
+    "The tracked quest (Journal → Quests): move its stage on by hand, or see what it's waiting for.";
+  const questBar = document.createElement("div");
+  questBar.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;align-items:center;";
+  for (const [label, action] of [
+    ["Finish this stage", "finish"],
+    ["Fail this stage", "fail"],
+    ["Show this quest's state", "show"],
+  ])
+    questBar.append(inkSmall(label, () => (questState.textContent = handlers.onQuestDebug?.(action) ?? "")));
+  add(questBar, questState);
   const debugPart = (sub) => {
     at("Debug", sub);
     const node = document.createElement("div");
@@ -2459,8 +2923,13 @@ export function createHud(root, handlers) {
     onMap: (canvas, view) => handlers.onMap?.(canvas, view),
     onWaypoint: (at) => handlers.onWaypoint?.(at),
     onRegions: (canvas) => handlers.onRegions?.(canvas),
+    onTravelPlaces: () => handlers.onTravelPlaces?.(),
+    onJourney: (key, how) => handlers.onJourney?.(key, how),
     onStanding: (id, value, locked) => handlers.onStanding?.(id, value, locked),
     onPurposeAhead: (side, kind, faction) => handlers.onPurposeAhead?.(side, kind, faction),
+    onQuestTrack: (id) => handlers.onQuestTrack?.(id),
+    onQuestGiveUp: (id) => handlers.onQuestGiveUp?.(id),
+    onQuestChoose: (id, option) => handlers.onQuestChoose?.(id, option),
   };
   const journal = createJournal(PANEL, journalHandlers, (id) => id !== "map");
   // The Map: the Journal's map in a window of its own, with a button of its own.
@@ -3742,7 +4211,16 @@ export function createHud(root, handlers) {
   const menuWrap = document.createElement("div");
   menuWrap.style.cssText = "position:relative;display:flex;align-items:center;";
   menuWrap.append(menuButton, controls);
-  top.append(clock, place, stats, spacer, menuWrap);
+  // Quests: the tracked quest's stage on screen (Settings → Quests → The quest line); a tap opens Journal → Quests.
+  const questChip = document.createElement("button");
+  questChip.type = "button";
+  questChip.style.cssText = `${CHIP}font:12px system-ui,sans-serif;border:0;display:none;max-width:min(420px,70vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:auto;cursor:pointer;text-align:left;`;
+  questChip.title = "Your tracked quest: what to do now (opens Journal → Quests)";
+  questChip.addEventListener("click", () => {
+    journal.showTab("quests");
+    if (journal.panel.style.display === "none") togglePanel(journal.panel);
+  });
+  top.append(clock, place, questChip, stats, spacer, menuWrap);
 
   // The "use" prompt over whatever you could use, and on touch screens a Use button by the stick.
   const prompt = document.createElement("button");
@@ -3754,6 +4232,7 @@ export function createHud(root, handlers) {
   // On touch screens, a row along the bottom (the stick sits above its left end): Run, Sit (which becomes
   // Lie down once you're sitting on the ground), Jump, and Use at the right, under the other thumb.
   let sleepCard = null; // the tent's card, while it's open (openSleep)
+  let questCard = null; // a quest offered, while its card is up (offerQuest)
   const wanted = { jump: true, rest: true, run: true, chat: true, place: true }; // Settings: the thumb's buttons, the chat window's, the place line
   const jump = button("Jump", "Jump", () => handlers.onJump());
   const strike = button("Attack", "Swing at whatever is in front of you", () => handlers.onAttack?.());
@@ -4300,9 +4779,25 @@ export function createHud(root, handlers) {
   const battleBar = document.createElement("div");
   battleBar.setAttribute("data-wanderworld-ui", "");
   battleBar.style.cssText =
-    "position:absolute;left:50%;top:calc(46px + env(safe-area-inset-top, 0px));transform:translateX(-50%);max-width:min(560px,calc(100% - 16px));display:none;flex-direction:column;gap:5px;padding:7px 10px;border-radius:10px;background:rgba(10,14,20,0.78);color:#fff;font:13px system-ui,sans-serif;pointer-events:auto;";
+    "position:absolute;left:50%;top:calc(46px + env(safe-area-inset-top, 0px));transform:translateX(-50%);box-sizing:border-box;width:max-content;max-width:min(640px,calc(100% - 16px));display:none;flex-direction:column;gap:6px;padding:7px 10px;border-radius:10px;background:rgba(10,14,20,0.86);color:#fff;font:14px system-ui,sans-serif;pointer-events:auto;";
   let battleKey = "null";
   layer.append(battleBar);
+  // ── Fight display (fightbar.js): the real-time list, the info card, the card over a beaten player ──
+  const fightList = document.createElement("div");
+  fightList.setAttribute("data-wanderworld-ui", "");
+  fightList.style.cssText = battleBar.style.cssText;
+  let fightListKey = "null";
+  layer.append(fightList);
+  let fightLogOpen = false; // (the lines before the last, opened)
+  const infoCard = createInfoCard(layer);
+  const overCard = createOverCard(layer, (id) => handlers.onOverChoice?.(id));
+  /** Notices and captions come under whichever fight bar is up, not behind it. */
+  const placeUnder = () => {
+    const bar = [battleBar, fightList].find((element) => element.style.display !== "none");
+    const under = bar ? bar.offsetTop + bar.offsetHeight + 6 : 0;
+    notice.style.top = bar ? `${under}px` : "48px";
+    caption.style.top = bar ? `${under}px` : "84px";
+  };
   // What's on the player for now (prone, poisoned, …): a chip each at the top left (setConditions).
   const conditionRow = document.createElement("div");
   conditionRow.setAttribute("data-wanderworld-ui", "");
@@ -4644,6 +5139,53 @@ export function createHud(root, handlers) {
       sleepCard?.remove();
       sleepCard = null;
     },
+    /** The line for the tracked quest at the top ("" hides it). */
+    setQuestLine(text) {
+      if (questChip.textContent === text) return;
+      questChip.textContent = text;
+      questChip.style.display = text ? "" : "none";
+    },
+    /**
+     * A quest offered: who's asking, what they want, its first step, the reward, Accept or Decline.
+     * `card`: { title, from, text, first, steps, reward }; `onAnswer(yes)` is given the choice.
+     */
+    offerQuest(card, onAnswer) {
+      questCard?.remove();
+      const node = document.createElement("div");
+      node.setAttribute("data-wanderworld-ui", "");
+      // (Near the top, clear of a conversation's panel and the chat at the bottom.)
+      node.style.cssText = `${PANEL}display:flex;top:56px;right:auto;bottom:auto;left:50%;transform:translateX(-50%);gap:8px;width:min(380px,calc(100% - 32px));z-index:5;`;
+      const line = (text, css) => {
+        const element = document.createElement("div");
+        element.style.cssText = css;
+        element.textContent = text;
+        return element;
+      };
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:8px;";
+      const answer = (yes) => {
+        node.remove();
+        if (questCard === node) questCard = null;
+        onAnswer(yes);
+      };
+      const yes = button("Accept", "Take this quest on: it goes in Journal → Quests", () => answer(true));
+      const no = button("Decline", "Not this one", () => answer(false));
+      for (const control of [yes, no]) control.style.cssText += "flex:1;padding:10px 12px;";
+      row.append(yes, no);
+      node.append(
+        line(card.from, `font-size:12px;color:${INK_SOFT};`),
+        line(card.title, `font:700 15px ${SERIF};`),
+        line(card.text, "font-size:13px;line-height:1.4;"),
+        line(
+          `First: ${card.first}${card.steps > 1 ? ` (${card.steps} steps in all)` : ""}`,
+          "font-size:12px;line-height:1.35;",
+        ),
+        line(`Reward: ${card.reward}.`, "font-size:12px;"),
+        row,
+      );
+      pages.append(node);
+      questCard = node;
+    },
     /** The place line: `text` ("Briarwood · Mill Lane") and the titles of the lore active there. */
     setPlace(text, lore = []) {
       place.style.display = text && wanted.place ? "" : "none";
@@ -4920,36 +5462,32 @@ export function createHud(root, handlers) {
       sceneBody.replaceChildren(...nodes);
     },
     /**
-     * A fight by turns, shown along the top: { round, order: [{ name, current, kind }], mine, out, reach,
-     * action, attacks, bonus, acts: [{ id, label, title, ready }], slots } (`mine`: it's the player's turn; `slots`: "1st 2/2 · 2nd 0/0" or ""); null: no fight.
+     * A fight by turns, shown along the top: { round, order: [fighthud.js fighterView, in turn order], log:
+     * [{ text, short }], mine, out, reach, action, attacks, bonus, acts: [{ id, label, title, ready }], slots }
+     * (`mine`: it's the player's turn; `slots`: "1st 2/2 · 2nd 0/0" or ""); null: no fight. A tap on a
+     * name opens their info card (onFighterInfo).
      */
     setBattle(state) {
-      const key = JSON.stringify(state);
+      const key = JSON.stringify({ state, fightLogOpen });
       if (key === battleKey) return;
       battleKey = key;
       battleBar.style.display = state ? "flex" : "none";
-      if (!state) {
-        notice.style.top = "48px";
-        caption.style.top = "84px";
-        return;
-      }
-      const order = document.createElement("div");
-      order.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;justify-content:center;";
-      for (const entry of state.order) {
-        const chip = document.createElement("span");
-        chip.textContent = entry.name;
-        chip.style.cssText = `padding:2px 7px;border-radius:9px;font-size:11px;background:${entry.current ? "#c9a15a" : "rgba(255,255,255,0.12)"};color:${entry.current ? "#1a1408" : entry.kind === "foe" ? "#ffb4a0" : "#fff"};${entry.current ? "font-weight:700;" : ""}`;
-        order.append(chip);
-      }
+      if (!state) return void placeUnder();
+      fightList.style.display = "none";
+      const order = cardRow(state.order, (id) => handlers.onFighterInfo?.(id));
+      const told = logLines(state.log, fightLogOpen, () => {
+        fightLogOpen = !fightLogOpen;
+        hud.setBattle(state);
+      });
       const line = document.createElement("div");
-      line.style.cssText = "font-size:12px;text-align:center;";
+      line.style.cssText = "font:600 14px system-ui,sans-serif;text-align:center;";
       const count = (n, word) => (n > 0 ? `${n} ${word}${n === 1 ? "" : "s"}` : `no ${word}`);
       line.textContent = state.mine
         ? `Round ${state.round} · Your turn · Moved ${state.out.toFixed(1)} of ${state.reach} m · ${count(state.action, "action")}${state.attacks ? ` (+${count(state.attacks, "attack")})` : ""} · ${count(state.bonus, "bonus action")}${state.slots ? ` · Slots ${state.slots}` : ""}`
         : `Round ${state.round} · ${state.order.find((entry) => entry.current)?.name ?? ""}'s turn`;
       // (What's aimed at, with how far it is; none: a word on how to aim.)
       const aim = document.createElement("div");
-      aim.style.cssText = "font-size:12px;text-align:center;opacity:0.9;";
+      aim.style.cssText = "font-size:13px;text-align:center;opacity:0.9;";
       aim.textContent = state.target ? `Target: ${state.target}` : "Tap a creature or a companion to aim at them.";
       // What else a turn can be spent on (Dash, Disengage, Dodge, and a class's own), each a button.
       const acts = document.createElement("div");
@@ -4970,11 +5508,36 @@ export function createHud(root, handlers) {
       );
       flee.style.cssText += "padding:6px 10px;font-size:12px;";
       row.append(end, flee);
-      battleBar.replaceChildren(order, line, aim, ...(acts.childElementCount ? [acts] : []), row);
-      // (Notices and captions come under the bar, not behind it.)
-      const under = battleBar.offsetTop + battleBar.offsetHeight + 6;
-      notice.style.top = `${under}px`;
-      caption.style.top = `${under}px`;
+      battleBar.replaceChildren(order, line, told, aim, ...(acts.childElementCount ? [acts] : []), row);
+      placeUnder();
+    },
+    /**
+     * A fight in real time, shown along the top as a compact list: { fighters: [fighthud.js fighterView],
+     * log } or null (no fight, or the list is switched off). The turn-based bar takes its place in a fight by turns.
+     */
+    setFighters(state) {
+      const key = JSON.stringify({ state, fightLogOpen });
+      if (key === fightListKey) return;
+      fightListKey = key;
+      fightList.style.display = state && battleBar.style.display === "none" ? "flex" : "none";
+      if (state)
+        fightList.replaceChildren(
+          cardRow(state.fighters, (id) => handlers.onFighterInfo?.(id), true),
+          logLines(state.log, fightLogOpen, () => {
+            fightLogOpen = !fightLogOpen;
+            hud.setFighters(state);
+          }),
+        );
+      placeUnder();
+    },
+    /** The info card for a creature or a person (fighthud.js creatureCard, personCard); null closes it. */
+    showInfo(card) {
+      if (card) infoCard.show(card);
+      else infoCard.hide();
+    },
+    /** The card over a beaten player with their victors standing over them: { text, choices } or null (fightbar.js). */
+    setOver(state) {
+      overCard.set(state);
     },
     /** The hotkeys that are set: [{ key, label }]. A button each in the chat window (none hides the row). */
     setHotbar(slots) {

@@ -14,7 +14,9 @@ import { checkFurnished } from "./household.js";
 import { checkLook } from "./looks.js";
 import { checkGroups } from "./zones.js";
 import { checkPurposes, checkStanding } from "./factions.js";
+import { checkParts, checkQuests, checkSavedQuest } from "./quests.js";
 import { checkRelationship, checkTraitMap } from "./relationships.js";
+import { checkFolk, checkTravel } from "./regions.js";
 
 export const SAVE_VERSION = 1;
 const INDEX_KEY = "wanderworld.worlds";
@@ -103,6 +105,8 @@ function checkSetup(raw) {
     housing: checkHousing(raw.housing),
     furnished: checkFurnished(raw.furnished),
     place: checkPlace(raw.place),
+    // Its vendors' shelves (vendor.js, by zone id: every region has a building:3). Kept from 0.7.42 on.
+    ...(isRecord(raw.vendors) ? { vendors: raw.vendors } : {}),
   };
 }
 
@@ -124,6 +128,18 @@ function checkRegions(raw) {
           seed: region.seed.slice(0, 200),
           landscape: region.landscape,
           ...checkSetup(region),
+          // What its settlement must have (an inn and a shop: regions.js REGION_NEEDS), and its people
+          // (regions.js checkFolk), made the first time it's built. Regions from before have neither.
+          ...(isRecord(region.needs)
+            ? {
+                needs: Object.fromEntries(
+                  Object.entries(region.needs)
+                    .filter(([, count]) => Number.isInteger(count) && count > 0)
+                    .map(([kind, count]) => [kind, Math.min(12, count)]),
+                ),
+              }
+            : {}),
+          ...(Array.isArray(region.folk) ? { folk: checkFolk(region.folk) } : {}),
         },
       ]),
   );
@@ -400,6 +416,25 @@ export function checkWorld(raw) {
     // How each faction regards the player (factions.js), and what each region beyond home is for.
     standing: checkStanding(raw.standing),
     purposes: checkPurposes(raw.purposes),
+    // Quests (quests.js): every quest open or finished (the newest finished ones), the parts of recent ones
+    // (so the next differs), the one on screen, the one on the noticeboard, when work was last offered
+    // (hours since the world began), and the quests the lore holds (ww:quest).
+    quests: checkQuests(raw.quests),
+    questParts: checkParts(raw.questParts),
+    questTracked: typeof raw.questTracked === "string" ? raw.questTracked.slice(0, 80) : "",
+    questBoard: checkSavedQuest(raw.questBoard),
+    questOffered: Number.isFinite(raw.questOffered) ? raw.questOffered : null,
+    loreQuests: (Array.isArray(raw.loreQuests) ? raw.loreQuests : [])
+      .filter((entry) => isRecord(entry) && typeof entry.key === "string" && typeof entry.title === "string")
+      .slice(0, 40)
+      .map((entry) => ({
+        key: entry.key.slice(0, 120),
+        title: entry.title.slice(0, 80),
+        premise: text(entry.premise).slice(0, 600),
+        giver: text(entry.giver).slice(0, 80),
+        place: text(entry.place).slice(0, 80),
+        reward: text(entry.reward).slice(0, 120),
+      })),
     // Lore written for this world (not in an Engine lorebook): { entries: [{ id, title, content }] },
     // linked to places like any lorebook's entries (under the lorebook id "world").
     book: {
@@ -423,6 +458,15 @@ export function checkWorld(raw) {
     looks: isRecord(raw.looks)
       ? Object.fromEntries(
           Object.entries(raw.looks)
+            .slice(0, 200)
+            .map(([id, look]) => [id, checkLook(look)])
+            .filter(([, look]) => Object.keys(look).length),
+        )
+      : {},
+    // What lore's words say each one looks like (keywords.js lookFromWords), under what's chosen by hand.
+    loreLooks: isRecord(raw.loreLooks)
+      ? Object.fromEntries(
+          Object.entries(raw.loreLooks)
             .slice(0, 200)
             .map(([id, look]) => [id, checkLook(look)])
             .filter(([, look]) => Object.keys(look).length),
@@ -455,6 +499,9 @@ export function checkWorld(raw) {
     region: typeof raw.region === "string" && REGION_KEY.test(raw.region) ? raw.region : "0,0",
     regions: checkRegions(raw.regions),
     homeSetup: checkSetup(raw.homeSetup),
+    // Travel between regions (regions.js checkTravel): lands planned for regions not made yet, regions
+    // heard of, and quests' targets out in them.
+    travel: checkTravel(raw.travel),
     // Places the lore puts somewhere the world hasn't built them yet ("located in wilds1" for a house in
     // town), waiting for the world builder: [{ place, in, title }].
     waitingPlacements: Array.isArray(raw.waitingPlacements)
