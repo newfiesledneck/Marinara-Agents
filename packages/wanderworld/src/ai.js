@@ -131,7 +131,7 @@ export async function request(path, { method = "GET", body, timeout = 120000, ba
       signal: controller.signal,
     });
     const data = await response.json().catch(() => null);
-    if (!response.ok) throw Object.assign(new Error(failure(response, data)), { status: response.status });
+    if (!response.ok) throw Object.assign(new Error(failure(response, data)), { status: response.status, body: data });
     return data;
   } catch (error) {
     if (error?.name === "AbortError") throw new Error("The request took too long.", { cause: error });
@@ -141,10 +141,17 @@ export async function request(path, { method = "GET", body, timeout = 120000, ba
   }
 }
 
-/** Saved worlds as the server part keeps them, for store.js: every key's text, one put, one removed. */
+/**
+ * Saved worlds as the server part keeps them, for store.js: each key's revision, with its text when it
+ * isn't the revision held here; one put, at the revision it was made from; one removed.
+ */
 export const savesRemote = {
-  all: () => request("/saves", { timeout: 20000 }).then((body) => body?.keys ?? {}),
-  put: (key, value) => request("/save", { method: "POST", body: { key, value }, timeout: 60000 }),
+  all: (have) =>
+    request("/saves", { method: "POST", body: { have }, timeout: 20000 }).then((body) => body?.saves ?? {}),
+  put: (key, value, revision) =>
+    request("/save", { method: "POST", body: { key, value, revision }, timeout: 60000 }).catch((error) => {
+      throw error?.body?.conflict ? Object.assign(error, { conflict: error.body.conflict }) : error;
+    }),
   remove: (key) => request(`/save/${encodeURIComponent(key)}`, { method: "DELETE", timeout: 20000 }),
 };
 
@@ -203,6 +210,8 @@ export function createAi(locals = () => []) {
     /** One picture: { id, image, caption, prompt, at }. */
     picture: (id) => request(`/picture/${encodeURIComponent(id)}`),
     forgetPicture: (id) => request(`/picture/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    /** A deleted world's pictures and scene records, let go: { removed }. */
+    forgetWorld: (worldId) => request(`/world/${encodeURIComponent(worldId)}`, { method: "DELETE" }),
     /** Quartermaster's tracker, asked what changed in what was just told: { data } (its JSON, for its own route). */
     // (With `sheet`, the character sheet's lines, the same call reads for the sheet too: { data, sheet }.)
     inventoryTrack: (payload) => request("/inventory-track", { method: "POST", body: payload }),

@@ -409,6 +409,13 @@ export function attackRoll(
   { bonus = 0, ac = 10, damage = "1d4", damageBonus = 0, critFrom = 20, more = [], reroll = 0 },
   random = Math.random,
 ) {
+  // (A flat part written with the dice, a creature's "2d4+2", is added once like `damageBonus`: a critical
+  // hit doubles only the dice.)
+  const flat = /^\s*(\d{0,2}d\d{1,3})\s*([+-]\s*\d{1,4})\s*$/iu.exec(String(damage));
+  if (flat) {
+    damage = flat[1];
+    damageBonus += Number(flat[2].replace(/\s+/gu, ""));
+  }
   const roll = 1 + Math.floor(random() * 20);
   // (`critFrom`: the lowest roll of the die that's a critical hit, for one who has that. `more`: dice that
   // come with a hit besides the weapon's own, a Sneak Attack's say, doubled on a critical hit like the rest.)

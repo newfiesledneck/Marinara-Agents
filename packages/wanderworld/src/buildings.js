@@ -19,7 +19,6 @@ export const FLOOR_HEIGHT = 3.2;
 /** The menus a spec chooses from. The world brief will choose from these same lists. */
 export const KINDS = ["home", "shop", "tavern", "smithy", "temple", "hall"];
 export const ROOFS = ["gable", "hip", "flat"];
-export const WALLS = ["plaster", "timber", "stone", "brick", "planks"];
 
 const PLASTER = [0xe8dcc4, 0xeadfc8, 0xd9c3a0, 0xe3d3b5, 0xd8cfc0, 0xc9d1c8, 0xe6c9b0];
 const PLANKS = [0x9a7b55, 0x8a6a45, 0xa88a62, 0x7d6448];

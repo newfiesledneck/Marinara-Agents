@@ -49,9 +49,6 @@ export const INK_INPUT =
   "font:14px system-ui,sans-serif;border:1px solid #b89a6a;border-radius:7px;padding:7px 9px;" +
   "background:#fbf6e9;color:#2b1e10;box-sizing:border-box;";
 
-/** A heading in the panels' serif. */
-export const HEADING = `font:700 16px ${SERIF};color:${INK};`;
-
 /** A pinned note's paper (kit/generic/art/note): aged, with darkened edges. */
 export const NOTE_PAPER = `background:#ead9b4 url("${ART}note.webp") center/cover;color:#2e2112;`;
 

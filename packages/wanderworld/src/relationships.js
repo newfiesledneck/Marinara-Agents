@@ -5,8 +5,6 @@
 //
 // People are ids: "player" for the persona being played, or a character's id.
 
-export const RELATIONSHIP_VERSION = 1;
-
 /**
  * Every kind, with its four tiers (levels 0–24, 25–49, 50–74, 75–100): a short name for each, and the
  * words for a sentence ("Sarah is best friends with Jake"); how warm it is (−1 … 1, scaled by level for

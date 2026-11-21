@@ -754,24 +754,42 @@ console.log("wanderworld regression: OK");
   const { createStore, SHARED_SETTINGS } = await import("../packages/wanderworld/src/store.js");
   const { createSaves } = await import("../packages/wanderworld/src/saves.js");
   const { DEVICE_SETTINGS, sharedSettings } = await import("../packages/wanderworld/src/settings.js");
+  // A stand-in for the server part's saves (server.mjs `/saves` and `/save`), with revisions.
   const engine = (kept = {}) => {
     const keys = new Map(Object.entries(kept));
+    const revisions = new Map([...keys.keys()].map((key) => [key, 1]));
+    let made = 1;
     return {
       keys,
       down: false,
       puts: 0,
-      all: async function () {
+      values: 0, // values sent back by `all`
+      all: async function (have = {}) {
         if (this.down) throw new Error("down");
-        return Object.fromEntries(keys);
+        return Object.fromEntries(
+          [...keys].map(([key, value]) => {
+            const revision = revisions.get(key);
+            if (have[key] === revision) return [key, { revision }];
+            this.values += 1;
+            return [key, { revision, value }];
+          }),
+        );
       },
-      put: async function (key, value) {
+      put: async function (key, value, revision) {
         if (this.down) throw new Error("down");
         this.puts += 1;
+        if ((revisions.get(key) ?? null) !== revision)
+          throw Object.assign(new Error("conflict"), {
+            conflict: { value: keys.get(key) ?? null, revision: revisions.get(key) ?? null },
+          });
         keys.set(key, value);
+        revisions.set(key, (made += 1));
+        return { revision: made };
       },
       remove: async function (key) {
         if (this.down) throw new Error("down");
         keys.delete(key);
+        revisions.delete(key);
       },
     };
   };
@@ -795,7 +813,8 @@ console.log("wanderworld regression: OK");
   await store.flush();
   assert.deepEqual(
     [...remote.keys.keys()].sort(),
-    ["wanderworld.lastWorld", `wanderworld.world.${first.id}`, "wanderworld.worlds"].sort(),
+    ["wanderworld.lastWorld", `wanderworld.world.${first.id}`].sort(),
+    "no list of worlds of its own: it's made from the worlds",
   );
   assert.equal(JSON.parse(remote.keys.get(`wanderworld.world.${first.id}`)).name, "Renamed twice");
   // Another browser: the same worlds.
@@ -816,8 +835,10 @@ console.log("wanderworld regression: OK");
   saves.rename(first.id, "Mine, unsent");
   await store.flush();
   remote.down = false;
-  assert.equal(store.pending, 2, "the world and the list of worlds");
-  await store.pull();
+  assert.equal(store.pending, 1, "the world");
+  const valuesBefore = remote.values;
+  assert.deepEqual(await store.pull(), [`wanderworld.world.${second.id}`], "what changed is said");
+  assert.equal(remote.values - valuesBefore, 1, "and only that is sent");
   assert.equal(saves.read(second.id).name, "Second", "the other browser's world is here now");
   assert.equal(saves.read(first.id).name, "Mine, unsent", "an unsent write isn't lost to what the Engine has");
   saves.write({ ...saves.read(first.id), name: "Renamed twice" });
@@ -835,7 +856,11 @@ console.log("wanderworld regression: OK");
   const putsBefore = remote.puts;
   await blind.flush();
   assert.equal(remote.puts, putsBefore, "not connected: not sent");
-  assert.equal(JSON.parse(remote.keys.get("wanderworld.worlds")).length, 2, "the list of worlds is as it was");
+  assert.equal(
+    [...remote.keys.keys()].filter((key) => key.startsWith("wanderworld.world.")).length,
+    2,
+    "the worlds are as they were",
+  );
   // It stops answering mid-play: the write is held, said, and sent with the next one.
   remote.down = true;
   there.setItem(
@@ -886,6 +911,95 @@ console.log("wanderworld regression: OK");
   await store.flush();
   assert.equal(JSON.parse(remote.keys.get(SHARED_SETTINGS)).memoryTold, 30);
   console.log("ok: saves and shared settings are kept by the Engine");
+
+  // Writes that keep coming (the world as it's played) still reach the Engine, at least every `maxWait`;
+  // a write that changes nothing isn't sent at all.
+  {
+    const steady = engine();
+    const playing = createStore(steady, { delay: 40, maxWait: 100 });
+    await playing.connect();
+    for (let at = 0; at < 50; at += 1) {
+      playing.setItem("wanderworld.world.p", `{"at":${at}}`);
+      await new Promise((done) => setTimeout(done, 20));
+    }
+    assert.ok(steady.puts >= 4, `sent while the writes kept coming: ${steady.puts}`);
+    await playing.flush();
+    const sent = steady.puts;
+    playing.setItem("wanderworld.world.p", playing.getItem("wanderworld.world.p"));
+    await new Promise((done) => setTimeout(done, 80));
+    assert.equal(steady.puts, sent, "nothing changed: nothing sent");
+    assert.equal(playing.pending, 0);
+  }
+  // Two browsers: each writes only its own worlds, so a world made on one stays in the other's list.
+  {
+    const shared = engine();
+    const phone = createStore(shared, { delay: 0 });
+    const laptop = createStore(shared, { delay: 0 });
+    await phone.connect();
+    await laptop.connect();
+    const phoneSaves = createSaves(phone);
+    const laptopSaves = createSaves(laptop);
+    const one = phoneSaves.create({ name: "Phone world", seed: "a" });
+    await phone.flush();
+    const two = laptopSaves.create({ name: "Laptop world", seed: "b" });
+    await laptop.flush();
+    phoneSaves.write({ ...phoneSaves.read(one.id), playedAt: Date.now() + 5 });
+    await phone.flush();
+    await laptop.pull();
+    await phone.pull();
+    for (const saves of [phoneSaves, laptopSaves])
+      assert.deepEqual(
+        saves
+          .list()
+          .map((entry) => entry.name)
+          .sort(),
+        ["Laptop world", "Phone world"],
+      );
+    // Both play the phone's world: the one whose write comes second is refused, and gets the other's.
+    const changes = [];
+    const tablet = createStore(shared, { delay: 0, onChange: (keys) => changes.push(...keys) });
+    await tablet.connect();
+    const tabletSaves = createSaves(tablet);
+    phoneSaves.write({ ...phoneSaves.read(one.id), name: "Phone's turn" });
+    await phone.flush();
+    tabletSaves.write({ ...tabletSaves.read(one.id), name: "Tablet's turn" });
+    await tablet.flush();
+    assert.deepEqual(changes, [`wanderworld.world.${one.id}`], "the tablet is told");
+    assert.equal(tabletSaves.read(one.id).name, "Phone's turn", "and has the phone's now");
+    assert.equal(JSON.parse(shared.keys.get(`wanderworld.world.${one.id}`)).name, "Phone's turn");
+    // A save whose conflict this browser wins (onConflict false) goes over the other's.
+    const mine = createStore(shared, { delay: 0, onConflict: () => false });
+    await mine.connect();
+    phone.setItem(SHARED_SETTINGS, '{"a":1}');
+    await phone.flush();
+    mine.setItem(SHARED_SETTINGS, '{"b":2}');
+    await mine.flush();
+    assert.equal(shared.keys.get(SHARED_SETTINGS), '{"b":2}');
+    assert.equal(two.name, "Laptop world");
+  }
+  // Saves from before: the list of worlds was a document of its own, with the thumbnails. A world left
+  // out of it (written over by another browser) is listed again, and the thumbnails are still shown.
+  {
+    const old = engine({
+      "wanderworld.worlds": JSON.stringify([{ id: "w1", name: "One", playedAt: 1, thumbnail: "data:image/jpeg;one" }]),
+      "wanderworld.world.w1": JSON.stringify({ id: "w1", name: "One", seed: "s1", playedAt: 1 }),
+      "wanderworld.world.w2": JSON.stringify({ id: "w2", name: "Two", seed: "s2", playedAt: 2 }),
+    });
+    const store = createStore(old, { delay: 0 });
+    await store.connect();
+    const saves = createSaves(store);
+    assert.deepEqual(
+      saves.list().map((entry) => [entry.id, entry.thumbnail]),
+      [
+        ["w2", null],
+        ["w1", "data:image/jpeg;one"],
+      ],
+    );
+    saves.write(saves.read("w1"), "data:image/jpeg;new");
+    assert.equal(saves.list()[1].thumbnail, "data:image/jpeg;new", "a new thumbnail goes in the world's own record");
+    assert.equal(saves.read("w1").thumbnail, "data:image/jpeg;new");
+  }
+  console.log("ok: saves reach the Engine while playing, and browsers don't write over each other's worlds");
 }
 
 // ── What goes with a message to the assistant ────────────────────────────────────────────────────────────
@@ -995,4 +1109,20 @@ console.log("wanderworld regression: OK");
   );
   setGenderShares({ male: 50, female: 50, custom: 0 });
   console.log("ok: genders by the shares set");
+}
+
+// The package build's size gate (build-wanderworld-package.mjs): nothing to say under the warning, the
+// largest files named above it, and refused above the limit.
+{
+  const { zipSizeCheck } = await import("../scripts/deterministic-zip.mjs");
+  const entries = Array.from({ length: 12 }, (_, i) => ({ name: `kit/f${i}.json`, data: Buffer.alloc(i + 1) }));
+  assert.equal(zipSizeCheck(entries, 50, { warn: 50, refuse: 90 }), null);
+  const big = zipSizeCheck(entries, 60, { warn: 50, refuse: 90 });
+  assert.equal(big.refuse, false);
+  const named = big.message.split("\n").slice(1);
+  assert.equal(named.length, 10, "the ten largest");
+  assert.match(named[0], /kit\/f11\.json$/u);
+  assert.match(named[9], /kit\/f2\.json$/u);
+  assert.equal(zipSizeCheck(entries, 91, { warn: 50, refuse: 90 }).refuse, true);
+  console.log("ok: the package size gate");
 }

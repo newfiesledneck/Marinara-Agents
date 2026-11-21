@@ -816,7 +816,40 @@ for (const [text, dog, horse] of [
       `${kind} stands about ${data.height} m (${box.max.y.toFixed(2)})`,
     );
     assert.ok(box.min.y > -0.35, `${kind} stands on the ground`); // (a water elemental's pool dips in)
-    for (let i = 0; i < 20; i++) body.update(0.05, ANIMALS[kind].walk);
+    // Culled by bounds that hold every pose (not drawn behind the camera), and drawn in its distant
+    // version far off, with the same vertices.
+    const skinned = [];
+    body.object.traverse((node) => node.isSkinnedMesh && skinned.push(node));
+    assert.ok(skinned.length && skinned.every((mesh) => mesh.frustumCulled), `${kind} is left out when out of sight`);
+    assert.ok(
+      skinned.some((mesh) => mesh.geometry.userData.distant?.far.count < mesh.geometry.userData.distant.full.count),
+      `${kind} has a distant version`,
+    );
+    // (Its bone weights, packed as bytes, still add up to one at every vertex.)
+    for (const mesh of skinned) {
+      const weights = mesh.geometry.attributes.skinWeight;
+      for (let v = 0; v < weights.count; v++) {
+        const total = weights.getX(v) + weights.getY(v) + weights.getZ(v) + weights.getW(v);
+        assert.ok(Math.abs(total - 1) < 1e-3, `${kind}'s weights at vertex ${v} add up to ${total}`);
+      }
+    }
+    const { PerspectiveCamera, Vector3: Point } = await import("three");
+    const away = new PerspectiveCamera();
+    away.position.set(0, 0, 500);
+    for (const mesh of skinned.filter((each) => each.geometry.userData.distant)) {
+      mesh.onBeforeRender(null, null, away, mesh.geometry, mesh.material, null);
+      assert.equal(mesh.geometry.drawRange.count, mesh.geometry.userData.distant.far.count, `${kind} far off`);
+    }
+    const posed = new Point();
+    for (let i = 0; i < 20; i++) {
+      body.update(0.05, ANIMALS[kind].walk);
+      body.object.updateMatrixWorld(true);
+      for (const mesh of skinned)
+        for (let v = 0; v < mesh.geometry.attributes.position.count; v += 97) {
+          mesh.getVertexPosition(v, posed);
+          assert.ok(mesh.boundingSphere.containsPoint(posed), `${kind}'s bounds hold it as it walks`);
+        }
+    }
     assert.equal(body.act("strike"), true, `${kind} has an attack`);
     for (let i = 0; i < 30; i++) body.update(0.05, 0);
     if (ANIMALS[kind].hides) {

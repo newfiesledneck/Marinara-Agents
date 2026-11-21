@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.46",
+          "date": "2026-11-20",
+          "notes": "- Fights: creatures flee less (only when badly hurt, and undead, oozes and constructs never), a fleeing one can be chased and struck until it gets away, and one that comes back rejoins a turn-based fight once, with no more repeated \"joins the fight\".\n- Saving reaches the Engine while you play, worlds made on another device no longer vanish from Load world, and outfits chosen by hand are kept. Rules fixes: heavy armour ignores Dexterity, a critical hit doubles only the dice, Multiattack uses each attack's own numbers.\n- Settings → Display → Creature detail distance: creatures further off are drawn with fewer triangles from the same model.",
+          "highlight": false
+        },
+        {
           "version": "0.7.45",
           "date": "2026-11-20",
           "notes": "- The built-in body gets MakeHuman's CC0 skins: young, middle-aged and old, each Caucasian, African or Asian, with an Age choice that also ages the face and body (adults only). Or keep a skin colour of your own.\n- Nine eye pictures besides the eye colour tint, and twelve eyebrow and four eyelash styles in the Look card. Townsfolk get varied ages, skins, brows and lashes, and lore words like \"old\" or \"middle-aged\" shape them.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.27",
           "date": "2026-11-20",
           "notes": "- Four monsters of Wanderworld's own: goblins, and now and then an ogre, a troll or a minotaur, out in the country with the other monsters. They're built in code from simple shapes, so they need no download, and they walk, run and strike with the people's animations. Each has its own switch in Menu → Settings → Creatures, the SRD's numbers in a fight, and spoils of its own.\n- A goblin in your lore is now a goblin rather than a puglin (ww:monster:goblin:pack4). An orc is still a puglin.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.26",
-          "date": "2026-11-17",
-          "notes": "- \"Fights by turns\" is called turn-based combat everywhere: the Combat choice, its settings, Help and the buttons.\n- Inventory → Sheet: the turn's numbers read \"Each turn, you get\", with \"Move [9] Metres\".\n- The (i): a tap or a click opens its explanation. Hovering shows it as a tooltip and no longer opens it, which made it open and shut over and over.\n- The chat window no longer shows a spell or an ability twice: one that's on a number key is only its hotkey's button.",
           "highlight": false
         }
       ]

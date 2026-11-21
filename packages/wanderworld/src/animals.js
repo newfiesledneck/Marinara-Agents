@@ -12,6 +12,7 @@
 import { createBuilt } from "./bestiary.js";
 import { createFolk, createOutlaw } from "./people.js";
 import { createRigged } from "./rigged.js";
+import { forget } from "./kit.js";
 import {
   Bone,
   BufferAttribute,
@@ -664,10 +665,9 @@ export const SORT_OF = {
   frost_giant: "monsters",
   fire_giant: "monsters",
 };
-/** How many of each sort a world has when nothing says otherwise, and the most the slider goes to. */
+/** How many of each sort a world has when nothing says otherwise. */
 // (`town`: the most of them that are inside the settlement itself; the rest are put outside it.)
 export const POPULATION = { strays: 2, farm: 12, wild: 12, hostile: 5, monsters: 8, town: 5 };
-export const POPULATION_MAX = { strays: 100, farm: 100, wild: 100, hostile: 100, monsters: 100, town: 100 };
 /** The kinds as a player switches them on and off: the two dogs are one ("dog"). */
 export const SWITCHES = {
   dog: ["husky", "shiba"],
@@ -815,10 +815,12 @@ function load(kind) {
   if (!files.has(group)) {
     files.set(
       group,
-      fetch(`${BASE}${group}.json`).then((response) => {
-        if (!response.ok) throw new Error(`GET kit/creatures/${group}.json → ${response.status}`);
-        return response.json();
-      }),
+      fetch(`${BASE}${group}.json`)
+        .then((response) => {
+          if (!response.ok) throw new Error(`GET kit/creatures/${group}.json → ${response.status}`);
+          return response.json();
+        })
+        .catch((error) => forget(files, group, error)),
     );
   }
   return files.get(group).then((file) => {

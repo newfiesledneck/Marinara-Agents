@@ -37,6 +37,7 @@ import {
   USUAL_HAIR_COLOURS,
 } from "./looks.js";
 import { hashString, rng } from "./world.js";
+import { addDistant, drawDistant, forget } from "./kit.js";
 
 // The bodies (skeletons, heads, hair, skin) are any world's, in kit/generic/people, one file for them
 // all (bodies.json); the outfits and their cloth are the medieval one's, in kit/fantasy/outfits. A file's
@@ -110,10 +111,12 @@ export function load(name) {
   if (!files.has(name)) {
     files.set(
       name,
-      fetch(urlOf(name)).then((response) => {
-        if (!response.ok) throw new Error(`GET ${name} → ${response.status}`);
-        return response.json();
-      }),
+      fetch(urlOf(name))
+        .then((response) => {
+          if (!response.ok) throw new Error(`GET ${name} → ${response.status}`);
+          return response.json();
+        })
+        .catch((error) => forget(files, name, error)),
     );
   }
   return files.get(name);
@@ -166,7 +169,9 @@ export function geometryOf(mesh) {
     for (let c = 0; c < 4; c++) weights[at + c] /= total;
   }
   geometry.setAttribute("skinWeight", new BufferAttribute(weights, 4));
-  geometry.setIndex(new BufferAttribute(mesh.wide ? view(Uint32Array, mesh.index) : view(Uint16Array, mesh.index), 1));
+  const Index = mesh.wide ? Uint32Array : Uint16Array;
+  geometry.setIndex(new BufferAttribute(view(Index, mesh.index), 1));
+  if (mesh.far) addDistant(geometry, view(Index, mesh.far)); // (its distant version: kit.js)
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;
@@ -390,6 +395,7 @@ function skinOnto(root, bones, part, materialOf) {
   for (const mesh of part.meshes) {
     const skinned = new SkinnedMesh(geometryOf(mesh), materialOf(mesh));
     skinned.frustumCulled = false;
+    drawDistant(skinned);
     root.add(skinned);
     skinned.bind(skeleton, skinned.matrixWorld);
   }
@@ -443,8 +449,6 @@ const OUTLAWS = {
     }),
   },
 };
-/** The kinds of outlaw there are. */
-export const OUTLAW_KINDS = Object.keys(OUTLAWS);
 
 /**
  * An outlaw of `kind` (a key of OUTLAWS), no two quite alike, as a walking character with `carry` (what's

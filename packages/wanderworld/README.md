@@ -32,12 +32,14 @@ the server part isn't running, the menu says so: restart the Engine. Delete a wo
 on the main menu.
 
 While you play, **Menu → Save world** saves at once and sends it to the Engine at once (the game also
-saves by itself), and **Menu → Load world** opens another of your worlds; the one you're in is saved first.
-A browser left open reads the Engine's saves again when you come back to it, and a world that was played
-somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
-whole: don't play one world in two browsers at the same moment.
+saves by itself, and what changed reaches the Engine within about 15 seconds), and **Menu → Load world**
+opens another of your worlds; the one you're in is saved first. A browser left open reads the Engine's
+saves again when you come back to it, and a world that was played somewhere else since is loaded from
+there, so a phone and a computer stay in step. Each browser writes only the worlds it plays, so a world
+made on one never drops out of another's list. If one world is played in two browsers at the same moment,
+the browser that saved it first keeps it and the other one loads that save, so don't do that.
 
-## What it does now (0.7.45)
+## What it does now (0.7.46)
 
 ### The world
 
@@ -512,7 +514,8 @@ only walk about.
   conversation. Touch screen: the stick walks (all the way out runs), dragging elsewhere looks around,
   pinching zooms, Use or a tap uses, and Jump and Sit are by your thumb.
 - **Settings:** resolution, draw distance (Tiny to Max; what costs the most is measured in
-  [docs/PERFORMANCE.md](docs/PERFORMANCE.md)), trees and rocks, shadows, a frame rate limit (and slower drawing while a picture is painted), detail on or off, walk and run speed,
+  [docs/PERFORMANCE.md](docs/PERFORMANCE.md)), the creature detail distance (past it monsters and people
+  are drawn in a lighter distant version: Near 20 m, Normal 35 m, Far 60 m, or always full detail), trees and rocks, shadows, a frame rate limit (and slower drawing while a picture is painted), detail on or off, walk and run speed,
   camera speed and direction, time of day and time speed, how often places are told (the wait between
   them and the visits before a place is told again), sound, confrontations, people coming up to you,
   what the HUD shows, an (i) before every option that explains it, and Regenerate this world.
@@ -626,6 +629,15 @@ every roll, and no AI call is made in a real-time fight.
   companions), which gives them a weapon and spells. They strike what comes within reach, cast at
   what doesn't, and a healer mends you below half your HP. They move with the fight, creatures
   go for them as well as for you, and one at 0 HP is out of the fight for a while.
+- **Running from a fight.** A creature runs only when badly hurt. The blow that first leaves it a
+  quarter of its HP or less (half, for a coward) has it make a Wisdom saving throw against DC 10, and
+  it runs if it fails. Undead, oozes, constructs, the mindless and anything that can't be frightened
+  never run; elementals, plants and a creature by its den roll twice and keep the better. You can
+  chase one that runs and strike it, and it keeps running when hit. By turns it stays in the order
+  and spends its turns on the Dash action until it is 24 metres from you. After a minute it has its
+  nerve back and may come for you again, and then it joins the fight once. The saving throw and the
+  condition immunities are the SRD's; the quarter of its HP, DC 10, the den and the minute are
+  Wanderworld's own.
 - **What spells leave**: a spell's rule says what it does besides damage, taken from the SRD:
   held (paralyzed, restrained, incapacitated, asleep, prone), frightened, slowed, blinded or
   hindered (its attacks rolled twice, the worse counting), marked (your blows on it rolled twice,
@@ -741,9 +753,9 @@ switch off, nothing grabs or throws.
   of its own (an ogre, a troll, a minotaur, and giants once they're in) sometimes grabs someone Medium or
   smaller and throws them: 3 metres at Strength 18, further for a stronger or bigger one. A Strength or
   Dexterity save against 8 + its proficiency + its Strength modifier avoids it. They fly in an arc, land
-  prone, take 1d6 falling damage for every 3 metres and get up. A throw never goes through a wall, a tree
-  or a rock, or into deep water, and doesn't happen where fights are kept out. Switch: "Giants grab and
-  throw".
+  prone, take 1d6 falling damage for every full 3 metres (at least 1d6) and get up. A throw never goes
+  through a wall, a tree or a rock, or into deep water, and doesn't happen where fights are kept out.
+  Switch: "Giants grab and throw".
 
 By turns, "grapple" and "throw" are among the moves the AI can choose for a creature that has them. In a
 narrated moment, who is held or thrown is in the lines the AI tells, so it hears of it only when AI
@@ -1103,8 +1115,11 @@ still count, and come first.
   provider charged. Only Wanderworld's own calls are in it.
   Anything shaped like a key in a provider's error message is hidden before it is shown.
 - The scattered, pond and quarters layouts are only built when chosen; "Surprise me" picks from the first four.
-- Two browsers playing the same world at the same moment still write over each other: the newer save
-  wins whole, and nothing is merged.
+- Simpler than the 5e SRD on purpose: paralyzed, stunned or asleep doesn't make Strength and Dexterity
+  saves fail by themselves, a blow on someone paralyzed or asleep isn't a critical hit by itself, and a
+  blow that lands always deals at least 1 damage.
+- Two browsers playing the same world at the same moment take turns: the save that reaches the Engine
+  first wins whole, the other browser loads it, and nothing is merged.
 - Prompt caching is the provider's to do; Wanderworld only orders its prompts so that it can. The AI
   assistant, scene plans and Illustrate aren't reordered.
 - A bridge is built only where a road crosses the river; a place with no road to it (a cave) has none.
@@ -1366,11 +1381,20 @@ and Crystal Pack on Poly Pizza), also CC0 1.0. Thank you, iPoly3D.
 The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, which is under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html) and not CC0: free to use in a game, not to pass on as assets.
 
 Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan: the built-in body
-(`assets/scripts/make_avatar.py`, read by our own code from MakeHuman's hm08 mesh and morph targets).
+(`assets/scripts/make_avatar.py`, read by our own code from MakeHuman's hm08 mesh and morph targets),
+and the giants' base body made from it (`assets/models/giant-base.glb`).
 
 MakeHuman system assets (skins, eyes, eyebrows, eyelashes): CC0, read as data by `make_avatar.py`.
 
-Made in Blender by ThatOneCan: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, and the mimic, awakened shrub, shambling mound, grick, otyugh, roper, gelatinous cube, basilisk, skeleton, zombie, ghost, specter, earth, fire, water and air elementals, and the hill, stone, frost and fire giants (`assets/scripts/make_*.py`).
+Made in Blender by ThatOneCan (`assets/scripts/make_*.py`), on the people's skeleton
+(`kit/fantasy/folk`): the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre,
+troll, minotaur, skeleton, zombie, ghost, specter, earth elemental, hill giant, stone giant, frost giant
+and fire giant. The giants start from one base body, `assets/models/giant-base.glb`, a copy of the
+built-in body.
+
+Made in Blender by ThatOneCan, each with a skeleton of its own (`kit/creatures`): the mimic, awakened
+shrub, shambling mound, grick, otyugh, roper, gelatinous cube, basilisk, air elemental, fire elemental
+and water elemental.
 
 Credit required (CC-BY 3.0): Saddle by Poly by Google (https://poly.pizza/m/dSMm_V4sKNr), CC-BY 3.0
 (https://creativecommons.org/licenses/by/3.0/), modified: converted, resized and its texture shrunk. Its

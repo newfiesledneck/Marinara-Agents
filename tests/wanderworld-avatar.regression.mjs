@@ -385,8 +385,12 @@ for (const sex of ["male", "female"]) {
   assert.ok(furthest(young, middle) < furthest(young, old), "less than old does");
 
   // One brow style and one lash style show, blended.
-  const triangles = (kind, n) =>
-    geometryOf(files.male.meshes.find((mesh) => mesh.piece === `${kind}-${String(n).padStart(2, "0")}`)).index.count;
+  const triangles = (kind, n) => {
+    const geometry = geometryOf(
+      files.male.meshes.find((mesh) => mesh.piece === `${kind}-${String(n).padStart(2, "0")}`),
+    );
+    return geometry.userData.distant?.full.count ?? geometry.index.count; // (the full triangles, not the distant ones)
+  };
   for (const [brows, lashes] of [
     [1, 1],
     [9, 3],
@@ -448,6 +452,35 @@ for (const sex of ["male", "female"]) {
   assert.equal(lookFromWords("a middle-aged baker").age, "middle");
   assert.deepEqual(lookFromWords("She is 30 years old."), {}, "years old says nothing");
   assert.equal(avatarLook("Bram", "auto", lookFromWords("old")).age, "old");
+}
+
+// The distant version: far from the camera a body is drawn with fewer triangles, each part of it
+// (group) its own, over the same vertices; near, or with "Always full detail", in full.
+{
+  const { DETAIL_DISTANCES, setDetailDistance } = await import("../packages/wanderworld/src/kit.js");
+  const { PerspectiveCamera } = await import("three");
+  const person = await createAvatar({ ...EVERYDAY, body: "female" }, "Rowan");
+  const mesh = bodyMesh(person);
+  person.object.updateMatrixWorld(true);
+  const camera = new PerspectiveCamera();
+  const drawn = (metres) => {
+    camera.position.set(0, 1.5, metres);
+    return mesh.geometry.groups.reduce((sum, group) => {
+      mesh.onBeforeRender(null, null, camera, mesh.geometry, mesh.material[group.materialIndex], group);
+      return sum + group.count;
+    }, 0);
+  };
+  const vertices = mesh.geometry.attributes.position.count;
+  setDetailDistance(DETAIL_DISTANCES.normal);
+  const near = drawn(5);
+  const far = drawn(80);
+  assert.ok(far < near / 4, `far off, far fewer triangles (${far / 3} of ${near / 3})`);
+  assert.ok(far / 3 <= 2.5 * 8000, "about 7,000 vertices' worth");
+  assert.equal(drawn(5), near, "and in full again up close");
+  assert.equal(mesh.geometry.attributes.position.count, vertices, "the same vertices");
+  setDetailDistance(DETAIL_DISTANCES.full);
+  assert.equal(drawn(500), near, "Always full detail");
+  setDetailDistance(DETAIL_DISTANCES.normal);
 }
 
 console.log("wanderworld avatar: ok");

@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.7.45, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.7.46, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, an AI assistant that changes a world on request, and the
@@ -494,7 +494,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.7.45: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.7.46: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -690,7 +690,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.7.45, 2026-11-14)
+## Outstanding (as of 0.7.46, 2026-11-14)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -763,7 +763,7 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
      world's animals from its seed and moves them; `main.js` rides one (mode "ride": the player sits at
      its back's height and moves it with `herd.carry`; `clips.js` act "ride" is the seated body with
      the legs down either side and the hands forward). The outfits' pieces are bundled one file an
-     outfit, since a package may list at most 256 asset files (`validate-catalog.mjs`); the kit has 244. _In since:_ jumping (0.5.2x), a saddle on a horse that's someone's own (0.5.46: `herd.js saddle`, the props kit's CC-BY model set on the horse's body). _Next:_ reins, a rider that moves with the gait, others riding, remembering where a mount was left, a
+     outfit, since a package may list at most 256 asset files (`validate-catalog.mjs`); the kit had 190 at 0.7.43. _In since:_ jumping (0.5.2x), a saddle on a horse that's someone's own (0.5.46: `herd.js saddle`, the props kit's CC-BY model set on the horse's body). _Next:_ reins, a rider that moves with the gait, others riding, remembering where a mount was left, a
      hitching rail, telling the AI what's about, and monsters the same way (Ultimate Monsters, the
      Bestiary kit) once there's something for them to do. Ogres and goblins can be the humanoid body at
      another size with the clips there are.
@@ -1140,6 +1140,7 @@ swingReach`); "+N Max" worn and used (`sheet.js bonusesIn / wornMax / useItem`, 
        _In (0.7.43):_ the polished avatar bodies (`make_avatar.py`), underwear as `underwear-top-*` / `underwear-bottom-*` meshes with `underwear` and `underwear_trim` parts, packed with `--avatar`.
        _In (0.7.44):_ `underwearByDefault` (avatar.js setUnderwearByDefault); HAIRSTYLES widened, with the older kit wearing the nearest of its own.
        _In (0.7.45):_ skins, ages (`age_middle`, `age_old`), eye pictures (`avatar-eyes.webp` atlas), brows and lashes as pieces, in `avatar.js` and `looks.js`; credits for MakeHuman's system assets (CC0).
+       _In (0.7.46):_ review fixes (change-driven saves, compare-and-set revisions, a world list from the records, picture and world cleanup routes, a size gate on the build, a distant low-detail index per model, one credits list) and the flee rework (`foeNerve`, `RALLY_SECONDS`, `GOT_AWAY`).
        _Not yet:_ other reactions beyond Shield and Counterspell; difficult terrain; a companion's own slots;
        people fighting back by turns, companions joining in against them, creatures at range; more
        effects (poison, burning, slowed) and effects on the player; the 5e ruleset as a source of
@@ -1172,7 +1173,8 @@ swingReach`); "+N Max" worn and used (`sheet.js bonusesIn / wornMax / useItem`, 
   textured Quaternius kits, so they suit props, tools and creatures better than buildings beside the
   kit's. Poly Pizza is mostly CC-BY (attribution), a CC0 subset only; Synty is paid, not CC0.
 - _Downloads that need credit (CC-BY 3.0), and the rule for using them._ The maintainer has these from
-  Poly Pizza (poly.pizza), kept with the other packs, none used yet. **CC0** (no credit needed): Crystal
+  Poly Pizza (poly.pizza), kept with the other packs. Of the CC-BY ones only the Saddle is in the package
+  (since 0.5.46), credited in all three places below. **CC0** (no credit needed): Crystal
   Pack, Signs pack and Medieval Torture Devices, all by iPoly3D. **CC-BY 3.0**
   (https://creativecommons.org/licenses/by/3.0/): Slime Enemy by Charlie; Urban Clutter by Superlink121;
   Animals by molochdadev; Animal Kit, Wizardus Maximus and Adventurer by madtrollstudio (a Bear by
@@ -1187,7 +1189,7 @@ swingReach`); "+N Max" worn and used (`sheet.js bonusesIn / wornMax / useItem`, 
   with the link; (3) the README's Credits says some models are CC-BY and points to both. Whoever passes
   the package on has to keep those credits, which CC0 art never asks. Check each model's own page for
   its licence before using it (the list above is as downloaded), and ask the maintainer of the catalog
-  whether a package may ship CC-BY art at all before the first one goes in.
+  before another one goes in.
 - _Paid tiers that would help (the maintainer may buy them later; nothing here depends on them):_ the
   Pro and Source tiers of **Modular Character Outfits - Fantasy** (12 outfits against the free tier's
   two: the looks by trade in plan item 1), **Universal Base Characters** (six body builds and twenty
@@ -1274,7 +1276,8 @@ world would choose its pack when it's made; one pack is built in today.
   off by default.
 - The camera doesn't avoid trees, so foliage can fill the view.
 - The inventory needs the Quartermaster package, and only the persona played has a sheet (see Later).
-- Two browsers playing one world at the same moment write over each other (the newer save wins whole).
+- Two browsers playing one world at the same moment take turns (the save that reaches the Engine first
+  wins whole, and the other browser loads it).
 - The AI assistant's Undo lasts the session and takes back only what the assistant changed (something it
   added goes even if edited since; a scene it started isn't undone). A world holds 60 lore entries of its own, each as long as it needs.
 - An existing world on a crossroads, one-street or ring layout gains the pond, houses and gardens on its

@@ -9,7 +9,7 @@ import { Color, CylinderGeometry, HemisphereLight, Mesh, MeshLambertMaterial, Po
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { box, DOOR, DOOR_HEIGHT, DOOR_WIDTH, painted } from "./buildings.js";
 import { FURNITURE, footprint } from "./household.js";
-import { createCollider, hashString, rng } from "./world.js";
+import { createCollider, disposeOwn, hashString, rng } from "./world.js";
 
 const WALL_HEIGHT = 3;
 const WALL = 0.2;
@@ -450,9 +450,7 @@ export function createInterior(door, seed, own = []) {
     setDrawDistance() {},
     dispose() {
       scene.traverse((object) => {
-        // Kit geometry and materials are shared (kit.js keeps them).
-        if (!object.geometry?.userData.shared) object.geometry?.dispose();
-        if (!object.material?.userData?.shared) object.material?.dispose?.();
+        disposeOwn(object); // (kit geometry and materials are shared: kit.js keeps them)
       });
     },
   };

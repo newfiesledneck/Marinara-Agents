@@ -493,10 +493,29 @@ export function armourOf(sheet, worn = {}) {
     worn.unarmored && !armour && !(worn.unarmored === "wisdom" && worn.shield)
       ? Math.max(0, modifier(valueOf(sheet, worn.unarmored) + (worn[worn.unarmored] ?? 0)))
       : 0;
+  // (Heavy armour adds no Dexterity modifier, not even a negative one; light and medium add it, up to theirs.)
   const body = armour
-    ? armour.ac + armour.plus + Math.min(dex, armour.dex) + (worn.defense ?? 0)
+    ? armour.ac + armour.plus + (armour.kind === "heavy" ? 0 : Math.min(dex, armour.dex)) + (worn.defense ?? 0)
     : 10 + dex + bare + (worn.shield ? 0 : (worn.bare ?? 0)); // (`bare`: Bracers of Defense, with no shield either)
   return own - 10 + body + (worn.shield ?? 0);
+}
+
+/**
+ * A creature's Multiattack as it's made here, from its `blows` (srd.js): [{ with, ifHit }], the first being
+ * the blow of its own attack. `with`: the numbers of another attack, { attack, damage, type } (a troll's
+ * claw after its bite), or null for its own; `ifHit`: the blow (by its place here) that must have landed
+ * first (a grick's beak). With `holds` on, its holding attack's blows (a roper's tendrils) are left to the
+ * hold (grapple.js); off, those that deal damage are plain blows (an otyugh's tentacles), the rest none.
+ */
+export function multiattack(stats, holds) {
+  const kept = (stats?.blows ?? [{}])
+    .map((blow, at) => ({ blow, at }))
+    .filter(({ blow }) => !blow.hold || (!holds && blow.damage));
+  if (!kept.length) return [{ with: null }];
+  return kept.map(({ blow }) => ({
+    with: blow.damage ? { attack: blow.attack, damage: blow.damage, type: blow.type } : null,
+    ...(Number.isInteger(blow.ifHit) ? { ifHit: kept.findIndex(({ at }) => at === blow.ifHit) } : {}),
+  }));
 }
 
 /**
@@ -546,18 +565,41 @@ export function savingThrow({ score = 10, bonus = 0, dc = 10, damage = 0, onSave
   return { roll, total, saved, damage: dealt, detail };
 }
 
+/** Kinds that never run from a fight, and kinds that seldom do (Wanderworld's own, after what they are). */
+const UNSHAKEN = new Set(["undead", "construct", "ooze"]);
+const STEADY = new Set(["elemental", "plant"]);
+
 /**
- * How a creature that has just been hurt takes it: with a third of its HP or less left it may turn and
- * run (more likely the less it has); else it fights on. "flee" | "fight".
+ * How a creature that has just been hurt takes it, "flee" | "fight". Only the blow that first leaves it badly
+ * hurt (a quarter of its HP or less, `hp`, of `max`; it had `before`) asks: it makes a Wisdom saving throw
+ * (a d20 and its Wisdom save, the SRD's) against DC 10, and runs if it fails. The check is Wanderworld's own.
+ * `make`: what it is (statsOf, or a temperament): the mindless and the fanatical (the ruleset's temperament),
+ * what can't be frightened (the SRD's condition immunity) and undead, constructs and oozes never run; a coward
+ * asks at half its HP; elementals, plants and one at its den (`den`) roll twice, the better counting.
  */
-export function foeNerve(hp, max, random = Math.random, temperament = "") {
+export function foeNerve(hp, max, random = Math.random, make = {}, before = max) {
+  const {
+    temperament = "",
+    kin = "",
+    unmoved = [],
+    saves = {},
+    den = false,
+  } = typeof make === "string" ? { temperament: make } : make;
   if (hp <= 0 || max <= 0) return "fight";
-  // (How it's made, where the ruleset says: the mindless and the fanatical never run; a coward does sooner.)
-  if (temperament === "mindless" || temperament === "fanatical") return "fight";
-  const left = hp / max;
-  if (temperament === "cowardly") return left <= 1 / 2 && random() < 0.95 - left ? "flee" : "fight";
-  return left <= 1 / 3 && random() < 0.75 - left ? "flee" : "fight";
+  if (temperament === "mindless" || temperament === "fanatical" || unmoved.includes("frightened")) return "fight";
+  if (UNSHAKEN.has(kin)) return "fight";
+  const line = max * (temperament === "cowardly" ? 1 / 2 : 1 / 4);
+  if (hp > line || before <= line) return "fight"; // (not badly hurt, or it held its nerve when it was)
+  const save = () => 1 + Math.floor(random() * 20) + (saves.wisdom ?? 0);
+  const total = den || STEADY.has(kin) ? Math.max(save(), save()) : save();
+  return total < 10 ? "flee" : "fight";
 }
+
+/** How far one running from a fight by turns has to get from the player to be out of it (metres; Wanderworld's own). */
+export const GOT_AWAY = 24;
+
+/** Whether a creature in a fight by turns is in it still (`foe`: the herd's, or none): there, and not run off past GOT_AWAY from `at`. */
+export const stillInFight = (foe, at) => !!foe && !(foe.fled && Math.hypot(foe.x - at.x, foe.z - at.z) > GOT_AWAY);
 
 /**
  * What a blow or a spell dealt, with how it came to that: "for 7 (Damage: 1d8 (5) + 2 = 7)", and where the

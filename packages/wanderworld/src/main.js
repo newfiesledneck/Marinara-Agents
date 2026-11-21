@@ -97,9 +97,9 @@ import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
 import { HOUSE_PIECES, porchPosts } from "./houses.js";
 import { PORCH_HEIGHT, PORCH_OUT } from "./buildings.js";
-import { kitModels, kitTexture, kitUrl } from "./kit.js";
+import { DETAIL_DISTANCES, kitModels, kitTexture, kitUrl, setDetailDistance } from "./kit.js";
 import { createMenu } from "./menu.js";
-import { checkGenders, createSaves, LOG_KEPT } from "./saves.js";
+import { checkGenders, createSaves, LOG_KEPT, WORLD_KEY } from "./saves.js";
 import { createStore, SHARED_SETTINGS } from "./store.js";
 import { undoOnly, withoutLeftovers } from "./undo.js";
 import { editableFields, reviseEdits } from "./assistant-edits.js";
@@ -197,6 +197,7 @@ import {
   gearWorn,
   initiativeOrder,
   lootOf,
+  multiattack,
   offhandOf,
   personWords,
   playerStrike,
@@ -216,6 +217,7 @@ import {
   spellWords,
   spoilsOf,
   spoilsWords,
+  stillInFight,
   strikeWords,
   sumWords,
   turnBudget,
@@ -384,6 +386,7 @@ const NEARBY = 12; // metres: who counts as nearby
 const ZONE_SETTLE = 0.6; // seconds in a new place before its name shows
 const THUMBNAIL = { width: 192, height: 108 };
 const THUMBNAIL_EVERY = 90; // seconds between thumbnail refreshes while playing
+const SAVE_EVERY = 5; // seconds of play between saves of the world as it's played (savePlace)
 const ART = kitUrl("art"); // the menu and loading art
 const BUILD_WAIT = 10; // seconds the loading screen waits at most for the detailed kit
 const PLAYER_RADIUS = 0.35;
@@ -469,6 +472,7 @@ const core = {
   cast: new Set(), // the character ids living in town
   bodies: {}, // chosen default bodies by id ("male" | "female"; missing means auto)
   looks: {}, // and what else was chosen for them by hand (looks.js), by id
+  appearances: new Map(), // what the AI says people look like, by id (looksOf); not saved
   pets: {}, // animals of one's own, by owner id (saves.js `pets`)
   crowd: createCrowd(),
   herd: createHerd(), // the world's animals (herd.js)
@@ -643,6 +647,7 @@ function applySettings() {
   core.world?.setDensity(settings.density, settings.rockDensity);
   core.world?.setDrawDistance(settings.drawDistance);
   core.world?.setTreeReach?.(settings.treeDetail);
+  setDetailDistance(DETAIL_DISTANCES[settings.creatureDetail]);
   core.world?.setGroundSimple?.(settings.ground === "simple");
   if (core.camera) {
     core.camera.far = settings.drawDistance + 20;
@@ -865,11 +870,12 @@ function currentPlace() {
 }
 
 /**
- * Saves the world being played: where the player stands, the time, persona and cast (at most every two
- * seconds unless `now`). With `thumbnail`, a small picture of the view goes with it for the Load list.
+ * Saves the world being played: where the player stands, the time, persona and cast (at most every
+ * `SAVE_EVERY` seconds unless `now`). With `thumbnail`, a small picture of the view goes with it for the
+ * Load list. (store.js sends it to the Engine when it has changed, a few seconds later.)
  */
 function savePlace(now = false, thumbnail = null) {
-  if (!core.world || !core.save || (!now && core.clock - core.savedAt < 2)) return;
+  if (!core.world || !core.save || (!now && core.clock - core.savedAt < SAVE_EVERY)) return;
   // Not while the Engine's saves are being read again, nor over a world another browser has played since.
   if (core.syncing || core.staleWorld === core.save.id) return;
   // Nor while another world is being opened: `core.save` is already that world's, and the player, the
@@ -881,6 +887,7 @@ function savePlace(now = false, thumbnail = null) {
   const outside = door ?? core.player.position;
   core.save = {
     ...core.save,
+    ...(thumbnail ? { thumbnail } : {}),
     playedAt: Date.now(),
     hour: core.hour,
     persona: core.personaId,
@@ -899,7 +906,7 @@ function savePlace(now = false, thumbnail = null) {
       zoom: core.zoom,
     },
   };
-  core.saves.write(core.save, thumbnail);
+  core.saves.write(core.save);
 }
 
 /** A saved spot, kept inside the world and the camera's limits. */
@@ -940,26 +947,30 @@ function captureThumbnail() {
  * Reads the Engine's saves again (store.js `pull`): this browser may have been left open while another
  * one played. A world in memory that was played elsewhere since is loaded again from what was kept
  * there (at once when it's being played; from the main menu, when it's next played).
- * ponytail: the newer save wins whole; nothing is merged. Two browsers playing one world at the same
- * moment still write over each other; that needs a revision on each save, checked by the server part.
+ * ponytail: the save written to the Engine first wins whole; nothing is merged. Two browsers playing one
+ * world at the same moment take turns: the one whose write the Engine refused (store.js `onConflict`)
+ * loads the other's. Merging the two would need the world split into parts saved on their own.
  */
 async function syncSaves() {
   if (!core.store?.ready || core.syncing) return;
   core.syncing = true;
   try {
-    await core.store.pull();
-    const kept = core.save ? core.saves.read(core.save.id) : null;
-    if (core.world && kept && kept.playedAt > core.save.playedAt + 1000) {
-      core.staleWorld = kept.id;
-      if (!core.paused) {
-        playWorld(kept.id);
-        core.hud?.setNotice("This world was played in another browser since, so it was loaded from there.");
-      }
-    }
+    await core.store.pull(); // (what changed goes to savesChanged)
   } catch (error) {
     console.warn("[wanderworld] the Engine's saves couldn't be read again", error);
   } finally {
     core.syncing = false;
+  }
+}
+
+/** Saves another browser wrote (store.js `onChange`): the world being played, when it's one of them, is stale. */
+function savesChanged(keys) {
+  const kept = core.save && keys.includes(WORLD_KEY(core.save.id)) ? core.saves.read(core.save.id) : null;
+  if (!core.world || !kept) return;
+  core.staleWorld = kept.id;
+  if (!core.paused) {
+    playWorld(kept.id);
+    core.hud?.setNotice("This world was played in another browser since, so it was loaded from there.");
   }
 }
 
@@ -1008,6 +1019,10 @@ function playWorld(id) {
   }
   savePlace(true);
   core.staleWorld = null;
+  // What was still to happen in the world being left (replies read out one by one, a fade) doesn't
+  // happen in this one.
+  core.timers = [];
+  core.hud?.setFade(false);
   // This world's bodies (an older world starts from the ones chosen before worlds kept their own).
   core.bodies = { ...(save.bodies ?? core.legacyBodies ?? {}) };
   if (!save.bodies) {
@@ -1059,7 +1074,7 @@ function playWorld(id) {
       // The chat as it was left in this world.
       core.momentLog = save.log ?? [];
       core.toldPlaces = {};
-      core.looks = new Map();
+      core.appearances = new Map(); // the AI-written appearances (core.looks is the chosen outfits)
       core.peopleHereKey = null;
       core.arriveZone = null;
       core.hud?.illustrate.reset();
@@ -1707,6 +1722,8 @@ function suggestName() {
 function deleteWorld(id) {
   core.saves.remove(id);
   core.inventory.forget(id);
+  // (Its gallery and scene recaps, kept by the server part, go too.)
+  void core.ai.forgetWorld(id).catch((error) => console.warn("[wanderworld] a deleted world's pictures stayed", error));
   if (core.save?.id === id) {
     core.save = null; // the world on screen is gone: it can't be continued or saved again
     core.world?.dispose();
@@ -4656,17 +4673,17 @@ function towardPlayer(id, name, names) {
 
 /** What people look like, from their cards (asked for once each, a few at a time): { [id]: words }. */
 async function looksOf(wanted) {
-  core.looks ??= new Map();
-  const missing = wanted.filter((id) => !core.looks.has(id)).slice(0, 12);
+  core.appearances ??= new Map();
+  const missing = wanted.filter((id) => !core.appearances.has(id)).slice(0, 12);
   if (missing.length && core.ai.known()) {
-    for (const id of missing) core.looks.set(id, ""); // asked: not again while it's on its way
+    for (const id of missing) core.appearances.set(id, ""); // asked: not again while it's on its way
     try {
-      for (const [id, words] of Object.entries(await core.ai.looks(missing))) core.looks.set(id, words);
+      for (const [id, words] of Object.entries(await core.ai.looks(missing))) core.appearances.set(id, words);
     } catch {
-      for (const id of missing) core.looks.delete(id);
+      for (const id of missing) core.appearances.delete(id);
     }
   }
-  return Object.fromEntries(wanted.map((id) => [id, core.looks.get(id) ?? ""]));
+  return Object.fromEntries(wanted.map((id) => [id, core.appearances.get(id) ?? ""]));
 }
 
 /** The chat window's "People here": whoever's within a few steps (and whoever you're talking to), and what they look like. */
@@ -9478,6 +9495,13 @@ function unshape(words) {
   if (words) narrate(null, words);
 }
 
+/** (ww-flee) How `foe` takes a hurt of `damage` (combat.js foeNerve); its temperament counts with creature extras on. */
+function nerveOf(foe, stats, damage) {
+  const before = foe.hp ?? stats.hp;
+  const make = { ...stats, temperament: extrasOn() ? stats.temperament : "", den: !!foe.den };
+  return foeNerve(Math.max(0, before - damage), stats.hp, Math.random, make, before);
+}
+
 /** A blow in a beast's shape: the beast's own attack and damage, with its Pack Tactics where it has them. */
 function shapeStrike(foe) {
   const mine = SRD_CREATURES[core.shape.kind];
@@ -9491,12 +9515,7 @@ function shapeStrike(foe) {
   const typed = typedDamage(rolled.damage, mine.type, stats);
   const result = { ...rolled, damage: typed.damage, how: typed.how, type: mine.type, ac: stats.ac };
   core.shape.animal?.act?.("strike");
-  const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
-  const nerve = !foe.hostile
-    ? "flee"
-    : result.hit
-      ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
-      : "fight";
+  const nerve = !foe.hostile ? "flee" : result.hit ? nerveOf(foe, stats, result.damage) : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
   knowFrom(foe.kind, result); // (fight display)
   if (!struck) return false;
@@ -10972,7 +10991,7 @@ function faceEnemy(reach) {
     best = { x, z };
   };
   for (const foe of inHouse() ? [] : core.herd.foes(at, reach + 2.5))
-    if (!foe.fled && (foe.hostile || foe.hp !== undefined || inFight.has(foe.id))) consider(foe.x, foe.z, foe.room);
+    if (foe.hostile || foe.hp !== undefined || inFight.has(foe.id)) consider(foe.x, foe.z, foe.room); // (ww-flee: running too)
   if (core.angry?.size)
     for (const person of core.crowd.present(core.space))
       if (core.angry.has(person.id) && !core.crowd.isOut(person.id))
@@ -11013,14 +11032,9 @@ function spellOnFoe(foe, who, name, spell, wit, from = null) {
     prof: spellProf(),
   });
   const now = core.herd.foes({ x: foe.x, z: foe.z }, 40).find((entry) => entry.id === foe.id) ?? foe;
-  const after = Math.max(0, (now.hp ?? stats.hp) - result.damage);
   const kind = result.effect?.kind;
   const nerve =
-    !foe.hostile || kind === "flee"
-      ? "flee"
-      : result.damage > 0
-        ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
-        : "fight";
+    !foe.hostile || kind === "flee" ? "flee" : result.damage > 0 ? nerveOf(now, stats, result.damage) : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
   knowFrom(foe.kind, result, result.type ?? spell.type); // (fight display)
   if (!struck) return 0;
@@ -11050,6 +11064,7 @@ function spellOnFoe(foe, who, name, spell, wit, from = null) {
   const what = creatureWord(foe);
   const told = spellWords({ who, name, what, spell, result, left: struck.hp, max: struck.max });
   narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
+  if (core.battle && !struck.down) battleJoin(foe.id); // (ww-flee) struck by turns, it's in the fight
   if (struck.down) foeBeaten(foe, stats);
   return result.damage;
 }
@@ -11239,12 +11254,12 @@ function battleAct(id) {
   useAbility(id);
 }
 
-/** The creatures that would be in a fight begun at the creature `id`: it, and every hostile one near the player. */
+/** The creatures that would be in a fight begun at the creature `id`: it (even running), and every hostile one near the player. */
 function battleFoes(id) {
   const at = core.player.position;
   return core.herd
     .foes(at, 26)
-    .filter((foe) => !foe.fled && (foe.id === id || (foe.hostile && Math.hypot(foe.x - at.x, foe.z - at.z) < 16)));
+    .filter((foe) => foe.id === id || (!foe.fled && foe.hostile && Math.hypot(foe.x - at.x, foe.z - at.z) < 16));
 }
 
 /**
@@ -11330,11 +11345,11 @@ function battleJoin(id) {
   if (!core.battle) return void battleStart(id);
   if (core.battle.order.some((entry) => entry.id === id)) return;
   const foe = core.herd.foes(core.player.position, 30).find((entry) => entry.id === id);
-  if (!foe) return;
+  if (!stillInFight(foe, core.player.position)) return; // (ww-flee: not one that has got away)
   const name = creatureWord(foe);
   core.battle.order.push({ id, kind: "foe", name, total: 0 });
   core.herd.hold(core.battle.order.filter((entry) => entry.kind === "foe").map((entry) => entry.id));
-  narrate(null, `A ${name} joins the fight.`);
+  narrate(null, `${/^[aeiou]/iu.test(name) ? "An" : "A"} ${name} joins the fight.`);
 }
 
 /** The fight is over: what waited is let go, and `words` say how it ended. */
@@ -11369,11 +11384,13 @@ function battleTick(dt, moved) {
   if (!byTurns() || inHouse() || !core.save) return void battleEnd("");
   if (core.downed) return void battleEnd("");
   const at = core.player.position;
-  // Who of the creatures is still in it: on its feet, not run off, not left far behind.
+  // Who of the creatures is still in it: on its feet, not left far behind, and one running till it gets away
+  // (ww-flee: it can be chased and struck till then, and it takes its turns to run).
   const about = new Map(core.herd.foes(at, 45).map((foe) => [foe.id, foe]));
   const before = battle.order.length;
   battle.order = battle.order.filter((entry, i) => {
-    const stays = entry.kind !== "foe" || (about.has(entry.id) && !about.get(entry.id).fled);
+    const stays = entry.kind !== "foe" || stillInFight(about.get(entry.id), at);
+    if (!stays && about.has(entry.id)) narrate(null, `The ${entry.name} gets away.`);
     if (!stays && i <= battle.at) battle.at -= 1;
     return stays;
   });
@@ -11388,7 +11405,8 @@ function battleTick(dt, moved) {
     const close = new Set();
     for (const entry of battle.order) {
       const foe = entry.kind === "foe" ? about.get(entry.id) : null;
-      if (foe && !foe.stunned && Math.hypot(foe.x - at.x, foe.z - at.z) <= 1.7 + foe.room) close.add(foe.id);
+      if (foe && !foe.stunned && !foe.fled && Math.hypot(foe.x - at.x, foe.z - at.z) <= 1.7 + foe.room)
+        close.add(foe.id);
     }
     if (core.settings.opportunity && battle.near && moved > 0.001 && !battle.disengaged)
       for (const id of battle.near) {
@@ -11482,7 +11500,13 @@ function battleTick(dt, moved) {
     // few seconds for it, and goes on without it after that.
     if (battle.step === "asking") {
       battle.step = "move"; // (no answer in time: it does what its sort does)
-    } else if (battle.step === "move" && core.settings.combatAiMoves && !foe.stunned && battle.plan?.id !== foe.id) {
+    } else if (
+      battle.step === "move" &&
+      core.settings.combatAiMoves &&
+      !foe.stunned &&
+      !foe.fled &&
+      battle.plan?.id !== foe.id
+    ) {
       const asked = battle;
       asked.plan = { id: foe.id, move: "" };
       asked.step = "asking";
@@ -11499,12 +11523,18 @@ function battleTick(dt, moved) {
     const plan = battle.plan?.id === foe.id ? battle.plan.move : "";
     if (plan === "close" || plan === "throw") shoots = false;
     if (plan === "shoot" || plan.startsWith("cast:") || plan === "mend") shoots = true;
-    if (battle.step === "move" && plan === "flee" && !foe.stunned) {
-      core.herd.strike(foe.id, 0, stats.hp, "flee");
-      sayInFight({ foe }, ""); // (nothing said; the run is told)
-      narrate(null, `The ${what(foe)} turns and runs.`);
+    if (battle.step === "move" && (plan === "flee" || foe.fled) && !foe.stunned) {
+      // (ww-flee) One that has had enough takes the Dash action away from them, and is in the fight till it gets away.
+      if (plan === "flee") {
+        core.herd.strike(foe.id, 0, stats.hp, "flee");
+        sayInFight({ foe }, ""); // (nothing said; the run is told)
+      }
+      const way = far > 0.01 ? { x: (foe.x - target.x) / far, z: (foe.z - target.z) / far } : { x: 1, z: 0 };
+      const run = TURN_MOVE * 2;
+      core.herd.march(foe.id, foe.x + way.x * run, foe.z + way.z * run, foe.x + way.x * 99, foe.z + way.z * 99);
+      narrate(null, `The ${what(foe)} runs from the fight: the Dash action.`);
       battle.step = "next";
-      battle.wait = 0.8;
+      battle.wait = 2.4;
     } else if (battle.step === "move" && plan === "back" && !foe.stunned) {
       const way = far > 0.01 ? { x: (foe.x - target.x) / far, z: (foe.z - target.z) / far } : { x: 1, z: 0 };
       core.herd.march(foe.id, foe.x + way.x * TURN_MOVE, foe.z + way.z * TURN_MOVE, target.x, target.z);
@@ -12652,12 +12682,11 @@ function allyStrikes(person, foe, weapon, again = false) {
     ...(worse && !better ? { hampered: true } : {}),
   };
   if (smites && result.hit) used.smite = true;
-  const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
   const struck = core.herd.strike(
     foe.id,
     result.damage,
     stats.hp,
-    result.hit ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "") : "fight",
+    result.hit ? nerveOf(foe, stats, result.damage) : "fight",
   );
   if (!struck) return false;
   const held = weaponIn({ name: weapon.name, description: `${weapon.damage} damage` })?.held ?? "sword";
@@ -12989,12 +13018,7 @@ function landOn(foe, weapon, cover = 0) {
   const result = better === worse ? swung() : rolledTwice(swung, better);
   if (worse && !better) result.hampered = true;
   strikeSpent(mods, result, foe);
-  const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
-  const nerve = !foe.hostile
-    ? "flee"
-    : result.hit
-      ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
-      : "fight";
+  const nerve = !foe.hostile ? "flee" : result.hit ? nerveOf(foe, stats, result.damage) : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
   knowFrom(foe.kind, result); // (fight display)
   if (!struck) return false;
@@ -13002,6 +13026,7 @@ function landOn(foe, weapon, cover = 0) {
   const told = strikeWords({ who: personaName(), what, weapon, result, left: struck.hp, max: struck.max });
   narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
   if (!struck.down && foe.hostile) combatSay(nerve === "flee" ? "flee" : result.hit ? "hurt" : "hit", { foe });
+  if (core.battle && !struck.down) battleJoin(foe.id); // (ww-flee) struck by turns, it's in the fight
   if (struck.down) foeBeaten(foe, stats);
   return struck.down;
 }
@@ -13273,14 +13298,18 @@ function foeAttacks(event, what, with_ = null) {
   if (shielded) narrate(null, `${who} casts ${shielded} in answer: +5 AC, and the blow is turned.`);
   if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) return void defeated();
   if (extras && result.hit) foeExtras(stats, what, event);
-  // (Multiattack: its other blows, one after another; with holds on, less those its holding attack makes, a
-  // roper's four tendrils. Then the hold that comes of them landing.)
-  const blows = Math.max(1, (stats.multi ?? 1) - (grips().holds ? (stats.hold?.times ?? 0) : 0));
-  let hits = result.hit ? 1 : 0;
+  // (Multiattack: its other blows, one after another, each with its own numbers (combat.js multiattack).
+  // Then the hold that comes of them landing.)
+  const blows = multiattack(stats, grips().holds);
+  const landed = [result.hit];
   if (extras && !event.again && !core.downed)
-    for (let more = 1; more < blows && !core.downed; more++)
-      hits += foeAttacks({ ...event, again: true }, what) ? 1 : 0;
-  if (extras && !event.again && !core.downed) gripAfter(event, what, stats, hits, blows);
+    for (let more = 1; more < blows.length && !core.downed; more++) {
+      const blow = blows[more];
+      landed[more] =
+        (blow.ifHit === undefined || !!landed[blow.ifHit]) && !!foeAttacks({ ...event, again: true }, what, blow.with);
+    }
+  if (extras && !event.again && !core.downed)
+    gripAfter(event, what, stats, landed.filter(Boolean).length, blows.length);
   return result.hit;
 }
 
@@ -13487,7 +13516,8 @@ function fightersNow() {
   const standing = new Set(core.over && !core.over.gone ? core.over.victors.map((victor) => victor.id) : []);
   const near = (foe) => Math.hypot(foe.x - at.x, foe.z - at.z);
   const against = foes
-    .filter((foe) => standing.has(foe.id) || (!foe.fled && (foe.engaged || (foe.hp !== undefined && near(foe) < 20))))
+    // (ww-flee: one running is shown while it's near, to be chased down.)
+    .filter((foe) => standing.has(foe.id) || foe.engaged || (foe.hp !== undefined && near(foe) < 20))
     .map((foe) => ({ ...foeFighter(foe), aimed: foe.id === aim }));
   const people = core.angry?.size
     ? core.crowd
@@ -15106,11 +15136,18 @@ function frame(time) {
   }
 }
 
+/** Sound may start once a key is pressed in the game (browsers wait for one). */
+const unlockSound = () => core.sound.unlock();
+
 function attach(element) {
   core.element = element;
   if (!core.store) {
     core.store = createStore(savesRemote, {
       onProblem: (error) => console.warn("[wanderworld] a save didn't reach the Engine: it's tried again", error),
+      onChange: savesChanged,
+      // Another browser wrote a world since this one read it: theirs is kept, and this one loads it. The
+      // settings and the last world played are this browser's to write over.
+      onConflict: (key) => key.startsWith(WORLD_KEY("")),
     });
     core.saves = createSaves(core.store);
     globalThis.addEventListener?.("pagehide", () => void core.store.flush());
@@ -15440,7 +15477,7 @@ function attach(element) {
   core.input.onRunToggle((on) => core.hud?.setRun(on)); // (Ctrl: the Run button shows it)
   core.input.setKeys(core.settings?.keys ?? "");
   core.hud.layer.prepend(core.input.stickElement); // under the windows and panels
-  core.element.addEventListener("keydown", () => core.sound.unlock());
+  core.element.addEventListener("keydown", unlockSound); // (one function, so attaching again doesn't add another)
 
   if (!ensureRenderer()) {
     core.hud.setStatus(core.failed);

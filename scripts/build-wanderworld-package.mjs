@@ -13,7 +13,7 @@ import { catalogArtworkUrl } from "./catalog-artwork.mjs";
 import { readCatalogFamily, writeCatalogFamily } from "./catalog-lanes.mjs";
 import { withPackageActivationGuidance } from "./catalog-package-guidance.mjs";
 import { assertClientHostGates } from "./client-host-gates.mjs";
-import { createDeterministicZip } from "./deterministic-zip.mjs";
+import { createDeterministicZip, zipSizeCheck } from "./deterministic-zip.mjs";
 import { assertPackagePrivateImportBoundary } from "./package-engine-boundary.mjs";
 import { writeEnglishPackageLocale } from "./package-locales.mjs";
 
@@ -21,7 +21,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = join(repoRoot, "packages/wanderworld");
 const artifactsDir = join(repoRoot, "artifacts");
 
-const VERSION = "0.7.45";
+const VERSION = "0.7.46";
 // A Home tab with its own icon, serving its own asset files (the kit: people, props), and a server part for
 // model calls, pictures and scenes. Capability API 1.66 is the scene origin (`scenes`); the Engine minimum
 // matches Slurp 2's, the other package with scenes.
@@ -154,9 +154,15 @@ const manifest = {
   ],
   // ui: it draws its own Home tab. It also reads your persona and character lists and their 3D Avatars
   //   models through the Engine's same-origin routes, which no other permission name describes.
-  // routes: server.mjs serves /api/wanderworld (status, connections, talk, image, scene contexts and recaps).
-  // storage: scene contexts until the Engine's planner reads them, and scene recaps until the client keeps
-  //   them (persistence.documents, kinds "scene-origin" and "scene-result").
+  // routes: server.mjs serves /api/wanderworld: the status and connections; the AI calls (talk, moments,
+  //   plans, looks, lore, world writing, quests, shop stock, the assistant, the sheet, inventory and
+  //   combat lines); pictures
+  //   and the gallery; saved worlds and the shared settings; scene plans, contexts and recaps; and the
+  //   debug log.
+  // storage: persistence.documents, kinds "save" (each saved world, the last one played and the settings
+  //   every browser shares), "picture" and "picture-image" (each world's gallery), "scene-origin" (a
+  //   scene's context until the Engine's planner reads it) and "scene-result" (its recap until the client
+  //   keeps it).
   // network: server.mjs's loopback to the Engine's own REST API on 127.0.0.1 (GET /api/connections for the
   //   AI settings, POST /api/characters/avatar-generation for pictures), as Quartermaster and Gacha Forge
   //   do: the capability runtime has no image or connection-list method. Nothing leaves the machine except
@@ -168,21 +174,32 @@ const manifest = {
   restartRequired: true,
 };
 
-await writeFile(join(packageRoot, "client.js"), clientBuffer);
-await writeFile(join(packageRoot, "agents.json"), agentsBuffer);
 const manifestBuffer = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`);
-await writeFile(join(packageRoot, "manifest.json"), manifestBuffer);
-await writeEnglishPackageLocale(packageRoot, manifest, [agentDefinition]);
 
 // ── Reproducible artifact ────────────────────────────────────────────────────
-const archive = createDeterministicZip([
+const entries = [
   { name: "manifest.json", data: manifestBuffer },
   { name: "agents.json", data: agentsBuffer },
   { name: "client.js", data: clientBuffer },
   { name: "server.mjs", data: serverBuffer },
   { name: TAB_ICON, data: iconBuffer },
   ...kitPayloads.map((asset) => ({ name: asset.path, data: asset.buffer })),
-]);
+];
+const archive = createDeterministicZip(entries);
+// GitHub warns about a file over 50 MiB and refuses one over 100: a warning above 50, and nothing is
+// written above 90, with the largest files named to show what to shrink.
+const MIB = 1024 * 1024;
+const size = zipSizeCheck(entries, archive.byteLength, { warn: 50 * MIB, refuse: 90 * MIB });
+if (size?.refuse) {
+  console.error(`wanderworld ${VERSION} wasn't built: its zip is ${size.message}`);
+  process.exit(1);
+}
+if (size) console.warn(`warning: wanderworld ${VERSION}'s zip is ${size.message}`);
+
+await writeFile(join(packageRoot, "client.js"), clientBuffer);
+await writeFile(join(packageRoot, "agents.json"), agentsBuffer);
+await writeFile(join(packageRoot, "manifest.json"), manifestBuffer);
+await writeEnglishPackageLocale(packageRoot, manifest, [agentDefinition]);
 await mkdir(artifactsDir, { recursive: true });
 const artifactName = `wanderworld-${VERSION}.zip`;
 await writeFile(join(artifactsDir, artifactName), archive);

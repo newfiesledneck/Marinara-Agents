@@ -16,6 +16,7 @@ import {
   TextureLoader,
 } from "three";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { addDistant, drawDistant, forget } from "./kit.js";
 import { parseGlb } from "./models.js";
 
 const BASE = "/api/capability-packages/wanderworld/assets/kit/creatures/";
@@ -46,6 +47,41 @@ function materialFor(map, style) {
   return material;
 }
 
+/**
+ * Gives each skinned mesh of `scene` a bounding sphere that holds it in every pose its actions put it in
+ * (each sampled at six moments, and a tenth more for between them), so it's drawn whenever any of it
+ * could be in sight and left out when none could. Leaves it at rest.
+ */
+export function boundAllPoses(scene, clips) {
+  const spheres = new Map();
+  const sample = () => {
+    scene.updateMatrixWorld(true);
+    scene.traverse((node) => {
+      if (!node.isSkinnedMesh) return;
+      node.computeBoundingSphere();
+      if (spheres.has(node)) spheres.get(node).union(node.boundingSphere);
+      else spheres.set(node, node.boundingSphere.clone());
+    });
+  };
+  sample();
+  const mixer = new AnimationMixer(scene);
+  for (const clip of clips) {
+    const played = mixer.clipAction(clip).play();
+    for (let i = 0; i <= 5; i++) {
+      mixer.setTime((clip.duration * i) / 5);
+      sample();
+    }
+    played.stop();
+  }
+  mixer.stopAllAction();
+  mixer.uncacheRoot(scene);
+  scene.updateMatrixWorld(true);
+  for (const [mesh, sphere] of spheres) {
+    sphere.radius *= 1.1;
+    mesh.boundingSphere = sphere;
+  }
+}
+
 function source(kind, draw = {}) {
   if (!kinds.has(kind)) {
     kinds.set(
@@ -61,16 +97,22 @@ function source(kind, draw = {}) {
         map.userData.shared = true;
         const plain = materialFor(map);
         const styled = new Map(Object.entries(draw).map(([name, style]) => [name, materialFor(map, style)]));
+        const meshes = [];
         gltf.scene.traverse((node) => {
           if (!node.isMesh) return;
           const name = styled.has(node.name) ? node.name : node.parent?.name;
           node.material = styled.get(name) ?? plain;
           if (draw[name]?.opacity !== undefined) node.renderOrder = 1; // (after what's inside it)
-          node.frustumCulled = false; // (its bones carry it beyond its resting bounds)
           node.geometry.userData.shared = true;
+          meshes.push(node);
         });
+        // Its distant version (an index of its own in the file, named in the mesh's extras: kit.js addDistant).
+        for (const mesh of meshes)
+          if (Number.isInteger(mesh.geometry.userData.far))
+            addDistant(mesh.geometry, (await gltf.parser.getDependency("accessor", mesh.geometry.userData.far)).array);
+        boundAllPoses(gltf.scene, gltf.animations);
         return { scene: gltf.scene, clips: gltf.animations, height: data.height };
-      })(),
+      })().catch((error) => forget(kinds, kind, error)),
     );
   }
   return kinds.get(kind);
@@ -84,6 +126,7 @@ function source(kind, draw = {}) {
 export async function createRigged(kind, facts) {
   const { scene, clips } = await source(kind, facts.draw);
   const model = clone(scene);
+  model.traverse((node) => node.isMesh && drawDistant(node)); // (each copy picks its own: kit.js)
   const root = new Group();
   root.add(model);
   const mixer = new AnimationMixer(model);

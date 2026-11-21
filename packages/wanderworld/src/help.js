@@ -112,7 +112,7 @@ export const HELP = [
       "This world lists the world's name, its id, its Quartermaster sheet, the map seed, the land, the region you're in, who lives there, who's travelling with you, your animals, its lorebooks and its setting. The ids have a Copy button.",
       "Save world saves and sends the world to the Engine at once, and says if the Engine didn't take it. The game also saves by itself as you play, and when you leave the tab or lock your phone.",
       "Load world lists your worlds as the Engine has them at that moment and opens the one you pick. The world you're in is saved first, under its own name; nothing of it goes into the one you open.",
-      "Playing on a phone and a computer: worlds are kept by the Engine, so both see the same ones. A browser left open reads them again when you come back to it, and a world played somewhere else since is loaded from there. The newer save wins whole, so don't play one world in two browsers at the same time.",
+      "Playing on a phone and a computer: worlds are kept by the Engine, so both see the same ones. A browser left open reads them again when you come back to it, and a world played somewhere else since is loaded from there. If one world is played in two browsers at once, the browser that saved it first keeps it and the other loads that save, so don't play one world in two browsers at the same time.",
     ],
   },
   {
@@ -210,6 +210,7 @@ export const HELP = [
       "Every AI call uses one of your Engine connections. A reply in a conversation, a moment, a day planned, a scene planned, a picture, a picture's prompt rewritten and a message to the AI assistant are one call each. Walking about calls nothing.",
       "Illustrate paints the moment. With \"Have the AI rewrite the prompt before painting\" on, a model turns the facts into one full paragraph (each character's name and looks, what they're doing, the place, the light, a camera angle), and the last lines of the chat go with it, so the picture shows what you're doing now, not only where you stand. The instruction is yours to change, and there's a tag-style one for models that want tags. Lines that describe other places (told when you arrived there) are left out of what it's given (Settings → AI → Pictures has the switch), so a picture isn't of two places at once. If the place you're in hasn't been described in the chat yet, it's told first (there's a switch for that too).",
       'If your pictures are painted on this computer, the game and the painter share one graphics card. Settings → Display → Graphics has a frame rate limit (30, 60, 100 or none), and "Draw slower while a picture is painted", which holds the game to 30 frames a second until the picture arrives.',
+      "Settings → Display → Graphics → Creature detail distance: monsters and people further from the camera than this (Near 20 m, Normal 35 m, Far 60 m) are drawn with fewer triangles, which you hardly notice at that distance and which keeps a crowd of them quick on a phone. Always full detail turns that off.",
       "Prompt caching: some AI providers charge less for the start of a prompt they've just seen. Wanderworld sends what never changes first (the world, your narrator's card, the world's lore, your party, the lore of the place, who else is near) and what changes last (the time, what each is doing, what was just said). In a conversation, and in the AI assistant's chat, the changing part goes after what was said; Menu → Settings → AI → Order prompts for caching turns that off, if a model starts talking about its \"context\". Whether anything is cached is up to your provider.",
       "Menu → Settings → AI has a switch for each thing that can call the AI. With one off, the world answers with its own written lines.",
       "Narrator cards (your own characters): one for the world as you walk it (keep it short: a voice and a few rules), and one for scenes, which also lets a scene start with nobody else there. They can be the same card or two.",
@@ -250,7 +251,7 @@ export const HELP = [
     lines: [
       "Fighting is off to begin with (Menu → Settings → Inventory → Combat). Set it to Real time and F swings, Q blocks, R dodges, and X draws your weapon or puts it away. With it drawn, the camera stays behind you: turning the camera turns you, and you step sideways and backwards without turning away, as in an action game, animated as that. You can swing without drawing. On a touch screen, a Combat button by your thumb swaps Run, Sit and Jump for Attack, Block and Dodge, and back; the chat window has those three as well.",
       "A block lasts about a second, and an attack on you during it is rolled twice with the worse roll counting. A dodge rolls you a few steps (onward if you're moving, back if you're standing), and nothing lands on you mid-roll. You swing wherever you face, and can keep walking or running while you do. Nothing is aimed at: whatever animal is in front of you and in reach when the blow lands takes it, and a swing at nothing is just a swing.",
-      "Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus, against the creature's AC. Under it misses, at or over it hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A weapon is anything whose description gives its damage in square brackets ([1d8 damage, +1 to attack]): the one you have equipped, else the best you carry, else your fists. A hostile creature you strike fights back, its attacks rolled against your AC the same way; one badly hurt may run. A peaceful animal (a deer, a cow) runs when struck. Your own animals can't be struck. Beating a creature earns experience. The chat tells every roll.",
+      "Each blow is an attack roll: a d20 plus your Strength modifier and your weapon's bonus, against the creature's AC. Under it misses, at or over it hits, and a 20 on the die is a critical hit that rolls the damage dice twice. A weapon is anything whose description gives its damage in square brackets ([1d8 damage, +1 to attack]): the one you have equipped, else the best you carry, else your fists. A hostile creature you strike fights back, its attacks rolled against your AC the same way. One badly hurt may run: the blow that first leaves it a quarter of its HP or less (half, for a coward) has it make a Wisdom save against DC 10, and undead, oozes, constructs and the mindless never run. You can chase one that runs and strike it; by turns it stays in the fight, running on its turns, until it is 24 metres away. After a minute it may come for you again. A peaceful animal (a deer, a cow) runs when struck. Your own animals can't be struck. Beating a creature earns experience. The chat tells every roll.",
       "A bow, a crossbow or a sling you carry is shot with the same key when nothing is in reach of a swing: at whatever is ahead of you within its range (24 metres unless its description says Range and a number), by a d20 plus your Dexterity modifier. The smith sells a shortbow and a light crossbow. Arrows aren't counted. While swimming, a swing is at a disadvantage unless it's with a dagger, a javelin, a shortsword, a spear or a trident. You can swing, shoot and cast from the saddle, and in turn-based combat the mount's speed is how far you go: 18 metres on a horse, 12 on a donkey.",
       "Z casts the spell that's ready; if nothing is in front of you, you first turn to the nearest enemy it can reach (a bow does the same). Spells come from the 5e SRD and from you, and nowhere else: Inventory → Sheet has a list of the SRD's spells of level 0 to 9 to add from, and you can write your own. A spell is a line of your sheet whose description says what it does by rule, so one you add can be rewritten. A cantrip costs no mana; other spells cost their level in mana (1 for a first-level spell, 2 for a second, up to 9 for a ninth). Each spell has a button in the chat window, and casting one makes it the ready one. A healing spell mends you.",
       "A spell flies at the nearest creature ahead of you within its range (and at a person, where blows can land on people). A spell attack is a d20 + 2 + your Intelligence modifier against AC; a saving throw is the target's roll against 10 + your Intelligence modifier; some spells need no roll. What a spell leaves on its target is written in its rule. Stunned, paralyzed, restrained, incapacitated, asleep and prone hold a target where it stands; frightened sends it running; slowed halves its pace; blinded or hindered, its attacks are rolled twice with the worse counting; marked, your blows on it are rolled twice with the better counting; charmed or calmed, it stops fighting until it's hurt.",
@@ -261,6 +262,7 @@ export const HELP = [
       'Creatures\' numbers (HP, AC, attack, damage) are the 5e SRD\'s where it has the creature, with "Creatures use the 5e SRD\'s numbers" on (it is to begin with); off, they\'re the game\'s own. Weapons and armour go by the 5e SRD (Settings → Inventory → 5e rules). While "An item\'s description is its stats" is on, a thing does what its description says ("[1d8 slashing damage, +1 to attack]", "[+2 AC]"), and only one that states nothing goes by its name. Off, the name decides: anything with sword, knife, dagger, axe, hammer, mace, spear, staff, bow or crossbow in its name is that SRD weapon, and leather armor, a chain shirt, scale mail, chain mail, plate and a shield are that armour. Armour you wear sets your AC in place of 10 and limits how much of your Dexterity counts; with none, your AC is 10 plus your Dexterity modifier. Attacks and spells add a proficiency bonus that grows with your level.',
       "Some creatures resist a kind of damage, shrug it off or can't bear it: a skeleton takes a blunt blow twice over. Creatures use their special attacks (a switch in the same place): a wolf's bite can knock you prone on a failed Strength save, a pack attacks with advantage, venom does more on a failed Constitution save, a frog holds you, and a dragon breathes fire and then has to wait for it to come back. Creatures shoot and cast too (Settings → Inventory → Combat, with the SRD's numbers on): a bandit has a light crossbow, a puglin and a skeleton a shortbow, a wizard Fire Bolt and Magic Missile, a witch Sacred Flame.",
       "Conditions that land on you show at the top left with their seconds. Prone, restrained or blinded: your attacks are rolled twice with the worse counting, and attacks on you with the better. Poisoned or frightened: your attacks are rolled twice with the worse counting. Grappled or restrained: you can't move (grappled, you try to break free every few seconds, or at the start of your turn). Paralyzed, stunned or asleep: you can't move or act. Slowed: you move at half pace. In turn-based combat, getting up from prone takes half your movement.",
+      "Where the game is simpler than the 5e SRD on purpose: paralyzed, stunned or asleep, your Strength and Dexterity saves aren't failed by themselves, and a blow that lands on someone paralyzed or asleep isn't a critical hit by itself (attacks on them have advantage, as the SRD has it). A blow that lands always deals at least 1 damage.",
       "With Death saving throws on, at 0 HP you fall, dying, and roll a d20 every few seconds: 10 or more is a success, less a failure, a 1 two failures, and a 20 gets you up with 1 HP. Three successes and you come round with 1 HP; three failures and you're beaten. A spell whose rule says Concentration ends when you're hurt and fail a Constitution save (DC 10, or half the damage), or when you cast another such spell. A tree or a boulder between a shot or a spell attack and its target is half cover: +2 AC.",
       "Inventory → Sheet has your build, all of it optional: a race (it adds to your abilities, and a dwarf, a gnome or a halfling goes 7.5 metres a turn), a class, a fighting style where the class has one (Archery, Defense, Dueling, Great Weapon Fighting), a background, and the skills you're proficient in, which add your proficiency bonus (Perception to noticing what comes for you, Athletics or Acrobatics to breaking a hold). A class adds its proficiency to two saving throws and gains more as you level up: a rogue's Sneak Attack (more dice once a turn with a finesse or ranged weapon, when you have advantage or a companion is beside the target), a monk's bare hands and Ki, a barbarian's Rage, a paladin's Lay on Hands and Divine Smite, a bard's Inspiration, a cleric's Turn Undead. What a class can call on is a row of buttons in the Sheet tab, can go on a number key in the Hotkeys tab, and is on the bar in turn-based combat.",
       "A druid has Wild Shape from level 2 (Abilities): you take the shape of a beast picked in Inventory → Sheet, a wolf to begin with, and fight with its HP, AC and attack instead of yours. You can't cast while in it, and you return to your own shape when its HP run out (what's left of the blow is yours to take) or when you choose Own shape.",
@@ -287,7 +289,7 @@ export const HELP = [
     lines: [
       "Some creatures catch hold of you or a companion, as the 5e SRD has them: a roper's tendril from up to 15 metres off, which then reels you in 7.5 metres at a time; an otyugh's tentacle; a giant frog's bite and a mimic's pseudopod; and a shambling mound that lands both its slams engulfs you (blinded and restrained, with a DC 14 Constitution save every few seconds or 2d8 + 4 more). Held, you can't walk away and you stay where it holds you. A bar at the top says what holds you and its escape DC, the SRD's own (the roper's 15, the otyugh's 13, the mound's 14, the frog's 11).",
       "To break free, press Break free, or push hard on the move keys for a second: each try is a d20 with the better of your Athletics and your Acrobatics against the escape DC (a roper's hold puts Strength at a disadvantage). By turns, a try is your action (Break free on the bar). Companions try on their own turns. A hold ends when the creature is beaten, knocked back (a Shove, Thunderwave), stunned or runs, or after a minute when it lets go.",
-      "Two rules here are Wanderworld's own, not the SRD's. Vines: an awakened shrub's blow, and a shambling mound's slam that doesn't engulf you, can catch your legs, restrained for about eight seconds (a turn by turns), escape DC 10. Throws: something Large or bigger with a Strength of 18 or more (an ogre, a troll, a minotaur, and giants) now and then grabs someone Medium or smaller and throws them a few metres, further the bigger and stronger it is. A Strength or Dexterity save, the better, against 8 + its proficiency + its Strength modifier avoids it. You land prone, take 1d6 falling damage for every 3 metres and get up; nobody is thrown through a wall, a tree or a rock, into deep water, or at all where fights are kept out (towns, unless fights are allowed anywhere).",
+      "Two rules here are Wanderworld's own, not the SRD's. Vines: an awakened shrub's blow, and a shambling mound's slam that doesn't engulf you, can catch your legs, restrained for about eight seconds (a turn by turns), escape DC 10. Throws: something Large or bigger with a Strength of 18 or more (an ogre, a troll, a minotaur, and giants) now and then grabs someone Medium or smaller and throws them a few metres, further the bigger and stronger it is. A Strength or Dexterity save, the better, against 8 + its proficiency + its Strength modifier avoids it. You land prone, take 1d6 falling damage for every full 3 metres thrown (at least 1d6: 4.5 metres is 1d6, 6 metres 2d6) and get up; nobody is thrown through a wall, a tree or a rock, into deep water, or at all where fights are kept out (towns, unless fights are allowed anywhere).",
       'Each has its own switch in Settings → Inventory → 5e rules, under "Creatures use their special attacks", all on to begin with: "Creatures grab and hold", "Vines catch your legs" and "Giants grab and throw". With fights off, or that switch off, nothing grabs or throws. Holds need "Conditions can land on you" too; with "Creatures grab and hold" off, a frog\'s or a mimic\'s grab is the plain Grappled condition you shake off by yourself. By turns, "grapple" and "throw" are among the moves the rules or the AI choose from for a creature that has them. In a narrated moment, who is held or thrown is in the lines the AI tells.',
     ],
   },
@@ -379,6 +381,57 @@ export const HELP = [
 ];
 
 /**
+ * Every model made in Blender by ThatOneCan, by where it is: `folk` on the people's skeleton
+ * (kit/fantasy/folk/folk-built-<name>.json), `rigged` with a skeleton of its own
+ * (kit/creatures/rigged-<name>.json). The one list the credits come from: Help's lines below are made
+ * from it, and wanderworld-help.regression.mjs checks the kit, the README and kit/CREDITS.md against it.
+ */
+export const BLENDER_MODELS = {
+  folk: [
+    "goblin",
+    "hobgoblin",
+    "bugbear",
+    "orc",
+    "gnoll",
+    "kobold",
+    "lizardfolk",
+    "ghoul",
+    "ogre",
+    "troll",
+    "minotaur",
+    "skeleton",
+    "zombie",
+    "ghost",
+    "specter",
+    "earth_elemental",
+    "hill_giant",
+    "stone_giant",
+    "frost_giant",
+    "fire_giant",
+  ],
+  rigged: [
+    "mimic",
+    "awakened_shrub",
+    "shambling_mound",
+    "grick",
+    "otyugh",
+    "roper",
+    "gelatinous_cube",
+    "basilisk",
+    "air_elemental",
+    "fire_elemental",
+    "water_elemental",
+  ],
+};
+/** The built-in body's credit, word for word wherever it's given. */
+export const MAKEHUMAN_CREDIT = "Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan";
+/** Model names as a list in words: "the goblin, the hill giant and the troll" without the repeated "the". */
+export const namesOf = (names) => {
+  const words = names.map((name) => name.replace(/_/gu, " "));
+  return words.length > 1 ? `the ${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : `the ${words[0] ?? ""}`;
+};
+
+/**
  * Credits and thanks (Menu → Settings → Credits, and the main menu): [{ title, lines }]. The models and
  * animations are listed as the kit's own notes have them (kit/CREDITS.md, src/clips/CREDITS.md).
  */
@@ -411,7 +464,8 @@ export const CREDITS = [
       "Credit required (CC-BY 3.0, https://creativecommons.org/licenses/by/3.0/): Saddle by Poly by Google, https://poly.pizza/m/dSMm_V4sKNr, modified (converted, resized, its texture shrunk). Its maker has not endorsed Wanderworld.",
       "Monster Pack Animated and Easy Animated Enemy Pack: the slime, skeleton, giant spider, giant rat, snake, bat, giant wasp, giant frog and dragon.",
       "Bestiary - Dungeon Monsters Kit: the imp and the puglin. (This pack is under the Quaternius Asset License, not CC0: free to use in a game, not to pass on as assets.)",
-      "Made in Blender by ThatOneCan: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, with their gear and weapons (they move with the Universal Animation Library's clips like the people); and the mimic, awakened shrub, shambling mound, grick, otyugh, roper, gelatinous cube, basilisk, skeleton, zombie, ghost, specter, earth, fire, water and air elementals, and the hill, stone, frost and fire giants, each with a skeleton and movements of its own.",
+      `Made in Blender by ThatOneCan, on the people's skeleton (they move with the Universal Animation Library's clips like the people): ${namesOf(BLENDER_MODELS.folk)}, with their gear and weapons. The giants start from one base body, a copy of the built-in body (giant-base.glb).`,
+      `Made in Blender by ThatOneCan, each with a skeleton and movements of its own: ${namesOf(BLENDER_MODELS.rigged)}.`,
       "Ultimate Animated Animals: the horses, donkey, cow, bull, alpaca, deer, stag, wolf, fox and the two dogs, with their standing, grazing, walking and galloping, and the horses' and donkey's jump.",
       "Universal Animation Library: Idle, Walk, Jog, Sprint, Idle Talking, Sitting (enter, idle, talking, exit), Swim (forward, idle), Jump (loop, land), Fixing Kneeling, Interact, Pick Up Table and Dance.",
       "Universal Animation Library 2: Tree Chopping (the smith's hammer), Farm Harvest, Plant Seed and Watering, Idle Fold Arms, Idle Rail, Lay To Idle (lying down and getting up) and Consume.",
@@ -420,7 +474,7 @@ export const CREDITS = [
   {
     title: "The built-in body",
     lines: [
-      "Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan.",
+      `${MAKEHUMAN_CREDIT}: the built-in body, and the giants' base body made from it.`,
       "MakeHuman system assets (skins, eyes, eyebrows, eyelashes): CC0.",
     ],
   },

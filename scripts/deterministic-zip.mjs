@@ -93,3 +93,24 @@ export function createDeterministicZip(entries) {
   end.writeUInt16LE(0, 20);
   return Buffer.concat([...localParts, ...centralParts, end]);
 }
+
+/**
+ * How a zip of `entries` (as createDeterministicZip takes them), `bytes` long, stands against a size
+ * limit: null at `warn` bytes or under; above it { refuse (it is over `refuse` bytes too), message (its
+ * size and its ten largest files, the entries being stored as they are) }.
+ */
+export function zipSizeCheck(entries, bytes, { warn, refuse }) {
+  if (bytes <= warn) return null;
+  const mib = (size) => `${(size / 1048576).toFixed(1)} MiB`;
+  const largest = entries
+    .map((entry) => ({ name: entry.name, size: Buffer.byteLength(entry.data) }))
+    .sort((left, right) => right.size - left.size)
+    .slice(0, 10);
+  return {
+    refuse: bytes > refuse,
+    message: [
+      `${mib(bytes)} (a warning above ${mib(warn)}, refused above ${mib(refuse)}). The largest files:`,
+      ...largest.map((file) => `  ${mib(file.size).padStart(10)}  ${file.name}`),
+    ].join("\n"),
+  };
+}

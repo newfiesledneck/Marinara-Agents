@@ -164,8 +164,8 @@ export function landing({ from, at, metres, clear }) {
   return best;
 }
 
-/** The falling damage of a throw `metres` long: 1d6 for every 3 metres (the SRD's 1d6 per 10 feet), at least 1d6. */
-export const fallDice = (metres) => `${Math.max(1, Math.round(metres / 3))}d6`;
+/** The falling damage of a throw `metres` long: 1d6 for every full 3 metres (the SRD's 1d6 per 10 feet), at least 1d6. */
+export const fallDice = (metres) => `${Math.max(1, Math.floor(metres / 3 + 1e-9))}d6`;
 
 /** How high a throw `metres` long goes at the top of its arc, and how long it's in the air (seconds). */
 export const tossArc = (metres) => ({ height: 0.8 + metres * 0.2, seconds: 0.45 + metres * 0.07 });

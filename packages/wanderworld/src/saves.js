@@ -1,6 +1,8 @@
-// Saved worlds. Each world is one record under its own key, plus a small index for the Load list (name,
-// when it was last played, a thumbnail). Where they're kept is store.js's business (with the Engine);
-// here it's only something with getItem, setItem and removeItem.
+// Saved worlds. Each world is one record under its own key, with its thumbnail for the Load list; the list
+// is made from the records, so a browser only ever writes the worlds it plays. (Saves from before kept the
+// list, and the thumbnails, in an index of their own: it's still read for a thumbnail a record hasn't got.)
+// Where they're kept is store.js's business (with the Engine); here it's only something with getItem,
+// setItem, removeItem and a list of its keys (`keys()`, or `length` and `key(i)` as localStorage has).
 //
 // A record holds everything the world needs to come back as it was: its seed, where the player stood,
 // the persona and cast, the names given to places (`names`, by zone id) and the lore tied to them
@@ -19,8 +21,10 @@ import { checkRelationship, checkTraitMap } from "./relationships.js";
 import { checkFolk, checkTravel } from "./regions.js";
 
 export const SAVE_VERSION = 1;
-const INDEX_KEY = "wanderworld.worlds";
-const WORLD_KEY = (id) => `wanderworld.world.${id}`;
+const INDEX_KEY = "wanderworld.worlds"; // read only: the list as saves from before kept it
+const WORLD_PREFIX = "wanderworld.world.";
+/** The key a world's record is kept under. */
+export const WORLD_KEY = (id) => `${WORLD_PREFIX}${id}`;
 const LAST_KEY = "wanderworld.lastWorld";
 const MAX_NAME = 60;
 const MAX_THUMBNAIL = 40_000; // characters of a data URL
@@ -28,6 +32,7 @@ const MAX_THUMBNAIL = 40_000; // characters of a data URL
 const isRecord = (value) => !!value && typeof value === "object" && !Array.isArray(value);
 const text = (value, fallback = "") => (typeof value === "string" ? value.slice(0, 2000) : fallback);
 const finite = (value, fallback) => (Number.isFinite(value) ? value : fallback);
+const thumbnailOf = (value) => (typeof value === "string" && value.length < MAX_THUMBNAIL ? value : null);
 /** Something written at length (lore, a card made for this world): whole, under a ceiling no one writes to. */
 /** A world's gender shares: three weights from 0 to 100 and the third gender's name, or null for none of its own. */
 export function checkGenders(raw) {
@@ -156,6 +161,8 @@ export function checkWorld(raw) {
     seed: raw.seed,
     createdAt: finite(raw.createdAt, now),
     playedAt: finite(raw.playedAt, now),
+    // A small picture of the view for the Load list (a data URL), or null.
+    thumbnail: thumbnailOf(raw.thumbnail),
     hour: ((finite(raw.hour, 9) % 24) + 24) % 24,
     place: checkPlace(raw.place),
     persona: typeof raw.persona === "string" ? raw.persona : null,
@@ -654,47 +661,60 @@ export function createSaves(storage = globalThis.localStorage) {
     }
   };
 
-  function index() {
-    const list = parse(INDEX_KEY, []);
-    return (Array.isArray(list) ? list : [])
-      .filter((entry) => isRecord(entry) && typeof entry.id === "string")
-      .map((entry) => ({
-        id: entry.id,
-        name: text(entry.name, "A world").slice(0, MAX_NAME),
-        playedAt: finite(entry.playedAt, 0),
-        createdAt: finite(entry.createdAt, 0),
-        thumbnail:
-          typeof entry.thumbnail === "string" && entry.thumbnail.length < MAX_THUMBNAIL ? entry.thumbnail : null,
-      }));
-  }
-
-  function saveIndex(list) {
-    write(INDEX_KEY, JSON.stringify(list));
+  const keys = () => {
+    try {
+      if (typeof storage?.keys === "function") return storage.keys();
+      return Array.from({ length: storage?.length ?? 0 }, (_, at) => storage.key(at));
+    } catch {
+      return [];
+    }
+  };
+  // Each world's list entry, made from its record, and the record's text it was made from (a record is
+  // read again only when it has changed).
+  const entries = new Map();
+  function entryOf(key) {
+    const saved = read(key);
+    if (entries.get(key)?.saved === saved) return entries.get(key).entry;
+    let raw = null;
+    try {
+      raw = JSON.parse(saved ?? "null");
+    } catch {
+      // a damaged record isn't listed
+    }
+    const entry =
+      isRecord(raw) && typeof raw.id === "string" && typeof raw.seed === "string"
+        ? {
+            id: raw.id,
+            name: text(raw.name, "A world").slice(0, MAX_NAME) || "A world",
+            playedAt: finite(raw.playedAt, 0),
+            createdAt: finite(raw.createdAt, 0),
+            thumbnail: thumbnailOf(raw.thumbnail),
+          }
+        : null;
+    entries.set(key, { saved, entry });
+    return entry;
   }
 
   function put(world, thumbnail) {
-    const checked = checkWorld(world);
+    const checked = checkWorld(thumbnail ? { ...world, thumbnail } : world);
     if (!checked) return null;
     write(WORLD_KEY(checked.id), JSON.stringify(checked));
-    const list = index();
-    const at = list.findIndex((entry) => entry.id === checked.id);
-    const entry = {
-      id: checked.id,
-      name: checked.name,
-      playedAt: checked.playedAt,
-      createdAt: checked.createdAt,
-      thumbnail: thumbnail ?? list[at]?.thumbnail ?? null,
-    };
-    if (at >= 0) list[at] = entry;
-    else list.push(entry);
-    saveIndex(list);
     return checked;
   }
 
   return {
     /** The saved worlds, last played first: [{ id, name, playedAt, createdAt, thumbnail }]. */
     list() {
-      return index().sort((a, b) => b.playedAt - a.playedAt);
+      const before = parse(INDEX_KEY, []);
+      const thumbnails = new Map(
+        (Array.isArray(before) ? before : []).filter(isRecord).map((entry) => [entry.id, thumbnailOf(entry.thumbnail)]),
+      );
+      return keys()
+        .filter((key) => typeof key === "string" && key.startsWith(WORLD_PREFIX))
+        .map(entryOf)
+        .filter(Boolean)
+        .map((entry) => (entry.thumbnail ? entry : { ...entry, thumbnail: thumbnails.get(entry.id) ?? null }))
+        .sort((a, b) => b.playedAt - a.playedAt);
     },
     /** A new world, saved: `name`, and `seed` (a random one when left out). */
     create({ name, seed } = {}) {
@@ -725,7 +745,6 @@ export function createSaves(storage = globalThis.localStorage) {
       } catch {
         // blocked storage: nothing to remove
       }
-      saveIndex(index().filter((entry) => entry.id !== id));
       if (read(LAST_KEY) === id) write(LAST_KEY, "");
     },
     /** The world played last, if it's still saved. */

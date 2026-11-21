@@ -130,6 +130,13 @@ assert.deepEqual(rested({ 1: 1, 2: 1 }, "short", "warlock", 3), {}, "a warlock's
   assert.equal(armourOf(sheet, gearWorn(sheet, [on("Shield")], { unarmored: "constitution" })), 17);
   assert.equal(armourOf(sheet, gearWorn(sheet, [on("Chain mail")], { unarmored: "constitution", defense: 1 })), 17);
   assert.equal(armourOf(sheet, gearWorn(sheet, [], { defense: 1 })), 12, "Defense needs armour on");
+  // Heavy armour adds no Dexterity modifier, even a negative one; light and medium armour add a negative one.
+  const clumsy = changeSheet(sheet, { set: "dexterity", field: "value", value: 8 });
+  assert.equal(armourOf(clumsy, gearWorn(clumsy, [on("Plate armor")])), 18);
+  assert.equal(armourOf(clumsy, gearWorn(clumsy, [on("Chain mail")])), 16);
+  assert.equal(armourOf(clumsy, gearWorn(clumsy, [on("Breastplate")])), 13);
+  assert.equal(armourOf(clumsy, gearWorn(clumsy, [on("Leather armor")])), 10);
+  assert.equal(armourOf(sheet, gearWorn(sheet, [on("Breastplate")])), 16, "medium: up to +2");
   // A race's bonuses count wherever what's worn does.
   const worn = gearWorn(sheet, [], { add: raceBonuses("elf") });
   assert.equal(worn.dexterity, 2);
