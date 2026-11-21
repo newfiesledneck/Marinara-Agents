@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.44 — 2026-11-20
+
+- Settings → People → Default skins with underwear (on to begin with): anyone with no underwear chosen wears the usual; off, the base skin shows unless underwear is chosen in the Look card.
+- More hair style names for the new bodies (bob, braid, curly, afro, shaved, mohawk), offered when the kit has them.
+
 ## 0.7.43 — 2026-11-20
 
 - The built-in bodies, polished: a smooth jawline, closed lips, eyes with depth and a wet line, relaxed hands, and fine skin detail (pores, creases) in the texture rather than the shape.

@@ -459,6 +459,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   const bind = (geometry, materials, part, fallback = null) => {
     const mesh = new SkinnedMesh(geometry, materials);
     mesh.frustumCulled = false;
+    mesh.name = fallback ? "piece" : "body"; // (hair and outfit pieces are bound to the body's skeleton)
     mesh.userData.sharedShadow = true; // (disposed here, so the shared data stays: avatar.js `dispose`)
     root.add(mesh);
     mesh.bind(skeletonFor(root, bones, part, stretch, fallback), mesh.matrixWorld);

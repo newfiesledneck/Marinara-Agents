@@ -69,10 +69,25 @@ export const HAIRSTYLES = [
   ["long", "Long"],
   ["ponytail", "Ponytail"],
   ["buns", "Buns"],
+  ["bob", "Bob"],
+  ["braid", "Braid"],
+  ["curly", "Curly"],
+  ["afro", "Afro"],
+  ["shaved", "Shaved"],
+  ["mohawk", "Mohawk"],
   ["none", "None"],
 ];
 /** The older kit's file for a hairstyle: short hair is cut to each body's own head. (Older names too.) */
-export const HAIR_FILE = (hair, sex) =>
+// (The older kit has only short, parted, long and buns: the newer styles are worn as the nearest of those.)
+const OLDER_KIT_HAIR = {
+  bob: "parted",
+  braid: "long",
+  curly: "short",
+  afro: "short",
+  shaved: "short",
+  mohawk: "short",
+};
+export const HAIR_FILE = (wanted, sex, hair = OLDER_KIT_HAIR[wanted] ?? wanted) =>
   hair === "short" || hair === "cropped"
     ? sex === "female"
       ? "buzzedfemale"
