@@ -326,6 +326,18 @@ export const HELP = [
       "Each one is built from the world's seed, so the same way down always leads to the same rooms. Guards keep to the hall and barracks, the leader or the dungeon's master waits in the last room, captives sit in the cells, and others wander. Sometimes there's a way further down: a dungeon's far wall that has given way into natural rock, or a trapdoor in a keep's cellar, both leading to a cave below.",
     ],
   },
+  {
+    title: "Quests",
+    lines: [
+      'Quests are work to take on. The noticeboard posts one now and then (take the note down to see it), people you ask "Any work going?" in a conversation may have some, and an entry in your lore keyed ww:quest:<title> is a quest its giver offers. A card shows who\'s asking, what they want, the first step and the reward: Accept or Decline. Errands from the noticeboard are quests of one stage.',
+      "A quest is a few stages, each one thing to do: talk to someone, go somewhere, find or gather so many of something, bring it to someone, beat so many creatures near a place, go down into a cave, free a captive held in one, travel to another region. Each is done when it happens in the world: you arrive, you talk to them, the last creature goes down. The game checks every stage before a quest is offered, so every quest you see can be finished.",
+      "Journal → Quests lists them: open ones first, each with its stages done (✓), the one you're on (▸) and how many are still to come, then the finished ones. Track puts one on the line at the top of the screen and on the map; tap the line to open the Journal. Give up keeps it in the Journal, given up. A stage that asks you to choose (who took the ledger?) has its answers as buttons there.",
+      'Quests can take you away. A stage in another region marks the edge that way on your map, and the region map shows it with a "!". A region a quest sends you to is given what it\'s for (a bandit stronghold, outposts, a ruin, a hillside of caves) and keeps it. A cave a quest needs always leads down, and a captive sits on its first level: walk up and Free them, then take them home.',
+      "Things go wrong. If someone a quest needs is gone from your world, the place has changed, or time ran out, the quest takes a turn when it has one (someone else saw it too, their kin hears the news, you make it right with the one you wrongly named) or ends, and the Journal says why. With the AI's quests on, a quest with no plan for what happened can be given one more stage by one AI call (Settings → Quests).",
+      "The game makes its own quests from what your world has, with no AI. With \"The AI writes quests\" on (Settings → Quests, off to begin with), one AI call writes each quest, all its stages at once, from your people, places and lore; anything it names that your world hasn't got is turned down and the game's own quest is offered instead. The quests you've had lately are remembered, so the next one is different.",
+      'Settings → Debug has "Finish this stage", "Fail this stage" and "Show this quest\'s state" for the tracked quest, for when one is stuck or you want to see what it\'s waiting for.',
+    ],
+  },
   { title: "Lorebook keywords", keywords: true },
   {
     title: "A prompt for writing your keywords",

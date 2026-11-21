@@ -14,6 +14,7 @@ import { checkFurnished } from "./household.js";
 import { checkLook } from "./looks.js";
 import { checkGroups } from "./zones.js";
 import { checkPurposes, checkStanding } from "./factions.js";
+import { checkParts, checkQuests, checkSavedQuest } from "./quests.js";
 import { checkRelationship, checkTraitMap } from "./relationships.js";
 
 export const SAVE_VERSION = 1;
@@ -400,6 +401,25 @@ export function checkWorld(raw) {
     // How each faction regards the player (factions.js), and what each region beyond home is for.
     standing: checkStanding(raw.standing),
     purposes: checkPurposes(raw.purposes),
+    // Quests (quests.js): every quest open or finished (the newest finished ones), the parts of recent ones
+    // (so the next differs), the one on screen, the one on the noticeboard, when work was last offered
+    // (hours since the world began), and the quests the lore holds (ww:quest).
+    quests: checkQuests(raw.quests),
+    questParts: checkParts(raw.questParts),
+    questTracked: typeof raw.questTracked === "string" ? raw.questTracked.slice(0, 80) : "",
+    questBoard: checkSavedQuest(raw.questBoard),
+    questOffered: Number.isFinite(raw.questOffered) ? raw.questOffered : null,
+    loreQuests: (Array.isArray(raw.loreQuests) ? raw.loreQuests : [])
+      .filter((entry) => isRecord(entry) && typeof entry.key === "string" && typeof entry.title === "string")
+      .slice(0, 40)
+      .map((entry) => ({
+        key: entry.key.slice(0, 120),
+        title: entry.title.slice(0, 80),
+        premise: text(entry.premise).slice(0, 600),
+        giver: text(entry.giver).slice(0, 80),
+        place: text(entry.place).slice(0, 80),
+        reward: text(entry.reward).slice(0, 120),
+      })),
     // Lore written for this world (not in an Engine lorebook): { entries: [{ id, title, content }] },
     // linked to places like any lorebook's entries (under the lorebook id "world").
     book: {

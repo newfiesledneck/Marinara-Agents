@@ -214,6 +214,10 @@ export function createAi(locals = () => []) {
     combatLine: (payload) => request("/combat-line", { method: "POST", body: payload }),
     /** A creature's move on its turn, chosen from those offered: { move, line } (server.mjs `/combat-move`). */
     combatMove: (payload) => request("/combat-move", { method: "POST", body: payload }),
+    /** A quest written to fit, for quests.js to check: { quest } (server.mjs `/quest-write`). */
+    questWrite: (payload) => request("/quest-write", { method: "POST", body: payload, timeout: 45000 }),
+    /** A quest gone wrong: { stage, line } or { end } (server.mjs `/quest-adapt`). */
+    questAdapt: (payload) => request("/quest-adapt", { method: "POST", body: payload, timeout: 30000 }),
     /** Forgets a recap the client has kept. */
     forgetResult: (id) => request(`/scene-results/${encodeURIComponent(id)}`, { method: "DELETE" }),
   };

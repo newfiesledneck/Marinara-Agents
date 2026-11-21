@@ -298,6 +298,125 @@ export function checkStock(data) {
     .slice(0, 12);
 }
 
+// ── Quests (the client's quests.js checks every answer against the world before it's offered) ──
+
+const QUEST_STAGE_SHAPE = `{"verb":"talk|go|bring|gather|defeat|deep|rescue|region","target":"<a name from the lists>","count":<a whole number, for bring, gather and defeat>,"item":"<for bring: an item from the list>","near":"<for defeat: a place out in the country from the list>","text":"<what the player is to do, one short sentence>"}`;
+export const QUEST_INSTRUCTION = `You write one quest for a roleplay game set in a small world. The game checks and runs it, so it must only use what's listed: every target is a name copied exactly from one of the lists you're given, and nothing else.
+
+What each stage can be (its verb):
+- talk: talk to a person (target: a person).
+- go: go to a place (target: a place).
+- bring: bring some of an item to a person (target: the person; item: from the items; count).
+- gather: find some of an item (target: the item; count).
+- defeat: beat some creatures near a place out in the country (target: the creature; near: a country place; count, 1 to 4).
+- deep: go down into a cave (target: a cave).
+- rescue: free a captive held in a cave (target: the cave; give the captive's first name as "captive").
+- region: travel to a region (target: one of the regions, as listed).
+
+Two to four stages. Make it read like this world and the person asking, with a reason and, now and then, a twist (they want it kept quiet, there may be more than they said, it's for someone they love). Don't repeat what you're told to avoid. The game decides the reward and whether each stage is done, so don't promise particular things.
+
+Answer with JSON only, nothing before or after it:
+{"title":"<a few words>","intro":"<what the person asking says, one to three sentences>","archetype":"hunt|supply|word|investigate|delve|rescue|scout","motive":"<why, a few words>","complication":"<the twist, or empty>","captive":"<a first name, only with a rescue stage>","stages":[${QUEST_STAGE_SHAPE}],"done":"<what's said or seen when it's done, one sentence>"}`;
+
+const listed = (label, list) => (list.length ? `${label}: ${list.join("; ")}.` : "");
+
+/** The messages for writing one quest: the world's names, a few of each, and what to avoid. */
+export function questWriteMessages({ worldName, setting, giver, premise, avoid, lists }) {
+  return [
+    { role: "system", content: QUEST_INSTRUCTION },
+    {
+      role: "user",
+      content: [
+        `The world: ${([worldName, setting].filter(Boolean).join(": ") || "a small town and the country round it").replace(/[.\s]+$/u, "")}.`,
+        giver ? `Who's asking: ${giver}.` : "It's posted on the town's noticeboard by someone in town (use one of the people).",
+        premise && `What it's about (from the world's lore): ${premise}`,
+        avoid.length && `Recent quests, so don't repeat them: ${avoid.join(" | ")}.`,
+        listed("People", lists.people),
+        listed("Places", lists.places),
+        listed("Places out in the country", lists.wilds),
+        listed("Creatures", lists.creatures),
+        listed("Items", lists.items),
+        listed("Caves", lists.caves),
+        listed("Regions", lists.regions),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    },
+  ];
+}
+
+export const QUEST_ADAPT_INSTRUCTION = `A quest in a roleplay game has gone wrong in a way it had no plan for. Decide what happens next: either one new stage that carries the quest on, or a line that ends it. Use only the names listed.
+
+Answer with JSON only, nothing before or after it, one of:
+{"stage":${QUEST_STAGE_SHAPE},"line":"<what the player hears, one sentence>"}
+{"end":"<why it ends, one sentence>"}`;
+
+/** The messages for the adapt call: the quest, what went wrong, and what there is now. */
+export function questAdaptMessages({ quest, happened, lists }) {
+  return [
+    { role: "system", content: QUEST_ADAPT_INSTRUCTION },
+    {
+      role: "user",
+      content: [
+        `The quest: ${quest}`,
+        `What went wrong: ${happened}`,
+        listed("People", lists.people),
+        listed("Places", lists.places),
+        listed("Items", lists.items),
+        listed("Caves", lists.caves),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    },
+  ];
+}
+
+/** The lists of names a quest call may use, from the client, each cut short. */
+function questLists(raw) {
+  const list = (value, most) =>
+    (Array.isArray(value) ? value : [])
+      .map((entry) => text(entry, 120))
+      .filter(Boolean)
+      .slice(0, most);
+  const lists = isRecord(raw) ? raw : {};
+  return {
+    people: list(lists.people, 12),
+    places: list(lists.places, 12),
+    wilds: list(lists.wilds, 6),
+    creatures: list(lists.creatures, 8),
+    items: list(lists.items, 8),
+    caves: list(lists.caves, 4),
+    regions: list(lists.regions, 4),
+  };
+}
+
+/** What the model wrote, cut to its shape (the client checks what it names): null when there are no stages. */
+export function checkQuestWords(data) {
+  if (!isRecord(data)) return null;
+  const stages = (Array.isArray(data.stages) ? data.stages : []).filter(isRecord).slice(0, 6);
+  if (!stages.length && !isRecord(data.stage) && !text(data.end, 300)) return null;
+  const stage = (raw) => ({
+    verb: text(raw.verb, 20).toLowerCase(),
+    target: text(raw.target, 120),
+    count: Number.isFinite(raw.count) ? Math.round(raw.count) : 1,
+    item: text(raw.item, 80),
+    near: text(raw.near, 120),
+    text: text(raw.text, 240),
+  });
+  return {
+    title: text(data.title, 80),
+    intro: text(data.intro, 600),
+    archetype: text(data.archetype, 20),
+    motive: text(data.motive, 120),
+    complication: text(data.complication, 120),
+    captive: text(data.captive, 40),
+    done: text(data.done, 400),
+    stages: stages.map(stage),
+    ...(isRecord(data.stage) ? { stage: stage(data.stage), line: text(data.line, 300) } : {}),
+    ...(text(data.end, 300) ? { end: text(data.end, 300) } : {}),
+  };
+}
+
 /** What the model that keeps a character sheet is told to do (the client's sheet.js applies what it answers). */
 const SHEET_RULES = `Change a stat only when the text clearly says or shows it: damage taken, healing, mana or another resource spent, a lasting gain or loss. Do not change anything for what is only talked about, intended, feared or possible. Never use a stat that isn't listed, and never go past a resource's most.
 
@@ -1894,6 +2013,7 @@ export async function activate(context) {
         illustrate: true,
         assistant: true,
         saves: true,
+        quests: true,
       }));
 
       // Settings → Debug: the calls made since the Engine started. No key is in them (see `scrub`).
@@ -2658,6 +2778,48 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           return { stock };
         } catch (error) {
           logger.warn("[wanderworld] stocking a shop failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
+        }
+      });
+
+      // A quest written by the model (Settings → Quests → The AI writes quests): one call, all its stages at
+      // once. The client checks every name against its world before it's offered, and uses its own if not.
+      routes.post("/quest-write", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const input = {
+          worldName: text(body.worldName, MAX.name),
+          setting: text(body.setting, 600),
+          giver: text(body.giver, 200),
+          premise: text(body.premise, 800),
+          avoid: (Array.isArray(body.avoid) ? body.avoid : []).map((entry) => text(entry, 160)).filter(Boolean).slice(0, 4),
+          lists: questLists(body.lists),
+        };
+        if (!input.lists.people.length) return reply.status(400).send({ error: "A quest needs someone in the world." });
+        try {
+          const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
+          const result = await askModel("quest-write", body, model, questWriteMessages(input), { temperature: 0.9, maxTokens: 700 });
+          const quest = checkQuestWords(readJson(result?.content, api.runtime.json?.parseJsonish));
+          if (!quest?.stages.length) return reply.status(502).send({ error: "The model's answer wasn't readable." });
+          return { quest };
+        } catch (error) {
+          logger.warn("[wanderworld] writing a quest failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
+        }
+      });
+
+      // A quest gone wrong with no plan for it: one call for a new stage, or a line that ends it.
+      routes.post("/quest-adapt", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const input = { quest: text(body.quest, 1500), happened: text(body.happened, 400), lists: questLists(body.lists) };
+        if (!input.quest) return reply.status(400).send({ error: "No quest to change." });
+        try {
+          const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
+          const result = await askModel("quest-adapt", body, model, questAdaptMessages(input), { temperature: 0.7, maxTokens: 300 });
+          const answer = checkQuestWords(readJson(result?.content, api.runtime.json?.parseJsonish));
+          if (!answer || (!answer.stage && !answer.end)) return reply.status(502).send({ error: "The model's answer wasn't readable." });
+          return answer.stage ? { stage: answer.stage, line: answer.line ?? "" } : { end: answer.end };
+        } catch (error) {
+          logger.warn("[wanderworld] changing a quest failed: %s", error?.message ?? error);
           return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
         }
       });

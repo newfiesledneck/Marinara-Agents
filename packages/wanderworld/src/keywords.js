@@ -335,6 +335,10 @@ const PHRASES = [
   "danger",
   "drops",
   "closed",
+  "quest",
+  "quest giver",
+  "quest place",
+  "quest reward",
   ...ACTIVITY_NAMES,
 ];
 /** Things an entry can be marked as, with or without a name after ("ww:character:Mira Saxton", "ww:monster"). */
@@ -641,6 +645,18 @@ export const KEYWORD_GUIDE = [
     write: "ww:enemy of:The Crown",
     on: "a faction's entry",
     does: "The two factions are enemies: helping one lowers your standing with the other a little.",
+  },
+  {
+    group: "Quests",
+    write: "ww:quest:The miller's missing son",
+    on: "any entry",
+    does: "The entry is a quest, and its text is what it's about. With AI quests on, one AI call turns it into stages; without, it's a short quest from the keys below: hear the giver out, go to the place, go back to the giver. Asking the giver \"Any work going?\" offers it, or the noticeboard does when it has no giver.",
+  },
+  {
+    group: "Quests",
+    write: "ww:quest giver:Mira, ww:quest place:the mill, ww:quest reward:a sack of flour",
+    on: "a quest's entry",
+    does: "Who gives the quest (someone in this world, by name), where it takes you (a place, by name or kind), and what's said of the reward when it's done.",
   },
   {
     group: "Creatures",

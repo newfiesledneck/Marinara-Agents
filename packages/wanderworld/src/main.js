@@ -144,6 +144,8 @@ import {
 } from "./interactions.js";
 import { drawMap, drawRegions } from "./map.js";
 import * as factionRules from "./factions.js";
+import { createQuestPlay } from "./questplay.js";
+import { questsFromLore } from "./quests.js";
 import { createAi, savesRemote, styleWords } from "./ai.js";
 import { createInventory, sheetFor } from "./inventory.js";
 import {
@@ -2118,6 +2120,7 @@ function finishErrand(atDoor = false) {
     const here = core.interior ? person.inRoom : person.state !== "inside" && !person.inRoom;
     if (!here || Math.hypot(person.x - at.x, person.z - at.z) > 3.5) return;
   }
+  questPlay.errandOver(errand); // Quests: kept as a one-stage quest done
   core.save = { ...core.save, errand: null, errandsDone: (core.save.errandsDone ?? 0) + 1, waypoint: null };
   const now = core.relations.get(errand.person, "player");
   setRelation(errand.person, "player", {
@@ -2207,6 +2210,7 @@ function linkLore() {
         })),
         // What lives where, and whose animals are whose, as the lore's keywords say.
         spawns: spawnsFromLore(chosen),
+        loreQuests: questsFromLore(chosen), // Quests: ww:quest entries
         petLore: petsFromLore(chosen),
         quiet: quietFromLore(chosen),
       };
@@ -3194,6 +3198,7 @@ function stepPlaces(dt) {
     if (arrive(zone, names) !== false) core.arriveZone = zone.id;
   }
   finishErrand();
+  questPlay.tick(zone); // Quests: arrivals, what's held, the checks on load and on a change of region
   if (core.clock - (core.peopleAt ?? -9) > 2) {
     core.peopleAt = core.clock;
     refreshPeopleHere();
@@ -3333,6 +3338,7 @@ function journalData(zone, snapshot, residents, names) {
     partyChanged: core.partyChanged,
     factions: factionsData(),
     factionsChanged: core.factionsChanged,
+    ...questsData(), // Quests: Journal → Quests
     worldLore: { id: WORLD_ID, name: core.save?.name ?? "This world", lore: (lore[WORLD_ID] ?? []).length },
     characters: (core.characters ?? [])
       .filter((character) => core.cast?.has(character.id))
@@ -4014,6 +4020,8 @@ function syncSpawns() {
         creature.when === "night" || creature.when === "day" ? creature.when : "",
       ),
     );
+  // Quests: the creatures an open hunt owns, at its spot (kept through respawns: questPlay.keep).
+  for (const entry of questPlay.spawns()) list.push({ ...entry, scale: 1, sized: false, when: "" });
   outdoorHerd().setSpawns(list);
 }
 
@@ -4433,6 +4441,7 @@ function talkTo(person) {
   const x = group.position.x + (dx / distance) * TALK_DISTANCE;
   const z = group.position.z + (dz / distance) * TALK_DISTANCE;
   core.talking = { id: person.id, name: person.name, group, said: 0, asked: [], history: [] };
+  questPlay.talked(person.id); // Quests: a talk or bring stage with them
   glideTo(x, z, Math.atan2(-dx, -dz), 0.5);
   core.hud?.setBusy(true);
   core.hud?.setPrompt(null);
@@ -4442,7 +4451,11 @@ function talkTo(person) {
   void looksOf([person.id]).then((looks) => core.talking?.id === person.id && core.talk.setLooks(looks[person.id]));
   core.talk.setInParty(core.crowd.inParty(person.id));
   core.talk.setChoices(
-    [{ id: "join", label: joiningOf(person).label }, ...choicesFor([], choiceContext(core.talking))],
+    [
+      { id: "join", label: joiningOf(person).label },
+      ...questPlay.choices(), // Quests: "Any work going?"
+      ...choicesFor([], choiceContext(core.talking)),
+    ],
     choose,
   );
   later(0.6, () => answer(core.talking, "greet"));
@@ -6958,6 +6971,18 @@ function choose(id) {
     );
     return;
   }
+  if (id === "work") {
+    // Quests: asking after work. They answer with a quest (its card comes up) or say there's none.
+    const asked = "Any work going?";
+    core.talk.line(personaName(), asked);
+    core.talk.say(core.player, asked, 3, personaName());
+    talking.asked.push(id);
+    core.talk.setChoices(choicesFor(talking.asked, choiceContext(talking)), choose);
+    void questPlay
+      .askWork(talking)
+      .then((reply) => reply && core.talking === talking && showReply(talking, asked, reply));
+    return;
+  }
   const text = labelOf(id, personaName());
   teachFrom(text, [talking.id]); // "I'm Zoey."
   core.talk.line(personaName(), text);
@@ -7400,7 +7425,9 @@ function noticeboardNotes() {
   }));
   // One note asks for something (the setting pack's errands): a new one once the last is done.
   const errand = core.save?.errand ? null : boardErrand(names);
+  const quest = questPlay.boardNote(); // Quests: the one posted now, if any
   return [
+    ...(quest ? [quest] : []),
     ...(errand ? [{ id: errand.id, text: errand.text, by: null, errand: true }] : []),
     ...pick.map((note, i) => ({ id: `town:${i}`, ...note })),
     ...mine,
@@ -7439,6 +7466,7 @@ function openNoticeboard() {
           show();
         },
         onTake: (id) => {
+          if (questPlay.takeBoard(id, () => show())) return; // Quests: its card, then Accept or Decline
           const errand = boardErrand(namedZones(residentsOf(core.crowd.snapshot())));
           if (!core.save || !errand || errand.id !== id) return;
           // Marked on the map: the place's middle is where to go.
@@ -7470,7 +7498,11 @@ function openNoticeboard() {
 
 /** A cave's mouth: down into what's below it, if it leads down (enterDeep); else a card like a door's. */
 function enterCave(cave) {
-  if (core.settings.deepPlaces && leadsDown(`${core.seed}:${cave.outpost}`, core.settings.deepShare))
+  // (One a quest needs always does: Quests.)
+  if (
+    core.settings.deepPlaces &&
+    (leadsDown(`${core.seed}:${cave.outpost}`, core.settings.deepShare) || questPlay.wantsCave(cave))
+  )
     return void enterDeep(cave, ["cave"]);
   const zone = core.zones?.byId.get(`cave:${cave.outpost}`);
   const title = zone ? zoneName(zone) : "A cave";
@@ -7493,6 +7525,7 @@ function leaveInterior(now = false) {
       core.herd.detach();
       core.herd = core.outdoors;
       core.outdoors = null;
+      questPlay.enterDeep(); // Quests: the captives' figures go with the level
       if (core.world) core.crowd.moveParty(core.world, inside.door);
     }
     inside.room.dispose();
@@ -7550,6 +7583,7 @@ function enterDeep(cave, kinds, up = false) {
     core.crowd.moveParty(level, at);
     before?.room.dispose();
     showBeaten();
+    questPlay.enterDeep(level, plan, cave, kinds.length); // Quests: a deep stage, and captives held here
   });
 }
 
@@ -7751,6 +7785,7 @@ function usable() {
         reach: 2.2,
         act: () => enterDeep(deep.cave, [...deep.kinds, down.kind]),
       });
+    list.push(...questPlay.usable()); // Quests: a captive to free
   } else if (core.interior) {
     const { exit } = core.interior.room;
     list.push({ kind: "exit", label: "Leave", x: exit.x, z: exit.z, y: 1.6, act: () => leaveInterior() });
@@ -8057,6 +8092,49 @@ function purposeAhead(side, kind, faction = "", by = "quest") {
   return regionNameAt(next.key);
 }
 
+// ── Quests (questplay.js, quests.js) ─────────────────────────────────────────
+// Everything quests do lives there; these are what it needs of the game. The hooks elsewhere are each
+// marked "Quests".
+const questPlay = createQuestPlay(core, {
+  names: () => (core.zones ? namedZones(residentsOf(core.crowd.snapshot())) : {}),
+  narrate: (who, text) => narrate(who, text),
+  personaName: () => personaName(),
+  level: () => valueOf(sheetNow(), "level"),
+  fighting: () => fighting(),
+  animalAllowed: (kind) => animalAllowed(kind),
+  regionName: (key) => regionNameAt(key),
+  addItem: (item) => addItem(item),
+  readItems: () => readItems(),
+  money: () => purse().name,
+  changeStanding: (id, by, why, options) => changeStanding(id, by, why, options),
+  warmer: (id, by) => {
+    const now = core.relations.get(id, "player");
+    setRelation(id, "player", {
+      kind: now?.kind ?? "acquaintance",
+      role: now?.role ?? "",
+      level: Math.min(100, (now?.level ?? 30) + by),
+    });
+  },
+  remember: (ids, text) => keep(ids, text),
+  syncSpawns: () => syncSpawns(),
+  finishErrand: () => finishErrand(true),
+  dropErrand: () => {
+    questPlay.errandOver(core.save.errand, "given up");
+    core.save = { ...core.save, errand: null, waypoint: null };
+    core.saves.write(core.save);
+  },
+  factionOf: (id) => factionsOf(id)[0]?.id ?? "",
+});
+let questsShown = "";
+/** What Journal → Quests shows, and whether it changed since it was last drawn. */
+function questsData() {
+  const quests = questPlay.journal();
+  const key = JSON.stringify(quests);
+  const questsChanged = key !== questsShown;
+  questsShown = key;
+  return { quests, questsChanged };
+}
+
 /** What Journal → Factions shows: each faction with its standing and what it means now, and the regions known. */
 const factionsData = () =>
   core.save
@@ -8065,8 +8143,10 @@ const factionsData = () =>
 
 /** Journal → Map's map of regions: each one known, a faction's land in its colour. False when there's only home. */
 function drawRegionMap(canvas) {
-  if (!core.save || !Object.keys(core.save.regions ?? {}).length) return false;
-  drawRegions(canvas, factionRules.regionCells(core.save), core.save.region);
+  // (With the regions a quest is sending you to marked "!": Quests.)
+  const cells = core.save ? questPlay.markRegions(factionRules.regionCells(core.save)) : [];
+  if (!cells.some((cell) => cell.key !== HOME_REGION && cell.key !== core.save.region)) return false;
+  drawRegions(canvas, cells, core.save.region);
   return true;
 }
 
@@ -10139,6 +10219,7 @@ function foeBeaten(foe, stats) {
   const key = `${core.save.region ?? HOME_REGION}|${foe.id}`;
   core.save = { ...core.save, beaten: { ...core.save.beaten, [key]: core.social?.day ?? 0 } };
   core.saves.write(core.save);
+  questPlay.beaten(foe); // Quests: a hunt's count
 }
 
 // ── Spells ──
@@ -13863,7 +13944,8 @@ function step(dt) {
       core.respawnAt ??= core.clock + every;
       if (core.clock >= core.respawnAt) {
         core.respawnAt = core.clock + every;
-        core.herd.respawn(at, new Set((core.battle?.order ?? []).map((entry) => entry.id)));
+        // (And the quests' own, Quests.)
+        core.herd.respawn(at, new Set([...(core.battle?.order ?? []).map((entry) => entry.id), ...questPlay.keep()]));
       }
     } else core.respawnAt = null;
     core.herd.update(dt, {
@@ -14279,6 +14361,11 @@ function attach(element) {
     onRegions: drawRegionMap,
     onStanding: setStandingByHand,
     onPurposeAhead: (side, kind, faction) => purposeAhead(side, kind, faction, "hand"),
+    // Quests: Journal → Quests and Settings → Debug.
+    onQuestTrack: (id) => questPlay.track(id),
+    onQuestGiveUp: (id) => questPlay.giveUp(id),
+    onQuestChoose: (id, option) => questPlay.choose(id, option),
+    onQuestDebug: (action) => questPlay.debug(action),
     onWaypoint: setWaypoint,
     onUse: () => {
       core.sound.unlock();
