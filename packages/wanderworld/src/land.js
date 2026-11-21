@@ -83,6 +83,8 @@ const BRIDGE_RAMP = 3.5; // metres beyond each end over which that earth eases b
 /** A cave: a tunnel this deep into its hill and this wide (world.js builds the rock round it). */
 export const CAVE_DEPTH = 7.5;
 export const CAVE_RADIUS = 2.5;
+/** What a cave mouth can lead to (its `deep`, set by a region's purpose, factions.js): deep.js builds the inside. */
+export const DEEP_KINDS = ["cave", "cavern", "dungeon", "stronghold"];
 
 const DIRECTION = { north: [0, -1], east: [1, 0], south: [0, 1], west: [-1, 0] };
 const smooth = (t) => {
@@ -263,6 +265,7 @@ export function checkLandscape(raw, seed) {
           kind: entry.kind,
           side: entry.side,
           ...(typeof entry.name === "string" && entry.name.trim() ? { name: entry.name.trim().slice(0, 60) } : {}),
+          ...(entry.kind === "cave" && DEEP_KINDS.includes(entry.deep) ? { deep: entry.deep } : {}),
         }))
     : fallback.outposts;
   return {

@@ -13,6 +13,7 @@ import { checkEntry } from "./schedules.js";
 import { checkFurnished } from "./household.js";
 import { checkLook } from "./looks.js";
 import { checkGroups } from "./zones.js";
+import { checkPurposes, checkStanding } from "./factions.js";
 import { checkRelationship, checkTraitMap } from "./relationships.js";
 
 export const SAVE_VERSION = 1;
@@ -390,7 +391,15 @@ export function checkWorld(raw) {
         members: (Array.isArray(faction.members) ? faction.members : [])
           .filter((id) => typeof id === "string")
           .slice(0, 40),
+        // The factions it's at enmity with (their ids: `ww:enemy of:` on its entry).
+        enemies: (Array.isArray(faction.enemies) ? faction.enemies : [])
+          .filter((id) => typeof id === "string")
+          .slice(0, 20)
+          .map((id) => id.slice(0, 80)),
       })),
+    // How each faction regards the player (factions.js), and what each region beyond home is for.
+    standing: checkStanding(raw.standing),
+    purposes: checkPurposes(raw.purposes),
     // Lore written for this world (not in an Engine lorebook): { entries: [{ id, title, content }] },
     // linked to places like any lorebook's entries (under the lorebook id "world").
     book: {

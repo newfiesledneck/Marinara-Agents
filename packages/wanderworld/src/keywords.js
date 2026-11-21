@@ -2,6 +2,7 @@
 // the world's shape, a place's hours and owner, someone's temperament and voice, factions, and what a
 // creature is like. Keywords are the keys written "ww: …" (main.js `wanderKeys`), given here without the
 // prefix. Each is one short thing: several of a kind are several keywords ("drops gold", "drops pelt").
+import { readRegion } from "./factions.js";
 import { relationOf } from "./relationships.js";
 import { scheduleFromWords } from "./schedules.js";
 import { loreName, NEEDED_KINDS, placeTargets, plainWord } from "./zones.js";
@@ -95,17 +96,20 @@ export function closedFromWords(words) {
 /**
  * What the lorebooks say of places and factions beyond their lore. `world`: as placeTargets takes.
  * Returns { hours: { [zone id]: { from, to } }, owners: [{ place (zone id), name }], factions: [{ id,
- * name, lorebookId, entryId, members }] }: an owner is a name as written and a member a name or
- * "character:<id>", for the caller to find (or make).
+ * name, lorebookId, entryId, members, enemies (faction ids) }], purposes: { [region key]: { kind,
+ * faction } } }: an owner is a name as written and a member a name or "character:<id>", for the caller
+ * to find (or make). A purpose is a region's from `ww:region:` (factions.js readRegion): on a faction's
+ * entry, that faction's land (or its stronghold, its outposts); on another, what the entry says it is.
  */
 export function structureFromKeywords(books, world) {
   const targets = placeTargets(world);
   const hours = {};
   const owners = [];
   const factions = new Map();
+  const purposes = {};
   const faction = (name) => {
     const id = `faction:${plainWord(name)}`;
-    if (!factions.has(id)) factions.set(id, { id, name, lorebookId: "", entryId: "", members: [] });
+    if (!factions.has(id)) factions.set(id, { id, name, lorebookId: "", entryId: "", members: [], enemies: [] });
     return factions.get(id);
   };
   for (const book of books) {
@@ -118,8 +122,19 @@ export function structureFromKeywords(books, world) {
       for (const id of places) if (closed) hours[id] ??= closed;
       for (const name of after(words, /^owner\s+(?!of\s)(.+)$/iu))
         for (const place of places) owners.push({ place, name });
-      for (const name of after(words, /^faction\s+(.+)$/iu))
-        Object.assign(faction(name), { name, lorebookId: book.id, entryId: entry.id });
+      const own = after(words, /^faction\s+(.+)$/iu);
+      for (const name of own) Object.assign(faction(name), { name, lorebookId: book.id, entryId: entry.id });
+      // A faction's enemies ("ww:enemy of:The Crown" on its entry), and where its land is or what a region is for.
+      for (const name of own)
+        for (const enemy of after(words, /^enemy of\s+(.+)$/iu)) {
+          const id = `faction:${plainWord(enemy)}`;
+          if (id !== faction(name).id && !faction(name).enemies.includes(id)) faction(name).enemies.push(id);
+        }
+      for (const value of after(words, /^region\s+(.+)$/iu)) {
+        const { key, kind } = readRegion(value);
+        const by = own[0] ? faction(own[0]).id : "";
+        if (key && (kind || by)) purposes[key] ??= { kind: kind || "faction", faction: by };
+      }
       // Whose entry it is: someone it names ("Mira"), the person it makes ("character Mira"), or a card's own.
       const who = new Set(
         words.flatMap((word) => [...(targets.get(plainWord(word)) ?? [])]).filter((id) => id.startsWith("character:")),
@@ -130,7 +145,7 @@ export function structureFromKeywords(books, world) {
         for (const member of who) if (!faction(name).members.includes(member)) faction(name).members.push(member);
     }
   }
-  return { hours, owners, factions: [...factions.values()] };
+  return { hours, owners, factions: [...factions.values()], purposes };
 }
 
 /**
@@ -382,6 +397,11 @@ export function readKeyword(raw) {
     };
   }
   if (MARKS.includes(what) || what === "hostile") return ok(what, `name ${value}`);
+  // A region beyond home and what it's for (a faction's land on the faction's entry): "ww:region:north 2:ruin".
+  if (what === "region") {
+    const { problem } = readRegion(value);
+    return problem ? bad(problem) : ok(`region ${value}`);
+  }
   if (PHRASES.includes(what)) return ok(`${what} ${value}`);
   if (what === "owned by") return ok(`owner ${value}`);
   // A place the world's own animals keep out of: "ww:animals:none".
@@ -603,6 +623,24 @@ export const KEYWORD_GUIDE = [
     write: "ww:walls, ww:size:large, ww:season:winter",
     on: "the entry keyed ww:world",
     does: "Walls, the world's size (small, normal, large, huge, massive), and the season (winter lies under snow).",
+  },
+  {
+    group: "Factions and regions",
+    write: "ww:region:east, ww:region:far north, ww:region:north-east:stronghold",
+    on: "a faction's entry",
+    does: "That region is the faction's land: its walled town, its banners and its guards (or, with a purpose after it, its stronghold or its outposts). east is the region east of home; far north or north 2 is two away. Made when you first travel there.",
+  },
+  {
+    group: "Factions and regions",
+    write: "ww:region:west:ruin (faction, stronghold, outposts, town, hamlets, ruin, caves)",
+    on: "any entry",
+    does: "What that region is made for: a bandit stronghold, a few outposts, a smaller town, several hamlets, a ruin over a dungeon, or a hillside of caves. Once given, it's kept.",
+  },
+  {
+    group: "Factions and regions",
+    write: "ww:enemy of:The Crown",
+    on: "a faction's entry",
+    does: "The two factions are enemies: helping one lowers your standing with the other a little.",
   },
   {
     group: "Creatures",

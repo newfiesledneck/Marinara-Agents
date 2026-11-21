@@ -142,7 +142,8 @@ import {
   pickListeners,
   sceneRequest,
 } from "./interactions.js";
-import { drawMap } from "./map.js";
+import { drawMap, drawRegions } from "./map.js";
+import * as factionRules from "./factions.js";
 import { createAi, savesRemote, styleWords } from "./ai.js";
 import { createInventory, sheetFor } from "./inventory.js";
 import {
@@ -617,6 +618,10 @@ function changeSetting(name, value) {
     clearTimeout(core.restock);
     core.restock = setTimeout(restockHerd, 350);
   }
+  if (name.startsWith("faction") && core.world) {
+    syncSpawns(); // (guards keep the peace or don't)
+    core.factionsChanged = true;
+  }
   saveSettings(core.settings);
   // The game's and the AI's settings are the same in every browser: the Engine keeps them.
   if (!DEVICE_SETTINGS.has(name)) core.store.setItem(SHARED_SETTINGS, JSON.stringify(sharedSettings(core.settings)));
@@ -673,6 +678,7 @@ function buildWorld(seed, place = null) {
       })
     : null;
   if (core.board) core.world.scene.add(core.board.group);
+  placeBanners();
   core.zoneId = null;
   core.zoneShown = null;
   core.space = core.world;
@@ -1595,6 +1601,7 @@ function drawJournalMap(canvas, view = null) {
     home: homeDoor ? { x: homeDoor.x, z: homeDoor.z } : null,
     waypoint,
     player: { x: at.x, z: at.z, angle: core.player.rotation.y },
+    frame: landHere() ? factionRules.factionColour(landHere()) : null,
   });
   // How far the waypoint is and which way, in words under the map.
   let words = "";
@@ -2101,6 +2108,8 @@ function finishErrand(atDoor = false) {
     level: Math.min(100, (now?.level ?? 30) + 8),
   });
   core.hud?.setNotice(`Errand done: ${person.name} thinks a little better of you.`);
+  for (const faction of factionsOf(errand.person))
+    changeStanding(faction.id, factionRules.STANDING.ERRAND, "for helping one of their people");
   keep([errand.person], `${personaName()} did what your note on the noticeboard asked: "${errand.text}"`);
   void runMoment({
     action: `has come to ${person.name} as the note on the noticeboard asked: "${errand.text}"`,
@@ -2241,7 +2250,7 @@ function applyKeywords(books, people) {
     name: "",
     characters: people ? peopleOf(core.save).filter((person) => core.save.cast.includes(person.id)) : [],
   };
-  const { hours, owners, factions } = structureFromKeywords(books, world);
+  const { hours, owners, factions, purposes } = structureFromKeywords(books, world);
   let set = Object.keys(hours).filter((id) => !core.save.hours?.[id]).length;
   core.save = { ...core.save, hours: { ...hours, ...core.save.hours } };
   if (!people) return set;
@@ -2295,7 +2304,11 @@ function applyKeywords(books, people) {
     return { ...faction, members };
   });
   set += made.length;
-  core.save = { ...core.save, factions: made, lore: mergeLore(core.save.lore, lore) };
+  // What regions not made yet are for (ww:region:…): kept once given, so changed lore doesn't move them.
+  const kept = { ...core.save.purposes };
+  for (const [key, purpose] of Object.entries(purposes))
+    if (!kept[key] && !core.save.regions?.[key]) kept[key] = { ...purpose, from: "lore" };
+  core.save = { ...core.save, factions: made, purposes: kept, lore: mergeLore(core.save.lore, lore) };
   return set;
 }
 
@@ -3218,6 +3231,7 @@ function stepPlaces(dt) {
     core.partyChanged = false;
     core.relationsChanged = false;
     core.placesChanged = false;
+    core.factionsChanged = false;
   }
 }
 
@@ -3299,6 +3313,8 @@ function journalData(zone, snapshot, residents, names) {
     animals: core.save ? partyAnimals() : [],
     relationsChanged: core.relationsChanged,
     partyChanged: core.partyChanged,
+    factions: factionsData(),
+    factionsChanged: core.factionsChanged,
     worldLore: { id: WORLD_ID, name: core.save?.name ?? "This world", lore: (lore[WORLD_ID] ?? []).length },
     characters: (core.characters ?? [])
       .filter((character) => core.cast?.has(character.id))
@@ -3957,6 +3973,16 @@ function syncSpawns() {
     if (kind && (creature.tame || creature.hostile)) tempers[kind] = creature.tame ? "tame" : "hostile";
   }
   outdoorHerd().setTempers(tempers);
+  // Who keeps a region made for a purpose: a faction's guards (tame till it's Hostile), a stronghold's bandits.
+  const purpose = purposeHere();
+  if (purpose && animalAllowed("bandit"))
+    for (const entry of factionRules.purposeSpawns(
+      purpose,
+      core.world.layout,
+      standingNow(purpose.faction),
+      core.settings.factionGuards,
+    ))
+      list.push({ ...entry, scale: 1, sized: false, when: "" });
   for (const creature of core.save.creatures ?? [])
     (creature.found?.length ? creature.found : [null]).forEach((place, i) =>
       add(
@@ -4369,6 +4395,14 @@ function jump() {
 }
 
 function talkTo(person) {
+  const refuses = refusesTalk(person.id);
+  if (refuses) {
+    const word = factionRules.standingWord(standingNow(refuses.id)).toLowerCase();
+    return void narrate(
+      null,
+      `${nameFor(person.id, person.name)} won't speak with you: ${refuses.name} hold you ${word}.`,
+    );
+  }
   const group = core.crowd.beginTalk(person.id);
   if (!group) return;
   core.mode = "talk";
@@ -4487,6 +4521,7 @@ function towardPlayer(id, name, names) {
   return [
     core.relations.get(id, "player") ? `${core.relations.describe(id, "player", names)}.` : "",
     stance ? `${name} ${stance}.` : "",
+    factionSentence(id, name),
     knows(id) ? "" : `${personaName()} doesn't know ${name}'s name yet: they haven't been introduced.`,
     theyKnow(id) ? "" : `${name} doesn't know ${personaName()}'s name, and must not use it until told.`,
   ]
@@ -6169,6 +6204,7 @@ function aggressionAllowed(x, z) {
   if (rule === "anywhere") return true;
   if (rule === "off" || !core.zones) return false;
   if (core.interior?.deep) return true; // (below ground is out in the wilds)
+  if (landUnsafe()) return true; // (a faction's land is no refuge while it's Hostile to you)
   const chain = chainOf(core.zones, zoneAt(core.zones, x, z));
   if (chain.some((zone) => zone.kind === "town")) return false;
   return rule === "outsideTowns" || !chain.some((zone) => zone.kind === "outpost");
@@ -7789,11 +7825,17 @@ function travel(side) {
   let homeSetup = save.homeSetup;
   if (from === HOME_REGION) homeSetup = setup;
   else regions[from] = { ...regions[from], ...setup };
+  const purposes = { ...save.purposes };
   if (to !== HOME_REGION && !regions[to]) {
     const seed = `${save.seed}|${to}`;
-    const landscape = landscapeWith(hashString(seed), {});
+    let landscape = landscapeWith(hashString(seed), {});
     // Arriving across the facing edge: no mountain range in the way there.
     landscape.mountains = landscape.mountains.filter((edge) => edge !== OPPOSITE[side]);
+    // What it's made for (factions.js): lore's or a quest's, else the seed's; none with the setting off.
+    if (core.settings.regionPurposes)
+      purposes[to] ??= factionRules.seededPurpose(save.seed, to, save.factions, purposes);
+    if (!core.settings.regionPurposes || !purposes[to]) delete purposes[to];
+    landscape = factionRules.landscapeForPurpose(landscape, purposes[to], hashString(seed), OPPOSITE[side]);
     regions[to] = { name: regionName(save.seed, to), number: Object.keys(regions).length + 2, seed, landscape };
   }
   const target = (to === HOME_REGION ? homeSetup : regions[to]) ?? {};
@@ -7811,6 +7853,7 @@ function travel(side) {
   core.save = {
     ...save,
     regions,
+    purposes,
     region: to,
     homeSetup: to === HOME_REGION ? null : homeSetup,
     names: target.names ?? {},
@@ -7859,6 +7902,153 @@ function arriveFrom(side, lateral) {
   core.cameraYaw = core.player.rotation.y + Math.PI;
   core.freshStart = false;
   savePlace(true);
+}
+
+// ── Factions and regions with a purpose (factions.js) ────────────────────────
+
+/** A faction of this world by its id, or null. */
+const factionById = (id) => (id && (core.save?.factions ?? []).find((faction) => faction.id === id)) || null;
+/** The factions someone (a person's id) is a member of. */
+const factionsOf = (id) => (core.save?.factions ?? []).filter((faction) => faction.members.includes(id));
+/** The standing with a faction now. */
+const standingNow = (id) => factionRules.standingOf(core.save?.standing, id);
+/** What the region the player is in was made for, or null (home never has one). */
+const purposeHere = () => core.save?.purposes?.[core.save.region] ?? null;
+/** The faction whose region the player is in (its land, its stronghold, its outposts): its id, or "". */
+const landHere = () => purposeHere()?.faction ?? "";
+
+/**
+ * The one call that changes a faction's standing for something the player did; quests use it too.
+ * `why`: a few words for the chat when how they're seen changes ("for helping one of their people").
+ * `whole`: counted in full, past the day's limit (a quest's reward); `once`: a name, counted once a day.
+ * Nothing moves with Settings → World → Factions → "Standing changes by what you do" off, or when locked.
+ */
+function changeStanding(id, delta, why = "", { whole = false, once = "" } = {}) {
+  if (!factionById(id) || !core.settings.factionStanding || !delta) return;
+  const { standing, changes } = factionRules.moveStanding(core.save.standing, id, delta, {
+    day: core.social?.day ?? 0,
+    enemies: factionRules.enemiesOf(core.save.factions ?? [], id),
+    once,
+    ...(whole ? { cap: Infinity } : {}),
+  });
+  if (!changes.length) return;
+  core.save = { ...core.save, standing };
+  core.saves.write(core.save);
+  for (const change of changes.filter((entry) => entry.crossed))
+    narrate(
+      null,
+      `${factionById(change.id)?.name ?? "A faction"} now regard you as ${factionRules.standingWord(change.to)}${why && change.id === id ? `, ${why}` : ""}.`,
+    );
+  standingChanged(changes);
+}
+
+/** A standing set by hand (Journal → Factions), locked there or not. */
+function setStandingByHand(id, value, locked) {
+  if (!core.save || !factionById(id)) return;
+  const from = standingNow(id);
+  core.save = { ...core.save, standing: factionRules.setStanding(core.save.standing, id, value, locked) };
+  core.saves.write(core.save);
+  standingChanged([{ id, from, to: standingNow(id) }]);
+}
+
+/** After a standing moves: guards change their temper when it crosses Hostile, and the Journal redraws. */
+function standingChanged(changes) {
+  if (changes.some((entry) => factionRules.isHostile(entry.from) !== factionRules.isHostile(entry.to))) syncSpawns();
+  core.factionsChanged = true;
+  core.journalAt = 0;
+}
+
+/** Whether a faction makes this place unsafe for the player: its land, while it's Hostile to them. */
+const landUnsafe = () => !!core.settings.factionLand && !!landHere() && factionRules.isHostile(standingNow(landHere()));
+
+/** The faction a vendor trades for: whose land it's in, else whose member works there; "" for none. */
+function vendorFaction(vendor) {
+  if (landHere()) return landHere();
+  const worker = Object.entries(core.save?.housing ?? {}).find(([, house]) => house?.work === vendor.id)?.[0];
+  return worker ? (factionsOf(worker)[0]?.id ?? "") : "";
+}
+/** What a vendor's faction makes of its prices (1: as marked), by Settings → World → Factions. */
+const standingPrice = (vendor) =>
+  core.settings.factionPrices && vendorFaction(vendor)
+    ? factionRules.priceFactor(standingNow(vendorFaction(vendor)))
+    : 1;
+
+/** A faction that won't have its member `id` talk to the player now (Settings → World → Factions), or null. */
+const refusesTalk = (id) =>
+  (core.settings.factionTalk && factionsOf(id).find((faction) => !factionRules.willTalk(standingNow(faction.id)))) ||
+  null;
+
+/** The sentence the AI is told of someone's faction and how it regards the player ("" when it isn't told). */
+const factionSentence = (id, name) => {
+  const faction = core.settings.factionTold ? factionsOf(id)[0] : null;
+  return faction ? factionRules.standingSentence(name, faction.name, standingNow(faction.id), personaName()) : "";
+};
+
+// ponytail: every way of fighting lands its blow through herd.strike, so a blow at a faction's guard is
+// counted here, by wrapping it once, rather than at each of the five places that strike. A guard struck
+// stands and fights rather than running. Ceiling: a new way of hurting a creature that skips herd.strike
+// isn't counted; count it there if one is added.
+const herdStrike = core.herd.strike;
+core.herd.strike = (id, damage, max, nerve) => {
+  const guard = factionRules.guardFaction(id);
+  const struck = herdStrike(id, damage, max, guard && damage > 0 ? "fight" : nerve);
+  if (struck && guard && damage > 0)
+    changeStanding(
+      guard,
+      struck.down ? factionRules.STANDING.BEATEN_GUARD : factionRules.STANDING.STRUCK_GUARD,
+      struck.down ? "for beating one of their guards" : "for attacking one of their guards",
+    );
+  return struck;
+};
+
+/** Banners in the colour of the faction whose land this is, at the corners of its square and outside its gates. */
+function placeBanners() {
+  const id = purposeHere()?.kind === "faction" ? landHere() : "";
+  if (!id || !core.world) return;
+  const { plaza, townHalf } = core.world.layout;
+  const near = plaza.half + 1.2;
+  const far = townHalf + 6;
+  const spots = [
+    ...[-1, 1].flatMap((sx) => [-1, 1].map((sz) => ({ x: plaza.x + sx * near, z: plaza.z + sz * near }))),
+    ...[-1, 1].flatMap((sx) => [-1, 1].map((sz) => ({ x: sx * far, z: sz * far }))),
+  ];
+  for (const spot of spots) {
+    if (core.world.blocked(spot.x, spot.z, 0.5) || waterAt(spot.x, spot.z).depth > 0) continue;
+    const banner = factionRules.bannerMesh(factionRules.factionColour(id));
+    banner.position.set(spot.x, heightAt(spot.x, spot.z), spot.z);
+    banner.rotation.y = Math.atan2(plaza.x - spot.x, plaza.z - spot.z);
+    core.world.scene.add(banner);
+  }
+}
+
+/**
+ * Gives the next region that way a purpose, for a quest ("the next region east needs a stronghold") or
+ * by hand (Journal → Factions): `side` from the region the player is in, `kind` one of factions.js
+ * PURPOSES, `faction` an id or "", `by` "quest" or "hand". Returns the region's name, or "" when there's
+ * none free that way.
+ */
+function purposeAhead(side, kind, faction = "", by = "quest") {
+  if (!core.save) return "";
+  const { purposes, regions, region } = core.save;
+  const next = factionRules.purposeAhead(purposes, regions, region, side, kind, faction, by);
+  if (!next) return "";
+  core.save = { ...core.save, purposes: next.purposes };
+  core.saves.write(core.save);
+  core.factionsChanged = true;
+  return regionNameAt(next.key);
+}
+
+/** What Journal → Factions shows: each faction with its standing and what it means now, and the regions known. */
+const factionsData = () =>
+  core.save
+    ? factionRules.factionsView(core.save, core.settings, { names: nameIds(), regionName: regionNameAt })
+    : { list: [], regions: [], kinds: [] };
+
+/** Journal → Map's map of regions: each one known, a faction's land in its colour. False when there's only home. */
+function drawRegionMap(canvas) {
+  if (!core.save || !Object.keys(core.save.regions ?? {}).length) return false;
+  drawRegions(canvas, factionRules.regionCells(core.save), core.save.region);
+  return true;
 }
 
 /** The best thing to use from where the player stands and faces, or null. */
@@ -9530,6 +9720,9 @@ function blowTarget(reach = SWING_REACH, arc = SWING_ARC, people = true) {
 /** A creature has gone down: its experience, and its day kept with the world so it stays gone for its days (showBeaten). */
 function foeBeaten(foe, stats) {
   earnXp(stats.xp);
+  // A hostile creature beaten on a faction's land helps its people (one of its own guards is counted at the blow).
+  if (foe.hostile && !factionRules.guardFaction(foe.id))
+    changeStanding(landHere(), factionRules.STANDING.CLEARED, "for clearing their land");
   const key = `${core.save.region ?? HOME_REGION}|${foe.id}`;
   core.save = { ...core.save, beaten: { ...core.save.beaten, [key]: core.social?.day ?? 0 } };
   core.saves.write(core.save);
@@ -10763,6 +10956,8 @@ const tacticsOn = () => !!core.settings.foeTactics && !!core.settings.srdCreatur
  * than most of its kind (herd.js MONSTER_SIZES), "big" or "huge" before it.
  */
 function creatureWord(body) {
+  const guard = factionById(factionRules.guardFaction(body?.id));
+  if (guard) return `${guard.name} guard`;
   const word = (PACK.animals[body?.kind] ?? "the creature").replace(/^the /u, "");
   const scale = body?.scale ?? 1;
   if (ANIMALS[body?.kind]?.group !== "monsters") return word;
@@ -12520,8 +12715,11 @@ function setTrade(id, fields) {
   void redressStalls();
 }
 
-/** What haggling has done to the prices of the vendor here today: a factor on them (vendor.js haggled). */
-const haggleFactor = (vendor) => haggled(core.save.vendors?.[vendor.id], core.social?.day ?? 0);
+/**
+ * What haggling has done to the prices of the vendor here today (vendor.js haggled), and its faction's
+ * standing with the player (factions.js priceFactor): a factor on them.
+ */
+const haggleFactor = (vendor) => haggled(core.save.vendors?.[vendor.id], core.social?.day ?? 0) * standingPrice(vendor);
 
 /** The shop window's contents: what's for sale, and what of the player's it would buy and for how much. */
 async function shopNow() {
@@ -12542,7 +12740,7 @@ async function shopNow() {
     haggle: {
       on: core.settings.haggling === true,
       done: core.save.vendors?.[vendor.id]?.haggle?.day === (core.social?.day ?? 0),
-      factor,
+      factor: factor / standingPrice(vendor), // (haggling's own part)
     },
     stock: shelves(vendor)
       .filter((item) => item.quantity > 0)
@@ -12579,6 +12777,7 @@ async function buy(name) {
   });
   await readItems();
   narrate(null, `${personaName()} buys ${item.name} at ${vendor.name} for ${price} ${money.name}.`);
+  changeStanding(vendorFaction(vendor), factionRules.STANDING.TRADE, "for trading with them", { once: "trade" });
 }
 
 /** Sells one of the item `id` to the vendor here: it leaves the inventory, its price joins the purse. */
@@ -12594,6 +12793,7 @@ async function sell(id) {
   await addItem({ name: money.name, description: "", quantity: price });
   await readItems();
   narrate(null, `${personaName()} sells ${item.name} at ${vendor.name} for ${price} ${money.name}.`);
+  changeStanding(vendorFaction(vendor), factionRules.STANDING.TRADE, "for trading with them", { once: "trade" });
 }
 
 /**
@@ -13607,6 +13807,9 @@ function attach(element) {
       core.saves.write(core.save);
     },
     onMap: drawJournalMap,
+    onRegions: drawRegionMap,
+    onStanding: setStandingByHand,
+    onPurposeAhead: (side, kind, faction) => purposeAhead(side, kind, faction, "hand"),
     onWaypoint: setWaypoint,
     onUse: () => {
       core.sound.unlock();
