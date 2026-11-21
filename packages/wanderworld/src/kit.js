@@ -2,7 +2,7 @@
 // trees, rocks, plants, props, building pieces. The kit is kept by setting: kit/generic/ is what any
 // world has (nature, people's bodies, the painted art), kit/fantasy/ the medieval one's buildings, props
 // and outfits, kit/creatures/ the animals; a modern or a sci-fi setting would be a folder beside them. A
-// set's models are one file (models.json), fetched the first time one of them is wanted. Each model loads once and its
+// set's models are one file (models.pack.png, packed.js), fetched the first time one of them is wanted. Each model loads once and its
 // geometry and materials are shared by every copy (instanced or not), so they're marked shared and never
 // disposed with a world.
 import {
@@ -17,6 +17,7 @@ import {
   TextureLoader,
   Vector3,
 } from "three";
+import { arrayOf as view, fetchKit } from "./packed.js";
 
 const BASE = "/api/capability-packages/wanderworld/assets/kit/";
 
@@ -88,12 +89,7 @@ function loadJson(path) {
   if (!files.has(path)) {
     files.set(
       path,
-      fetch(`${BASE}${path}`)
-        .then((response) => {
-          if (!response.ok) throw new Error(`GET kit/${path} → ${response.status}`);
-          return response.json();
-        })
-        .catch((error) => forget(files, path, error)),
+      fetchKit(`${BASE}${path}`, `kit/${path}`).catch((error) => forget(files, path, error)),
     );
   }
   return files.get(path);
@@ -117,15 +113,9 @@ function texture(set, name) {
   return textures.get(key);
 }
 
-const bytes = (base64) => Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
-const view = (Type, base64) => {
-  const raw = bytes(base64);
-  return new Type(raw.buffer, raw.byteOffset, raw.byteLength / Type.BYTES_PER_ELEMENT);
-};
-
 /** uint16 values back to floats within their per-axis box. */
-function unbox(base64, box, size) {
-  const quantized = view(Uint16Array, base64);
+function unbox(packed, box, size) {
+  const quantized = view(Uint16Array, packed);
   const out = new Float32Array(quantized.length);
   for (let i = 0; i < quantized.length; i++) {
     const axis = i % size;
@@ -175,10 +165,10 @@ export function kitModel(set, name) {
   if (!models.has(key)) {
     models.set(
       key,
-      loadJson(`${KIT_DIRS[set]}/models.json`)
+      loadJson(`${KIT_DIRS[set]}/models.pack.png`)
         .then((file) => {
           const data = file.models?.[name];
-          if (!data) throw new Error(`kit/${KIT_DIRS[set]}/models.json has no ${name}`);
+          if (!data) throw new Error(`kit/${KIT_DIRS[set]}/models.pack.png has no ${name}`);
           return data.meshes.map((mesh) => part(set, mesh));
         })
         .catch((error) => forget(models, key, error)),

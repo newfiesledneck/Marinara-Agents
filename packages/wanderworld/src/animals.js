@@ -13,6 +13,7 @@ import { createBuilt } from "./bestiary.js";
 import { createFolk, createOutlaw } from "./people.js";
 import { createRigged } from "./rigged.js";
 import { forget } from "./kit.js";
+import { arrayOf as view, fetchKit } from "./packed.js";
 import {
   Bone,
   BufferAttribute,
@@ -815,25 +816,16 @@ function load(kind) {
   if (!files.has(group)) {
     files.set(
       group,
-      fetch(`${BASE}${group}.json`)
-        .then((response) => {
-          if (!response.ok) throw new Error(`GET kit/creatures/${group}.json → ${response.status}`);
-          return response.json();
-        })
-        .catch((error) => forget(files, group, error)),
+      fetchKit(`${BASE}${group}.pack.png`, `kit/creatures/${group}.pack.png`).catch((error) =>
+        forget(files, group, error),
+      ),
     );
   }
   return files.get(group).then((file) => {
-    if (!file.animals?.[kind]) throw new Error(`kit/creatures/${group}.json has no ${kind}`);
+    if (!file.animals?.[kind]) throw new Error(`kit/creatures/${group}.pack.png has no ${kind}`);
     return file.animals[kind];
   });
 }
-
-const bytes = (base64) => Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
-const view = (Type, base64) => {
-  const raw = bytes(base64);
-  return new Type(raw.buffer, raw.byteOffset, raw.byteLength / Type.BYTES_PER_ELEMENT);
-};
 
 // Each kind's shape and clips are made once and shared by every animal of that kind; each coat of it is
 // that shape with its own colours, made once too. One material draws them all.

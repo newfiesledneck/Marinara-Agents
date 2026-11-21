@@ -117,10 +117,11 @@ Budget: up to about 30,000 vertices for a body, 2,000 to 4,000 for a hair style.
 ## What's built
 
 - **Packing** (`node scripts/build-wanderworld-people.mjs --avatar`): `assets/models/avatar-<sex>.glb` into
-  `kit/generic/avatar/avatar-<sex>.json` (a file a body, about 2 MB: positions in an int16 box, normals
-  int8, texture places uint16, weights bytes, each shape key only where it moves, int16 moves and int8
-  normal changes) with its textures as `.webp` beside it. `avatar-hair-<style>.glb` go into one
-  `avatar-hair.json`, `outfit-<piece>.glb` into one `kit/fantasy/avatar/avatar-outfits.json`, their textures
+  `kit/generic/avatar/avatar-<sex>.pack.png` (a file a body, about 2 to 4 MB, packed: `src/packed.js`;
+  positions in an int16 box, normals int8, texture places uint16, weights bytes, each shape key only where
+  it moves, its moves in 511 steps a way and int8 normal changes) with its textures as `.webp` beside it.
+  `avatar-hair-<style>.glb` go into one `avatar-hair.pack.png`, `outfit-<piece>.glb` into one
+  `kit/fantasy/avatar/avatar-outfits.pack.png`, their textures
   beside them. The package may list at most 256 asset files, so it's a file a body and one a kind.
 - **What the hair and outfit files need:** each a `male` and a `female` mesh (by its object's or mesh's
   name; one with neither name goes on both), on the people's skeleton or hung on the `Head` bone (then

@@ -23,14 +23,14 @@ licence file says so). No credit is required; this note is a courtesy.
 
 ## Made in Blender by ThatOneCan
 
-On the people's skeleton, `fantasy/folk/folk-built-<name>.json` and their textures (`folk-<name>.webp`):
+On the people's skeleton, `fantasy/folk/folk-built-<family>.pack.png`, textures in them:
 the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll, minotaur, skeleton,
 zombie, ghost, specter, earth elemental, hill giant, stone giant, frost giant and fire giant, modelled in
 Blender by ThatOneCan with the scripts in `packages/wanderworld/assets/scripts/` and packed by
 `scripts/build-wanderworld-people.mjs --bestiary`. The giants start from one base body,
 `assets/models/giant-base.glb`, a copy of the built-in body (below).
 
-Each with a skeleton of its own, `creatures/rigged-<name>.json` and their textures (`rigged-<name>.webp`):
+Each with a skeleton of its own, `creatures/rigged-<family>.pack.png`, textures in them:
 the mimic, awakened shrub, shambling mound, grick, otyugh, roper, gelatinous cube, basilisk, air
 elemental, fire elemental and water elemental, made the same way.
 
@@ -39,9 +39,9 @@ distant version, made from it when it's packed.
 
 ## The built-in body
 
-`generic/avatar/avatar-male.json`, `avatar-female.json` and their textures (`avatar-<sex>.webp`,
-`avatar-<sex>-1.webp`), with the hair styles (`avatar-hair.json`) and outfit pieces
-(`fantasy/avatar/avatar-outfits.json`) when there are some: Base mesh and shapes: MakeHuman (CC0), adapted
+`generic/avatar/avatar-male.pack.png`, `avatar-female.pack.png` and their textures (`avatar-<sex>.webp`,
+`avatar-<sex>-1.webp`), with the hair styles (`avatar-hair.pack.png`) and outfit pieces
+(`fantasy/avatar/avatar-outfits.pack.png`) when there are some: Base mesh and shapes: MakeHuman (CC0), adapted
 in Blender by ThatOneCan, with `packages/wanderworld/assets/scripts/make_avatar.py`, and packed by
 `scripts/build-wanderworld-people.mjs --avatar`. MakeHuman's hm08 base mesh and morph targets are public
 domain (CC0 1.0); they're read as data, and MakeHuman itself is neither run nor copied.
@@ -53,7 +53,7 @@ brow and lash styles in the bodies (and their texture) are made from MakeHuman's
 
 ## Under the Quaternius Asset License
 
-`fantasy/folk/folk.json` and its textures (the imp and the puglin) are converted from Quaternius's Bestiary - Dungeon Monsters Kit
+`fantasy/folk/folk.pack.png`, its textures in it (the imp and the puglin), are converted from Quaternius's Bestiary - Dungeon Monsters Kit
 (Standard), its `Exports/GLB` folder, by `scripts/build-wanderworld-people.mjs --folk`. That pack is not
 public domain: it's under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html),
 which allows using it in a game with no credit, and does not allow passing the models on as assets. So
@@ -69,8 +69,11 @@ what was changed. Their makers have not endorsed Wanderworld.
 The kit is kept by setting: `generic/` is what any world has (nature, people's bodies, the painted art),
 `fantasy/` the medieval one's buildings, props and outfits, and `creatures/` the animals, a file a group.
 A modern or a sci-fi setting would be a folder beside `fantasy/`. Within a folder the models are one file
-(`models.json`, `bodies.json`, a creature group's), because a package may list at most 256 asset files;
-the textures stay separate images.
+(`models.pack.png`, `bodies.pack.png`, a creature group's), because a package may list at most 256 asset
+files; the textures stay separate images, but for the Blender-made creatures' and the imp's and puglin's,
+which are in their files. A `.pack.png` is the kit's packed format (`src/packed.js`, written by
+`scripts/wanderworld-packed.mjs`): the same document and arrays a JSON file would hold, compressed, as
+the bytes of a grey PNG.
 
 The packs themselves are not in the repository. To rebuild, unzip them and run the script named above
 (it prints its usage). To drop or swap one model, change the list at the top of its script and run it again. To drop a folder, delete it and the code that loads it; the game falls back to its
