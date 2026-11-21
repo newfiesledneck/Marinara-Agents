@@ -59,8 +59,11 @@ import {
   VOICES,
   worldFromLore,
 } from "./keywords.js";
-import { createPerson, lookChoices, setGenderShares } from "./people.js";
-import { checkLook } from "./looks.js";
+import { lookChoices, setGenderShares } from "./people.js";
+import { checkLook, mergeLooks } from "./looks.js";
+// ── The base avatar (avatar.js): the player's own body, and the townsfolk's ──
+import { avatarChoices, avatarLook, createAvatar } from "./avatar.js";
+import { lookFromWords } from "./keywords.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { afloatAt, createHerd, MONSTER_SIZES } from "./herd.js";
 import { createSocial } from "./social.js";
@@ -621,6 +624,7 @@ function applySettings() {
   if (core.relations) refreshNames();
   else core.crowd.setNamesVisible(settings.names !== "none");
   core.crowd.setDressed(settings.people === "kit");
+  core.crowd.setNewBodies(settings.newBodies); // (avatar.js, or the older kit)
   core.sound.setEnabled(settings.sound);
   core.sound.setVolume(settings.volume);
   core.hud?.setSettings(settings, gendersNow().name);
@@ -2441,6 +2445,7 @@ function nameFromLore(books = []) {
 function setupCharactersFromLore(books) {
   const entries = new Map(books.flatMap((book) => book.entries.map((entry) => [`${book.id}/${entry.id}`, entry])));
   let set = 0;
+  const lookedBefore = JSON.stringify(core.save.loreLooks ?? {});
   for (const character of core.characters ?? []) {
     if (!core.cast?.has(character.id)) continue;
     const name = character.name.toLowerCase().trim();
@@ -2450,6 +2455,12 @@ function setupCharactersFromLore(books) {
       .flatMap((entry) => entry.keys ?? [])
       .concat(core.save.loreKeys?.[`cards/${character.id}`] ?? []) // what the AI read in their card
       .filter((word) => word.toLowerCase().trim() !== name);
+    // How they look, from words like "looks tall" (keywords.js): kept apart from what's chosen by hand.
+    const looks = lookFromWords(words);
+    const loreLooks = { ...core.save.loreLooks };
+    if (Object.keys(looks).length) loreLooks[character.id] = looks;
+    else delete loreLooks[character.id];
+    core.save = { ...core.save, loreLooks };
     const traits = traitsFromWords(words);
     if (Object.keys(traits).length && !core.save.traits?.[character.id]) {
       setTraits(character.id, traits);
@@ -2530,6 +2541,8 @@ function setupCharactersFromLore(books) {
     setRelation(PLAYER_ID, to, link.relation, false);
     set++;
   }
+  // (Lore that changes how someone looks shows at once.)
+  if (JSON.stringify(core.save.loreLooks ?? {}) !== lookedBefore) updateCast();
   return set;
 }
 
@@ -3497,10 +3510,10 @@ async function choosePersona(id, redress = false) {
   if (!model && core.settings.people !== "kit" && avatar !== BUILT_IN) return;
   if (model) core.hud?.setStatus(`Loading ${persona.name}'s model…`);
   try {
-    // Their own 3D model, or else a person dressed from the kit.
+    // Their own 3D model, or else the base avatar (avatar.js).
     const character = model
       ? await loadModelCharacter(model)
-      : await createPerson(persona?.name ?? "", core.bodies[persona?.id] ?? "auto", core.looks[persona?.id] ?? {});
+      : await createAvatar(core.looks[persona?.id] ?? {}, persona?.name ?? "", core.bodies[persona?.id] ?? "auto");
     core.personaHasModel = !!model;
     if (load !== core.personaLoad) {
       character.dispose();
@@ -3521,7 +3534,8 @@ function updateCast() {
     .map((character) => ({
       ...character,
       body: core.bodies[character.id] ?? "auto",
-      look: core.looks[character.id] ?? {},
+      // (What lore says they look like, under what's chosen by hand: the base avatar's build, hair, ears…)
+      look: mergeLooks(loreLookOf(character), core.looks[character.id] ?? {}),
     }));
   core.crowd.setCast(chosen);
   useSchedules();
@@ -4176,6 +4190,21 @@ function petsOf(id) {
   };
 }
 
+/** What lore says `character` looks like: their lore's words (save.loreLooks), and what's written of
+ *  their appearance if the world made them (keywords.js lookFromWords). */
+function loreLookOf(character) {
+  const written = character.appearance ? lookFromWords(character.appearance) : {};
+  return mergeLooks(written, core.save?.loreLooks?.[character.id] ?? {});
+}
+
+/** The base avatar of `id` with `chosen` (a look) for the Look card's preview: a walking character. */
+function previewAvatar(id, chosen) {
+  const persona = id === core.personaId ? core.personas?.find((entry) => entry.id === id) : null;
+  const character = persona ?? (core.characters ?? []).find((entry) => entry.id === id) ?? { id, name: "" };
+  const lore = persona ? {} : loreLookOf(character);
+  return createAvatar(mergeLooks(lore, checkLook(chosen)), character.name, core.bodies[id] ?? "auto");
+}
+
 /** What the Look card needs for `id`: their name, how they look now, and whether a 3D model hides it. */
 async function lookOf(id) {
   const persona = id === core.personaId ? core.personas?.find((entry) => entry.id === id) : null;
@@ -4194,6 +4223,16 @@ async function lookOf(id) {
       pets: core.save ? petsOf(id) : null,
       body: core.bodies[id] ?? "auto",
       now: await lookChoices(name, core.bodies[id] ?? "auto", chosen),
+      // The base avatar's (avatar.js): how they look now, and what its kit offers for their body.
+      avatar: await (async () => {
+        const character = persona ?? (core.characters ?? []).find((entry) => entry.id === id) ?? { id };
+        const now = avatarLook(
+          name,
+          core.bodies[id] ?? "auto",
+          mergeLooks(persona ? {} : loreLookOf(character), chosen),
+        );
+        return { now, choices: await avatarChoices(now.body).catch(() => null), presets: core.settings.lookPresets };
+      })(),
     };
   } catch {
     return null; // the kit's people couldn't be loaded
@@ -14340,6 +14379,7 @@ function attach(element) {
     onSetLook: setLook,
     onSetPet: setPet,
     lookOf,
+    previewAvatar,
     onSetting: changeSetting,
     onRegenerate: regenerateWorld,
     onRegeneratePreview: previewRegenerate,

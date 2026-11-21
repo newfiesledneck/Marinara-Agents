@@ -153,6 +153,16 @@ export const HELP = [
     ],
   },
   {
+    title: "Your look: the built-in body",
+    lines: [
+      "Without a 3D model of your own you are Wanderworld's own body, male or female, made in Blender. The Look button beside your persona (or Look on anyone in town) opens its card, with a small turning picture of them at the top. Each part folds away: Presets, Body, Build, Face, Colours, Underwear and Hair.",
+      "Build has height, weight, muscle, chest, hips, waist, belly, shoulders and neck, and arm length, leg length and head size. Face has the jaw, cheekbones, nose, eyes and pointed ears. Each slider's middle is an everyday person; drag one and the picture follows, let go and it's set. Anything you never touch comes from their name, so everyone in town looks a little different.",
+      "Colours: skin, eyes, lips, nails and brows, each from a list or a colour of your own. Underwear: a top and a bottom, or none, and their colour. An outfit piece covering it hides it.",
+      "Presets: save a look under a name and start anyone's Look card from it, or from a ready-made one. Yours are kept with your settings, so they're there in every world; Export saves one as a small file and Import reads one back.",
+      'Townsfolk without a model of their own get the same body, shaped by their name and by their lore: ww:looks:tall, ww:looks:stocky, ww:looks:red hair, ww:looks:elf for pointed ears. Menu → Settings → People → "Townsfolk use the new bodies" turns that off, for the lighter Quaternius townsfolk on a slow phone.',
+    ],
+  },
+  {
     title: "Making a world",
     lines: [
       "Where worlds are kept: by the Engine, in Wanderworld's own storage there, so they're the same from any browser or device that opens your Engine, and can grow as big as they need. The game's and the AI's settings (the living world, animals, memories, connections, narrators, what calls the AI) are kept there too; graphics, controls, sound and what's shown on screen belong to each device. If the menu says Wanderworld isn't fully loaded, restart the Engine.",
@@ -386,6 +396,10 @@ export const CREDITS = [
       "Universal Animation Library: Idle, Walk, Jog, Sprint, Idle Talking, Sitting (enter, idle, talking, exit), Swim (forward, idle), Jump (loop, land), Fixing Kneeling, Interact, Pick Up Table and Dance.",
       "Universal Animation Library 2: Tree Chopping (the smith's hammer), Farm Harvest, Plant Seed and Watering, Idle Fold Arms, Idle Rail, Lay To Idle (lying down and getting up) and Consume.",
     ],
+  },
+  {
+    title: "The built-in body",
+    lines: ["Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan."],
   },
   {
     title: "Art, and the code underneath",

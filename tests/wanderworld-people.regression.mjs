@@ -261,7 +261,9 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
     { top: 0x445566, arms: 0x445566, legs: 0x445566, feet: 0x445566, hood: 0x445566, pauldrons: 0x445566 },
     "an older look's one tint is on every piece",
   );
-  assert.equal(checkLook({ hair: "buzzedfemale" }).hair, "cropped", "an older look's cropped hair");
+  // (Cropped hair was once two styles, one for each body; cropped and parted are "short" and "parted" now.)
+  assert.equal(checkLook({ hair: "buzzedfemale" }).hair, "short", "an older look's cropped hair");
+  assert.equal(checkLook({ hair: "simpleparted" }).hair, "parted");
   assert.deepEqual(checkLook("ranger"), {});
   assert.deepEqual(checkLook({ hairColour: 3, skin: 0, beard: false, hair: "long", hairTint: 0xabcdef }), {
     hair: "long",

@@ -448,6 +448,15 @@ export function checkWorld(raw) {
             .filter(([, look]) => Object.keys(look).length),
         )
       : {},
+    // What lore's words say each one looks like (keywords.js lookFromWords), under what's chosen by hand.
+    loreLooks: isRecord(raw.loreLooks)
+      ? Object.fromEntries(
+          Object.entries(raw.loreLooks)
+            .slice(0, 200)
+            .map(([id, look]) => [id, checkLook(look)])
+            .filter(([, look]) => Object.keys(look).length),
+        )
+      : {},
     // Animals of one's own, by owner id: { dog: { kind, coat, out, name? } | null, horse: { coat, out, name? } | null }
     // (`out`: with them, not at home; a dog given as null is "none, whatever their lore says").
     pets: isRecord(raw.pets)
