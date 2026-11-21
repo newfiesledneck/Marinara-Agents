@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.38",
+          "date": "2026-11-20",
+          "notes": "- Six new monsters, modelled in Blender, each with a skeleton and movements of its own: a mimic that passes for a chest, an awakened shrub, a shambling mound, a grick, an otyugh and a roper that passes for a stalagmite. The mimic, the shrub and the roper lie in wait as what they pretend to be until they move or strike. The shambling mound, the otyugh and the roper are rare. Each fights by its SRD stat block, has its own switch under Settings → Creatures → Kinds and counts toward the Monsters slider.\n- A plan for Wanderworld's own player and character bodies (docs/AVATAR.md): male and female bodies, wolf and dragon anthro bodies, sliders for build and face, colours, hair and presets.",
+          "highlight": false
+        },
+        {
           "version": "0.7.37",
           "date": "2026-11-20",
           "notes": "- The Monsters slider is how many there are, whichever kinds are on: with only trolls switched on and the slider at 100, there are 100 trolls. With other kinds on, a rare kind is only less likely.\n- Ogres, trolls, minotaurs and dragons turn up more often: half as often as a common kind, instead of a fifth.\n- New monsters: every 10 minutes of play (Settings → Creatures → New monsters every; 0 for never) the monsters out of sight go and others come, with kinds not about yet likelier, so in time you meet every kind that's on. Nothing in sight goes, nor anything in a fight, placed by a lorebook or owned.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.19",
           "date": "2026-11-17",
           "notes": "- Fixed: in a fight by turns, casting a spell or attacking with nothing in range still used up your action (and the spell's mana or slot). Now it says \"Out of range\", tells you how far the nearest creature is, and costs nothing.\n- By turns, an attack turns you to a creature that's in reach at your side or behind you, so it counts.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.18",
-          "date": "2026-11-17",
-          "notes": "- The Creatures sliders (stray dogs, farm animals, wild animals, wolves, monsters, the town's animals) each go up to 100 now. The counts are for the whole world, so a big map needs a high number to feel lived in.",
           "highlight": false
         }
       ]

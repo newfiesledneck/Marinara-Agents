@@ -28,8 +28,9 @@ older code-made monsters; it stays as the fallback for any kind without a Blende
 2. Build a clean mesh with its colours, an armature with vertex weights, and actions. A two-legged
    creature uses the people's skeleton (`wwblend.BONES`, the Unreal mannequin names), so the game moves
    it with the people's recorded animations; its own `Idle`, `Walk` and `Attack` actions, each on an NLA
-   track of its own, are for the model on its own. A creature with another shape needs its own skeleton
-   and actions, and the animals pipeline (`scripts/build-wanderworld-animals.mjs`) to play them.
+   track of its own, are for the model on its own. A creature with another shape (a mimic, a roper) has
+   its own skeleton and its own `Idle`, `Walk`, `Run` and `Attack` actions (and `Hidden` for one that lies in
+   wait); `--bestiary` packs it into `kit/creatures/rigged-<name>.json` and `src/rigged.js` plays them.
 3. A model has one texture, so the game draws it in one go. Colours start in a palette
    (`wwblend.Palette`: a flat colour per cell); `Model.finish(bake={...})` then bakes them with Cycles
    into a texture of the model's own, with a little mottling, darker towards the ground, and shading

@@ -11,6 +11,7 @@
 // metres a second; `back` is how high a rider sits (a horse, a donkey), in metres.
 import { createBuilt } from "./bestiary.js";
 import { createFolk, createOutlaw } from "./people.js";
+import { createRigged } from "./rigged.js";
 import {
   Bone,
   BufferAttribute,
@@ -233,6 +234,74 @@ export const ANIMALS = {
     when: "night",
   },
   orc: { group: "monsters", walk: 1.4, gallop: 5, back: 0, seat: 0, timid: true, hostile: true, folk: 1, built: true },
+  // (`rigged`: made in Blender with a skeleton of its own, not the people's, moving with its own actions
+  // (rigged.js); `hides`: it lies in wait looking like something else, a chest or a stalagmite.)
+  mimic: {
+    group: "monsters",
+    walk: 0.8,
+    gallop: 2.6,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    rigged: true,
+    hides: true,
+  },
+  awakened_shrub: {
+    group: "monsters",
+    walk: 0.9,
+    gallop: 2.6,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    rigged: true,
+    hides: true,
+  },
+  shambling_mound: {
+    group: "monsters",
+    walk: 1.1,
+    gallop: 3.2,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    rigged: true,
+    rare: true,
+  },
+  grick: {
+    group: "monsters",
+    walk: 1.2,
+    gallop: 4.0,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    rigged: true,
+  },
+  otyugh: {
+    group: "monsters",
+    walk: 1.0,
+    gallop: 3.0,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    rigged: true,
+    rare: true,
+  },
+  roper: {
+    group: "monsters",
+    walk: 0.4,
+    gallop: 1.2,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    rigged: true,
+    hides: true,
+    rare: true,
+  },
 };
 
 /**
@@ -353,6 +422,12 @@ export const SORT_OF = {
   lizardfolk: "monsters",
   ghoul: "monsters",
   orc: "monsters",
+  mimic: "monsters",
+  awakened_shrub: "monsters",
+  shambling_mound: "monsters",
+  grick: "monsters",
+  otyugh: "monsters",
+  roper: "monsters",
 };
 /** How many of each sort a world has when nothing says otherwise, and the most the slider goes to. */
 // (`town`: the most of them that are inside the settlement itself; the rest are put outside it.)
@@ -395,6 +470,12 @@ export const SWITCHES = {
   lizardfolk: ["lizardfolk"],
   ghoul: ["ghoul"],
   orc: ["orc"],
+  mimic: ["mimic"],
+  awakened_shrub: ["awakened_shrub"],
+  shambling_mound: ["shambling_mound"],
+  grick: ["grick"],
+  otyugh: ["otyugh"],
+  roper: ["roper"],
 };
 
 /**
@@ -452,6 +533,10 @@ export function animalKind(word) {
     lizardmen: "lizardfolk",
     demon: "imp",
     devil: "imp",
+    "shambling mound": "shambling_mound",
+    mound: "shambling_mound",
+    "awakened shrub": "awakened_shrub",
+    shrub: "awakened_shrub",
   };
   const kind = other[plain] ?? plain;
   return ANIMALS[kind] ? kind : null;
@@ -560,6 +645,7 @@ const next = new Quaternion();
 export async function createAnimal(name, wanted = null) {
   const kind = ANIMALS[name] ? name : "deer";
   const coat = COATS[kind] ? (COATS[kind][wanted] ? wanted : Object.keys(COATS[kind])[0]) : null;
+  if (ANIMALS[kind].rigged) return createRigged(kind, ANIMALS[kind]);
   if (ANIMALS[kind].folk) {
     // One on the people's skeleton: a walking character, with an animal's handles on it.
     const outlaw = ANIMALS[kind].person ? await createOutlaw(kind) : null;
