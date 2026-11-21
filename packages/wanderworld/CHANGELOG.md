@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.7.49 — 2026-11-20
+
+- The package is less than half the size (86 MB to under 38 MB) with nothing lost: the kit's models are stored compressed and unpacked quickly in the browser, creatures are bundled by family, and the built-in bodies' shapes are stored more compactly. Kit files load several times faster on phones.
+
 ## 0.7.48 — 2026-11-20
 
 - With the Engine on HTTPS, the server part calls it by the name on its certificate, so its AI and save calls work there too (certificate checks stay on, and calls never leave this machine).

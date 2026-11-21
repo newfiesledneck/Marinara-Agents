@@ -192,6 +192,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.49",
+          "date": "2026-11-20",
+          "notes": "- The package is less than half the size (86 MB to under 38 MB) with nothing lost: the kit's models are stored compressed and unpacked quickly in the browser, creatures are bundled by family, and the built-in bodies' shapes are stored more compactly. Kit files load several times faster on phones.",
+          "highlight": false
+        },
+        {
           "version": "0.7.48",
           "date": "2026-11-20",
           "notes": "- With the Engine on HTTPS, the server part calls it by the name on its certificate, so its AI and save calls work there too (certificate checks stay on, and calls never leave this machine).\n- The SRD's paralyzed and unconscious rules are played in full: they fail Strength and Dexterity saves, and a hit from within 1.5 m is a critical hit.\n- Nothing is saved over a world another browser has saved since: it's loaded again from the Engine's copy, with a line saying why.",
@@ -303,12 +309,6 @@
           "version": "0.7.30",
           "date": "2026-11-20",
           "notes": "- The goblin is more detailed. Blender now bakes it a texture of its own, with shading in its creases, mottled skin and dirt towards its feet. Its face is finer (heavy eyelids, lips, nostrils, crooked teeth, a wrinkled brow), its ears are leaf-shaped, one nicked and one with a brass ring, and its tunic is patched and tattered. It has a knotted rope belt, a necklace of teeth, wrapped shins and a chipped, rusty scimitar.\n- Credits name ThatOneCan as the maker of the goblin model, in Help, the README and the kit's credits.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.29",
-          "date": "2026-11-20",
-          "notes": "- The goblin is now a model made in Blender: one smooth body instead of shapes stuck together, a face with its eyes set in sockets, a hooked nose and fangs, a ragged tunic and its scimitar, rigged to the people's skeleton so it still moves with their animations. The other monsters follow; until then they're built in code as before.\n- For contributors: models are made by Blender scripts in packages/wanderworld/assets/scripts, run from the command line, and packed into the kit. AGENTS.md in the package says how.",
           "highlight": false
         }
       ]
