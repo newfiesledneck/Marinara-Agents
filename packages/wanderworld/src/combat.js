@@ -578,7 +578,7 @@ export function sumWords(roll, total) {
  * An attack roll told whole, so the player can see what made it: "Attack roll: 9 + 5 = 14 against AC 12",
  * with ", a natural 20" (or the roll a wider critical came on) or ", a natural 1" where that's what decided it.
  */
-const rollWords = (result, against = `AC ${result.ac}`) =>
+export const rollWords = (result, against = `AC ${result.ac}`) =>
   `Attack roll: ${sumWords(result.roll, result.total)} against ${against}${
     result.crit
       ? result.roll === 20
