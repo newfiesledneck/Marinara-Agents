@@ -12,7 +12,7 @@ import { Group, Mesh } from "three";
 import { ANIMALS, coatFor, createAnimal, dogBody, POPULATION } from "./animals.js";
 import { blobShadow } from "./character.js";
 import { kitModel } from "./kit.js";
-import { hashString, heightAt, rng, waterAt } from "./world.js";
+import { hashString, heightAt as landHeight, rng, waterAt as landWater } from "./world.js";
 
 const NEAR = 110; // metres from the player within which an animal is moved and drawn
 const FLEE_FROM = 8; // metres: a timid animal this close to the player runs
@@ -70,8 +70,8 @@ export function monsterScale(kind, sizes, leader, seed) {
  */
 /** How high an animal whose back is `back` metres up stands at (x, z): on the ground, or afloat in deep water. */
 export function afloatAt(x, z, back) {
-  const ground = heightAt(x, z);
-  const water = waterAt(x, z);
+  const ground = landHeight(x, z);
+  const water = landWater(x, z);
   return water.depth > 0 ? Math.max(ground, water.level - back * AFLOAT) : ground;
 }
 
@@ -100,7 +100,7 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
   };
   // (Not in the water, not inside anything, and not somewhere the lore keeps animals out of.)
   const dry = (x, z) =>
-    waterAt(x, z).depth <= 0 &&
+    landWater(x, z).depth <= 0 &&
     !world.blocked(x, z, 0.8) &&
     !(quiet.areas ?? []).some((area) => Math.hypot(area.x - x, area.z - z) < area.r);
   const near = (x, z, reach) => {
@@ -198,7 +198,7 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
       const at = { x: (random() * 2 - 1) * half, z: (random() * 2 - 1) * half };
       if (Math.max(Math.abs(at.x), Math.abs(at.z)) < layout.townHalf + from) continue;
       if (layout.outposts.some((outpost) => Math.hypot(outpost.x - at.x, outpost.z - at.z) < 28)) continue;
-      if (dry(at.x, at.z) && heightAt(at.x, at.z) < 22) return at;
+      if (dry(at.x, at.z) && landHeight(at.x, at.z) < 22) return at;
     }
     return null;
   };
@@ -210,7 +210,7 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
       const at = { x: Math.sin(angle) * far, z: Math.cos(angle) * far };
       if (Math.max(Math.abs(at.x), Math.abs(at.z)) > half) continue;
       if (layout.outposts.some((outpost) => Math.hypot(outpost.x - at.x, outpost.z - at.z) < 28)) continue;
-      if (dry(at.x, at.z) && heightAt(at.x, at.z) < 22) return at;
+      if (dry(at.x, at.z) && landHeight(at.x, at.z) < 22) return at;
     }
     return null;
   };
@@ -310,6 +310,9 @@ export function createHerd() {
   let clock = 0; // seconds it has run
   let lastThreat = -Infinity; // when a hostile one last squared up to the player
   let events = []; // what's happened that the game should tell: [{ type: "threat" | "attack", kind, x, z }]
+  // The ground and water where they are: the land's, or a level's own below ground (deep.js: flat and dry).
+  const heightAt = (x, z) => (world?.heightAt ?? landHeight)(x, z);
+  const waterAt = (x, z) => (world?.waterAt ?? landWater)(x, z);
 
   /** What `beast` is like: "tame", "hostile", "timid" or "calm" (its own, the lore's for its kind, or its kind's). */
   const temperOf = (beast) =>
@@ -610,7 +613,11 @@ export function createHerd() {
     const lunge = through >= 0 && through < 1 ? Math.sin(through * Math.PI) * 0.55 * size : 0;
     beast.group.position.set(
       beast.x + Math.sin(beast.angle) * lunge,
-      afloatAt(beast.x, beast.z, (ANIMALS[beast.kind].back || 0.6) * size) + up + lunge * 0.25,
+      (world.heightAt
+        ? world.heightAt(beast.x, beast.z)
+        : afloatAt(beast.x, beast.z, (ANIMALS[beast.kind].back || 0.6) * size)) +
+        up +
+        lunge * 0.25,
       beast.z + Math.cos(beast.angle) * lunge,
     );
     beast.group.rotation.y = beast.angle;

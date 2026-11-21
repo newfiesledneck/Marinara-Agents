@@ -40,6 +40,12 @@ export const SETTINGS = {
   combat: { value: "outsideSafe", options: ["anywhere", "outsideTowns", "outsideSafe", "off"] },
   /** Walking into buildings' rooms (unfinished); off, a door shows who's inside instead. */
   interiors: { value: false },
+  /** Caves, dungeons and strongholds (deep.js): a cave's mouth leads down into levels to walk, for
+   *  `deepShare` of a world's caves; off, a cave's mouth shows its card as before. Creatures live down
+   *  there with `deepCreatures` on. */
+  deepPlaces: { value: true },
+  deepShare: { value: 0.75, options: [0.25, 0.5, 0.75, 1] },
+  deepCreatures: { value: true },
   /** Buildings assembled from the village kit; off keeps the simple ones. */
   buildings: { value: true },
   /** People without a 3D model: "kit" dresses them from the Quaternius characters; "simple" uses the

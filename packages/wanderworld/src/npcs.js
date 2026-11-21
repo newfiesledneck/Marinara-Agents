@@ -1182,7 +1182,7 @@ export function createCrowd() {
       return;
     }
     // In the player's room and time to go: head for the door first.
-    if (person.space !== world && timeToLeave(person, view.hour) && person.state !== "talk" && !person.leaving) {
+    if (person.space === room?.room && timeToLeave(person, view.hour) && person.state !== "talk" && !person.leaving) {
       person.leaving = true;
       leaveSeat(person);
       person.plan = [{ walk: room.room.exit, straight: true }, { leave: true }];
@@ -1625,6 +1625,23 @@ export function createCrowd() {
         }
       }
       room = null;
+    },
+    /**
+     * The party goes with the player into `space` (a deep place, deep.js) or back out into the world,
+     * coming to stand at `at`. Anyone told to wait stays where they are.
+     */
+    moveParty(space, at) {
+      for (const id of party) {
+        const person = people.get(id);
+        if (!person || person.waiting || person.state === "inside") continue;
+        leaveSeat(person);
+        person.group.removeFromParent();
+        person.space = space;
+        space.scene.add(person.group);
+        person.group.position.set(at.x, groundY(person, at.x, at.z), at.z);
+        person.next = null;
+        person.state = "idle";
+      }
     },
     /** Makes the townsfolk exactly `characters` ([{ id, name }]), keeping anyone already here. */
     setCast(characters) {
