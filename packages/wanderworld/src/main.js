@@ -3737,6 +3737,7 @@ function herdOptions() {
       s[`animal${name[0].toUpperCase()}${name.slice(1)}`] === false ? kinds : [],
     ),
     sizes: s.animalSizes,
+    habitats: s.animalHabitats !== false,
   };
 }
 

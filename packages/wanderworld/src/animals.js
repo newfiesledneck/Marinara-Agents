@@ -381,6 +381,46 @@ export const COATS = {
 };
 
 /**
+ * Where each monster lives out in the country, with Settings → Creatures → "Only where they'd be found"
+ * on (herd.js habitatsAt says what a spot is): "open" low ground, "hills", "mountains", by "water", among
+ * "ruins" (ruins, a graveyard, standing stones, a watchtower) and by "caves". A kind not listed lives anywhere.
+ * (Below ground, deep.js DWELLERS says who lives in each kind of place.)
+ */
+export const HABITATS = {
+  slime: ["water", "caves", "ruins"],
+  skeleton: ["ruins"],
+  spider: ["open", "caves", "ruins"],
+  rat: ["open", "ruins", "water"],
+  snake: ["open", "water", "hills"],
+  bat: ["caves", "ruins", "hills"],
+  wasp: ["open"],
+  frog: ["water"],
+  dragon: ["mountains", "hills"],
+  imp: ["ruins"],
+  bandit: ["open", "hills", "ruins"],
+  witch: ["water", "ruins"],
+  wizard: ["ruins", "open"],
+  puglin: ["open", "hills"],
+  goblin: ["open", "hills", "caves"],
+  ogre: ["hills", "mountains"],
+  troll: ["hills", "mountains", "water"],
+  minotaur: ["ruins", "caves"],
+  hobgoblin: ["open", "hills"],
+  bugbear: ["caves", "hills"],
+  gnoll: ["open"],
+  kobold: ["caves", "hills"],
+  lizardfolk: ["water"],
+  ghoul: ["ruins"],
+  orc: ["hills", "mountains", "open"],
+  mimic: ["ruins", "caves"],
+  awakened_shrub: ["open"],
+  shambling_mound: ["water"],
+  grick: ["caves", "hills"],
+  otyugh: ["ruins", "water"],
+  roper: ["caves", "mountains"],
+};
+
+/**
  * Which sort each kind is, for how many of each a world has (Settings → Creatures): strays about the
  * settlement, the farms' animals, the country's that keep their distance, the country's that would
  * attack, and monsters (none with a body yet).

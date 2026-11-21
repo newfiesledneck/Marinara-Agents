@@ -342,6 +342,8 @@ export const SETTINGS = {
   animalMinotaur: { value: true },
   /** How often a monster is bigger than most of its kind (and tougher: herd.js MONSTER_SIZES). */
   animalSizes: { value: "some", options: ["off", "some", "more"] },
+  /** Monsters only where their kind would be found (animals.js HABITATS); off: anywhere out in the country. */
+  animalHabitats: { value: true },
   /** Every how many minutes (real time) the monsters out of sight are counted out again (0: never; herd.js respawn). */
   monsterRespawn: { value: 10, min: 0, max: 60 },
   // The living world, by rules alone (no model is called): relationships that move with time spent

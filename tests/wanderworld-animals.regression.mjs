@@ -735,7 +735,7 @@ for (const [text, dog, horse] of [
   const world = createWorld(4242);
   const counts = { strays: 0, farm: 0, wild: 0, hostile: 0, monsters: 100, town: 0 };
   const kinds = new Set(
-    [4242, 4243, 4244].flatMap((seed) => herdFor(world, seed, { counts }).map((beast) => beast.kind)),
+    [4242, 4243, 4244].flatMap((seed) => herdFor(world, seed, { counts, habitats: false }).map((beast) => beast.kind)),
   );
   for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", "lizardfolk", "ghoul"])
     assert.ok(kinds.has(kind), `${kind}s spawn as monsters`);
@@ -773,7 +773,8 @@ for (const [text, dog, horse] of [
   );
   const seen = new Set();
   for (let seed = 1; seed <= 6; seed++)
-    for (const beast of herdFor(world, seed, { counts: { ...only, monsters: 40 } })) seen.add(beast.kind);
+    for (const beast of herdFor(world, seed, { counts: { ...only, monsters: 40 }, habitats: false }))
+      seen.add(beast.kind);
   for (const kind of ["ogre", "troll", "minotaur"]) assert.ok(seen.has(kind), `a rare ${kind} turns up in some world`);
 
   const herd = createHerd();
@@ -831,6 +832,33 @@ for (const [text, dog, horse] of [
     }
     body.dispose();
   }
+}
+
+// Habitats: with "only where they'd be found" on, each monster's den is a place its kind lives; off, any
+// kind can be anywhere; and when no kind that's on lives anywhere in the world, they're put anywhere so
+// the Monsters number holds.
+{
+  const { HABITATS } = await import("../packages/wanderworld/src/animals.js");
+  const { habitatsAt } = await import("../packages/wanderworld/src/herd.js");
+  const counts = { strays: 0, farm: 0, wild: 0, hostile: 0, monsters: 60, town: 0 };
+  const fits = (world, beast) =>
+    !HABITATS[beast.kind] ||
+    HABITATS[beast.kind].some((place) => habitatsAt(world, beast.home.x, beast.home.z).has(place));
+  let strays = 0;
+  for (const seed of [4242, 7]) {
+    const world = createWorld(seed);
+    const herd = herdFor(world, seed, { counts });
+    assert.equal(herd.length, 60, "the Monsters number holds with habitats on");
+    for (const beast of herd) assert.ok(fits(world, beast), `a ${beast.kind} where it lives`);
+    strays += herdFor(world, seed, { counts, habitats: false }).filter((beast) => !fits(world, beast)).length;
+  }
+  assert.ok(strays > 0, "with habitats off, some turn up where their kind wouldn't live");
+  const dry = createWorld(99); // (no river)
+  const lizards = herdFor(dry, 99, {
+    counts: { ...counts, monsters: 20 },
+    off: Object.keys(ANIMALS).filter((kind) => kind !== "lizardfolk"),
+  });
+  assert.equal(lizards.length, 20, "only lizardfolk on and no water: they're put anywhere, twenty of them");
 }
 
 console.log("wanderworld animals regression: OK");

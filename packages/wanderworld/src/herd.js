@@ -9,7 +9,7 @@
 // Someone's own dog or horse (`setOwned`) is one more animal here: with its owner it follows them, and
 // sent home it keeps to its spot by their door.
 import { Group, Mesh } from "three";
-import { ANIMALS, coatFor, createAnimal, dogBody, POPULATION } from "./animals.js";
+import { ANIMALS, coatFor, createAnimal, dogBody, HABITATS, POPULATION } from "./animals.js";
 import { blobShadow } from "./character.js";
 import { kitModel } from "./kit.js";
 import { hashString, heightAt as landHeight, rng, waterAt as landWater } from "./world.js";
@@ -39,6 +39,39 @@ const FOLLOW_LOST = 45; // metres behind its owner at which their animal gives u
  * much: `big` and `huge` are the chances, the sizes are times its usual one. Size makes it tougher in a fight
  * as well (combat.js foeOf: more HP, harder blows, more XP). Only the first of a group may be huge.
  */
+/** Within how far of a landmark or a cave mouth a spot counts as among ruins or by caves (metres). */
+const LANDMARK_REACH = 45;
+const RUINS = new Set(["ruins", "graveyard", "stones", "watchtower"]);
+/**
+ * What kind of place (x, z) is, for where monsters live (animals.js HABITATS): a Set of "open", "hills"
+ * (5 m up and more), "mountains" (12 m and more), "water" (within 10 m of it), "ruins" and "caves" (near a
+ * landmark of that sort or a cave mouth).
+ */
+export function habitatsAt(world, x, z) {
+  const here = new Set();
+  const height = landHeight(x, z);
+  here.add(height >= 12 ? "mountains" : height >= 5 ? "hills" : "open");
+  const wet = [
+    [0, 0],
+    [10, 0],
+    [-10, 0],
+    [0, 10],
+    [0, -10],
+    [7, 7],
+    [-7, 7],
+    [7, -7],
+    [-7, -7],
+  ];
+  if (wet.some(([dx, dz]) => landWater(x + dx, z + dz).depth > 0)) here.add("water");
+  for (const outpost of world.layout?.outposts ?? []) {
+    if (Math.hypot(outpost.x - x, outpost.z - z) > LANDMARK_REACH) continue;
+    if (RUINS.has(outpost.kind)) here.add("ruins");
+    if (outpost.kind === "cave" || outpost.deep) here.add("caves");
+  }
+  if ((world.caves ?? []).some((cave) => Math.hypot(cave.x - x, cave.z - z) <= LANDMARK_REACH)) here.add("caves");
+  return here;
+}
+
 /** How likely a rare monster kind (an ogre, a troll, a minotaur, a dragon) is next to a common one. */
 export const RARE_SHARE = 0.5;
 export const MONSTER_SIZES = {
@@ -75,7 +108,11 @@ export function afloatAt(x, z, back) {
   return water.depth > 0 ? Math.max(ground, water.level - back * AFLOAT) : ground;
 }
 
-export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}, sizes = "some", favour = [] } = {}) {
+export function herdFor(
+  world,
+  seed,
+  { counts = POPULATION, off = [], quiet = {}, sizes = "some", favour = [], habitats = true } = {},
+) {
   if (quiet.all) return [];
   // Each sort is counted out from numbers of its own, so changing how many there are of one sort leaves
   // the others where they were.
@@ -266,20 +303,32 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
     let left = quiet.wild || !kinds.length ? 0 : want("monsters");
     // (How likely each kind is: a rare one, an ogre or a dragon, `RARE_SHARE` of a common one; one not
     // about yet when the monsters are counted out again, `favour`, twice as likely as it would be.)
-    const weights = kinds.map((kind) => (ANIMALS[kind].rare ? RARE_SHARE : 1) * (favour.includes(kind) ? 2 : 1));
-    const total = weights.reduce((sum, weight) => sum + weight, 0);
-    const weighted = () => {
-      let roll = random() * total;
-      for (let i = 0; i < kinds.length; i++) if ((roll -= weights[i]) < 0) return kinds[i];
-      return kinds.at(-1);
+    const weightOf = (kind) => (ANIMALS[kind].rare ? RARE_SHARE : 1) * (favour.includes(kind) ? 2 : 1);
+    const weighted = (list) => {
+      let roll = random() * list.reduce((sum, kind) => sum + weightOf(kind), 0);
+      for (const kind of list) if ((roll -= weightOf(kind)) < 0) return kind;
+      return list.at(-1);
     };
+    // With habitats on, the den is found first and the kind is one that lives in such a place. Should no
+    // kind that's on live anywhere this world has (only frost giants, and no mountains), they're put
+    // anywhere after all, so the Monsters number still holds.
+    let fitting = habitats;
     const tries = left * 6 + 60;
     for (let guard = 0; guard < tries && left > 0; guard++) {
-      const kind = weighted();
-      // (A rare one is alone.)
-      const size = ANIMALS[kind].rare ? 1 : Math.min(left, random() < 0.5 ? 1 : 2 + Math.floor(random() * 2));
       const den = wild(45) ?? wild(20) ?? wild(8);
       if (!den) continue;
+      let kind;
+      if (fitting) {
+        const here = habitatsAt(world, den.x, den.z);
+        const fit = kinds.filter((name) => !HABITATS[name] || HABITATS[name].some((place) => here.has(place)));
+        if (!fit.length) {
+          if (guard > tries / 2 && left === want("monsters")) fitting = false; // (nothing fits anywhere)
+          continue;
+        }
+        kind = weighted(fit);
+      } else kind = weighted(kinds);
+      // (A rare one is alone.)
+      const size = ANIMALS[kind].rare ? 1 : Math.min(left, random() < 0.5 ? 1 : 2 + Math.floor(random() * 2));
       for (let n = 0; n < size; n++) {
         const spot = near(den.x, den.z, 5) ?? den;
         const scale = monsterScale(kind, sizes, n === 0, hashString(`size:${seed}:${out.length}`));

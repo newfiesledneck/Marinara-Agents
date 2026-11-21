@@ -443,6 +443,12 @@ only walk about.
   → Bigger monsters: never, now and then (the default) or often (`herd.js MONSTER_SIZES`). Bats, wasps,
   dragons and people keep their size. The goblins, hobgoblins, bugbears, orcs, gnolls, kobolds,
   lizardfolk, ghouls, ogres, trolls and minotaurs each have their own switch under Kinds.
+- **Where monsters live:** with Settings → Creatures → "Only where they'd be found" on (the default),
+  each kind turns up only where it would be (`animals.js HABITATS`: open ground, hills, mountains, by
+  water, among ruins, by caves; `herd.js habitatsAt` reads a spot from its height, the water nearby and
+  the landmarks and cave mouths around it). Off, anything that's on can be anywhere out in the country.
+  The Monsters number holds either way. Below ground, `deep.js DWELLERS` says who lives in each kind of
+  place.
 - **New monsters:** the Monsters slider is how many there are whichever kinds are on (only trolls on at
   100: 100 trolls); a rare kind is half as likely as a common one (`herd.js RARE_SHARE`). Every so often
   (Settings → Creatures → New monsters every, 10 real minutes by default, 0 never) the monsters out of

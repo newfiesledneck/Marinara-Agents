@@ -4,6 +4,7 @@
 // name, numbers and spoils, the SRD's numbers, and the word for it in lore).
 // Run: node tests/wanderworld-bestiary.regression.mjs
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -103,8 +104,20 @@ for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", 
   const rigged = readdirSync(join(pkg, "kit/creatures"))
     .filter((name) => /^rigged-.+\.json$/u.test(name))
     .map((name) => name.slice(7, -5));
+  // (Only the committed ones: a model still being made, not yet in git, isn't packed yet.)
+  let tracked = null;
+  try {
+    tracked = new Set(
+      execFileSync("git", ["ls-files", "assets/models"], { cwd: pkg, encoding: "utf8" })
+        .split(/\r?\n/u)
+        .map((path) => path.split("/").pop()),
+    );
+  } catch {
+    // (no git: every model there counts)
+  }
   const models = readdirSync(join(pkg, "assets/models"))
     .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro)-/u.test(name))
+    .filter((name) => !tracked || tracked.has(name))
     .map((name) => name.slice(0, -4))
     .filter((name) => !rigged.includes(name));
   assert.ok(models.includes("goblin"), "the goblin is made in Blender");

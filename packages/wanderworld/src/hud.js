@@ -1030,6 +1030,8 @@ export function createHud(root, handlers) {
       "Slimes, skeletons, giant spiders and rats, snakes, bats, wasps, frogs, imps, puglins, goblins, hobgoblins, bugbears, orcs, gnolls, kobolds, lizardfolk, ghouls, gricks, awakened shrubs, mimics passing for chests, bandits, witches and wizards out in the country, and more rarely an ogre, a troll, a minotaur, a shambling mound, an otyugh, a roper passing for a stalagmite, or a dragon overhead. Skeletons, ghouls and bats only at night.",
     animalSizes:
       "Now and then: about one monster in eight is big (a quarter to two-fifths bigger) and one in fifty is huge (three-fifths to four-fifths bigger), always the first of its group. Often: about one in four big and one in fifteen huge. Never: every monster is about its kind's usual size.",
+    animalHabitats:
+      "Overrides nothing else: the Monsters number still holds. If no kind that's switched on lives anywhere this world has (only frost giants and no mountains), they turn up anywhere instead.",
     monsterRespawn:
       "Real minutes of play. At 0 the monsters a world starts with are all it has until it's counted out again (a change in the sliders above does that too).",
     animalsTown: "The most stray dogs and horses inside the settlement itself. Any more are put just outside it.",
@@ -1597,6 +1599,11 @@ export function createHud(root, handlers) {
     "Now and then a monster is bigger than the rest of its kind, and once in a while one is huge. Size counts in a fight: a bigger one has more HP, hits harder and is worth more XP. Bats, wasps, dragons and people (bandits, witches, wizards) keep their usual size. A world's monsters are counted out again when this changes.",
   );
   choice("animalSizes", "How often", { off: "Never (all the usual size)", some: "Now and then", more: "Often" });
+  group(
+    "Where they live",
+    "On: each kind of monster turns up only where it would be found: lizardfolk, frogs and shambling mounds by water, ogres, trolls and orcs in the hills and mountains, skeletons and ghouls among ruins and graveyards, kobolds and gricks by caves, gnolls and hobgoblins on open ground. Off: any kind that's switched on can turn up anywhere out in the country. Caves, dungeons and strongholds always have their own (Settings → World → Places). A lorebook's placed creatures go where it says either way.",
+  );
+  toggle("animalHabitats", "Only where they'd be found");
   group(
     "New monsters",
     "Every so often the monsters out of sight go and others come in their place, so over time you meet every kind that's switched on, the rare ones too. Kinds not about yet are likelier to turn up. Nothing you can see goes, and nothing you're fighting, nothing a lorebook placed and nobody's own animal. The Monsters number above still says how many there are.",
