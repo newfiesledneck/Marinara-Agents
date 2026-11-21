@@ -2,7 +2,8 @@
 // CC0 base mesh and shapes, packed into the kit by `scripts/build-wanderworld-people.mjs --avatar`
 // (kit/generic/avatar: a body each, the hair styles; kit/fantasy/avatar: the outfit pieces). docs/AVATAR.md
 // has the plan. A look (looks.js) shapes it: which body, the build and face sliders (shape keys), arm and
-// leg length and head size (bones), each part's colour, underwear, hair and outfit pieces. Whatever the
+// leg length and head size (bones), each part's colour, underwear, hair and outfit pieces, and MakeHuman's
+// (CC0) age shape keys, skin and eye pictures, brow and lash styles. Whatever the
 // look leaves out comes from the name, within an everyday range, so a crowd differs without anyone
 // setting it.
 //
@@ -19,7 +20,10 @@ import {
   CLOTH_COLOURS,
   CLOTH_HEX,
   EYE_COLOURS,
+  EYE_PICTURES,
   FACE,
+  SKINS,
+  TINT,
   HAIR_COLOURS,
   HAIRSTYLES,
   HEIGHTS,
@@ -88,6 +92,14 @@ const LIMB_BONES = {
   ],
 };
 
+// ── MakeHuman skins, ages, eye pictures, brows and lashes (CC0) ──
+const WHITE = 0xffffff;
+/** The brow and lash styles a name picks from, by body (the first is the usual). */
+const USUAL_BROWS = { male: [1, 2, 4, 9, 10, 12], female: [3, 5, 6, 7, 8, 11] };
+const USUAL_LASHES = { male: [1, 3], female: [2, 4] };
+/** A name's age: mostly young adults, some middle-aged, a few old. */
+const ageOf = (roll) => (roll < 0.65 ? "young" : roll < 0.9 ? "middle" : "old");
+
 const clamp = (value, least, most) => Math.max(least, Math.min(most, value));
 const mixHex = (a, b, t) => {
   const channel = (shift) => Math.round(((a >> shift) & 255) * (1 - t) + ((b >> shift) & 255) * t);
@@ -98,7 +110,8 @@ const mixHex = (a, b, t) => {
  * Everything about how `name` looks as the base avatar, filled in: what was `chosen` (a checked look,
  * with any lore words' look under it, looks.js mergeLooks) over what the name gives. `gender`: the People
  * menu's ("male", "female", "custom" or "auto"). Plain data: { body, gender, shape, limbs, height,
- * colours, hair, hairColour (0xRRGGBB), underwear, clothes, seed }. The Look card shows these.
+ * colours, hair, hairColour (0xRRGGBB), underwear, clothes, age, skin, brows, lashes, eyePicture, seed }.
+ * The Look card shows these.
  */
 export function avatarLook(name, gender = "auto", chosen = {}) {
   const { sex, gender: own } = sexFor(name, gender, chosen);
@@ -131,14 +144,29 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
   const usualHairColour = Math.floor(random() * USUAL_HAIR_COLOURS);
   const usualCloth = CLOTH_COLOURS[Math.floor(random() * 4)][0];
   // (An older look's skin and hair carry over: a tone's place in the list, or a colour of one's own.)
-  const skin = chosen.colours?.skin ?? chosen.skinTint ?? SKIN_TONES[chosen.skin ?? usualSkin][0];
+  const ownSkin =
+    chosen.colours?.skin ?? chosen.skinTint ?? (Number.isInteger(chosen.skin) ? SKIN_TONES[chosen.skin][0] : undefined);
+  const skin = ownSkin ?? SKIN_TONES[usualSkin][0];
+  // The skin picture: the look's, else "custom" for a colour of one's own (an older look's), else the one
+  // nearest the name's tone. The age, brows and lashes the name gives are a roll of their own, so the rest
+  // of the name's look stays as it was.
+  const kind = SKINS.some(([value]) => value === chosen.skin)
+    ? chosen.skin
+    : ownSkin !== undefined
+      ? "custom"
+      : ["caucasian", "asian", "african"][Math.floor((usualSkin * 3) / SKIN_TONES.length)];
+  const picture = kind !== "custom"; // (its lips and nails are the picture's own unless coloured by hand)
+  const more = rng(hashString(`${name || "wanderer"}:avatar-age`));
+  const usualAge = ageOf(more());
+  const usualBrows = USUAL_BROWS[sex][Math.floor(more() * USUAL_BROWS[sex].length)];
+  const usualLashes = USUAL_LASHES[sex][Math.floor(more() * USUAL_LASHES[sex].length)];
   const hairColour = chosen.hairTint ?? HAIR_COLOURS[chosen.hairColour ?? usualHairColour][0];
   const colours = {
     skin,
     eyes: chosen.colours?.eyes ?? usualEyes,
     // (Lips a little redder and darker than the skin, nails a little paler, brows a little darker than the hair.)
-    lips: chosen.colours?.lips ?? mixHex(mixHex(skin, 0xa04040, 0.35), 0x000000, 0.12),
-    nails: chosen.colours?.nails ?? mixHex(skin, 0xf6e6e0, 0.4),
+    lips: chosen.colours?.lips ?? (picture ? WHITE : mixHex(mixHex(skin, 0xa04040, 0.35), 0x000000, 0.12)),
+    nails: chosen.colours?.nails ?? (picture ? WHITE : mixHex(skin, 0xf6e6e0, 0.4)),
     brows: chosen.colours?.brows ?? mixHex(hairColour, 0x000000, 0.25),
     underwear:
       chosen.colours?.underwear ??
@@ -161,6 +189,11 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
       bottom: chosen.underwear?.bottom ?? (underwearByDefault ? "briefs" : BARE),
     },
     clothes: chosen.clothes ?? [],
+    age: chosen.age ?? usualAge,
+    skin: kind,
+    brows: chosen.brows ?? usualBrows,
+    lashes: chosen.lashes ?? usualLashes,
+    eyePicture: chosen.eyePicture ?? TINT,
     seed: hashString(`${name}:motion`),
   };
 }
@@ -183,6 +216,8 @@ function keyWeights(look, sex) {
     nose: shape.nose,
     eyes: shape.eyes,
     ears_pointed: shape.ears,
+    age_middle: look.age === "middle" ? 1 : 0,
+    age_old: look.age === "old" ? 1 : 0,
   };
 }
 
@@ -291,9 +326,12 @@ function bodyKit(sex) {
       // the briefs, and a bra on her.
       const tops = new Set();
       const bottoms = new Set();
+      const styles = { brows: [], lashes: [] }; // (the brow and lash styles it has, by number)
       for (const mesh of meshes) {
         const style = /^underwear-(top|bottom)-(.+)$/u.exec(mesh.piece ?? "");
         if (style) (style[1] === "top" ? tops : bottoms).add(style[2]);
+        const face = /^eye(brows|lashes)-(\d+)$/u.exec(mesh.piece ?? "");
+        if (face) styles[face[1]].push(Number(face[2]));
         if (mesh.piece === "underwear-legacy") {
           bottoms.add("briefs");
           if (sex === "female") tops.add("bra");
@@ -322,6 +360,9 @@ function bodyKit(sex) {
         indices: new Map(), // which triangles show (by underwear and what's hidden) → { index, groups }
         tops: known(UNDERWEAR_TOPS, tops),
         bottoms: known(UNDERWEAR_BOTTOMS, bottoms),
+        brows: styles.brows.sort((a, b) => a - b),
+        lashes: styles.lashes.sort((a, b) => a - b),
+        eyeUvs: new Map(), // an eye picture's texture places (eyeUvsOf)
       };
     });
     made.catch(() => bodies.delete(sex)); // (tried again next time)
@@ -330,9 +371,13 @@ function bodyKit(sex) {
   return bodies.get(sex);
 }
 
-/** Whether a mesh of the body shows with this underwear: the body's own always, a style only if chosen. */
-function worn(mesh, underwear, sex) {
+/** Whether a mesh of the body shows with this look's underwear, brows and lashes: the body's own always, a
+ *  style only if chosen. */
+function worn(mesh, look, sex) {
   if (!mesh.piece) return true;
+  const face = /^eye(brows|lashes)-(\d+)$/u.exec(mesh.piece);
+  if (face) return Number(face[2]) === look[face[1]];
+  const { underwear } = look;
   if (mesh.piece === "underwear-legacy")
     return underwear.bottom === "briefs" || (sex === "female" && underwear.top === "bra");
   const style = /^underwear-(top|bottom)-(.+)$/u.exec(mesh.piece);
@@ -340,8 +385,9 @@ function worn(mesh, underwear, sex) {
 }
 
 /** The body's triangles that show (shared by everyone wearing the same and hiding the same), in groups. */
-function trianglesOf(kit, underwear, hides) {
-  const key = `${underwear.top}|${underwear.bottom}|${[...hides].sort().join(",")}`;
+function trianglesOf(kit, look, hides) {
+  const { underwear } = look;
+  const key = `${underwear.top}|${underwear.bottom}|${look.brows}|${look.lashes}|${[...hides].sort().join(",")}`;
   if (!kit.indices.has(key)) {
     const hidden = (mesh) => {
       if (
@@ -363,7 +409,7 @@ function trianglesOf(kit, underwear, hides) {
       }
     };
     for (const mesh of kit.meshes) {
-      if (!worn(mesh, underwear, kit.sex)) continue;
+      if (!worn(mesh, look, kit.sex)) continue;
       const hide = hidden(mesh);
       if (groups.at(-1)?.name !== mesh.group)
         groups.push({ name: mesh.group, start: kept.length, count: 0, farStart: far.length, farCount: 0, mesh });
@@ -384,6 +430,27 @@ function trianglesOf(kit, underwear, hides) {
     });
   }
   return kit.indices.get(key);
+}
+
+/**
+ * The body's texture places with the eyes' moved onto eye picture `picture`'s tile in avatar-eyes.webp (the
+ * packer's 3 × 3 tiles, each the top 512 × 384 of a 512 picture: all its iris and eye white use), made once
+ * a body and picture and shared. (One file for the nine pictures spares the package's asset paths.)
+ */
+function eyeUvsOf(kit, picture) {
+  if (!kit.eyeUvs.has(picture)) {
+    const at = EYE_PICTURES.findIndex(([value]) => value === picture);
+    const [column, row] = [at % 3, Math.floor(at / 3)];
+    const uv = kit.shared.uv.array.slice();
+    const eyes = kit.meshes.find((mesh) => mesh.part === "iris")?.texture;
+    for (const mesh of kit.meshes.filter((each) => each.texture === eyes && !each.alpha))
+      for (let v = mesh.start; v < mesh.start + mesh.count; v++) {
+        uv[v * 2] = (column + uv[v * 2]) / 3;
+        uv[v * 2 + 1] = (row + (uv[v * 2 + 1] * 512) / 384) / 3;
+      }
+    kit.eyeUvs.set(picture, new BufferAttribute(uv, 2));
+  }
+  return kit.eyeUvs.get(picture);
 }
 
 const parts = new Map(); // a hair style's or outfit piece's meshes, made once: "hair:long:male" → [{ mesh, geometry, morphs }]
@@ -413,6 +480,8 @@ export async function avatarChoices(sex) {
   return {
     tops: kit.tops,
     bottoms: kit.bottoms,
+    brows: kit.brows,
+    lashes: kit.lashes,
     hair: HAIRSTYLES.map(([style]) => style).filter((style) => style === BARE || hair?.styles?.[style]?.[sex]),
     clothes: Object.entries(outfits?.pieces ?? {})
       .filter(([, piece]) => piece[sex])
@@ -482,6 +551,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   const bind = (geometry, materials, part, fallback = null) => {
     const mesh = new SkinnedMesh(geometry, materials);
     mesh.frustumCulled = false;
+    mesh.name = fallback ? "piece" : "body"; // (hair and outfit pieces are bound to the body's skeleton)
     mesh.userData.sharedShadow = true; // (disposed here, so the shared data stays: avatar.js `dispose`)
     root.add(mesh);
     mesh.bind(skeletonFor(root, bones, part, stretch, fallback), mesh.matrixWorld);
@@ -494,14 +564,21 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   const pieces = filled.clothes.map((piece) => outfitFile?.pieces?.[piece]).filter((piece) => piece?.[sex]);
   for (const piece of pieces) for (const word of piece.hides ?? []) hides.add(word);
 
-  // The body: its shape keys worked in, each vertex coloured by its part.
+  // The body: its shape keys worked in, each vertex coloured by its part. A skin picture (of their age) or
+  // an eye picture is drawn white, in place of the model's own tinted texture, loaded the first time
+  // someone wears it and shared.
   const { position, normal } = shaped(kit.position, kit.normal, kit.morphs, weights);
+  const textureOfPart = (part) => kit.meshes.find((mesh) => mesh.part === part)?.texture;
+  const swapped = new Map();
+  if (filled.skin !== "custom")
+    swapped.set(textureOfPart("skin"), texture(`avatar-${sex}-skin-${filled.age}-${filled.skin}`));
+  if (filled.eyePicture !== TINT) swapped.set(textureOfPart("iris"), texture("avatar-eyes"));
   const colourOf = (part) =>
     ({
-      skin: filled.colours.skin,
+      skin: filled.skin === "custom" ? filled.colours.skin : WHITE,
       underwear: filled.colours.underwear,
       underwear_trim: mixHex(filled.colours.underwear, 0x000000, 0.3),
-      iris: filled.colours.eyes,
+      iris: filled.eyePicture === TINT ? filled.colours.eyes : WHITE,
       eyebrows: filled.colours.brows,
       eyelashes: mixHex(filled.colours.brows, 0x000000, 0.5),
       lips: filled.colours.lips,
@@ -524,7 +601,8 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   geometry.setAttribute("normal", new BufferAttribute(normal, 3));
   geometry.setAttribute("color", new BufferAttribute(colour, 3, true));
   for (const [attribute, shared] of Object.entries(kit.shared)) geometry.setAttribute(attribute, shared);
-  const { index, groups } = trianglesOf(kit, filled.underwear, hides);
+  if (filled.eyePicture !== TINT) geometry.setAttribute("uv", eyeUvsOf(kit, filled.eyePicture));
+  const { index, groups } = trianglesOf(kit, filled, hides);
   geometry.setIndex(index);
   geometry.userData.distant = { groups: true }; // (each group has its own: kit.js drawDistant)
   const materials = groups.map((group, i) => {
@@ -534,16 +612,18 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
       far: { start: group.farStart, count: group.farCount },
     };
     const cut = !!group.mesh.alpha;
-    // Brows and lashes are cut out by their texture (alpha-tested, so they need no sorting). Every part is
+    // Brows and lashes (MakeHuman's) are blended by their texture's alpha, softer than a cut-out: drawn
+    // with the see-through things, after everything solid, without hiding what's behind them. Every part is
     // seen from both sides, as the model's materials say: some faces (the irises) face inwards, and shown
     // from the front only they'd show what's behind them.
     // ponytail: two-sided costs a little; once make_avatar.py turns those faces outwards, the opaque
     // parts can be front-only again.
     return new MeshLambertMaterial({
-      map: group.mesh.texture ? texture(group.mesh.texture) : null,
+      map: swapped.get(group.mesh.texture) ?? (group.mesh.texture ? texture(group.mesh.texture) : null),
       vertexColors: true,
       side: DoubleSide,
-      ...(cut ? { alphaTest: 0.3 } : {}),
+      // (The faint alpha test leaves the empty parts of a card out of shadows too.)
+      ...(cut ? { transparent: true, depthWrite: false, alphaTest: 0.05 } : {}),
     });
   });
   geometry.boundingBox = kit.boundingBox.clone();

@@ -823,7 +823,9 @@ const sexOfName = (name) =>
 /**
  * The base avatar (assets/scripts/make_avatar.py) into the kit, with its shape keys, for src/avatar.js:
  * - kit/generic/avatar/avatar-<sex>.json, a body each (the skeleton, every part with its material's name and
- *   colour, the underwear's styles, shape keys), and its textures avatar-<sex>.webp, avatar-<sex>-1.webp;
+ *   colour, the underwear's, brows' and lashes' styles, shape keys), and its textures avatar-<sex>.webp,
+ *   avatar-<sex>-1.webp; MakeHuman's skins (avatar-<sex>-skin-<age>-<ethnicity>.webp) and eye pictures
+ *   (avatar-eyes.webp) from assets/textures/avatar;
  * - kit/generic/avatar/avatar-hair.json, every hair style (avatar-hair-<style>.glb, a `male` and a `female`
  *   mesh, skinned or hung on the head bone), and their textures;
  * - kit/fantasy/avatar/avatar-outfits.json, every outfit piece (outfit-<piece>.glb, a `male` and a `female`
@@ -897,9 +899,10 @@ function avatar() {
     });
     // The underwear's styles, each a mesh of its own ("underwear-bottom-briefs", "underwear-top-bra"); a body
     // made before they were has one layer in its own mesh, "underwear-legacy" (briefs, and a bra on her).
+    // The brow and lash styles ("eyebrows-01", "eyelashes-01") are pieces too: one of each shows.
     body.meshes.forEach((mesh, i) => {
       const name = [primitives[i].nodeName, primitives[i].name].find((text) =>
-        /^underwear-(?:top|bottom)-/u.test(text ?? ""),
+        /^(?:underwear-(?:top|bottom)|eyebrows|eyelashes)-/u.test(text ?? ""),
       );
       if (name) mesh.piece = name;
       else if (/^underwear/u.test(mesh.part)) mesh.piece = "underwear-legacy";
@@ -912,6 +915,25 @@ function avatar() {
       join(out, `avatar-${sex}.json`),
       JSON.stringify({ source, height: Math.round(top * 100) / 100, keys, ...body }),
     );
+  }
+  // ── MakeHuman skins and eye pictures (assets/textures/avatar, written by make_avatar.py) ──
+  // The skins as they are, a file each, loaded only when worn. The nine eye pictures in one file
+  // (avatar-eyes.webp), to spare asset paths: 3 × 3 tiles of each picture's top 512 × 384, the part its
+  // iris and eye white use (src/looks.js EYE_PICTURES, in this order). (avatar-eyes-grey-tint.webp is the
+  // model's own eye texture, packed with the body above.)
+  const pictures = join(ROOT, "packages/wanderworld/assets/textures/avatar");
+  if (existsSync(pictures)) {
+    for (const name of readdirSync(pictures).filter((file) => /^avatar-(?:male|female)-skin-/u.test(file)))
+      writeFileSync(join(out, name), readFileSync(join(pictures, name)));
+    const eyes = ["brownlight", "brown", "green", "bluegreen", "blue", "lightblue", "deepblue", "grey", "ice"];
+    if (eyes.every((eye) => existsSync(join(pictures, `avatar-eyes-${eye}.webp`))))
+      execFileSync(FFMPEG, [
+        ...["-v", "error", "-y"],
+        ...eyes.flatMap((eye) => ["-i", join(pictures, `avatar-eyes-${eye}.webp`)]),
+        "-filter_complex",
+        `${eyes.map((_, i) => `[${i}]scale=512:512,crop=512:384:0:0[t${i}]`).join(";")};${eyes.map((_, i) => `[t${i}]`).join("")}xstack=inputs=9:layout=${eyes.map((_, i) => `${(i % 3) * 512}_${Math.floor(i / 3) * 384}`).join("|")}`,
+        ...["-frames:v", "1", "-quality", "88", join(out, "avatar-eyes.webp")],
+      ]);
   }
   /** Each body's meshes of a hair or outfit file: { male, female }, a part each (a mesh for both goes in both). */
   const bySex = (gltf, base, folder) => {

@@ -38,6 +38,11 @@ in Blender by ThatOneCan, with `packages/wanderworld/assets/scripts/make_avatar.
 `scripts/build-wanderworld-people.mjs --avatar`. MakeHuman's hm08 base mesh and morph targets are public
 domain (CC0 1.0); they're read as data, and MakeHuman itself is neither run nor copied.
 
+MakeHuman system assets (skins, eyes, eyebrows, eyelashes): CC0. The skin pictures
+(`avatar-<sex>-skin-<age>-<ethnicity>.webp`), the eye pictures (`avatar-eyes.webp`, nine in one) and the
+brow and lash styles in the bodies (and their texture) are made from MakeHuman's system assets by
+`make_avatar.py`, read as data the same way.
+
 ## Under the Quaternius Asset License
 
 `fantasy/folk/folk.json` and its textures (the imp and the puglin) are converted from Quaternius's Bestiary - Dungeon Monsters Kit

@@ -254,7 +254,7 @@ export function lookFor(name, index, body = "auto", chosen = {}) {
     hair: chosen.hair ?? usualHair,
     hairColour: chosen.hairColour ?? usualHairColour,
     hairTint: chosen.hairTint ?? null,
-    skin: chosen.skin ?? usualSkin,
+    skin: Number.isInteger(chosen.skin) ? chosen.skin : usualSkin, // (the base avatar's skins are names: avatar.js)
     beard: sex === "male" && (chosen.beard ?? usualBeard),
     height: chosen.height ?? usualHeight,
   });

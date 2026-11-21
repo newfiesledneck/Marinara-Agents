@@ -30,7 +30,7 @@ const looks = await import("../packages/wanderworld/src/looks.js");
 const { checkLook, checkPresets, mergeLooks, presetFile, readPresetFile, BUILT_IN_PRESETS, SKIN_TONES } = looks;
 const { lookFromWords, readKeyword } = await import("../packages/wanderworld/src/keywords.js");
 const { checkSetting } = await import("../packages/wanderworld/src/settings.js");
-const { sexFor } = await import("../packages/wanderworld/src/people.js");
+const { geometryOf, sexFor, texture } = await import("../packages/wanderworld/src/people.js");
 
 // ── The kit has both bodies, each with every shape key ──────────────────────
 const KEYS = [
@@ -47,6 +47,8 @@ const KEYS = [
   "nose",
   "eyes",
   "ears_pointed",
+  "age_middle",
+  "age_old",
 ];
 const PARTS = ["skin", "underwear", "eye_white", "iris", "eyebrows", "eyelashes", "lips", "nails"];
 const files = {};
@@ -69,9 +71,9 @@ for (const sex of ["male", "female"]) {
     file.skeleton.names.includes("pelvis") && file.skeleton.names.includes("hand_r"),
     "on the people's skeleton",
   );
-  // (Only one underwear top and one bottom are ever shown, so the body is counted without them, and each
-  // underwear style on its own.)
-  const isUnder = (mesh) => /^underwear-/u.test(mesh.piece ?? "");
+  // (Only one underwear top and one bottom, and one brow and one lash style, are ever shown, so the body is
+  // counted without them, and each style on its own.)
+  const isUnder = (mesh) => /^(?:underwear|eyebrows|eyelashes)-/u.test(mesh.piece ?? "");
   const vertices = file.meshes.filter((mesh) => !isUnder(mesh)).reduce((sum, mesh) => sum + mesh.count, 0);
   assert.ok(vertices < 32000, `the ${sex} body stays within its budget (${vertices} vertices)`);
   for (const mesh of file.meshes.filter(isUnder))
@@ -125,10 +127,12 @@ for (const sex of ["male", "female"]) {
   assert.ok(bone(person, "thigh_l").x > bone(person, "thigh_r").x, `the ${sex} body faces +z`);
   assert.ok(bone(person, "hand_l").y < bone(person, "upperarm_l").y - 0.3, `the ${sex} body's arms hang at rest`);
   let draws = 0;
+  // (The body itself, not its hair: a kit with hair adds a draw or two. Four: the skin, the eyes (their own
+  // picture), the underwear, and the brows and lashes.)
   person.object.traverse((object) => {
-    if (object.isSkinnedMesh) draws += object.geometry.groups.length || 1;
+    if (object.isSkinnedMesh && object.name === "body") draws += object.geometry.groups.length || 1;
   });
-  assert.ok(draws <= 3, `the ${sex} body is a few draws (${draws})`);
+  assert.ok(draws <= 4, `the ${sex} body is a few draws (${draws})`);
   // It walks: the legs swing.
   let swing = 0;
   const rest = bone(person, "foot_l").z;
@@ -333,6 +337,117 @@ for (const sex of ["male", "female"]) {
     colours: { eyes: 0x3f6f8a },
   });
   assert.deepEqual(lookFromWords("nothing at all"), {}, "words inside other words don't count");
+}
+
+// ── MakeHuman's skins, ages, eye pictures, brows and lashes ─────────────────
+{
+  for (const sex of ["male", "female"]) {
+    for (const age of ["young", "middle", "old"])
+      for (const kind of ["caucasian", "african", "asian"])
+        assert.ok(
+          existsSync(join(kitRoot, `generic/avatar/avatar-${sex}-skin-${age}-${kind}.webp`)),
+          `the kit has the ${sex} ${age} ${kind} skin`,
+        );
+    const styles = (kind) =>
+      files[sex].meshes.filter((mesh) => new RegExp(`^${kind}-\\d+$`, "u").test(mesh.piece ?? "")).length;
+    assert.equal(styles("eyebrows"), looks.BROWS, `the ${sex} body has every brow style as a piece`);
+    assert.equal(styles("eyelashes"), looks.LASHES, `the ${sex} body has every lash style as a piece`);
+    const choices = await avatarChoices(sex);
+    assert.equal(choices.brows.length, looks.BROWS, "the Look card offers every brow style");
+    assert.equal(choices.lashes.length, looks.LASHES, "and every lash style");
+  }
+  assert.ok(existsSync(join(kitRoot, "generic/avatar/avatar-eyes.webp")), "the eye pictures are in the kit, one file");
+
+  // A skin picture: the skin, lips and nails drawn with it, coloured white.
+  const lips = files.male.meshes.find((mesh) => mesh.part === "lips");
+  const pictured = await createAvatar({ ...EVERYDAY, body: "male", skin: "african", age: "old" }, "Rowan");
+  const drawnWith = (person, name) => bodyMesh(person).material.some((material) => material.map === texture(name));
+  assert.ok(drawnWith(pictured, "avatar-male-skin-old-african"), "a skin picture of their age in place of the model's");
+  assert.ok(!drawnWith(pictured, lips.texture), "the model's own skin texture is left off");
+  const white = (person, vertex) => {
+    const colour = bodyMesh(person).geometry.attributes.color;
+    return [colour.getX(vertex), colour.getY(vertex), colour.getZ(vertex)].every((value) => value > 0.999);
+  };
+  assert.ok(white(pictured, 0), "the skin is white under a skin picture");
+  assert.equal(pictured.avatar.colours.lips, 0xffffff, "lips are the picture's own");
+  assert.equal(pictured.avatar.colours.nails, 0xffffff, "nails too");
+  const own = await createAvatar({ ...EVERYDAY, body: "male", skin: "custom", colours: { skin: 0xff0000 } }, "Rowan");
+  assert.ok(!white(own, 0), "a colour of one's own still tints the skin");
+  assert.ok(drawnWith(own, lips.texture), "on the model's own texture");
+
+  // An age drives its shape key.
+  const ofAge = async (age) =>
+    bodyMesh(await createAvatar({ ...EVERYDAY, body: "male", age }, "Rowan")).geometry.attributes.position.array;
+  const [young, middle, old] = [await ofAge("young"), await ofAge("middle"), await ofAge("old")];
+  const furthest = (a, b) => a.reduce((most, value, i) => Math.max(most, Math.abs(value - b[i])), 0);
+  assert.ok(furthest(young, old) > 0.01, `old moves the body (${furthest(young, old).toFixed(3)} m at most)`);
+  assert.ok(furthest(young, middle) > 0.002, "middle-aged moves it too");
+  assert.ok(furthest(young, middle) < furthest(young, old), "less than old does");
+
+  // One brow style and one lash style show, blended.
+  const triangles = (kind, n) =>
+    geometryOf(files.male.meshes.find((mesh) => mesh.piece === `${kind}-${String(n).padStart(2, "0")}`)).index.count;
+  for (const [brows, lashes] of [
+    [1, 1],
+    [9, 3],
+  ]) {
+    const person = await createAvatar({ ...EVERYDAY, body: "male", brows, lashes }, "Rowan");
+    const mesh = bodyMesh(person);
+    const blended = mesh.material.findIndex((material) => material.transparent);
+    const group = mesh.geometry.groups.find((each) => each.materialIndex === blended);
+    assert.equal(
+      group.count,
+      triangles("eyebrows", brows) + triangles("eyelashes", lashes),
+      `brows ${brows} and lashes ${lashes} show, and no others`,
+    );
+    person.dispose();
+  }
+
+  // An eye picture: the eyes drawn with the pictures' file, the iris white, their texture places on its tile.
+  const iris = files.male.meshes.find((mesh) => mesh.part === "iris");
+  const eyed = await createAvatar({ ...EVERYDAY, body: "male", eyePicture: "green" }, "Rowan");
+  assert.ok(drawnWith(eyed, "avatar-eyes") && !drawnWith(eyed, iris.texture), "an eye picture in place of the tint");
+  assert.notEqual(bodyMesh(eyed).geometry.attributes.uv, bodyMesh(own).geometry.attributes.uv, "on its tile");
+  for (const person of [pictured, own, eyed]) person.dispose();
+
+  // Looks: the new fields kept and clamped; an older look's skin is a colour of its own.
+  assert.deepEqual(checkLook({ age: "ancient", skin: "martian", brows: 40, lashes: -2, eyePicture: "red" }), {
+    brows: looks.BROWS,
+    lashes: 1,
+  });
+  assert.deepEqual(checkLook({ age: "old", skin: "asian", brows: 2.4, eyePicture: "ice" }), {
+    age: "old",
+    skin: "asian",
+    brows: 2,
+    eyePicture: "ice",
+  });
+  assert.equal(checkLook({ eyePicture: "tint" }).eyePicture, "tint");
+  assert.equal(
+    avatarLook("Rowan", "male", checkLook({ skin: 3 })).skin,
+    "custom",
+    "an older tone is a colour of one's own",
+  );
+  assert.equal(avatarLook("Rowan", "male", { colours: { skin: 0x123456 } }).skin, "custom");
+  assert.equal(avatarLook("Rowan", "male", {}).eyePicture, "tint", "the tinted eye unless chosen");
+  for (const field of ["age", "brows", "lashes", "eyePicture"]) assert.ok(looks.PRESET_FIELDS.includes(field));
+
+  // Townsfolk: an adult age from the name, the same every time (mostly young, a few old), and a skin picture.
+  const ages = { young: 0, middle: 0, old: 0 };
+  for (let i = 0; i < 300; i++) {
+    const look = avatarLook(`Townsfolk ${i}`);
+    assert.deepEqual(avatarLook(`Townsfolk ${i}`), look, "the same every time");
+    ages[look.age]++;
+    assert.ok(["caucasian", "african", "asian"].includes(look.skin), "a skin picture unless chosen");
+    assert.ok(Number.isInteger(look.brows) && Number.isInteger(look.lashes), "brows and lashes of their own");
+  }
+  assert.equal(ages.young + ages.middle + ages.old, 300, "every one an adult age");
+  assert.ok(ages.young > ages.middle && ages.middle > ages.old && ages.old > 0, `mostly young ${JSON.stringify(ages)}`);
+  // Lore's words.
+  assert.equal(lookFromWords("An elderly smith").age, "old");
+  assert.deepEqual(lookFromWords("looks grey-haired"), { age: "old", hairColour: 7 });
+  assert.equal(lookFromWords("a middle-aged baker").age, "middle");
+  assert.deepEqual(lookFromWords("She is 30 years old."), {}, "years old says nothing");
+  assert.equal(avatarLook("Bram", "auto", lookFromWords("old")).age, "old");
 }
 
 console.log("wanderworld avatar: ok");

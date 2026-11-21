@@ -6,14 +6,15 @@ Blender executable; add `-- male` or `-- female` for one of them):
     "$BLENDER" --background --factory-startup --python packages/wanderworld/assets/scripts/make_avatar.py
 
 Base mesh and shapes: MakeHuman's hm08 mesh and morph targets (CC0), read as data by our own code
-(`wwavatar.py`; MakeHuman and its add-on are neither run nor copied), adapted in Blender by ThatOneCan.
+(`wwavatar.py`; MakeHuman and its add-on are neither run nor copied), adapted in Blender by ThatOneCan. Skins,
+eye pictures, eyebrows and eyelashes: MakeHuman's system assets (CC0), read as data the same way.
 
 - The body: MakeHuman's macro targets mixed for a young adult (gender, muscle, weight, height, ideal
   proportions) with a few of its face and expression targets, folded into the mesh; the fingers relaxed
   into a soft curl; the woman's crotch and nipples smoothed plain (nothing explicit shows with no
   underwear on); the head, jaw and upper neck subdivided once (Catmull-Clark), the lips drawn closed.
   Eyeballs of our own with a cornea rising over the iris, a wet line along each lower lid and a caruncle
-  in each inner corner; MakeHuman's eyelash strips; eyebrows laid on the skin by casting rays at it.
+  in each inner corner.
 - The rig: the people's bones at MakeHuman's joint helpers. Blender's automatic (bone heat) weights,
   then reshaped along the arms and legs (clean bends at the elbows, wrists, knees and ankles, fingers
   and toes wholly on the hand and ball), the head, the collarbones and hips, and smoothed over the
@@ -22,11 +23,19 @@ Base mesh and shapes: MakeHuman's hm08 mesh and morph targets (CC0), read as dat
   its T-pose when it loads a body, so the people's clips play the same; the model's own Idle, Walk and
   Attack are `wwblend.humanoid_actions` with the arms lowered from the A-pose.
 - The body mesh (named as the file, `avatar-male` or `avatar-female`) has these materials, so the game
-  can recolour each through its base colour factor: skin, eye_white, iris, eyebrows, eyelashes, lips,
-  nails. Skin, lips, nails and the eyes share one 2048 px texture of shading and detail, near white (the
-  colour is the material's), and a normal map of the skin's fine relief (pores, knuckle and joint
-  creases, the eyelid's fold, the lips' lines); the eyebrows and eyelashes use a small texture of hair
-  strokes whose alpha cuts them out (alpha BLEND).
+  can recolour each through its base colour factor: skin, eye_white, iris, lips, nails. Skin, lips and
+  nails share one 2048 px texture of shading and detail, near white (the colour is the material's), and a
+  normal map of the skin's fine relief (pores, knuckle and joint creases, the eyelid's fold, the lips'
+  lines). The body keeps MakeHuman's texture layout, so each of MakeHuman's skins fits it as it is: they're
+  written beside the model (assets/textures/avatar/avatar-<sex>-skin-<young|middle|old>-<caucasian|african|
+  asian>.webp, with this body's soft shading in the creases) for the game to put on the skin, lips and
+  nails in place of the tinted texture. The eyes (eye_white, iris) have a 512 px texture of their own made
+  from MakeHuman's eye pictures: the model's has a grey iris the iris colour tints; one a picture,
+  coloured as MakeHuman's, is written beside it (avatar-eyes-<colour>.webp).
+- Eyebrows and eyelashes: MakeHuman's twelve brow and four lash styles, fitted to the face through their
+  .mhclo files, on the Head bone and with the body's shape keys, each a mesh of its own beside the body
+  (eyebrows-01..12, eyelashes-01..04; materials eyebrows and eyelashes) for the game to show one of each.
+  They share one texture with every style in it, grey for the colour to tint, cut out by its alpha (BLEND).
 - Underwear: every style a mesh of its own beside the body, skinned and with the same shape keys, so the
   game shows the ones it wants and hides the rest (none at all is fine). Bottoms: underwear-bottom-briefs,
   -boxer_briefs and -boxers (both bodies), -bikini, -thong and -boyshorts (hers); tops (hers):
@@ -36,7 +45,9 @@ Base mesh and shapes: MakeHuman's hm08 mesh and morph targets (CC0), read as dat
   their own (knit or weave, ribbing, seams and stitching).
 - Shape keys (glTF morph targets, each 0-1): thin, heavy, muscle, chest (the man) or bust (the woman),
   hips, waist (narrower), belly, shoulders, neck; and for the face jaw, cheeks, nose, eyes,
-  ears_pointed. Height, limb length and head size are the game's to set by scaling bones.
+  ears_pointed; and age_middle (about 50) and age_old (about 72), MakeHuman's age macro with a stoop,
+  the soles and the skull kept where they are, one of them set with the skin of that age. Height, limb
+  length and head size are the game's to set by scaling bones.
 """
 
 import math
@@ -69,7 +80,15 @@ PARTS = [
 ]
 PART = {p[0]: i for i, p in enumerate(PARTS)}
 APOSE = 45  # the arms' angle below level at rest
+AGE_MIDDLE = 0.5 + (50 - 25) / 130  # MakeHuman's age setting for about 50 years (0.5 is 25, 1.0 is 90)
+AGE_OLD = 0.5 + (72 - 25) / 130  # and for about 72
+# The old body's stoop: each bone's own turn forward (degrees) about the body's side axis, and the collarbones'
+# forward roll; the middle-aged body has a share of it.
+STOOP = {"spine_02": 4.0, "spine_03": 6.0, "neck_01": -3.0, "Head": -6.0}
+SHOULDERS_FORWARD = 6.0
+STOOP_MIDDLE = 0.3
 CORNEA = 0.06  # how far the cornea rises over the iris (of the eye's radius)
+CARUNCLE_ANGLE = 50  # where the inner corner of the eye is, in degrees from the eye's front
 
 # Both faces at rest: the lips closed (MakeHuman's mouth rests a little open) and the eyes a little
 # wider open, so they don't look sleepy.
@@ -232,7 +251,12 @@ def key_mixes(B, macro):
         keys["bust"] = lambda n: cup(n) + vol(n)
     else:
         keys["chest"] = detail({"torso/torso-muscle-pectoral-incr": 1.0, "torso/measure-bust-circ-incr": 0.4})
-    order = ["thin", "heavy", "muscle", "bust" if female else "chest", "hips", "waist", "belly", "shoulders", "neck", "jaw", "cheeks", "nose", "eyes", "ears_pointed"]
+    # Age: MakeHuman's age macro (0.5 is 25 years, 1.0 is 90) moved to about 50 and about 72, each a key of its
+    # own (the game sets one of them, with the skin of that age); `settle_age` adds a stoop and keeps the
+    # feet on the ground and the skull where the hair sits.
+    keys["age_middle"] = macro_change(age=AGE_MIDDLE)
+    keys["age_old"] = macro_change(age=AGE_OLD)
+    order = ["thin", "heavy", "muscle", "bust" if female else "chest", "hips", "waist", "belly", "shoulders", "neck", "jaw", "cheeks", "nose", "eyes", "ears_pointed", "age_middle", "age_old"]
     return {k: keys[k] for k in order}
 
 
@@ -656,6 +680,63 @@ def rest_pose(J):
     return R, new
 
 
+def stoop_offsets(co, W, J, amount):
+    """How far each vertex moves (rest pose, skinned) when the back rounds: the spine and neck bent forward,
+    the head turned back up to look ahead, the shoulders rolled forward, `amount` of STOOP."""
+    local = {b: np.eye(3) for b in BONE_NAMES}
+    for b, deg in STOOP.items():
+        local[b] = _turn(np.array([1.0, 0.0, 0.0]), math.radians(deg * amount))
+    for s_, sign in (("l", -1.0), ("r", 1.0)):
+        local[f"clavicle_{s_}"] = _turn(np.array([0.0, 0.0, 1.0]), math.radians(sign * SHOULDERS_FORWARD * amount))
+    G, new = {}, {}
+    for b, parent in ww.BONES:
+        G[b] = local[b] if parent is None else G[parent] @ local[b]
+        new[b] = J[b].copy() if parent is None else new[parent] + G[parent] @ (J[b] - J[parent])
+    rots = [G[b] for b in BONE_NAMES]
+    return wa.skin(co, W, rots, [J[b] for b in BONE_NAMES], [new[b] for b in BONE_NAMES]) - co
+
+
+def arms_up(parts, J):
+    """The parts' points with the arms raised to level (out of the A-pose), for baking occlusion."""
+    co = np.concatenate([p.co for p in parts])
+    W = np.concatenate([p.weights for p in parts])
+    local = {b: np.eye(3) for b in BONE_NAMES}
+    for s_, sign in (("l", 1.0), ("r", -1.0)):
+        local[f"upperarm_{s_}"] = _turn(np.array([0.0, 1.0, 0.0]), math.radians(-sign * APOSE))
+    G, new = {}, {}
+    for b, parent in ww.BONES:
+        G[b] = local[b] if parent is None else G[parent] @ local[b]
+        new[b] = J[b].copy() if parent is None else new[parent] + G[parent] @ (J[b] - J[parent])
+    return wa.skin(co, W, [G[b] for b in BONE_NAMES], [J[b] for b in BONE_NAMES], [new[b] for b in BONE_NAMES])
+
+
+def settle_age(body, used, W, J):
+    """The age keys made ready to wear: a stoop added (STOOP), then the whole key evened out along the body
+    so the soles don't move and the skull doesn't either (only the face and neck age inside it), so the
+    feet stay on the ground and hair hung on the head bone still fits. Height is the game's to set."""
+    co = body.co[used]
+    # (MakeHuman's helpers, the eyes' and lashes' among them, go with the head.)
+    W_all = np.zeros((len(body.co), W.shape[1]))
+    W_all[:, BONE_INDEX["Head"]] = 1.0
+    W_all[used] = W
+    eye_z = body.eye["l"]["centre"][2]
+    cranium = (W[:, BONE_INDEX["Head"]] > 0.99) & (co[:, 2] > eye_z)
+    soles = co[:, 2] < 0.02
+    neck_z, hip_z = J["neck_01"][2], J["pelvis"][2]
+    z = body.co[:, 2]
+    for name, amount in (("age_middle", STOOP_MIDDLE), ("age_old", 1.0)):
+        if name not in body.keys:
+            continue
+        d = body.keys[name]
+        d += stoop_offsets(body.co, W_all, J, amount)
+        head, feet = d[used][cranium].mean(0), d[used][soles].mean(0)
+        up = np.clip(z / neck_z, 0.0, 1.0)[:, None]
+        across = wa.smoothstep(hip_z, neck_z, z)[:, None]
+        fix = np.concatenate([feet[:2] + (head[:2] - feet[:2]) * across, feet[2:] + (head[2:] - feet[2:]) * up], axis=1)
+        body.keys[name] = d - fix
+        log(f"{name}: skull moved {np.linalg.norm(head) * 1000:.1f} mm, soles {np.linalg.norm(feet) * 1000:.1f} mm, evened out")
+
+
 # ── Building the mesh ────────────────────────────────────────────────────────────────────────────────
 
 
@@ -878,10 +959,14 @@ def eye_wet(B, body, s, roots, key_names, co, keys, tris, bvh):
     for i in range(len(line) - 1):
         a = 2 * i
         faces.append([a, a + 2, a + 3, a + 1] if s == "l" else [a, a + 1, a + 3, a + 2])
-    # The caruncle: a small flattened mound where the lids meet at the inner corner.
-    k = (upper[0] + lower[0]) / 2
-    out = (k - c) / np.linalg.norm(k - c)
-    centre = k + (c + out * r - k) * 0.55
+    # The caruncle: a small flattened mound where the lids meet at the inner corner, on the eyeball's nasal
+    # side CARUNCLE_ANGLE from the front. (The lash roots stop short of the corner, so they can't place it.)
+    look = (e["aim"] - c) / np.linalg.norm(e["aim"] - c)
+    nasal = np.array([-1.0 if c[0] > 0 else 1.0, 0.0, 0.0])
+    nasal -= look * (nasal @ look)
+    nasal /= np.linalg.norm(nasal)
+    a = math.radians(CARUNCLE_ANGLE)
+    centre = c + (look * math.cos(a) + nasal * math.sin(a)) * r * 1.01 - np.array([0.0, 0.0, 0.12 * r])
     fwd = np.array([0.0, -1.0, 0.0])
     side = np.cross(fwd, [0.0, 0.0, 1.0])
     up = np.array([0.0, 0.0, 1.0])
@@ -1723,7 +1808,6 @@ def garments(B, base, skin, F, key_names):
 
 SIZE = 2048
 GSIZE = 2048  # the garments' texture
-CARD_SIZE = 512
 
 
 def _image(name, size, float_buffer=True, alpha=True):
@@ -1739,7 +1823,7 @@ def _pixels(image):
     return a.reshape(image.size[1], image.size[0], 4)
 
 
-def bake_maps(objects, under):
+def bake_maps(objects, under, ao_co=None):
     """Bakes, for every texel of the atlas: where it is on the body at rest (position and normal), which
     part it belongs to, how the surface curves there (Cycles' pointiness: below a half in a crease), and
     how tucked in it is (ambient occlusion: the skin's without the underwear over it, the underwear's
@@ -1806,6 +1890,14 @@ def bake_maps(objects, under):
 
         if kind == "ao":
             scene.world.light_settings.distance = 0.12
+            # (With the arms raised out of the way, `ao_co`, so the hanging hands leave no shadow on the thighs
+            # and the arms none on the trunk's sides: they move.)
+            rest_co = []
+            for o, alt in zip(objects, ao_co or []):
+                rest_co.append(np.empty(len(o.data.vertices) * 3))
+                o.data.vertices.foreach_get("co", rest_co[-1])
+                o.data.vertices.foreach_set("co", alt.ravel())
+                o.data.update()
             for o in under:
                 o.hide_render = True
             bake(objects)
@@ -1813,6 +1905,9 @@ def bake_maps(objects, under):
                 o.hide_render = False
             if under:
                 bake(under, clear=False)
+            for o, rest in zip(objects, rest_co):
+                o.data.vertices.foreach_set("co", rest)
+                o.data.update()
         else:
             bake(everything)
         maps[kind] = _pixels(image)
@@ -2007,6 +2102,7 @@ def paint(B, maps, marks):
     curve = _blur(curve, 3) - 0.5
     shade = (0.5 + 0.5 * ao) * np.clip(1 + 1.0 * curve, 0.9, 1.04)
     rgb *= shade[..., None]
+    maps["shade"] = _dilate(shade[..., None], covered, 12)[..., 0]
     rgb = _dilate(rgb, covered, 12)
     skin = covered & np.isin(part, [PART["skin"], PART["lips"], PART["nails"]])
     height = np.zeros(part.shape)
@@ -2369,8 +2465,8 @@ def save_texture(name, rgb, size, colour=True):
     image = bpy.data.images.new(name, size, size, alpha=False)
     rgba = np.concatenate([rgb, np.ones((size, size, 1))], axis=2).astype(np.float32)
     image.pixels.foreach_set(rgba.ravel())
-    os.makedirs(ww.BUILD, exist_ok=True)
-    path = os.path.join(ww.BUILD, f"{name}.jpg")
+    os.makedirs(BUILD, exist_ok=True)
+    path = os.path.join(BUILD, f"{name}.jpg")
     image.filepath_raw = path
     image.file_format = "JPEG"
     image.save(filepath=path, quality=93)
@@ -2382,109 +2478,11 @@ def save_texture(name, rgb, size, colour=True):
     return image
 
 
-def _stamp(alpha, col, x, y, radius, a, shade):
-    """A soft round dot into alpha and colour (texel coordinates)."""
-    h, w = alpha.shape
-    x0, x1 = int(max(0, x - radius - 1)), int(min(w, x + radius + 2))
-    y0, y1 = int(max(0, y - radius - 1)), int(min(h, y + radius + 2))
-    if x0 >= x1 or y0 >= y1:
-        return
-    yy, xx = np.mgrid[y0:y1, x0:x1]
-    d = np.sqrt((xx + 0.5 - x) ** 2 + (yy + 0.5 - y) ** 2)
-    k = np.clip(radius + 0.5 - d, 0, 1) * a
-    region = alpha[y0:y1, x0:x1]
-    col[y0:y1, x0:x1] = col[y0:y1, x0:x1] * (1 - k) + shade * k
-    alpha[y0:y1, x0:x1] = 1 - (1 - region) * (1 - k)
-
-
-def cards_image(B, name):
-    """The eyebrows' and eyelashes' texture: hair strokes, their alpha cutting the strips out."""
-    female = B["female"]
-    rng = np.random.default_rng(7 if female else 3)
-    N = CARD_SIZE
-    alpha = np.zeros((N, N))
-    col = np.full((N, N), 0.85)
-
-    def to_px(card, u, v):
-        cu, cv = card_uv(card, u, v)
-        return cu * N, (1 - cv) * N  # (row 0 is the image's top)
-
-    # Eyebrows: a tapering shape, the hairs near the nose pointing up, the rest sweeping outwards; under
-    # them a soft fill, so the brow reads as a whole from further off.
-    def brow_shape(u):
-        if female:
-            thick = 0.5 * (1 - u) ** 0.4 * (0.4 + 0.6 * min(1.0, u / 0.12))
-            centre = 0.5 + 0.08 * math.sin(math.pi * u)
-        else:
-            thick = 0.56 * (1 - u) ** 0.45 * (0.45 + 0.55 * min(1.0, u / 0.1))
-            centre = 0.48 + 0.04 * math.sin(math.pi * u)
-        return thick, centre
-
-    u0, v0, u1, v1 = CARDS["brow"]
-    xs = (np.arange(N) + 0.5) / N
-    for row in range(int((1 - v1) * N), int((1 - v0) * N)):
-        v = ((1 - (row + 0.5) / N) - v0) / (v1 - v0)
-        for col_i in range(N):
-            u = (xs[col_i] - u0) / (u1 - u0)
-            thick, centre = brow_shape(u)
-            d = abs(v - centre) / max(thick * 0.5, 1e-6)
-            a = 0.8 * float(np.clip((1.0 - d) / 0.35, 0, 1)) * min(1.0, (1 - u) / 0.08)
-            alpha[row, col_i] = a
-            col[row, col_i] = 0.7
-    count = 2200 if not female else 1700
-    for _ in range(count):
-        u = rng.uniform(0.0, 1.0)
-        thick, centre = brow_shape(u)
-        if thick < 0.04:
-            continue
-        v = centre + rng.uniform(-0.5, 0.5) * thick
-        angle = math.radians(75 - 60 * min(1.0, u / 0.25) - 18 * max(0.0, u - 0.6) / 0.4) + rng.normal(0, 0.12)
-        length = rng.uniform(0.045, 0.085)
-        steps = 34
-        x0, y0 = to_px("brow", u, v)
-        # (Across the strip the texture is stretched: a hair's rise is scaled to the strip's height.)
-        dx = math.cos(angle) * length
-        dy = math.sin(angle) * length * 3.2
-        shade = rng.uniform(0.75, 1.0)
-        for k in range(steps):
-            t = k / (steps - 1)
-            x1, y1 = to_px("brow", u + dx * t, v + dy * t - 0.08 * t * t * length * 3)
-            _stamp(alpha, col, x1, y1, 0.9 * (1 - 0.5 * t), 0.7, shade)
-    # Eyelashes: strands from root (v=0) to tip, the upper long and curled, the lower short and sparse.
-    for card, count, reach in (("lash_upper", 420, 1.0), ("lash_lower", 90, 0.5)):
-        for _ in range(count):
-            u = rng.uniform(0.0, 1.0)
-            bend = rng.normal(0, 0.012) + (u - 0.5) * 0.03
-            length = reach * rng.uniform(0.7, 1.0)
-            shade = rng.uniform(0.7, 1.0)
-            for k in range(60):
-                t = k / 59
-                x, y = to_px(card, u + bend * t * t, 0.04 + t * length * 0.92)
-                _stamp(alpha, col, x, y, 1.6 * (1 - 0.7 * t), 0.9, shade)
-        # (Thinning out at the corners.)
-        u0, v0, u1, v1 = CARDS[card]
-        rows = slice(int((1 - v1) * N), int((1 - v0) * N))
-        uu = (np.arange(N) + 0.5) / N
-        fade = np.clip(uu / 0.06, 0, 1) * np.clip((1 - uu) / 0.18, 0, 1)
-        alpha[rows] *= fade[None, :]
-        # The lash line: a dark band at the roots.
-        for k in range(400):
-            u = k / 399
-            x, y = to_px(card, u, 0.05)
-            _stamp(alpha, col, x, y, 5.0, 1.0, 0.5)
-    image = bpy.data.images.new(f"{name}-hair", N, N, alpha=True)
-    rgba = np.stack([col, col, col, alpha], axis=2)[::-1].astype(np.float32)
-    image.pixels.foreach_set(rgba.ravel())
-    image.file_format = "PNG"
-    image.pack()
-    return image
-
-
 def srgb_to_linear(c):
     return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
 
 
-def materials(atlas=None, cards=None, normal=None, gatlas=None, gnormal=None):
+def materials(atlas=None, cards=None, normal=None, gatlas=None, gnormal=None, eyes=None):
     """One material per part: the part's colour (exported as its glTF base colour factor) times its
     texture (the skin's, the garments' or the hair strokes'), with a normal map for the skin and the
     garments; the eyebrows and eyelashes cut out by their texture's alpha."""
@@ -2497,7 +2495,7 @@ def materials(atlas=None, cards=None, normal=None, gatlas=None, gnormal=None):
         bsdf.inputs["Roughness"].default_value = roughness
         rgb = [srgb_to_linear(c) for c in ww.hex_rgb(colour)]
         garment = name.startswith("underwear")
-        image = cards if name in ("eyebrows", "eyelashes") else (gatlas if garment else atlas)
+        image = cards if name in ("eyebrows", "eyelashes") else (gatlas if garment else (eyes if eyes is not None and name in ("iris", "eye_white") else atlas))
         bump = gnormal if garment else (normal if name in ("skin", "lips", "nails") else None)
         if image is None:
             bsdf.inputs["Base Color"].default_value = (*rgb, 1.0)
@@ -2576,6 +2574,263 @@ def landmarks(co, body, J, mats, faces, hair, rims):
     return marks
 
 
+# ── MakeHuman's system assets: skins, eyes, eyebrows and eyelashes (CC0, read as data) ───────────────────
+#
+# The body keeps MakeHuman's texture layout, so its skins fit as they are: each is written as a texture of its
+# own the game can put on the skin (with this body's soft shading in its creases and a dark mouth). The eyes
+# get a small texture of their own, made from MakeHuman's eye pictures (the iris and the white, laid out the
+# way our eyeballs read them); the eyebrows and eyelashes are MakeHuman's own, fitted to this face through
+# their .mhclo files and drawn from one texture with every style in it.
+
+OUT = os.environ.get("WW_AVATAR_OUT")  # (a folder for trial runs: the models, build files and textures go there)
+MODELS = OUT or ww.MODELS
+BUILD = os.path.join(OUT, "build") if OUT else ww.BUILD
+TEXTURES = os.path.join(OUT, "textures") if OUT else os.path.join(os.path.dirname(ww.MODELS), "textures", "avatar")
+ASSETS = wa.assets_dir()
+
+AGES = (("young", "young"), ("middle", "middleage"), ("old", "old"))  # (our name, the pack's)
+ETHNICITIES = ("caucasian", "african", "asian")
+EYE_PICTURES = ("brown", "brownlight", "green", "bluegreen", "blue", "lightblue", "deepblue", "grey", "ice")
+BROWS = [f"eyebrow{i:03d}" for i in range(1, 13)]
+LASHES = [f"eyelashes{i:02d}" for i in range(1, 5)]
+# Each age's skin size: the young skins keep their look at 1024 px; the older ones lose their wrinkles below 2048.
+SKIN_SIZE = {"young": 1024, "middle": 2048, "old": 2048}
+EYE_SIZE = 512
+HAIR_CELL = 512  # each brow and lash style's square in the hair texture (4 by 4)
+SKIN_AO = 0.6  # how much of the body's baked shading goes into each skin
+LASH_MALE = 0.8  # his lashes drawn towards their roots
+# The brows' and lashes' alpha stretched from (low, high) to (0, 1): MakeHuman's strokes have a soft halo that a
+# cut at 0.3 (the game's) would fill in solid; this leaves the strokes.
+HAIR_ALPHA = (0.2, 0.75)
+WEBP_QUALITY = 85
+# Where each part of an eye lies in the eye texture (ATLAS has them in the skin's layout, which the bake uses).
+EYE_ATLAS = {
+    "iris": _rect(0.0, 0.5, 0.5, 1.0),
+    "white": _rect(0.5, 0.5, 1.0, 1.0),
+    "wet": _rect(0.03, 0.28, 0.22, 0.47),
+    "caruncle": _rect(0.28, 0.28, 0.47, 0.47),
+}
+# MakeHuman's eye pictures (1024 px): an eye seen from the front; its pupil's centre (from the left, from the
+# top), the iris's radius and the eyeball's (the side of the eye) in pixels, and the iris edge's angle.
+PACK_EYE = {"centre": (300.5, 718.5), "iris": 117.0, "ball": 286.0, "iris_angle": 24.0}
+
+
+def read_image(path):
+    """A picture's pixels as stored (rows from the bottom, RGBA, 0-1; a colour picture's sRGB values)."""
+    image = bpy.data.images.load(path)
+    a = _pixels(image).astype(np.float64)
+    bpy.data.images.remove(image)
+    return a
+
+
+def shrink(a, size):
+    """A square picture made `size` pixels across by averaging blocks of pixels."""
+    k = a.shape[0] // size
+    if k <= 1:
+        return a
+    return a.reshape(size, k, size, k, *a.shape[2:]).mean(axis=(1, 3))
+
+
+def save_webp(path, a):
+    """Pixels (rows from the bottom, RGB or RGBA) saved as a WebP; returns its size in bytes."""
+    h, w = a.shape[:2]
+    rgba = a if a.shape[2] == 4 else np.concatenate([a, np.ones((h, w, 1))], axis=2)
+    image = bpy.data.images.new(os.path.basename(path), w, h, alpha=True)
+    image.pixels.foreach_set(np.clip(rgba, 0, 1).astype(np.float32).ravel())
+    image.filepath_raw = path
+    image.file_format = "WEBP"
+    image.save(filepath=path, quality=WEBP_QUALITY)
+    bpy.data.images.remove(image)
+    return os.path.getsize(path)
+
+
+def _sample(src, x, y):
+    """Bilinear samples of a picture at pixel positions (x from the left, y rows from the bottom)."""
+    h, w = src.shape[:2]
+    x = np.clip(x - 0.5, 0, w - 1.001)
+    y = np.clip(y - 0.5, 0, h - 1.001)
+    x0, y0 = np.floor(x).astype(np.int64), np.floor(y).astype(np.int64)
+    fx, fy = (x - x0)[..., None], (y - y0)[..., None]
+    a, b = src[y0, x0], src[y0, x0 + 1]
+    c, d = src[y0 + 1, x0], src[y0 + 1, x0 + 1]
+    return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy
+
+
+def _square(rect, size):
+    """A square of a texture: its (rows, columns) slices and each pixel's place across it, -1..1."""
+    u0, v0 = rect(0, 0)
+    u1, v1 = rect(1, 1)
+    c0, c1 = int(round(u0 * size)), int(round(u1 * size))
+    r0, r1 = int(round(v0 * size)), int(round(v1 * size))
+    yy, xx = np.mgrid[r0:r1, c0:c1]
+    x = ((xx + 0.5) / size - u0) / (u1 - u0) * 2 - 1
+    y = ((yy + 0.5) / size - v0) / (v1 - v0) * 2 - 1
+    return (slice(r0, r1), slice(c0, c1)), x, y
+
+
+def eye_texture(picture, grey=False):
+    """The eyes' texture from one of MakeHuman's eye pictures, laid out as our eyeballs read it: the iris's
+    square seen from the front (its edge on the square's inner circle), the white's square by angle from the
+    front (as ATLAS has it), and the wet line's and caruncle's pink squares. The white is brightened to a clean
+    white with its veins, and both are shaded under the upper lid and towards the corners, the same for both
+    bodies (so the files are shared); `grey` makes the iris grey for the game to colour."""
+    src = read_image(os.path.join(ASSETS, "eyes", "materials", f"{picture}_eye.png"))[..., :3]
+    k = src.shape[0] / 1024
+    cx, cy = PACK_EYE["centre"][0] * k, src.shape[0] - PACK_EYE["centre"][1] * k
+    ri, rb = PACK_EYE["iris"] * k, PACK_EYE["ball"] * k
+    N = EYE_SIZE
+    out = np.zeros((N, N, 3))
+    # The white: the angle from the front, 0..180, across the square's radius. MakeHuman's iris edge (24
+    # degrees) meets ours (30), its eyeball's side meets 90.
+    sl, x, y = _square(EYE_ATLAS["white"], N)
+    ang = np.hypot(x, y) * 180.0
+    turn = np.arctan2(y, x)
+    ia = PACK_EYE["iris_angle"]
+    a_pack = np.where(ang < 30, ang * ia / 30, ia + (ang - 30) * (89 - ia) / 60)
+    rho = rb * np.sin(np.radians(np.minimum(a_pack, 88.0)))
+    white = _sample(src, cx + rho * np.cos(turn), cy + rho * np.sin(turn))
+    ring = (ang > 40) & (ang < 80)
+    lift = 0.95 / max(float(white[ring].mean()), 1e-3)
+    out[sl] = white * lift
+    # The iris, seen from the front; round its edge the white, lifted as the white is.
+    sl, x, y = _square(EYE_ATLAS["iris"], N)
+    iris = _sample(src, cx + x * ri, cy + y * ri)
+    inside = (np.hypot(x, y) < 0.97)[..., None]
+    if grey:
+        lum = iris.mean(axis=2)
+        r = np.hypot(x, y)
+        level = np.median(lum[(r < 0.95) & (r > 0.4)])
+        g = np.clip(lum / max(float(level), 1e-3) * 0.72, 0, 1)[..., None]
+        iris = np.where(inside, np.repeat(g, 3, axis=2), iris * lift)
+    else:
+        iris = np.where(inside, iris * 1.08, iris * lift)
+    out[sl] = iris
+    for key, colour in (("wet", (0.93, 0.78, 0.76)), ("caruncle", (0.86, 0.55, 0.53))):
+        sl, _, _ = _square(EYE_ATLAS[key], N)
+        out[sl] = colour
+    # The upper lid's shadow over the top of the iris and the white, and the white darker towards the corners.
+    sl, x, y = _square(EYE_ATLAS["iris"], N)
+    out[sl] *= (1 - 0.22 * wa.smoothstep(0.2, 1.0, y))[..., None]
+    sl, x, y = _square(EYE_ATLAS["white"], N)
+    r, up = np.hypot(x, y), y / np.maximum(np.hypot(x, y), 1e-6)
+    out[sl] *= (1 - 0.22 * wa.smoothstep(0.1, 0.9, up) * wa.smoothstep(0.1, 0.25, r) - 0.12 * wa.smoothstep(0.22, 0.4, r))[..., None]
+    return np.clip(out, 0, 1)
+
+
+def to_eye_texture(part):
+    """An eye part with its texture places moved from its squares of the skin's layout (ATLAS) to the eye
+    texture's (EYE_ATLAS)."""
+    boxes = {k: (ATLAS[k](0, 0), ATLAS[k](1, 1)) for k in EYE_ATLAS}
+
+    def move(c):
+        for k, ((u0, v0), (u1, v1)) in boxes.items():
+            if u0 - 1e-6 <= c[0] <= u1 + 1e-6 and v0 - 1e-6 <= c[1] <= v1 + 1e-6:
+                return EYE_ATLAS[k]((c[0] - u0) / (u1 - u0), (c[1] - v0) / (v1 - v0))
+        return c
+
+    return Part(part.co, part.faces, part.mat, [[move(c) for c in f] for f in part.uv], part.keys, part.weights)
+
+
+def hair_cell(k):
+    """Brow or lash style k's square in the hair texture (the brows 0-11, the lashes 12-15; 4 a row, from the top)."""
+    col, row = k % 4, k // 4
+    return lambda u, v: ((col + u) / 4, (3 - row + v) / 4)
+
+
+def hair_texture(name):
+    """Every brow and lash style's picture in one texture, grey for the game to colour (the brows' colour, or
+    the hair's), its alpha cutting them out."""
+    C = HAIR_CELL
+    out = np.zeros((C * 4, C * 4, 4))
+    for k, style in enumerate(BROWS + LASHES):
+        kind = "eyebrows" if k < len(BROWS) else "eyelashes"
+        prox = wa.Proxy(os.path.join(ASSETS, kind, style, style + ".mhclo"))
+        a = read_image(prox.texture)
+        a = shrink(a, C) if a.shape[0] > C else a
+        lum = a[..., :3].mean(axis=2)
+        hair = a[..., 3] > 0.5
+        top = np.percentile(lum[hair], 90) if hair.any() else 1.0
+        g = np.clip(lum / max(float(top), 1e-3) * 0.95, 0, 1)
+        g[a[..., 3] < 0.15] = np.median(g[hair]) if hair.any() else 0.5
+        alpha = np.clip((a[..., 3] - HAIR_ALPHA[0]) / (HAIR_ALPHA[1] - HAIR_ALPHA[0]), 0, 1)
+        col, row = k % 4, k // 4
+        out[(3 - row) * C : (4 - row) * C, col * C : (col + 1) * C] = np.stack([g, g, g, alpha], axis=2)
+    image = bpy.data.images.new(f"{name}-hair", C * 4, C * 4, alpha=True)
+    image.pixels.foreach_set(out.astype(np.float32).ravel())
+    image.file_format = "PNG"
+    image.pack()
+    return image
+
+
+def mh_hair(B, body, co, keys, key_names, roots, n_body):
+    """MakeHuman's eyebrows and eyelashes, every style, fitted to this face through their .mhclo files (each
+    point a weighted sum of three of the body's, so each shape key carries it as it carries the skin), on the
+    Head bone: [(object name, Part)], `eyebrows-01`..`-12` and `eyelashes-01`..`-04`. `co` and `keys` are the
+    finished skin's (MakeHuman's `n_body` vertices first, in order, then the subdivision's); the lashes hang on
+    MakeHuman's own lash helpers."""
+    full = body.co.copy()
+    full_keys = {k: body.keys[k].copy() for k in key_names}
+    first = np.arange(n_body)
+    full[first] = co[first]
+    for k in key_names:
+        full_keys[k][first] = keys[k][first]
+    line = np.concatenate([roots[s_][i] for s_ in ("l", "r") for i in (0, 1)])
+    out = []
+    for k, style in enumerate(BROWS + LASHES):
+        kind = "eyebrows" if k < len(BROWS) else "eyelashes"
+        prox = wa.Proxy(os.path.join(ASSETS, kind, style, style + ".mhclo"))
+        points = prox.fit(full)
+        kk = {name: prox.blend(full_keys[name]) for name in key_names}
+        if kind == "eyelashes" and not B["female"]:
+            nearest = line[np.argmin(np.linalg.norm(points[:, None] - line[None], axis=2), axis=1)]
+            points = nearest + (points - nearest) * LASH_MALE
+        cell = hair_cell(k)
+        uv = [[cell(*prox.uv[i]) for i in fu] for fu in prox.face_uv]
+        W = np.zeros((len(points), len(BONE_NAMES)))
+        W[:, BONE_INDEX["Head"]] = 1.0
+        number = k + 1 if kind == "eyebrows" else k - len(BROWS) + 1
+        out.append((f"{kind}-{number:02d}", Part(points, [list(f) for f in prox.faces], [PART[kind]] * len(prox.faces), uv, kk, W)))
+    return out
+
+
+def skin_textures(B, shade):
+    """Each of MakeHuman's skins for this body (young, middle-aged and old; caucasian, african and asian) as a
+    WebP (SKIN_SIZE by age) in TEXTURES, `avatar-<sex>-skin-<age>-<ethnicity>.webp`: as they come, times a share of
+    the body's baked shading (SKIN_AO), the mouth's square dark. Returns {file: bytes}."""
+    sex = "female" if B["female"] else "male"
+    os.makedirs(TEXTURES, exist_ok=True)
+    sizes = {}
+    for age, pack_age in AGES:
+        size = SKIN_SIZE[age]
+        ao = None if shade is None else 1 - SKIN_AO * (1 - shrink(shade, size))
+        for eth in ETHNICITIES:
+            folder = os.path.join(ASSETS, "skins", f"{pack_age}_{eth}_{sex}")
+            png = sorted(f for f in os.listdir(folder) if f.endswith(".png"))[0]
+            a = shrink(read_image(os.path.join(folder, png))[..., :3], size)
+            if ao is not None:
+                a = a * ao[..., None]
+            sl, _, _ = _square(ATLAS["mouth"], size)
+            a[sl] = (0.22, 0.11, 0.11)
+            path = os.path.join(TEXTURES, f"avatar-{sex}-skin-{age}-{eth}.webp")
+            sizes[os.path.basename(path)] = save_webp(path, a)
+    return sizes
+
+
+def eye_textures():
+    """Every eye picture as an eye texture of its own (`avatar-eyes-<colour>.webp`, coloured as MakeHuman's),
+    and the grey one the game colours (`avatar-eyes-grey-tint.webp`, also the model's own). Returns ({file:
+    bytes}, the grey one's pixels)."""
+    os.makedirs(TEXTURES, exist_ok=True)
+    sizes = {}
+    for picture in EYE_PICTURES:
+        path = os.path.join(TEXTURES, f"avatar-eyes-{picture}.webp")
+        sizes[os.path.basename(path)] = save_webp(path, eye_texture(picture))
+    grey = eye_texture("grey", grey=True)
+    path = os.path.join(TEXTURES, "avatar-eyes-grey-tint.webp")
+    sizes[os.path.basename(path)] = save_webp(path, grey)
+    return sizes, grey
+
+
 def make(B):
     ww.reset()
     name = B["name"]
@@ -2619,6 +2874,7 @@ def make(B):
         e["centre"] = (e["centre"] - shift) * s
         e["aim"] = (e["aim"] - shift) * s
         e["radius"] *= s
+    settle_age(body, used, W, J)
     co = smooth_private(B, body.co[used], J, nbrs)
     body.co[used] = co
 
@@ -2679,7 +2935,7 @@ def make(B):
                 o.data.materials.append(m)
         for o in bake_g:
             o.hide_render = True
-        maps = bake_maps([bake_a], [])
+        maps = bake_maps([bake_a], [], [arms_up(parts + eyes, J)])
         for o in bake_g:
             o.hide_render = False
         gmaps = bake_garments(bake_g, bake_a, GSIZE)
@@ -2696,10 +2952,19 @@ def make(B):
         gatlas = save_texture(f"{name}-underwear", grgb, GSIZE)
         gnormal = save_texture(f"{name}-underwear-normal", gnmap, GSIZE, colour=False)
         log("painted")
-    cards = cards_image(B, name)
-    shared = materials(atlas, cards, normal, gatlas, gnormal)
-    obj = join(name, parts + eyes + hair, key_names)
-    pieces = [join(g.name, [g.part], key_names) for g in wear]
+    shade = maps["shade"] if atlas is not None else None
+    sizes = skin_textures(B, shade)
+    eye_sizes, grey = eye_textures()
+    sizes.update(eye_sizes)
+    log("skins and eyes: " + ", ".join(f"{k} {v // 1024} KB" for k, v in sizes.items()))
+    eye_image = save_texture(f"{name}-eyes", grey, EYE_SIZE)
+    cards = hair_texture(name)
+    shared = materials(atlas, cards, normal, gatlas, gnormal, eye_image)
+    # (Our own strip brows and lashes, `hair`, still place the painted lash line and brow shadow; MakeHuman's
+    # styles are what the model wears.)
+    obj = join(name, parts + [to_eye_texture(e) for e in eyes], key_names)
+    brows = [join(n, [part], key_names) for n, part in mh_hair(B, body, co, body_keys, key_names, roots, len(co0))]
+    pieces = [join(g.name, [g.part], key_names) for g in wear] + brows
     for o in [obj] + pieces:
         o.data.name = o.name
         for m in shared:
@@ -2720,10 +2985,10 @@ def export(name, objs, rig):
     for o in objs + [rig]:
         o.select_set(True)
     bpy.context.view_layer.objects.active = rig
-    os.makedirs(ww.MODELS, exist_ok=True)
-    os.makedirs(ww.BUILD, exist_ok=True)
+    os.makedirs(MODELS, exist_ok=True)
+    os.makedirs(BUILD, exist_ok=True)
     bpy.ops.export_scene.gltf(
-        filepath=os.path.join(ww.MODELS, f"{name}.glb"),
+        filepath=os.path.join(MODELS, f"{name}.glb"),
         export_format="GLB",
         use_selection=True,
         export_animations=True,
@@ -2737,8 +3002,8 @@ def export(name, objs, rig):
         export_materials="EXPORT",
         export_image_format="AUTO",
     )
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ww.BUILD, f"{name}.blend"), compress=True)
-    size = os.path.getsize(os.path.join(ww.MODELS, f"{name}.glb"))
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(BUILD, f"{name}.blend"), compress=True)
+    size = os.path.getsize(os.path.join(MODELS, f"{name}.glb"))
     log(f"{name}: {sum(len(o.data.vertices) for o in objs)} vertices, {sum(len(o.data.polygons) for o in objs)} faces, {size / 1e6:.2f} MB")
 
 

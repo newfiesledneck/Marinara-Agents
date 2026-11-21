@@ -227,7 +227,7 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
     checkLook({
       outfit: "ranger",
       colour: "clothes-red",
-      hair: "mohawk",
+      hair: "spiky",
       skin: 99,
       beard: "yes",
       height: 5,
