@@ -36,23 +36,26 @@ p = {
     "leg": 0.92,
     "torso": 0.66,
     "neck": 0.15,
-    "shoulders": 0.44,
+    "shoulders": 0.48,
     "hips": 0.24,
     "arm": 0.66,
-    "thick": 1.2,
-    "chest": (0.22, 0.17),
-    "waist": (0.19, 0.15),
+    "thick": 1.3,
+    "chest": (0.25, 0.2),
+    "waist": (0.215, 0.175),
     "hunch": 0.14,
     "hand": 1.15,
-    "foot": 1.4,
+    "foot": 1.65,
     "toes": 1.5,
     "fingers": 1.1,
     "claws": True,
+    # Standing on its toes: the knee forward, the ankle raised and back (a hock), a long foot.
+    "digitigrade": 0.9,
 }
 m = Model("lizardfolk", resolution=0.011, faces=6200)
 m.group("head", resolution=0.0075, faces=3500, bone="Head")
 m.group("tail", resolution=0.014, faces=1200, bone="pelvis")
-m.rig(humanoid_joints(p))
+J = humanoid_joints(p)
+m.rig(J)
 b = humanoid_body(m, p, {"skin": SCALES, "nails": NAILS})
 s, t, arm_y, sx, hx, chest_y = b["s"], b["t"], b["arm_y"], b["sx"], b["hx"], b["chest_y"]
 hips = p["leg"]
@@ -62,6 +65,11 @@ hunch = p["hunch"]
 HS = 1.3
 hy = b["head_y"] + 0.055 * HS
 hz = hunch + 0.02
+
+
+def game(v):
+    """A Blender point back in the game's (x, up, forward)."""
+    return Vector((v.x, v.z, -v.y))
 
 
 def ell(c, across, up, depth, colour=SCALES, negative=False, group="body"):
@@ -188,18 +196,29 @@ for i in range(CREST_HEAD):
 cap((0, arm_y - 0.06, hunch * 0.4), (0, b["head_y"] + 0.02, hunch + 0.01), 0.075)
 ell((0, b["head_y"] - 0.03, hunch - 0.03), 0.075, 0.09, 0.075)
 front = hunch * 0.2 + chest_z
-for sign in (1, -1):
-    ell((sign * 0.095, chest_y + 0.16, front - 0.05), 0.11, 0.06, 0.04)
-    ell((sign * (sx + 0.02), arm_y + 0.015, 0.0), 0.085, 0.075, 0.08)
-    ell((sign * 0.12, arm_y + 0.06, -0.01), 0.11, 0.05, 0.075)
-    ell((sign * (sx + p["arm"] * 0.27), arm_y + 0.01, 0.01), 0.12, 0.058, 0.058)
-    ell((sign * (sx + p["arm"] * 0.66), arm_y + 0.006, 0.0), 0.11, 0.05, 0.05)
-    ell((sign * (hx + 0.008), (hips + b["knee"]) / 2 + 0.06, 0.02), 0.096, 0.17, 0.098)
-    ell((sign * hx, b["knee"] - 0.11, -0.035), 0.072, 0.11, 0.07)
-    ell((sign * hx, b["knee"] + 0.01, 0.04), 0.05, 0.05, 0.04)
-# A thick, barrel-like waist; darker scales down the back.
-ell((0, hips + 0.2, 0.01), waist_x * 1.0, 0.16, waist_z * 1.1)
-paint((0, chest_y + 0.1, hunch * 0.2 - chest_z), chest_x * 0.75, 0.26, 0.09, BACK)
+# A deep, heavy ribcage and a thick barrel of a waist running down into broad hips, full from the side as
+# well as the front, with heavy lats flaring under the arms and a hump of muscle behind the neck.
+ell((0, chest_y + 0.1, hunch * 0.2 + 0.01), chest_x * 1.02, 0.25, chest_z * 1.08)
+ell((0, hips + 0.2, 0.02), waist_x * 1.05, 0.2, waist_z * 1.12)
+ell((0, hips + 0.06, 0.0), waist_x * 1.12, 0.12, waist_z * 1.05)
+ell((0, arm_y + 0.04, hunch * 0.15 - 0.03), 0.17, 0.08, 0.12)
+for side, sign in (("l", 1), ("r", -1)):
+    ell((sign * 0.1, chest_y + 0.17, front - 0.03), 0.12, 0.07, 0.05)
+    ell((sign * (chest_x * 0.78), chest_y + 0.02, -0.02), 0.08, 0.17, 0.14)
+    ell((sign * (sx + 0.02), arm_y + 0.015, 0.0), 0.09, 0.08, 0.085)
+    ell((sign * 0.13, arm_y + 0.06, -0.01), 0.12, 0.055, 0.08)
+    ell((sign * (sx + p["arm"] * 0.27), arm_y + 0.01, 0.01), 0.12, 0.062, 0.062)
+    ell((sign * (sx + p["arm"] * 0.66), arm_y + 0.006, 0.0), 0.11, 0.054, 0.054)
+    # A lizard's leg: a heavy thigh, deepest behind where the tail's muscle runs into it, a shin back to
+    # the raised hock, a long foot.
+    hip, knee, ankle, toe = (game(J[f"{n}_{side}"]) for n in ("thigh", "calf", "foot", "ball"))
+    ell(tuple(hip.lerp(knee, 0.45) + Vector((sign * 0.008, 0.0, -0.01))), 0.1, 0.17, 0.12)
+    ell(tuple(hip.lerp(knee, 0.12) + Vector((sign * 0.01, 0.0, -0.05))), 0.1, 0.11, 0.1)
+    ell(tuple(knee.lerp(ankle, 0.3) + Vector((0, 0.0, -0.02))), 0.06, 0.09, 0.07)
+    cap(tuple(knee.lerp(ankle, 0.5)), tuple(ankle), 0.045)
+    cap(tuple(ankle), tuple(ankle.lerp(toe, 0.7)), 0.04)
+    ball(tuple(ankle + Vector((0, 0.004, -0.02))), 0.04, DARK)
+paint((0, chest_y + 0.1, hunch * 0.2 - chest_z * 1.08), chest_x * 0.75, 0.28, 0.1, BACK)
 paint((0, hips + 0.16, -waist_z * 1.05), waist_x * 0.7, 0.2, 0.08, BACK)
 # Pale belly plates in rows from the groin to the collarbone, and on up the throat.
 # (The skin's front is found first, then the plates laid on it: a smooth strip from the groin up the

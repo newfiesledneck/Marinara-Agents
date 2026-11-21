@@ -1,8 +1,9 @@
-"""Ghoul (SRD: Medium undead): a stooped, emaciated corpse-eater about 1.6 metres tall, ashen grey-green
-skin stretched over its ribs, spine, collarbones and knuckles, a skull-like head with sunken cheeks, pointed
-ears, pale yellow eyes glowing deep in dark sockets, a flat nose of slits and a wide mouth of jagged teeth;
-very long clawed fingers, long clawed toes, a few lank strands of hair and a tattered loincloth on a rope.
-Writes assets/models/ghoul.glb. Run (BLENDER: your Blender executable):
+"""Ghoul (SRD: Medium undead): a stooped, emaciated corpse-eater about 1.5 metres tall, bent over with its
+back rounded and its head carried low and forward on a short neck; ashen grey-green skin stretched over its
+ribs, spine, shoulder blades, collarbones and knuckles, a skull-like head with sunken cheeks, pointed ears,
+pale yellow eyes glowing deep in dark sockets, a flat nose of slits and a wide mouth of jagged teeth; very
+long clawed fingers, long clawed toes and a tattered loincloth on a rope. Writes assets/models/ghoul.glb.
+Run (BLENDER: your Blender executable):
 
     "$BLENDER" --background --factory-startup --python packages/wanderworld/assets/scripts/make_ghoul.py
 """
@@ -23,7 +24,6 @@ BONY = shade(SKIN, 1.1)
 HOLLOW = shade(SKIN, 0.78)
 SOCKET = 0x221E1A
 MOUTH = 0x2A1414
-GUMS = 0x5E3A3A
 TEETH = 0xC9BD92
 CLAW = 0x3A3228
 EYE = 0xF6EC9C
@@ -47,15 +47,55 @@ p = {
     "fingers": 1.9,
     "toes": 1.6,
 }
+# The stoop, as the rest pose itself: the spine curves forward and down from the hips (spine_01, spine_02,
+# spine_03, neck_01, Head), and the shoulders hang from the bent upper back, rolled forward. (The game turns
+# the bones from this pose, so the stoop stays when it walks and strikes.)
+SPINE = [(0, 0.93, -0.005), (0, 1.07, 0.03), (0, 1.18, 0.1), (0, 1.25, 0.19), (0, 1.265, 0.275)]
+SHOULDER = (1.165, 0.13)  # (up, forward)
+
 m = Model("ghoul", resolution=0.0075, faces=7000)
 m.group("head", resolution=0.0045, faces=5200, bone="Head")
-m.rig(humanoid_joints(p))
-b = humanoid_body(m, p, {"skin": SKIN})
-s, t, arm_y, sx, hx, chest_y, h, f = b["s"], b["t"], b["arm_y"], b["sx"], b["hx"], b["chest_y"], b["h"], b["f"]
-hips, torso, hunch = p["leg"], p["torso"], p["hunch"]
-(chest_x, chest_z), (waist_x, waist_z) = p["chest"], p["waist"]
-hy = b["head_y"] + 0.075
-hz = hunch + 0.035
+
+
+def stooped(spine, shoulder, colours):
+    """The people's skeleton laid out bent over, and humanoid_body's limbs built on it: its arms moved to
+    hang from `shoulder`, its own upright torso and neck left out (built below, along the curved spine)."""
+    joints = humanoid_joints(p)
+    s = p["leg"] / 0.9
+    for name, q in zip(("spine_01", "spine_02", "spine_03", "neck_01", "Head"), spine):
+        joints[name] = at(*q)
+    joints["Head.tail"] = joints["Head"] + Vector((0, 0, 0.2 * s))
+    arm_y = p["leg"] + p["torso"] * 0.88
+    shift = at(0, shoulder[0] - arm_y, shoulder[1])
+    for side, sign in (("l", 1), ("r", -1)):
+        for name in (f"upperarm_{side}", f"lowerarm_{side}", f"hand_{side}", f"hand_{side}.tail"):
+            joints[name] = joints[name] + shift
+        joints[f"clavicle_{side}"] = at(sign * 0.03 * s, shoulder[0] - 0.01 * s, spine[2][2])
+    m.rig(joints)
+    n0, p0 = len(m.elements), len(m.parts)
+    b = humanoid_body(m, p, colours)
+    kept = m.elements[:n0]
+    for kind, data, colour, negative, group in m.elements[n0:]:
+        centre = (data[0] + data[1]) / 2 if kind == "CAPSULE" else data[0]
+        if abs(centre.x) < 1e-6:
+            continue  # (the upright torso and neck)
+        if abs(centre.x) > b["sx"] * 0.75 and abs(centre.z - arm_y) < 0.15 * s:
+            data = (data[0] + shift, data[1] + shift, data[2]) if kind == "CAPSULE" else (data[0] + shift, data[1])
+        kept.append((kind, data, colour, negative, group))
+    m.elements[:] = kept
+    for i in range(p0, len(m.parts)):
+        verts, faces, colour, bone, smooth = m.parts[i]
+        if bone.startswith("hand_"):
+            m.parts[i] = ([v + shift for v in verts], faces, colour, bone, smooth)
+    return b
+
+
+b = stooped(SPINE, SHOULDER, {"skin": SKIN})
+s, t, sx, hx, h, f = b["s"], b["t"], b["sx"], b["hx"], b["h"], b["f"]
+hips = p["leg"]
+ay, az = SHOULDER  # where the arms hang from
+hy = SPINE[-1][1] + 0.075
+hz = SPINE[-1][2] + 0.035
 
 
 def ell(c, across, up, depth, colour=SKIN, negative=False, group="body"):
@@ -88,6 +128,55 @@ def surface(origin, direction, group="body"):
     return o + d * near, d
 
 
+def _curve(points, per=12):
+    """A smooth line through `points` (game coordinates), and the length along it at each of its points."""
+    pts = [Vector(q) for q in points]
+    pts = [pts[0] * 2 - pts[1]] + pts + [pts[-1] * 2 - pts[-2]]
+    out = []
+    for i in range(1, len(pts) - 2):
+        p0, p1, p2, p3 = pts[i - 1], pts[i], pts[i + 1], pts[i + 2]
+        for k in range(per):
+            u = k / per
+            out.append(0.5 * (2 * p1 + (p2 - p0) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (3 * p1 - p0 - 3 * p2 + p3) * u**3))
+    out.append(pts[-2])
+    lengths = [0.0]
+    for a, c in zip(out, out[1:]):
+        lengths.append(lengths[-1] + (c - a).length)
+    return out, lengths
+
+
+# The spine's curve, from the pelvis to the head.
+CURVE = _curve([(0, hips, 0)] + SPINE)
+X = Vector((1, 0, 0))
+
+
+def along(u):
+    """The spine at `u` (0 at the pelvis, 1 at the head, by length): its point, the way it runs and the way
+    its front faces (game coordinates)."""
+    out, lengths = CURVE
+    target = max(0.0, min(1.0, u)) * lengths[-1]
+    i = next((k for k in range(1, len(lengths)) if lengths[k] >= target), len(lengths) - 1)
+    a, c = out[i - 1], out[i]
+    w = (target - lengths[i - 1]) / max(1e-9, lengths[i] - lengths[i - 1])
+    run = (c - a).normalized()
+    return a.lerp(c, w), run, Vector((0, -run.z, run.y))
+
+
+def body_along(keys):
+    """A body along the spine: `keys` [(u, half width, half depth, pushed forward by, colour)], and between
+    them a round profile from the side, wider across, so the back curves with the spine."""
+    total = CURVE[1][-1]
+    u = 0.0
+    while u <= 1.0:
+        i = next((k for k in range(1, len(keys)) if keys[k][0] >= u), len(keys) - 1)
+        k0, k1 = keys[i - 1], keys[i]
+        w = max(0.0, min(1.0, (u - k0[0]) / max(1e-9, k1[0] - k0[0])))
+        across, depth, push = (k0[n] + (k1[n] - k0[n]) * w for n in (1, 2, 3))
+        centre, run, front = along(u)
+        ell(tuple(centre + front * push), across, depth, depth, k0[4] if w < 0.5 else k1[4])
+        u += depth * 0.7 / total
+
+
 H = {"group": "head"}
 
 
@@ -99,7 +188,7 @@ def hp(x, y, z):
 # ── The head: a narrow skull, a heavy brow over deep dark sockets, cheekbones over hollow cheeks and
 # temples, a flat nose of two slits, a wide mouth of jagged teeth and a pointed chin. The shapes first;
 # the hollows are cut where the skin turns out to be, and the eyes and teeth set by what's left. ──
-ell(hp(0, 0.03, -0.025), 0.072, 0.08, 0.092, **H)
+ell(hp(0, 0.025, -0.02), 0.068, 0.076, 0.09, **H)
 ell(hp(0, -0.035, 0.03), 0.045, 0.06, 0.06, **H)
 ell(hp(0, -0.082, 0.032), 0.038, 0.03, 0.054, **H)
 ell(hp(0, -0.1, 0.056), 0.017, 0.016, 0.022, **H)
@@ -130,8 +219,8 @@ for q in cheeks:
     m.ball(q, 0.011, BONY, group="head")
 for a, c in zip(mouth, mouth[1:]):
     m.capsule(a, c, 0.0115, MOUTH, True, group="head")
-# Darkness inside the mouth and at the back of each socket (a cut shows the skin's colour).
-# (Small cuts just behind the skin, which take its colour without cutting much deeper.)
+# Darkness inside the mouth and at the back of each socket: small cuts just behind the skin, which take
+# their colour without cutting much deeper.
 for x in (-0.03, -0.015, 0.0, 0.015, 0.03):
     q, d = surface(hp(x * 0.5, -0.06, 0.0), (x * 12, 0, 1), "head")
     m.ball(q - d * 0.003, 0.011, MOUTH, True, group="head")
@@ -157,21 +246,37 @@ for row, (y, dy, lengths) in enumerate(((-0.045, -1, (0.009, 0.016, 0.01, 0.012,
         root = root - d * 0.005 + Vector((0, 0, dy * 0.004))
         m.cone(root, root + d * 0.002 + Vector((x * 0.1, 0, dy * length)), 0.0034 + length * 0.12, TEETH, "Head", segments=5)
 
-# ── The body: gaunt; a hunched upper back with the shoulder blades showing, sinewy neck, knobbed
-# shoulders, elbows, wrists and knees, the crests of the hips and a hollow belly. ──
-# (The stoop: a rounded upper back that runs up into the base of the neck, so the head hangs forward.)
-ell((0, arm_y - 0.03, hunch * 0.3 - chest_z * 0.45), sx * 0.75, 0.15, chest_z * 0.9)
-ell((0, arm_y + 0.04, hunch * 0.42), 0.075, 0.07, 0.075)
-# The chest leans forward with it; the hips are one piece with the thighs, not two knobs under a waist.
-ell((0, arm_y - 0.04, hunch * 0.33), chest_x * 0.82, 0.09, chest_z * 0.85)
-ell((0, hips - 0.01, 0.0), hx + 0.055, 0.075, waist_z * 1.15)
+# ── The body: gaunt, bent over. The torso leans forward from the hips and rounds over into a short sinewy
+# neck: a sunken belly under a narrow ribcage, the upper back broadest, the shoulders rolled forward off
+# it; knobbed shoulders, elbows, wrists, knees and ankles. ──
+body_along(
+    [
+        (0.0, 0.122, 0.08, 0.0, SKIN),
+        (0.1, 0.112, 0.072, 0.0, SKIN),
+        (0.2, 0.09, 0.062, -0.01, SKIN),
+        (0.3, 0.104, 0.074, -0.002, SKIN),
+        (0.4, 0.13, 0.094, 0.008, SKIN),
+        (0.53, 0.136, 0.102, 0.004, SKIN),
+        (0.66, 0.126, 0.098, -0.012, SKIN),
+        (0.78, 0.085, 0.074, -0.01, SKIN),
+        (0.88, 0.05, 0.05, 0.0, SKIN),
+        (1.0, 0.044, 0.044, 0.0, SKIN),
+    ]
+)
 for sign in (1, -1):
-    ell((sign * 0.06, arm_y - 0.07, hunch * 0.2 - chest_z * 0.82), 0.045, 0.06, 0.02, BONY)
-    ball((sign * sx, arm_y + 0.022, 0.0), 0.03 * s, BONY)
-    ell((sign * (sx + 0.025), arm_y + 0.004, 0.0), 0.05, 0.03, 0.032)
+    # The crests of the hips standing out at the sides, over a sunken belly.
+    c, run, front = along(0.1)
+    ball(tuple(c + X * sign * 0.09 + front * 0.03 + run * 0.02), 0.015, BONY)
+    # The shoulders: from the upper back out to each shoulder joint, and the cords from the neck to them.
+    c, run, front = along(0.66)
+    cap(tuple(c + X * sign * 0.05 - front * 0.01), (sign * sx, ay + 0.005, az), 0.038)
+    c, run, front = along(0.86)
+    cap(tuple(c + X * sign * 0.015), (sign * (sx - 0.02), ay + 0.025, az - 0.01), 0.022)
+    ball((sign * sx, ay + 0.022, az), 0.03 * s, BONY)
+    ell((sign * (sx + 0.025), ay + 0.004, az), 0.05, 0.03, 0.032)
     elbow, wrist = p["arm"] * 0.52, p["arm"]
-    ball((sign * (sx + elbow), arm_y, -0.012), 0.026, BONY)
-    ball((sign * (sx + wrist - 0.01), arm_y, 0.0), 0.021, BONY)
+    ball((sign * (sx + elbow), ay, az - 0.012), 0.026, BONY)
+    ball((sign * (sx + wrist - 0.01), ay, az), 0.021, BONY)
     ball((sign * hx, b["knee"] + 0.01, 0.022), 0.033, BONY)
     # Bony ankles and the tendons over each foot.
     ball((sign * (hx + 0.03), 0.085 * s, 0.0), 0.014, BONY)
@@ -183,35 +288,47 @@ for sign in (1, -1):
     ell((sign * (hx + 0.008), hips - 0.13, 0.008), 0.044, 0.13, 0.046)
     ell((sign * hx, b["knee"] - 0.1, -0.016), 0.03, 0.08, 0.033)
 
-# Then what lies on the skin: ribs arching round the chest (the lower ones starting wider apart, so the
-# breastbone shows between them), the knobs of the spine, the collarbones. Placed where the skin is first.
-centre_y, centre_z = chest_y + torso * 0.18, hunch * 0.2
+# Then what lies on the skin, placed where the skin is first: ribs arching round the chest square to the
+# spine (their front ends lower, the breastbone showing between them), the knobs of the spine all down the
+# bent back, the edges of the shoulder blades, the collarbones.
 ribs = []
 for k in range(5):
-    y0 = centre_y + 0.025 - k * 0.034
+    centre, run, front = along(0.62 - k * 0.052)
     for sign in (1, -1):
         points = []
         for j in range(7):
             theta = 0.28 + 0.07 * k + j * (1.75 - 0.07 * k) / 6
-            q, d = surface((0, y0 + 0.035 * theta / 2, centre_z), (sign * math.sin(theta), 0, math.cos(theta)))
+            origin = centre - run * 0.022 * (1 - theta / 1.75)
+            q, d = surface(tuple(origin), tuple(X * sign * math.sin(theta) + front * math.cos(theta)))
             points.append(q - d * 0.0025)
         ribs.append(points)
 spine = []
-for k in range(13):
-    y = hips + 0.06 + k * (arm_y + 0.06 - hips - 0.06) / 12
-    z = hunch * 0.3 * min(1.0, (y - hips) / (torso * 0.75)) + 0.0
-    q, d = surface((0, y, z), (0, 0, -1))
+for k in range(15):
+    centre, run, front = along(0.06 + k * 0.058)
+    q, d = surface(tuple(centre), tuple(-front))
     spine.append(q - d * 0.005)
+blades = []
+for sign in (1, -1):
+    ends = []
+    for u, out in ((0.68, 0.055), (0.6, 0.075), (0.51, 0.06)):
+        centre, run, front = along(u)
+        q, d = surface(tuple(centre + X * sign * out), tuple(-front))
+        ends.append(q - d * 0.006)
+    blades.append(ends)
 collar = []
 for sign in (1, -1):
-    a, da = surface((sign * 0.02, arm_y - 0.03, centre_z), (0, -0.15, 1))
-    c, dc = surface((sign * 0.06, arm_y - 0.01, centre_z), (sign * 0.5, 0.15, 1))
+    centre, run, front = along(0.78)
+    a, da = surface(tuple(centre), tuple(front + X * sign * 0.25))
+    c, dc = surface((sign * (sx - 0.02), ay + 0.01, az), (sign * 0.2, 0.5, 1))
     collar.append((a - da * 0.003, c - dc * 0.003))
 for points in ribs:
     for a, c in zip(points, points[1:]):
         m.capsule(a, c, 0.0056, BONY)
 for q in spine:
     m.ball(q, 0.0095, BONY)
+for ends in blades:
+    for a, c in zip(ends, ends[1:]):
+        m.capsule(a, c, 0.011, BONY)
 for a, c in collar:
     m.capsule(a, c, 0.0085, BONY)
 
@@ -225,12 +342,12 @@ for side, sign in (("l", 1), ("r", -1)):
     wrist = p["arm"]
     for i in range(4):
         z = (i - 1.5) * 0.022 * h
-        knuckle = at(x(wrist + (0.075 + 0.045 * reach) * h), arm_y - 0.012 * h, z * 1.08)
+        knuckle = at(x(wrist + (0.075 + 0.045 * reach) * h), ay - 0.012 * h, az + z * 1.08)
         tip = knuckle + Vector((sign * 0.035 * reach * h, 0, -0.022 * reach * h))
         bend = tip + Vector((sign * 0.03 * h, 0, -0.025 * h))
         m.tube(tip, bend, 0.0075 * h, 0.005 * h, CLAW, f"hand_{side}", segments=5)
         m.cone(bend, bend + Vector((sign * 0.012 * h, 0, -0.035 * h)), 0.005 * h, CLAW, f"hand_{side}", segments=5)
-    thumb = at(x(wrist + 0.07 * h), arm_y - 0.012 * h, 0.075 * h)
+    thumb = at(x(wrist + 0.07 * h), ay - 0.012 * h, az + 0.075 * h)
     m.cone(thumb, thumb + Vector((sign * 0.03 * h, -0.02 * h, -0.02 * h)), 0.008 * h, CLAW, f"hand_{side}", segments=5)
     for toe in range(3):
         tx = sign * hx + (toe - 1) * 0.03 * f
@@ -239,6 +356,7 @@ for side, sign in (("l", 1), ("r", -1)):
 
 # ── Rags: a rope round the waist, a torn loincloth hanging front and back, and a strip at the hip. ──
 belt_y = hips + 0.035 * s
+waist_x, waist_z = 0.09, 0.06
 m.ring(at(0, belt_y, 0.0), 1, 0.1, ROPE, "pelvis", scale=(waist_x * 1.25, waist_z * 1.35, 0.11))
 m.leaf(at(0.005, belt_y, waist_z * 1.3), at(0.02, hips - 0.21, waist_z * 1.25 + 0.015), 0.13, 0.006, RAG, "pelvis", (0, -1, 0), notch=0.7, steps=8)
 m.leaf(at(-0.03, belt_y - 0.01, waist_z * 1.32), at(-0.045, hips - 0.15, waist_z * 1.3 + 0.012), 0.07, 0.006, RAG_DARK, "pelvis", (0, -1, 0), notch=0.4, steps=6)

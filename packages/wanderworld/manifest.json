@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.7.34",
+  "version": "0.7.35",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -188,7 +188,7 @@
     },
     {
       "path": "client.js",
-      "sha256": "00321b39fa615ff4f85a1be0040be8069773d68c1a936412f985eb2adcbfeaf4",
+      "sha256": "20d03079836a738c9249655156dc131e35ae00a818a7aeb72ac292be98eecda7",
       "bytes": 3178104
     },
     {
@@ -223,23 +223,23 @@
     },
     {
       "path": "kit/fantasy/folk/folk-bugbear.webp",
-      "sha256": "cd94de871466837e86c5cf1f9ea9f68ed2cf542c1e7c099cb578132bb7a4b60b",
-      "bytes": 127164
+      "sha256": "91f842032a12895fe198deffa36924572e9dbe9d1a3516a4a3f2658344dfc31f",
+      "bytes": 128942
     },
     {
       "path": "kit/fantasy/folk/folk-built-bugbear.json",
-      "sha256": "13a9f53ee810eb4d33ea316ac1f4c6a4fb0b55bfad5c09574b37282bb8f9d9de",
-      "bytes": 868847
+      "sha256": "e12ef430a2b8606eb07b078450aa92e2a32da368e70f69ca7a117186ca0948a8",
+      "bytes": 877541
     },
     {
       "path": "kit/fantasy/folk/folk-built-ghoul.json",
-      "sha256": "f30d66ee652a30b0659ee7743c28564caf21cc9ce204b8ae12413a4a74091d61",
-      "bytes": 667983
+      "sha256": "c7d122f74de8191c058b482d1a7ec644eb27cf1dc5063946718de47a800c86c5",
+      "bytes": 666775
     },
     {
       "path": "kit/fantasy/folk/folk-built-gnoll.json",
-      "sha256": "bd5cded7aac264d316ea400d52b1e0bd1632cfce5a7c90298a7447213dafaff1",
-      "bytes": 718948
+      "sha256": "959c62e5e8f1a43dcdf2b38d2d016c6df6609362ed884034f76111fc1d6e13d9",
+      "bytes": 709460
     },
     {
       "path": "kit/fantasy/folk/folk-built-goblin.json",
@@ -248,48 +248,48 @@
     },
     {
       "path": "kit/fantasy/folk/folk-built-hobgoblin.json",
-      "sha256": "9443190ffe5a34e29903346f48747bf0ed6aa33b624fd4fb37376a074552cea1",
-      "bytes": 712175
+      "sha256": "c3787ca8038f9119635401312481395f9aa70efdf4262ec38a13ed01453f1e83",
+      "bytes": 724117
     },
     {
       "path": "kit/fantasy/folk/folk-built-kobold.json",
-      "sha256": "ff27252414bea7e1d09fb9c7d9ec2292cb31de6b7e37ae7114f0b768e04c7e58",
-      "bytes": 727760
+      "sha256": "2d5289d75628e1580d9254eff4310195b641a163090eef75f01083f0640513f8",
+      "bytes": 697072
     },
     {
       "path": "kit/fantasy/folk/folk-built-lizardfolk.json",
-      "sha256": "de8e269bb18b1215321c1d6589aab8c6e319aeb271f68943141d52de64a64430",
-      "bytes": 756526
+      "sha256": "3d8313bd039266c0194fa77cb41c6504426f5b5203ab3ae8d50ae5abbf7c7aba",
+      "bytes": 733859
     },
     {
       "path": "kit/fantasy/folk/folk-built-minotaur.json",
-      "sha256": "d0a14111e67c94283b86bdb3bd872f8c9dd5034fcefaaec1ca3ba7d06d51c722",
-      "bytes": 731421
+      "sha256": "b68055289d3957b33e32f9fef0edc2fc139b3a6b5d6d5849c514987eca566551",
+      "bytes": 709852
     },
     {
       "path": "kit/fantasy/folk/folk-built-ogre.json",
-      "sha256": "acd1123d5df43409ec1132e9e9af84ecc650bf5eae9ac0d7069592c76189bfca",
-      "bytes": 756238
+      "sha256": "363910add3abab88179473b3a419271c51737eb40bdc64a79e96ae09368325c6",
+      "bytes": 751822
     },
     {
       "path": "kit/fantasy/folk/folk-built-orc.json",
-      "sha256": "5d982965efce1b3fd1bcefd5e1b294c942d97a7d1286ac8191cc9759a5c7b608",
-      "bytes": 693758
+      "sha256": "62afc256e91bf16c1eeca23fffa12f93ec218fee21719ef14b9fbd1802d4c453",
+      "bytes": 691473
     },
     {
       "path": "kit/fantasy/folk/folk-built-troll.json",
-      "sha256": "d4ef49f12635730b9600b709a7a4335b7a05a44d43aa8794bd378d583110d5a2",
-      "bytes": 667404
+      "sha256": "e36ab34377d0ebfe2a125e8856d9c7901b124fa652f902d7d99400ccc13bb8a5",
+      "bytes": 653775
     },
     {
       "path": "kit/fantasy/folk/folk-ghoul.webp",
-      "sha256": "fb7ee688e7e385c835ccdcab80f3af3f2bd35b6aad882d8015527a7ba9df6c06",
-      "bytes": 86114
+      "sha256": "7d766a99b8de0af5853ec6ef47ee042c3b684ea0e0f72bbff69a1f4057c9be42",
+      "bytes": 91468
     },
     {
       "path": "kit/fantasy/folk/folk-gnoll.webp",
-      "sha256": "08417a9becf868238c7a020308722fc7106584480fa3a4bf516aa440dc2c8582",
-      "bytes": 105670
+      "sha256": "70cf1debad182a6e5a4adb3a3305ed83bd108b504bd81bf57e18d7bbf7fef52f",
+      "bytes": 110414
     },
     {
       "path": "kit/fantasy/folk/folk-goblin.webp",
@@ -298,8 +298,8 @@
     },
     {
       "path": "kit/fantasy/folk/folk-hobgoblin.webp",
-      "sha256": "18429e8b1969aae67eeee972e083f38e1fb2a88bded098c6437f8b7e04487aef",
-      "bytes": 84128
+      "sha256": "980eb91b919f9376a6f7ed55bc099c6aad2a03db0446feec6e90d7f7e0879d02",
+      "bytes": 83652
     },
     {
       "path": "kit/fantasy/folk/folk-imp.webp",
@@ -308,28 +308,28 @@
     },
     {
       "path": "kit/fantasy/folk/folk-kobold.webp",
-      "sha256": "ea9f81f9bbcdc32663a77bd1ca5e341bceb58993a318c301f80ecf5fa35a15a2",
-      "bytes": 96428
+      "sha256": "300570de81e1a590637dfcd6e8e6f409f4a005ae36266213ff6dd32d5ca7eb69",
+      "bytes": 89678
     },
     {
       "path": "kit/fantasy/folk/folk-lizardfolk.webp",
-      "sha256": "0cb18802f32c6d56628c70294c76f14ad763da017e9bd824b8a273214db9d313",
-      "bytes": 95950
+      "sha256": "44766401a6582c2bff5a5e2b32f2c2f69cc8523b7e82e6c79f02ed982c525112",
+      "bytes": 89586
     },
     {
       "path": "kit/fantasy/folk/folk-minotaur.webp",
-      "sha256": "5dcd2d90941a09ac57c5fae685bee09db8384549ecdc1dbd2a5d9a020ce4ff05",
-      "bytes": 82240
+      "sha256": "7aeb6fa16e0691a54be62beb8fefbf79cafd8123e005fe6377df2625bbf98307",
+      "bytes": 74654
     },
     {
       "path": "kit/fantasy/folk/folk-ogre.webp",
-      "sha256": "f7b111ae4a5cc5ede3585f2e91fe45145fe3d0bce369aeb82526e20dad6fe3f2",
-      "bytes": 95566
+      "sha256": "92997790ba07a0f0b8c7a189906f79e51b542ef5b90732d4a3d574023e4bc4dd",
+      "bytes": 98984
     },
     {
       "path": "kit/fantasy/folk/folk-orc.webp",
-      "sha256": "ce3ad5278e6793e669bd3428678395b46fda749a7b753fda67033a8a7f4e030f",
-      "bytes": 86036
+      "sha256": "f3b59df73c5c7444410e51a72fab99d4c9028f53fb733ff008d489162aaffd09",
+      "bytes": 88900
     },
     {
       "path": "kit/fantasy/folk/folk-puglin.webp",
@@ -338,8 +338,8 @@
     },
     {
       "path": "kit/fantasy/folk/folk-troll.webp",
-      "sha256": "9517b8efaa9e129d41c7d11aa17339baa3a858228b84d1fa3e15bc50901a96eb",
-      "bytes": 86078
+      "sha256": "2865413e929ac98a4c5b5a8cf5bb2161e2ccf85c766540aafa0d5b6c34d25cdc",
+      "bytes": 84280
     },
     {
       "path": "kit/fantasy/folk/folk.json",

@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.35",
+          "date": "2026-11-20",
+          "notes": "- The kobold, lizardfolk and gnoll stand on their toes, with legs that bend back like a dog's, and still walk with the people's animations.\n- Fuller bodies: the hobgoblin, orc, bugbear, gnoll, ogre and minotaur have deeper chests, broader backs and thicker waists. The hobgoblin is burlier, with a calmer face and its brow set back.\n- The ghoul and troll stand hunched, with a bent back and a short neck instead of a pushed-out head. The troll's arms are shorter so its claws stay off the ground.\n- The ogre's and minotaur's weapons no longer reach the ground, the ogre's warts and cuff rivets sit on it instead of floating, and the minotaur wears one smooth kilt in place of loose panels.",
+          "highlight": false
+        },
+        {
           "version": "0.7.34",
           "date": "2026-11-20",
           "notes": "- All ten other monsters are now models made in Blender, each modelled from reference descriptions: the hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, each with its own baked texture, face, gear and weapon. They still move with the people's animations. The shapes built in code stay only as a fallback.\n- The goblin, polished: its harness goes over its shoulders, its ears sweep back and up, its fingers join its palms, its toes are part of its feet, and its shins are wrapped.\n- Each creature's model is a file of its own, so a world fetches only the ones it has. Credits name ThatOneCan as the maker of all eleven.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.16",
           "date": "2026-11-17",
           "notes": "- Fixed: witches and wizards carried their staffs pointing up and back, as if held backwards. A staff now stands upright in the hand, its foot by the ground and its knob by the head.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.15",
-          "date": "2026-11-17",
-          "notes": "- An item's block can say more about a weapon: two-handed, versatile 1d10 (its damage in both hands), reach (a swing lands 1.5 m further off), thrown 6 (throw it that many metres at what's out of reach) and heavy.\n- \"+5 Max HP\" in a block raises the most of a stat: while the item is worn, or for good when it's used up.\n- A used-up item can change any number on your sheet, not only HP and mana: \"+1 Souls\" works on a stat of your own with no maximum.\n- The (i) in the Inventory window lists all of it, grouped, and scrolls when it's long.",
           "highlight": false
         }
       ]

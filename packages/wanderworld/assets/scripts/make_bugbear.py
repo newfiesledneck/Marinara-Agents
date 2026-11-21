@@ -40,9 +40,9 @@ p = {
     "hips": 0.27,
     "arm": 0.86,
     "thick": 1.5,
-    "chest": (0.27, 0.2),
-    "waist": (0.21, 0.165),
-    "belly": 0.15,
+    "chest": (0.3, 0.23),
+    "waist": (0.25, 0.2),
+    "belly": 0.19,
     "hunch": 0.24,
     "hand": 1.4,
     "foot": 1.3,
@@ -54,7 +54,7 @@ m.rig(humanoid_joints(p))
 b = humanoid_body(m, p, {"skin": FUR, "shirt": HIDE, "nails": 0x241A12})
 s, arm_y, sx, hx, chest_y, knee = b["s"], b["arm_y"], b["sx"], b["hx"], b["chest_y"], b["knee"]
 hips = p["leg"]
-(_, chest_z), (waist_x, waist_z) = p["chest"], p["waist"]
+(chest_x, chest_z), (waist_x, waist_z) = p["chest"], p["waist"]
 hunch = p["hunch"]
 elbow, wrist = p["arm"] * 0.52, p["arm"]
 hy = b["head_y"] + 0.12
@@ -276,7 +276,13 @@ fur(centre, hd(0, -0.2, 0.12), (0, -0.4, -1), 0.07, 0.012, (DEEP,), "Head", grou
 # gut, long muscled arms, thick legs. The upper body is furred; a hide girdle wraps the belly. ──
 ell((0, arm_y + 0.03, hunch * 0.5), 0.13, 0.09, 0.11)
 ell((0, arm_y - 0.07, -0.08 + hunch * 0.2), 0.22, 0.17, 0.11)
+# A barrel chest over a heavy gut, the back broad all the way down.
+ell((0, chest_y + 0.1, hunch * 0.2 + 0.02), chest_x * 0.95, 0.2, chest_z * 1.02)
+ell((0, hips + 0.18, waist_z * 0.4), waist_x * 1.02, 0.17, waist_z * 1.1)
 for sign in (1, -1):
+    # Lats flaring from under the arms down into the waist, and thick flanks over the hips.
+    ell((sign * 0.17, chest_y + 0.05, hunch * 0.12 - 0.05), 0.11, 0.2, 0.13)
+    ell((sign * waist_x * 0.75, hips + 0.1, 0.0), 0.11, 0.12, 0.13)
     ell((sign * 0.11, arm_y + 0.03, hunch * 0.25 - 0.03), 0.12, 0.075, 0.1)
     ell((sign * 0.1, chest_y + 0.16, hunch * 0.2 + chest_z * 0.7), 0.12, 0.08, 0.075)
     ell((sign * 0.17, chest_y + 0.17, hunch * 0.1 - 0.02), 0.1, 0.1, 0.13)
@@ -366,20 +372,32 @@ for i in range(10):
         y = girdle_top - 0.06 - row * 0.14
         stud((0, y, 0.0), (math.sin(a), y, math.cos(a)), 0.012, METAL, "spine_02")
 belt_y = hips + 0.06
-m.ring(at(0, belt_y, 0.012), 1, 0.13, STRAP, "pelvis", scale=(waist_x * 1.18, waist_z * 1.36, 0.34))
-m.box(at(0, belt_y, waist_z * 1.52), (0.075, 0.016, 0.065), METAL, "pelvis")
-m.box(at(0, belt_y, waist_z * 1.54), (0.045, 0.016, 0.035), STRAP, "pelvis")
-for sign, colour, length in ((1, HIDE, 0.36), (-1, shade(HIDE, 0.85), 0.33)):
-    top, bottom = at(0, belt_y, sign * waist_z * 1.32), at(0.01, hips - length, sign * (waist_z * 1.32 + 0.03))
-    m.leaf(top, bottom, 0.24, 0.012, colour, "pelvis", (0, -sign, 0), steps=8)
+belt_centre = (0, belt_y, 0.03)
+belt = [(math.sin(a), belt_y, 0.03 + math.cos(a)) for a in (2 * math.pi * i / 18 for i in range(18))]
+on = strap(belt, lambda q: belt_centre, lambda q: "pelvis", width=0.065, thick=0.022, colour=STRAP, closed=True)
+
+
+def on_belt(a, out=0.0):
+    """The point on the belt `a` round from the front (towards +x), moved `out` off it, and its outward
+    way (Blender coordinates)."""
+    hit, n = surface(belt_centre, (math.sin(a), belt_y, 0.03 + math.cos(a)))
+    return hit + n * (0.026 + out), n
+
+
+buckle, n = on_belt(0, 0.006)
+m.box(buckle, (0.075, 0.016, 0.065), METAL, "pelvis")
+m.box(buckle + n * 0.008, (0.045, 0.016, 0.035), STRAP, "pelvis")
+# The kilt: a broad flap of hide front and back, and strips round the sides, hanging from the belt.
+for a, colour, length in ((0.0, HIDE, 0.42), (math.pi, shade(HIDE, 0.85), 0.39)):
+    top, n = on_belt(a, -0.016)
+    m.leaf(top, top + n * 0.03 + Vector((0, 0, -length)), 0.24, 0.012, colour, "pelvis", n, steps=8)
 for sign in (1, -1):
     for j, off in enumerate((0.55, 1.0)):
         a = sign * (math.pi / 2 * off + 0.1)
-        top = at(math.sin(a) * waist_x * 1.16, belt_y, math.cos(a) * waist_z * 1.22)
-        bottom = at(math.sin(a) * waist_x * 1.32, hips - 0.27 + j * 0.04, math.cos(a) * waist_z * 1.32)
-        m.leaf(top, bottom, 0.17, 0.01, shade(LEATHER, 1.0 + 0.15 * j), "pelvis", (math.sin(a), -math.cos(a), 0), steps=6)
-pouch = at(-waist_x * 0.85, belt_y - 0.07, waist_z * 0.78)
-m.box(pouch, (0.07, 0.06, 0.08), LEATHER, "pelvis")
+        top, n = on_belt(a, -0.018 + 0.006 * j)
+        m.leaf(top, top + n * 0.02 + Vector((0, 0, -0.32 + j * 0.04)), 0.17, 0.01, shade(LEATHER, 1.0 + 0.15 * j), "pelvis", n, steps=6)
+pouch, n = on_belt(-0.9, 0.035)
+m.box(pouch + Vector((0, 0, -0.06)), (0.07, 0.06, 0.08), LEATHER, "pelvis")
 
 # A hide pauldron on the left shoulder, an iron plate and spikes on it.
 pad = at(sx + 0.03, arm_y + 0.1, 0.0)

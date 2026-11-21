@@ -43,12 +43,13 @@ p = {
     "leg": 0.9,
     "torso": 0.66,
     "neck": 0.07,
-    "shoulders": 0.5,
-    "hips": 0.25,
+    "shoulders": 0.54,
+    "hips": 0.27,
     "arm": 0.66,
-    "thick": 1.42,
-    "chest": (0.25, 0.16),
-    "waist": (0.15, 0.122),
+    "thick": 1.5,
+    "chest": (0.28, 0.2),
+    "waist": (0.21, 0.16),
+    "belly": 0.12,
     "hunch": 0.1,
     "hand": 1.32,
     "foot": 1.15,
@@ -391,13 +392,15 @@ for sign in (1, -1):
     m.capsule(front + Vector((-sign * 0.07, 0.006, -0.005)), front + Vector((sign * 0.07, 0.03, 0.018)), 0.011, shade(SKIN, 0.86), True)
     ell((sign * 0.1, arm_y + 0.045, hunch * 0.15), 0.1, 0.065, 0.075)
     ell((sign * (sx + 0.03), arm_y + 0.01, 0.005), 0.09, 0.09, 0.09)
-    ell((sign * 0.16, chest_y + 0.07, -0.045), 0.085, 0.15, 0.09)
+    ell((sign * 0.17, chest_y + 0.07, -0.05), 0.1, 0.16, 0.1)
+    ell((sign * 0.17, hips + 0.13, 0.01), 0.08, 0.12, 0.11)
     ell((sign * 0.17, chest_y + 0.13, 0.03), 0.07, 0.07, 0.08)
     ell((sign * (sx + elbow * 0.5), arm_y + 0.012, 0.028), elbow * 0.4, 0.062, 0.062)
     ell((sign * (sx + elbow * 0.45), arm_y, -0.03), elbow * 0.36, 0.058, 0.058)
     ell((sign * (sx + elbow + 0.075), arm_y + 0.006, 0.0), 0.09, 0.06, 0.058)
     ell((sign * (hx + 0.012), (hips + knee) / 2 + 0.03, 0.035), 0.088, 0.16, 0.09, TROUSER)
 
+ell((0, chest_y + 0.12, -0.085), 0.18, 0.14, 0.1)
 # A hard belly: its muscles shown by the grooves between them rather than bumps.
 belly = [skin(at(0, y, 0.0), Vector((0, -1, 0))) for y in (hips + 0.1, hips + 0.17, hips + 0.235, chest_y + 0.05)]
 m.capsule(belly[0] + Vector((0, 0.004, 0)), belly[3] + Vector((0, 0.004, 0)), 0.0075, shade(SKIN, 0.86), True)

@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.7.35 — 2026-11-20
+
+- The kobold, lizardfolk and gnoll stand on their toes, with legs that bend back like a dog's, and still walk with the people's animations.
+- Fuller bodies: the hobgoblin, orc, bugbear, gnoll, ogre and minotaur have deeper chests, broader backs and thicker waists. The hobgoblin is burlier, with a calmer face and its brow set back.
+- The ghoul and troll stand hunched, with a bent back and a short neck instead of a pushed-out head. The troll's arms are shorter so its claws stay off the ground.
+- The ogre's and minotaur's weapons no longer reach the ground, the ogre's warts and cuff rivets sit on it instead of floating, and the minotaur wears one smooth kilt in place of loose panels.
+
 ## 0.7.34 — 2026-11-20
 
 - All ten other monsters are now models made in Blender, each modelled from reference descriptions: the hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, each with its own baked texture, face, gear and weapon. They still move with the people's animations. The shapes built in code stay only as a fallback.
