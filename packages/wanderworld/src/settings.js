@@ -338,6 +338,8 @@ export const SETTINGS = {
   animalGrick: { value: true },
   animalOtyugh: { value: true },
   animalRoper: { value: true },
+  animalGelatinous_cube: { value: true },
+  animalBasilisk: { value: true },
   animalGnoll: { value: true },
   animalKobold: { value: true },
   animalLizardfolk: { value: true },

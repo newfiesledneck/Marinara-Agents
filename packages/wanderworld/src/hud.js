@@ -1688,6 +1688,8 @@ export function createHud(root, handlers) {
     ["animalGrick", "Gricks"],
     ["animalOtyugh", "Otyughs (rare)"],
     ["animalRoper", "Ropers (rare, as stalagmites)"],
+    ["animalGelatinous_cube", "Gelatinous cubes"],
+    ["animalBasilisk", "Basilisks"],
     ["animalGnoll", "Gnolls"],
     ["animalKobold", "Kobolds"],
     ["animalLizardfolk", "Lizardfolk"],

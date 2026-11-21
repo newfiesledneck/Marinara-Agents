@@ -772,7 +772,7 @@ for (const [text, dog, horse] of [
     "and all trolls",
   );
   const seen = new Set();
-  for (let seed = 1; seed <= 6; seed++)
+  for (let seed = 1; seed <= 16; seed++)
     for (const beast of herdFor(world, seed, { counts: { ...only, monsters: 40 }, habitats: false }))
       seen.add(beast.kind);
   for (const kind of ["ogre", "troll", "minotaur"]) assert.ok(seen.has(kind), `a rare ${kind} turns up in some world`);

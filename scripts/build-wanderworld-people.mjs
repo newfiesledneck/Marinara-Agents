@@ -7,7 +7,8 @@
 // Usage (unzip both packs first; ffmpeg must be on PATH, or set FFMPEG):
 //   node scripts/build-wanderworld-people.mjs "<…>/Universal Base Characters[Standard]" "<…>/Modular Character Outfits - Fantasy[Standard]"
 //   node scripts/build-wanderworld-people.mjs --folk "<…>/Bestiary - Dungeon Monsters Kit[Standard]/glTF"
-//   node scripts/build-wanderworld-people.mjs --bestiary   (the models made in Blender: packages/wanderworld/AGENTS.md)
+//   node scripts/build-wanderworld-people.mjs --bestiary [name …]   (the models made in Blender: packages/wanderworld/AGENTS.md;
+//     with names, only those are packed again)
 //     (Two-legged ones on the people's skeleton go to kit/fantasy/folk; ones with a skeleton of their own, a
 //     mimic or a roper, to kit/creatures/rigged-<name>.json, each with its own actions; avatar-* and anthro-*
 //     bodies are left for the avatar packing.)
@@ -402,17 +403,22 @@ function folk(dir) {
  * fetches only the creatures a world has. The game moves them with the people's animations, as it does the imp and the puglin; their
  * own actions stay in the .glb for anyone using the model elsewhere.
  */
-function bestiary() {
+function bestiary(only = []) {
   const dir = join(ROOT, "packages/wanderworld/assets/models");
   const out = join(KIT, "fantasy/folk");
   mkdirSync(out, { recursive: true });
-  for (const old of readdirSync(out).filter((name) => /^folk-built/u.test(name))) rmSync(join(out, old));
   const creatures = join(KIT, "creatures");
-  for (const old of readdirSync(creatures).filter((name) => /^rigged-/u.test(name))) rmSync(join(creatures, old));
+  // (Named ones only, when some are named: the rest of the kit is left as it is, so a model still being
+  // made beside them isn't packed half done.)
+  if (!only.length) {
+    for (const old of readdirSync(out).filter((name) => /^folk-built/u.test(name))) rmSync(join(out, old));
+    for (const old of readdirSync(creatures).filter((name) => /^rigged-/u.test(name))) rmSync(join(creatures, old));
+  }
   let count = 0;
   let own = 0;
   for (const file of readdirSync(dir)
     .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro)-/u.test(name))
+    .filter((name) => !only.length || only.includes(name.slice(0, -4)))
     .sort()) {
     const name = file.slice(0, -4);
     const gltf = readGltf(join(dir, file));
@@ -518,7 +524,7 @@ function rigged(name, path, out) {
 }
 
 function main() {
-  if (process.argv[2] === "--bestiary") return bestiary();
+  if (process.argv[2] === "--bestiary") return bestiary(process.argv.slice(3));
   if (process.argv[2] === "--folk") {
     if (!process.argv[3]) throw new Error("Usage: build-wanderworld-people.mjs --folk <Bestiary GLB dir>");
     return folk(process.argv[3]);

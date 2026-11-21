@@ -252,6 +252,8 @@ const CREATURE_OF = {
   grick: "grick",
   otyugh: "otyugh",
   roper: "roper",
+  gelatinous_cube: "gelatinous-cube",
+  basilisk: "basilisk",
 };
 /** A dice expression's average, rounded down, as the SRD gives a creature's hit points ("2d8+2" is 11). */
 const average = (dice) => {

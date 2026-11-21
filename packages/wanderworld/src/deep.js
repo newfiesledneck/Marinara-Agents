@@ -98,11 +98,11 @@ const DWELLERS = {
     boss: ["bugbear", "ogre", "troll"],
   },
   cavern: {
-    common: ["spider", "bat", "slime", "goblin", "kobold", "lizardfolk", "gnoll"],
+    common: ["spider", "bat", "slime", "goblin", "kobold", "lizardfolk", "gnoll", "basilisk"],
     boss: ["ogre", "minotaur", "troll", "roper", "otyugh"],
   },
   dungeon: {
-    common: ["skeleton", "ghoul", "rat", "slime", "spider", "mimic"],
+    common: ["skeleton", "ghoul", "rat", "slime", "spider", "mimic", "gelatinous_cube"],
     boss: ["ghoul", "minotaur", "wizard", "otyugh"],
   },
   stronghold: { common: ["bandit", "bandit", "hobgoblin", "orc"], boss: ["bugbear", "witch", "wizard", "ogre"] },
