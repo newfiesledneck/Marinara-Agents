@@ -1,11 +1,13 @@
 // How creatures choose what to do in a fight (tactics.js). Run: node tests/wanderworld-tactics.regression.mjs
 import assert from "node:assert/strict";
 import {
+  allySpot,
   greaterCasts,
   mendSpell,
   pickSpell,
   roleOf,
   roleStats,
+  standoff,
   standSpot,
 } from "../packages/wanderworld/src/tactics.js";
 import { spellIn, spellRule } from "../packages/wanderworld/src/combat.js";
@@ -99,5 +101,24 @@ assert.equal(
   "crowded: a good distance",
 );
 assert.equal(standSpot(spots, { range: 6 }), null, "nothing within its reach");
+
+// Companions move about a fight by their role (main.js allyGoes): one who strikes closes in, an archer keeps
+// off where a shot is clear, a caster stays back behind the player.
+{
+  const foe = { x: 0, z: 0, room: 0.5 };
+  const player = { x: 0, z: 6 };
+  const from = { x: 4, z: 4 };
+  const far = (spot, to) => Math.hypot(spot.x - to.x, spot.z - to.z);
+  const melee = allySpot({ role: "melee", from, foe, player });
+  assert.ok(Math.abs(far(melee, foe) - 2) < 1e-9, "one who strikes goes right up to it");
+  const archer = allySpot({ role: "ranged", from, foe, player, range: 24 });
+  assert.ok(Math.abs(far(archer, foe) - standoff(24)) < 1e-9, "an archer keeps its distance");
+  // (Nothing clear on the first side tried: it moves round the ring to where a shot is.)
+  const blocked = allySpot({ role: "ranged", from, foe, player, range: 24, sees: (x, z) => z < 0 });
+  assert.ok(blocked.z < 0 && Math.abs(far(blocked, foe) - standoff(24)) < 1e-9, "to where nothing's in the way");
+  const caster = allySpot({ role: "caster", from, foe, player, range: 18 });
+  assert.ok(far(caster, foe) > far(player, foe), "a caster stays further back than the player");
+  assert.ok(far(caster, foe) <= 15, "but not so far that its spells fall short");
+}
 
 console.log("ok: tactics");

@@ -113,6 +113,35 @@ export const mendSpell = (spells, leveled = true) =>
 export const greaterCasts = (cr = 0) => 1 + Math.floor(Math.max(0, cr));
 
 /**
+ * Where a companion goes in a fight, by their role, given where they are (`from`), the creature they're
+ * after (`foe`: { x, z, room }), the player (`player`) and the side they're working round (`way`, 1 or −1):
+ *   - "melee" closes in, to just past the creature's reach, working round it;
+ *   - "ranged" keeps `standoff(range)` off it, moving along that ring to where `sees(x, z)` (nothing in the
+ *     way of a shot) holds;
+ *   - "caster" stays back: behind the player, as seen from the creature, a few paces off to their side.
+ * { x, z }; `sees` and `range` matter to an archer only.
+ */
+export function allySpot({ role, from, foe, player, way = 1, range = 18, sees = () => true }) {
+  const round = (ring, turn) => {
+    const around = Math.atan2(from.x - foe.x, from.z - foe.z) + turn;
+    return { x: foe.x + Math.sin(around) * ring, z: foe.z + Math.cos(around) * ring };
+  };
+  if (role === "melee") return round(1.5 + (foe.room ?? 0), way * 0.6);
+  if (role === "ranged") {
+    const ring = standoff(range);
+    const tries = [0.35, 0.9, -0.35, 1.5].map((turn) => round(ring, way * turn));
+    return tries.find((spot) => sees(spot.x, spot.z)) ?? tries[0];
+  }
+  const back = Math.atan2(player.x - foe.x, player.z - foe.z) + way * 0.5;
+  // (Never so far back that what they cast falls short.)
+  const far = Math.min(
+    Math.max(standoff(range), Math.hypot(player.x - foe.x, player.z - foe.z) + 2.5),
+    Math.max(standoff(range), range - 3),
+  );
+  return { x: foe.x + Math.sin(back) * far, z: foe.z + Math.cos(back) * far };
+}
+
+/**
  * Where one who shoots or casts wants to stand: of `spots` ([{ x, z, cover (it's behind something from the
  * target), far (metres to the target), walk (metres from where it is) }]), the nearest with cover at a good
  * distance (`least` to `range` metres); with none, the nearest that's just a good distance when it's being

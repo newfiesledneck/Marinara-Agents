@@ -1001,7 +1001,7 @@ export const witOf = (sheet, worn = {}, attribute = "intelligence") =>
 export function spellWords({ who, name, what, spell, result, left, max, named = false }) {
   const whom = named ? what : `the ${what}`;
   const their = named ? "their" : "its";
-  const start = `${who} casts ${name} at ${whom}`;
+  const start = `${who} ${spell.verb ?? "casts"} ${name} at ${whom}`; // (`verb`: "uses", for an ability of their own)
   const rolled = result.sure
     ? " (no roll: it can't miss)"
     : spell.save

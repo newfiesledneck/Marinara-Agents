@@ -41,6 +41,36 @@ const SWIM_DEPTH = 1.3; // metres of water from which people swim (as the player
 const SWIM_SLOWER = 0.6; // swimming speed, as a share of walking or running
 const FOLLOW_LOST = 35; // further than this (or stuck a while): catch up out of sight
 const FOLLOW_SEAT = 9; // metres from a seated player a follower looks for a seat
+/**
+ * How loosely the party follows (Settings → People → Your party): `gap` metres further back and `side`
+ * further out than the close line, and with the player standing still, wandering up to `roam` metres
+ * from their place and looking about.
+ */
+const FOLLOW_SPREAD = {
+  close: { gap: 0, side: 0, roam: 0 },
+  normal: { gap: 0.7, side: 0.45, roam: 1.6 },
+  loose: { gap: 1.6, side: 1, roam: 3.5 },
+};
+const ROAM_AFTER = 2.5; // seconds the player stands still before the party wanders
+/** The most who sit or lie on one log, bench or bed together, the player among them. */
+export const SHARE_MOST = 4;
+const SQUEEZE = [0, 0, 0.62, 0.52, 0.44]; // metres between them, for two, three and four: closer the more there are
+
+/**
+ * Where those sharing the player's seat go, the player staying where they are: side by side along it, in
+ * turn to the player's right, left and right again, `count` of them in all with the player (SHARE_MOST at
+ * most). [{ x, z, angle }], the player's own spot not among them.
+ */
+export function squeezeSpots(seat, count) {
+  const many = Math.max(1, Math.min(SHARE_MOST, count));
+  const apart = SQUEEZE[many];
+  const [sideX, sideZ] = [Math.cos(seat.angle), -Math.sin(seat.angle)]; // (to the right of the way they face)
+  return [1, -1, 2].slice(0, many - 1).map((along) => ({
+    x: seat.x + sideX * along * apart,
+    z: seat.z + sideZ * along * apart,
+    angle: seat.angle,
+  }));
+}
 // Getting on with each other (relationships.js): who seeks out whom, who keeps away.
 const SOCIAL_SEARCH = 35; // metres within which someone looks for company
 const SOCIAL_CHANCE = 0.35; // of a new plan being to see someone
@@ -393,13 +423,29 @@ export function createCrowd() {
 
   // ── Plans: what someone does next ──
 
-  function freeSeat(person, seats, near, radius) {
-    // (A seat with a pose of its own, a bed to lie on, is the player's.)
+  function freeSeat(person, seats, near, radius, beds = false) {
+    // (A seat with a pose of its own, a bed to lie on, is the player's; or, `beds`, a companion's who lies down with them.)
     const free = seats.filter(
-      (seat) => !seat.taken && !seat.pose && Math.hypot(seat.x - near.x, seat.z - near.z) < radius,
+      (seat) => !seat.taken && (beds || !seat.pose) && Math.hypot(seat.x - near.x, seat.z - near.z) < radius,
     );
     return free.length ? free[Math.floor(person.random() * free.length)] : null;
   }
+
+  /**
+   * A place on the ground beside the player sitting or lying down, for a follower with no seat to take:
+   * round the player by their place in the party, pushed clear of the log or the bench, facing as the player does.
+   */
+  function groundSeat(person, view) {
+    const slot = Math.max(0, party.indexOf(person.id));
+    const angle = view.playerAngle ?? 0;
+    const turn = angle + [1.6, -1.6, 2.4, -2.4, 0.8, -0.8][slot % 6];
+    const at = { x: view.player.x + Math.sin(turn) * 1.3, z: view.player.z + Math.cos(turn) * 1.3 };
+    person.space.resolveCollisions(at, BODY_RADIUS, false);
+    return { ...at, angle, approach: { ...at }, act: "ground", what: "the ground" };
+  }
+
+  /** How someone is on `seat`: "lie" on a bed, "ground" on the ground, null sitting on it. */
+  const seatPose = (seat) => seat?.act ?? (seat?.pose === "lie" ? "lie" : null);
 
   function takeSeat(person, seat, seconds) {
     seat.taken = person.id;
@@ -1041,15 +1087,14 @@ export function createCrowd() {
       return false;
     }
     person.fightAt = null;
-    // The player sat down: take a free seat close by, or stand near them.
-    if (view.playerSitting) {
+    // The player sat or lay down: a free seat close by (a bed too, when they lie down), else the ground beside
+    // them (Settings → People → Your party; off, they stand by). shareSeat gives them a place on the player's own.
+    if (view.playerSitting && view.sitWith !== false) {
       if (person.state === "sit") return false;
       if (!person.seat) {
-        const seat = freeSeat(person, person.space.seats ?? [], player, FOLLOW_SEAT);
-        if (seat) {
-          seat.taken = person.id;
-          person.seat = seat;
-        }
+        const seat = freeSeat(person, person.space.seats ?? [], player, FOLLOW_SEAT, !!view.playerLying);
+        if (seat) seat.taken = person.id;
+        person.seat = seat ?? groundSeat(person, view);
       }
       if (person.seat) {
         const { approach } = person.seat;
@@ -1070,15 +1115,17 @@ export function createCrowd() {
         position.set(seat.approach.x, groundY(person, seat.approach.x, seat.approach.z), seat.approach.z);
       person.state = "idle";
     }
-    // A place in the line: rows of two behind the player.
+    // A place in the line: rows of two behind the player, as loose as the setting has it.
+    const spread = FOLLOW_SPREAD[view.followSpread] ?? FOLLOW_SPREAD.normal;
     const slot = Math.max(0, party.indexOf(person.id));
     const row = Math.floor(slot / 2);
     const side = slot % 2 === 0 ? -1 : 1;
-    const back = FOLLOW_GAP + row * FOLLOW_ROW;
+    const back = FOLLOW_GAP + spread.gap + row * FOLLOW_ROW;
+    const out = FOLLOW_SIDE + spread.side;
     const angle = view.playerAngle ?? 0;
     const spot = {
-      x: player.x - Math.sin(angle) * back + Math.cos(angle) * side * FOLLOW_SIDE,
-      z: player.z - Math.cos(angle) * back - Math.sin(angle) * side * FOLLOW_SIDE,
+      x: player.x - Math.sin(angle) * back + Math.cos(angle) * side * out,
+      z: player.z - Math.cos(angle) * back - Math.sin(angle) * side * out,
     };
     if (person.space.blocked?.(spot.x, spot.z, BODY_RADIUS)) {
       spot.x = player.x - Math.sin(angle) * back;
@@ -1092,8 +1139,27 @@ export function createCrowd() {
       person.state = "idle";
       return true;
     }
+    // The player standing still a while: a few steps about their place now and then, looking round.
+    if (spread.roam && (view.playerSpeed ?? 0) < 0.1) person.stillFor = (person.stillFor ?? 0) + dt;
+    else person.stillFor = person.roam = null;
+    if (person.stillFor > ROAM_AFTER) {
+      if (!person.roam || clock > person.roam.until) {
+        const turn = person.random() * Math.PI * 2;
+        const far = person.random() * spread.roam;
+        const to = { x: spot.x + Math.sin(turn) * far, z: spot.z + Math.cos(turn) * far };
+        person.space.resolveCollisions(to, BODY_RADIUS, false);
+        person.roam = { ...to, until: clock + 4 + person.random() * 7, look: person.random() * Math.PI * 2 };
+      }
+      if (Math.hypot(person.roam.x - position.x, person.roam.z - position.z) > 0.4)
+        stepToward(person, person.roam, WALK_SPEED, dt);
+      else {
+        person.state = "idle";
+        person.group.rotation.y = approachAngle(person.group.rotation.y, person.roam.look, 1.5 * dt);
+      }
+      return false;
+    }
     const away = Math.hypot(spot.x - position.x, spot.z - position.z);
-    if (away < 0.45 || (playerDistance < FOLLOW_GAP + 0.3 && away < 1.2)) {
+    if (away < 0.45 || (playerDistance < FOLLOW_GAP + spread.gap + 0.3 && away < 1.2)) {
       person.state = "idle";
       person.group.rotation.y = approachAngle(person.group.rotation.y, angle, 4 * dt);
       return false;
@@ -1385,6 +1451,7 @@ export function createCrowd() {
     const depth = person.space === world ? waterAt(position.x, position.z).depth : 0;
     const ground = groundY(person, position.x, position.z);
     position.y = depth > 0.3 ? position.y + (ground - position.y) * Math.min(1, dt * 6) : ground;
+    if (person.state === "sit") position.y += person.seat?.lift ?? 0; // (up on a bed)
     person.swimming = depth > SWIM_DEPTH;
     if (person.shadow) person.shadow.visible = shadowsVisible && !person.swimming;
 
@@ -1412,10 +1479,12 @@ export function createCrowd() {
     if (view.inSight) person.character.object.visible = !together || view.inSight(position);
     const every = !visible ? 6 : playerDistance > NEAR ? 3 : 1;
     if (person.frame % every !== 0 && !wave) return;
+    const seatAct = person.state === "sit" ? seatPose(person.seat) : null;
     const pose = person.character.update(person.animate, speed, {
       swim: person.swimming,
-      sit: person.state === "sit",
-      act: person.state === "busy" ? person.act : null,
+      // (Sitting on a seat; on the ground, or lying on a bed, a pose of its own: clips.js "ground" and "lie".)
+      sit: person.state === "sit" && !seatAct,
+      act: person.state === "busy" ? person.act : seatAct,
       gesture: person.gesture ?? null,
       held: person.gestureHeld ?? null,
       lookAt,
@@ -1464,6 +1533,8 @@ export function createCrowd() {
         work: person.work?.index ?? null,
         seated: !!person.seat && person.state === "sit",
         seatWhat: person.seat?.what ?? null, // what they're sitting on ("a bench", "a log by the campfire")
+        lying: person.state === "sit" && seatPose(person.seat) === "lie",
+        squeezed: person.state === "sit" ? (person.seat?.shared ?? 0) : 0, // how many share the player's seat, the player too
         doing: person.state === "busy" ? person.act : null, // what they're at, at a spot made for it (clips.js ACTS)
         // Who they're out with (friends at the tavern, round a campfire, at a house): ids, without their own.
         company: (person.company ?? [])
@@ -1588,6 +1659,7 @@ export function createCrowd() {
       if (!following && party.includes(id)) party.splice(party.indexOf(id), 1);
       person.following = following;
       person.waiting = null;
+      person.fightAt = null; // (and out of any fight it was sent into)
       leaveSeat(person);
       person.plan = [];
       person.next = null;
@@ -1643,6 +1715,7 @@ export function createCrowd() {
         const person = people.get(id);
         if (!person || person.waiting || person.state === "inside") continue;
         leaveSeat(person);
+        person.fightAt = null;
         person.group.removeFromParent();
         person.space = space;
         space.scene.add(person.group);
@@ -1743,6 +1816,50 @@ export function createCrowd() {
       leaveSeat(person);
       person.fightAt = { x, z };
       person.fightUntil = clock + seconds;
+    },
+    /** The fight is over: every companion sent somewhere in it is the player's follower again. */
+    fightOver() {
+      for (const person of people.values()) person.fightAt = null;
+    },
+    /**
+     * The party with the player sitting or lying down who have found no seat of their own: on the ground
+     * beside them, or not down yet. Ids, in party order (those waiting, or elsewhere, left out).
+     */
+    seatless() {
+      return party.filter((id) => {
+        const person = people.get(id);
+        return (
+          person?.following &&
+          !person.waiting &&
+          person.space === viewNow?.space &&
+          (person.outUntil ?? 0) <= clock &&
+          (!person.seat || person.seat.act === "ground")
+        );
+      });
+    },
+    /**
+     * `ids` squeeze onto the player's own `seat` (a log, a bench, a bed, a tent's bedroll) beside them, as many
+     * as fit (SHARE_MOST with the player), closer the more there are (squeezeSpots). Gives the ids placed.
+     */
+    shareSeat(ids, seat) {
+      const sharing = ids
+        .map((id) => people.get(id))
+        .filter((person) => person?.following && !person.waiting)
+        .slice(0, SHARE_MOST - 1);
+      const spots = squeezeSpots(seat, sharing.length + 1);
+      sharing.forEach((person, i) => {
+        leaveSeat(person);
+        if (person.state === "sit") person.state = "idle"; // (up off the ground, and over)
+        person.seat = {
+          ...spots[i],
+          approach: seat.approach,
+          lift: seat.lift ?? 0,
+          act: seat.pose === "lie" ? "lie" : null,
+          what: seat.what ?? (seat.tent ? "the bedroll in the tent" : "the bed"),
+          shared: sharing.length + 1,
+        };
+      });
+      return sharing.map((person) => person.id);
     },
     /** `id` makes a gesture once (a swing, a cast: clips.js GESTURES), `held` in hand, turned toward (x, z). */
     gesture(id, name, held = null, x = null, z = null) {
