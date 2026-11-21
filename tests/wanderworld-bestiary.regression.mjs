@@ -4,6 +4,9 @@
 // name, numbers and spoils, the SRD's numbers, and the word for it in lore).
 // Run: node tests/wanderworld-bestiary.regression.mjs
 import assert from "node:assert/strict";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ANIMALS, animalKind, SORT_OF, SWITCHES } from "../packages/wanderworld/src/animals.js";
 import { BESTIARY, createBuilt } from "../packages/wanderworld/src/bestiary.js";
 import { PACK } from "../packages/wanderworld/src/pack.js";
@@ -88,6 +91,35 @@ for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", 
     if (skin.getX(i) === left) l++;
   }
   assert.ok(r > l, `the ${kind} has something in its right hand`);
+}
+
+// The models made in Blender (packages/wanderworld/assets: AGENTS.md there): every .glb is in the kit
+// (`node scripts/build-wanderworld-people.mjs --bestiary` after changing one) and nothing else is, each on
+// the people's skeleton with its palette texture, its kind's height, and its own Idle, Walk and Attack.
+{
+  const pkg = join(dirname(fileURLToPath(import.meta.url)), "../packages/wanderworld");
+  const models = readdirSync(join(pkg, "assets/models"))
+    .filter((name) => name.endsWith(".glb"))
+    .map((name) => name.slice(0, -4));
+  assert.ok(models.includes("goblin"), "the goblin is made in Blender");
+  const folk = join(pkg, "kit/fantasy/folk");
+  const built = JSON.parse(readFileSync(join(folk, "folk-built.json"), "utf8")).folk;
+  assert.deepEqual(Object.keys(built).sort(), models.sort(), "the kit has every model and only those");
+  for (const [kind, body] of Object.entries(built)) {
+    assert.ok(BESTIARY[kind] && ANIMALS[kind]?.built, `${kind} is one of Wanderworld's own monsters`);
+    for (const bone of ["pelvis", "spine_01", "Head", "upperarm_l", "hand_r", "thigh_l", "calf_r", "foot_l"])
+      assert.ok(body.skeleton.names.includes(bone), `the ${kind} has the people's ${bone}`);
+    const [low, high] = HEIGHT[kind];
+    assert.ok(body.height >= low && body.height <= high, `the ${kind} model is ${body.height} m tall`);
+    assert.ok(existsSync(join(folk, `folk-${kind}.webp`)), `the ${kind}'s palette texture`);
+    const glb = readFileSync(join(pkg, `assets/models/${kind}.glb`));
+    const gltf = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8"));
+    assert.deepEqual(
+      gltf.animations.map((clip) => clip.name).sort(),
+      ["Attack", "Idle", "Walk"],
+      `the ${kind}'s own actions`,
+    );
+  }
 }
 
 // Lore's words for them.

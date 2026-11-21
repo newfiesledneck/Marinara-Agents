@@ -563,8 +563,9 @@ export async function createAnimal(name, wanted = null) {
   if (ANIMALS[kind].folk) {
     // One on the people's skeleton: a walking character, with an animal's handles on it.
     const outlaw = ANIMALS[kind].person ? await createOutlaw(kind) : null;
-    const body =
-      outlaw?.person ?? (ANIMALS[kind].built ? createBuilt(kind) : await createFolk(kind, ANIMALS[kind].folk));
+    // (One of Wanderworld's own: the model made in Blender if the kit has it, else built in code.)
+    const built = () => createFolk(kind, 1).catch(() => createBuilt(kind));
+    const body = outlaw?.person ?? (ANIMALS[kind].built ? await built() : await createFolk(kind, ANIMALS[kind].folk));
     const options = outlaw?.carry ? { carry: outlaw.carry } : {};
     let doing = null; // a gesture to make once, on the next frame (act)
     return {

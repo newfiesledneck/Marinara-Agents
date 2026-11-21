@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.29",
+          "date": "2026-11-20",
+          "notes": "- The goblin is now a model made in Blender: one smooth body instead of shapes stuck together, a face with its eyes set in sockets, a hooked nose and fangs, a ragged tunic and its scimitar, rigged to the people's skeleton so it still moves with their animations. The other monsters follow; until then they're built in code as before.\n- For contributors: models are made by Blender scripts in packages/wanderworld/assets/scripts, run from the command line, and packed into the kit. AGENTS.md in the package says how.",
+          "highlight": false
+        },
+        {
           "version": "0.7.28",
           "date": "2026-11-20",
           "notes": "- Seven more monsters of Wanderworld's own: hobgoblins in mail with sword and shield, bugbears with morningstars, orcs with greataxes, gnolls with spears, kobolds with daggers, lizardfolk with clubs and spiked shields, and ghouls, who come out at night. Each has its own switch in Menu → Settings → Creatures and the SRD's numbers in a fight.\n- The goblin, ogre and minotaur now carry their weapons: a scimitar, a spiked club and a double axe. A monster's weapon swings with its arm.\n- An orc in your lore is now an orc rather than a puglin, and lizardmen are lizardfolk.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.10",
           "date": "2026-11-16",
           "notes": "- Spells that creatures cast at you look like the spell they are (a beam, light from above, a volley), as yours do.\n- A condition landing on you shows as a ring round you for a moment.\n- The apothecary sells the SRD's Potion of Healing (2d4+2) and Potion of Greater Healing (4d4+4).\n- By turns, a dragon with its breath ready uses it from as far as it reaches, and no longer has to close with you first.\n- Help → Credits names everything now taken from the 5e SRD.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.09",
-          "date": "2026-11-16",
-          "notes": "- More to do in a fight, on the bar by turns, in Inventory → Sheet and on number keys: Shove (pushed back and knocked down), Grapple (held where it is), Help (a companion's next attack has advantage), Hide (your Stealth against what they notice) and an Off-hand attack with two light weapons.\n- Shield and Counterspell can be added to your sheet. They cast themselves: Shield when +5 AC would turn a blow, Counterspell when a creature casts at you.\n- The SRD's one feat, Grappler, is in the Sheet tab.\n- Swimming, a swing is at a disadvantage unless it's a dagger, javelin, shortsword, spear or trident.\n- A setting has jump height go by Strength (off to begin with).\n- Each has a switch in Settings → Inventory → 5e rules.",
           "highlight": false
         }
       ]
