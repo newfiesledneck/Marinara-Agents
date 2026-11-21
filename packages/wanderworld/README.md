@@ -680,7 +680,8 @@ every roll, and no AI call is made in a real-time fight.
   stays gone for two days.
 - **Defeat.** At 0 HP you go down, then come to where you fell, wake at home, or stay down until
   you press Respawn, as you set it. It can cost a quarter of your money or your experience toward
-  the next level. Undefeatable holds your HP and mana at their most.
+  the next level. Undefeatable holds your HP and mana at their most. Staying down, what beat you
+  can stay over you (see "Fight display and defeat" below).
 - **Keys.** With a keyboard, Settings → Controls → Keys gives any action another key.
 - **Hotkeys.** The number keys 1 to 0 each do what you set in Inventory → Hotkeys: cast one spell,
   use up something you carry, or put on and take off something that has a slot in Quartermaster.
@@ -721,6 +722,53 @@ switch off, nothing grabs or throws.
 By turns, "grapple" and "throw" are among the moves the AI can choose for a creature that has them. In a
 narrated moment, who is held or thrown is in the lines the AI tells, so it hears of it only when AI
 narration is on.
+
+### Fight display and defeat
+
+What a fight shows, and what happens when you're beaten and stay down (`src/fighthud.js` for the data,
+`src/plates.js` for the nameplates, `src/fightbar.js` for the bar and the cards). None of the display
+changes how a fight goes. It's in Settings → Inventory → Fight display, except the last switch, which is
+under Combat.
+
+- **Nameplates.** Each creature in a fight has its name, an HP bar coloured by how hurt it is (green,
+  yellow, orange, red) and a mark for each condition on it (↓ prone, ☠ poisoned, ! frightened, ✋ held,
+  # restrained, ✶ stunned, ≈ slowed, ✕ down). Companions and people fighting you have the bar over their
+  name tag. A bigger creature's plate floats higher (its body is measured once). Plates fade with distance,
+  fade out close to the camera, and ten at most are up at once; each is one canvas sprite, drawn again only
+  when what it shows changes, and disposed as soon as it's not wanted. "Name and HP over heads": Always in
+  fights, Sometimes (only one that's hurt, has a condition, is aimed at, or whose turn it is) or Off.
+  "Also over hostile creatures in sight" shows them before a fight begins.
+- **The turn order.** By turns, the bar at the top shows a card for each fighter in initiative order: name,
+  HP bar and numbers, conditions, and a gold edge for whose turn it is. Under it, the last thing that
+  happened in a few words ("The wolf bites at Zoey: a hit, 4 damage · 14 vs AC 12"); Before opens the
+  lines before it, and the chat keeps every roll whole. The cards wrap, and scroll past a few rows, so it
+  fits a phone.
+- **In real time** a smaller list at the top shows you, your companions and what you're fighting, the same
+  way ("Real time: who's in the fight, at the top").
+- **Foes' numbers.** With "Show foes' exact HP" off, a foe's HP is a word (Unhurt, Scratched, Wounded,
+  Badly wounded, Near death) and its bar moves in quarters.
+- **Info cards.** Tap or click a name on a card, or a plate, for that one's card. A creature's comes from the
+  5e SRD (`srd.js`, built by `scripts/build-wanderworld-srd.mjs`): size, type and alignment, AC, HP,
+  speed, senses, challenge, ability scores, damage resistances, immunities and vulnerabilities, the
+  conditions it can't be put in, and its traits and actions shortened to a line each. A companion's or a
+  person's shows their class, level, HP, AC and conditions. "What you know of a creature": Everything, or
+  Only what you've learned (to begin with): its attacks once you've seen it attack, its AC once you've
+  fought it, and how each kind of damage you've dealt it went. The first time you open a kind's card you
+  roll Intelligence (Arcana for dragons, elementals and monstrosities, Nature for beasts, giants, oozes and
+  plants, Religion for the undead and fiends, History for people) against DC 10 plus its challenge rating;
+  pass and you know all of it. It's rolled once a kind and kept with the world.
+- **After a defeat.** With "When your HP runs out" at Stay down until you choose and "Staying down: those who
+  beat you stay over you" on (Combat, on to begin with), what beat you stays near you and isn't counted away
+  by New monsters every (it's in `herd.js respawn`'s keep set). An outlaw stands over you and, if a defeat
+  costs money, takes it there and then (not again when you get up); a beast circles you; a monster stands
+  guard. A line in the chat says who stands over you, and a card offers Plead (Charisma (Persuasion), or
+  Wisdom (Animal Handling) with beasts alone, against DC 10 plus the strongest one's challenge rating, 2 more
+  each try; the mindless can't be pleaded with), Wait (they may lose interest and go) and Struggle
+  (Constitution against DC 10: up with 1 HP, and the fight is on again). With AI moments on, the narrator is
+  told in one short line who stands over you, and the plea is told too, so you can play it out in the chat.
+  Respawn gets you up at home at any time. Overridden by Undefeatable (you never go down), being indoors,
+  and places where "Where people may confront you" keeps fights out (there they let you be). A quest can
+  later take the player captive through `core.captive` (`fighthud.js overRole`); none does yet.
 
 ### Factions and regions
 
@@ -1085,7 +1133,8 @@ of the Coast LLC (https://dnd.wizards.com/resources/systems-reference-document),
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode), in the machine-readable form of
 the [Open5e API](https://github.com/open5e/open5e-api) project, taken from this repository's
 `ruleset-5e-2014` package by `scripts/build-wanderworld-srd.mjs`. It has been adapted: only names,
-levels, classes, dice, damage types, saving throws and ranges are kept, and what a spell costs in
+levels, classes, dice, damage types, saving throws and ranges are kept (and for creatures their ability
+scores, speeds, senses, what they resist, and their traits and actions shortened to a line each), and what a spell costs in
 mana is Wanderworld's own. Not affiliated with or endorsed by Wizards of the Coast.
 
 The buildings, props, nature, townsfolk and recorded animations are converted from free packs by
