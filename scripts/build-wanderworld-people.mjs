@@ -11,7 +11,9 @@
 //     with names, only those are packed again)
 //     (Two-legged ones on the people's skeleton go to kit/fantasy/folk; ones with a skeleton of their own, a
 //     mimic or a roper, to kit/creatures/rigged-<name>.json, each with its own actions; avatar-* and anthro-*
-//     bodies are left for the avatar packing.)
+//     bodies and outfit pieces are left for the avatar packing.)
+//   node scripts/build-wanderworld-people.mjs --avatar   (the base avatar, its hair styles and outfit pieces:
+//     assets/models/avatar-*.glb and outfit-*.glb, into kit/generic/avatar and kit/fantasy/avatar)
 //
 // Each part (an outfit, a head, a hairstyle) keeps its own joints' inverse bind matrices, and every part
 // of a person binds to one shared skeleton built from the outfit's. So a head cut from the base body, or a
@@ -66,7 +68,7 @@ function readGltf(path) {
   };
   function accessor(index) {
     const info = json.accessors[index];
-    const view = json.bufferViews[info.bufferView];
+    const view = json.bufferViews[info.bufferView ?? info.sparse?.values.bufferView];
     const Type = TYPES[info.componentType];
     const size = COMPONENTS[info.type];
     const buffer = buffers[view.buffer];
@@ -83,8 +85,28 @@ function readGltf(path) {
       5126: (o) => data.getFloat32(o, true),
     }[info.componentType];
     const scale = info.normalized ? { 5120: 127, 5121: 255, 5122: 32767, 5123: 65535 }[info.componentType] : 1;
-    for (let i = 0; i < info.count; i++) {
-      for (let c = 0; c < size; c++) out[i * size + c] = read(start + i * stride + c * Type.BYTES_PER_ELEMENT) / scale;
+    // (A sparse accessor, as a shape key comes, may have no buffer view: all zero, then its few values.)
+    if (info.bufferView !== undefined) {
+      for (let i = 0; i < info.count; i++) {
+        for (let c = 0; c < size; c++)
+          out[i * size + c] = read(start + i * stride + c * Type.BYTES_PER_ELEMENT) / scale;
+      }
+    }
+    if (info.sparse) {
+      const { count, indices, values } = info.sparse;
+      const at = (part) =>
+        buffer.byteOffset + (json.bufferViews[part.bufferView].byteOffset ?? 0) + (part.byteOffset ?? 0);
+      const readIndex = {
+        5121: (o) => data.getUint8(o),
+        5123: (o) => data.getUint16(o, true),
+        5125: (o) => data.getUint32(o, true),
+      }[indices.componentType];
+      const indexSize = { 5121: 1, 5123: 2, 5125: 4 }[indices.componentType];
+      for (let i = 0; i < count; i++) {
+        const v = readIndex(at(indices) + i * indexSize);
+        for (let c = 0; c < size; c++)
+          out[v * size + c] = read(at(values) + (i * size + c) * Type.BYTES_PER_ELEMENT) / scale;
+      }
     }
     return { values: out, size, count: info.count };
   }
@@ -111,9 +133,18 @@ function skinnedPrimitives(gltf) {
     const skin = gltf.json.skins[node.skin];
     const jointNames = skin.joints.map((j) => gltf.json.nodes[j].name);
     const ibm = gltf.accessor(skin.inverseBindMatrices).values;
-    for (const primitive of gltf.json.meshes[node.mesh].primitives) {
+    const mesh = gltf.json.meshes[node.mesh];
+    for (const primitive of mesh.primitives) {
       out.push({
-        name: gltf.json.meshes[node.mesh].name,
+        name: mesh.name,
+        nodeName: node.name,
+        extras: { ...mesh.extras, ...node.extras },
+        // (Shape keys: Blender's exporter names them in the mesh's extras.)
+        targets: primitive.targets?.map((target) => ({
+          position: gltf.accessor(target.POSITION),
+          normal: target.NORMAL === undefined ? null : gltf.accessor(target.NORMAL),
+        })),
+        keyNames: mesh.extras?.targetNames ?? [],
         texture: gltf.textureOf(primitive.material),
         material: gltf.json.materials?.[primitive.material] ?? null,
         position: gltf.accessor(primitive.attributes.POSITION),
@@ -183,7 +214,44 @@ function packMesh(primitive, texture, jointIndex, keep = () => true) {
   }
   const index = count > 65535 ? new Uint32Array(triangles.length * 3) : new Uint16Array(triangles.length * 3);
   triangles.forEach((tri, i) => tri.forEach((v, c) => (index[i * 3 + c] = remap.get(v))));
+  // Shape keys (glTF morph targets), each only where it moves anything: the vertices (uint16 or uint32),
+  // their moves (int16 within ±`d`, a scale per axis) and normals' changes (int8 within ±`n`).
+  const morphs = {};
+  (primitive.targets ?? []).forEach((target, k) => {
+    const moved = [];
+    for (const [v, n] of remap) {
+      let size = 0;
+      for (let c = 0; c < 3; c++) size = Math.max(size, Math.abs(target.position.values[v * 3 + c]));
+      if (size > 1e-5) moved.push([v, n]);
+    }
+    if (!moved.length) return;
+    const d = [0, 0, 0];
+    const ns = [0, 0, 0];
+    for (const [v] of moved)
+      for (let c = 0; c < 3; c++) {
+        d[c] = Math.max(d[c], Math.abs(target.position.values[v * 3 + c]));
+        ns[c] = Math.max(ns[c], Math.abs(target.normal?.values[v * 3 + c] ?? 0));
+      }
+    const ids = count > 65535 ? new Uint32Array(moved.length) : new Uint16Array(moved.length);
+    const delta = new Int16Array(moved.length * 3);
+    const normalDelta = new Int8Array(moved.length * 3);
+    moved.forEach(([v, n], i) => {
+      ids[i] = n;
+      for (let c = 0; c < 3; c++) {
+        delta[i * 3 + c] = Math.round((target.position.values[v * 3 + c] / (d[c] || 1)) * 32767);
+        normalDelta[i * 3 + c] = Math.round(((target.normal?.values[v * 3 + c] ?? 0) / (ns[c] || 1)) * 127);
+      }
+    });
+    morphs[primitive.keyNames[k]] = {
+      ids: b64(ids),
+      d: d.map((value) => Number(value.toPrecision(6))),
+      delta: b64(delta),
+      n: ns.map((value) => Number(value.toPrecision(6))),
+      normal: b64(normalDelta),
+    };
+  });
   return {
+    ...(Object.keys(morphs).length ? { morphs } : {}),
     texture,
     count,
     box: [...min, ...max].map((value) => Math.round(value * 1e5) / 1e5),
@@ -206,11 +274,15 @@ function packPart(primitives, { texture, keep, skeleton } = {}) {
     primitive.jointNames.forEach((name, i) => {
       if (names.includes(name)) return;
       names.push(name);
+      if (!primitive.ibm) return;
       ibms.push(...Array.from(primitive.ibm.slice(i * 16, i * 16 + 16)).map((value) => Math.round(value * 1e6) / 1e6));
     });
   }
   const meshes = primitives.map((primitive) => packMesh(primitive, texture(primitive), jointIndex, keep?.(primitive)));
-  return { joints: names, inverseBind: ibms, meshes, ...(skeleton ? { skeleton } : {}) };
+  // (A mesh hung on a bone rather than skinned has no inverse bind matrices of its own: the game binds it
+  // with the body's, avatar.js.)
+  const bound = primitives.every((primitive) => primitive.ibm);
+  return { joints: names, inverseBind: bound ? ibms : null, meshes, ...(skeleton ? { skeleton } : {}) };
 }
 
 /** The skeleton from an outfit file: each joint's name and parent (by index), in bind pose. */
@@ -417,7 +489,7 @@ function bestiary(only = []) {
   let count = 0;
   let own = 0;
   for (const file of readdirSync(dir)
-    .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro)-|^giant-base/u.test(name))
+    .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro|outfit)-|^giant-base/u.test(name))
     .filter((name) => !only.length || only.includes(name.slice(0, -4)))
     .sort()) {
     const name = file.slice(0, -4);
@@ -563,8 +635,242 @@ function rigged(name, path, out) {
   );
 }
 
+// ── The base avatar (src/avatar.js) ──
+
+/** A glTF node's own transform as a column-major 4×4 matrix. */
+function nodeMatrix(node) {
+  if (node.matrix) return node.matrix;
+  const [x, y, z, w] = node.rotation ?? [0, 0, 0, 1];
+  const [sx, sy, sz] = node.scale ?? [1, 1, 1];
+  const [tx, ty, tz] = node.translation ?? [0, 0, 0];
+  return [
+    (1 - 2 * (y * y + z * z)) * sx,
+    2 * (x * y + z * w) * sx,
+    2 * (x * z - y * w) * sx,
+    0,
+    2 * (x * y - z * w) * sy,
+    (1 - 2 * (x * x + z * z)) * sy,
+    2 * (y * z + x * w) * sy,
+    0,
+    2 * (x * z + y * w) * sz,
+    2 * (y * z - x * w) * sz,
+    (1 - 2 * (x * x + y * y)) * sz,
+    0,
+    tx,
+    ty,
+    tz,
+    1,
+  ];
+}
+const multiply = (a, b) =>
+  Array.from({ length: 16 }, (_, i) => {
+    const [column, row] = [Math.floor(i / 4), i % 4];
+    let sum = 0;
+    for (let k = 0; k < 4; k++) sum += a[k * 4 + row] * b[column * 4 + k];
+    return sum;
+  });
+
+/**
+ * Every mesh in a file, each primitive as `skinnedPrimitives` gives it. A mesh hung on a bone (a hair style
+ * parented to the head in Blender) rather than skinned comes out in the file's rest pose, wholly on the
+ * `Head` bone, for the game to bind with the body's own matrices.
+ */
+function meshPrimitives(gltf) {
+  const skinned = skinnedPrimitives(gltf);
+  const parents = new Map();
+  gltf.json.nodes.forEach((node, i) => (node.children ?? []).forEach((child) => parents.set(child, i)));
+  const world = (i) =>
+    parents.has(i) ? multiply(world(parents.get(i)), nodeMatrix(gltf.json.nodes[i])) : nodeMatrix(gltf.json.nodes[i]);
+  const out = [...skinned];
+  gltf.json.nodes.forEach((node, i) => {
+    if (node.mesh === undefined || node.skin !== undefined) return;
+    const m = world(i);
+    const mesh = gltf.json.meshes[node.mesh];
+    for (const primitive of mesh.primitives) {
+      const position = gltf.accessor(primitive.attributes.POSITION);
+      const normal = gltf.accessor(primitive.attributes.NORMAL);
+      const count = position.count;
+      for (let v = 0; v < count; v++) {
+        const [x, y, z] = position.values.slice(v * 3, v * 3 + 3);
+        const [nx, ny, nz] = normal.values.slice(v * 3, v * 3 + 3);
+        for (let c = 0; c < 3; c++) {
+          position.values[v * 3 + c] = m[c] * x + m[4 + c] * y + m[8 + c] * z + m[12 + c];
+          normal.values[v * 3 + c] = m[c] * nx + m[4 + c] * ny + m[8 + c] * nz;
+        }
+        const length = Math.hypot(...normal.values.slice(v * 3, v * 3 + 3)) || 1;
+        for (let c = 0; c < 3; c++) normal.values[v * 3 + c] /= length;
+      }
+      out.push({
+        name: mesh.name,
+        nodeName: node.name,
+        extras: { ...mesh.extras, ...node.extras },
+        targets: primitive.targets?.map((target) => ({
+          position: gltf.accessor(target.POSITION),
+          normal: target.NORMAL === undefined ? null : gltf.accessor(target.NORMAL),
+        })),
+        keyNames: mesh.extras?.targetNames ?? [],
+        texture: gltf.textureOf(primitive.material),
+        material: gltf.json.materials?.[primitive.material] ?? null,
+        position,
+        normal,
+        uv:
+          primitive.attributes.TEXCOORD_0 === undefined
+            ? { values: new Float64Array(count * 2) }
+            : gltf.accessor(primitive.attributes.TEXCOORD_0),
+        joints: { values: new Float64Array(count * 4) },
+        weights: { values: Float64Array.from({ length: count * 4 }, (_, j) => (j % 4 === 0 ? 1 : 0)) },
+        index: gltf.accessor(primitive.indices),
+        jointNames: ["Head"],
+        ibm: null,
+      });
+    }
+  });
+  return out;
+}
+
+/** Which body a mesh is for, by its name ("male", "hair_female"): "male", "female", or null (both). */
+const sexOfName = (name) =>
+  /(?:^|[^a-z])female/u.test(name.toLowerCase())
+    ? "female"
+    : /(?:^|[^a-z])male/u.test(name.toLowerCase())
+      ? "male"
+      : null;
+
+/**
+ * The base avatar (assets/scripts/make_avatar.py) into the kit, with its shape keys, for src/avatar.js:
+ * - kit/generic/avatar/avatar-<sex>.json, a body each (the skeleton, every part with its material's name and
+ *   colour, the underwear's styles, shape keys), and its textures avatar-<sex>.webp, avatar-<sex>-1.webp;
+ * - kit/generic/avatar/avatar-hair.json, every hair style (avatar-hair-<style>.glb, a `male` and a `female`
+ *   mesh, skinned or hung on the head bone), and their textures;
+ * - kit/fantasy/avatar/avatar-outfits.json, every outfit piece (outfit-<piece>.glb, a `male` and a `female`
+ *   mesh with the body's shape keys, and `hides`, the body's regions it covers, in its extras), and theirs.
+ * One file a body and one for each kind of the rest, as a package may list at most 256 asset files.
+ */
+function avatar() {
+  const dir = join(ROOT, "packages/wanderworld/assets/models");
+  const out = join(KIT, "generic/avatar");
+  const outfitsOut = join(KIT, "fantasy/avatar");
+  for (const folder of [out, outfitsOut]) {
+    rmSync(folder, { recursive: true, force: true });
+    mkdirSync(folder, { recursive: true });
+  }
+  const source =
+    "Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan (packages/wanderworld/assets/scripts)";
+  const written = new Map(); // a picture's bytes → its kit name (the same picture twice is one file)
+  /** A file's picture (`image:<n>`) as a .webp in `folder`, named `name` unless it's already there. */
+  const picture = (gltf, image, name, folder) => {
+    const bytes = gltf.imageOf(image);
+    const key = bytes.toString("base64");
+    if (written.has(key)) return written.get(key);
+    const raw = join(
+      folder,
+      `${name}.${gltf.json.images[Number(image.slice(6))].mimeType === "image/jpeg" ? "jpg" : "png"}`,
+    );
+    writeFileSync(raw, bytes);
+    execFileSync(FFMPEG, ["-v", "error", "-y", "-i", raw, "-quality", "82", join(folder, `${name}.webp`)]);
+    rmSync(raw);
+    written.set(key, name);
+    return name;
+  };
+  /** Pictures named `<base>`, `<base>-1`, … in the order a file's meshes use them. */
+  const namer = (gltf, base, folder) => {
+    const names = new Map();
+    return (primitive) => {
+      if (!primitive.texture?.startsWith("image:")) return null;
+      if (!names.has(primitive.texture))
+        names.set(
+          primitive.texture,
+          picture(gltf, primitive.texture, names.size ? `${base}-${names.size}` : base, folder),
+        );
+      return names.get(primitive.texture);
+    };
+  };
+  /** A part: packPart, each mesh saying its material (`part`), colour (linear) and how its alpha is used. */
+  const part = (primitives, texture, extra = {}) => {
+    const packed = packPart(primitives, { texture, ...extra });
+    packed.meshes.forEach((mesh, i) => {
+      const material = primitives[i].material;
+      mesh.part = material?.name ?? "part";
+      mesh.colour = (material?.pbrMetallicRoughness?.baseColorFactor ?? [1, 1, 1])
+        .slice(0, 3)
+        .map((value) => Math.round(value * 1e4) / 1e4);
+      if (material?.alphaMode && material.alphaMode !== "OPAQUE") mesh.alpha = material.alphaMode;
+    });
+    return packed;
+  };
+  const glbs = readdirSync(dir).filter((name) => name.endsWith(".glb"));
+  for (const sex of ["male", "female"]) {
+    if (!glbs.includes(`avatar-${sex}.glb`)) continue;
+    const gltf = readGltf(join(dir, `avatar-${sex}.glb`));
+    const primitives = skinnedPrimitives(gltf);
+    const body = part(primitives, namer(gltf, `avatar-${sex}`, out), { skeleton: skeletonOf(gltf) });
+    // The underwear's styles, each a mesh of its own ("underwear-bottom-briefs", "underwear-top-bra"); a body
+    // made before they were has one layer in its own mesh, "underwear-legacy" (briefs, and a bra on her).
+    body.meshes.forEach((mesh, i) => {
+      const name = [primitives[i].nodeName, primitives[i].name].find((text) =>
+        /^underwear-(?:top|bottom)-/u.test(text ?? ""),
+      );
+      if (name) mesh.piece = name;
+      else if (/^underwear/u.test(mesh.part)) mesh.piece = "underwear-legacy";
+    });
+    let top = 0;
+    for (const primitive of primitives)
+      for (let i = 1; i < primitive.position.values.length; i += 3) top = Math.max(top, primitive.position.values[i]);
+    const keys = [...new Set(primitives.flatMap((primitive) => primitive.keyNames))];
+    writeFileSync(
+      join(out, `avatar-${sex}.json`),
+      JSON.stringify({ source, height: Math.round(top * 100) / 100, keys, ...body }),
+    );
+  }
+  /** Each body's meshes of a hair or outfit file: { male, female }, a part each (a mesh for both goes in both). */
+  const bySex = (gltf, base, folder) => {
+    const primitives = meshPrimitives(gltf).filter(
+      (primitive) => !/^avatar-/u.test(primitive.nodeName ?? primitive.name ?? ""),
+    );
+    const texture = namer(gltf, base, folder);
+    const sexes = {};
+    for (const sex of ["male", "female"]) {
+      const own = primitives.filter(
+        (primitive) => (sexOfName(primitive.nodeName || primitive.name || "") ?? sex) === sex,
+      );
+      if (own.length) sexes[sex] = part(own, texture);
+    }
+    return { sexes, primitives };
+  };
+  const styles = {};
+  for (const file of glbs.filter((name) => /^avatar-hair-[a-z0-9_]+\.glb$/u.test(name)).sort()) {
+    const style = file.slice("avatar-hair-".length, -4);
+    styles[style] = bySex(readGltf(join(dir, file)), `avatar-hair-${style}`, out).sexes;
+  }
+  if (Object.keys(styles).length) writeFileSync(join(out, "avatar-hair.json"), JSON.stringify({ source, styles }));
+  const pieces = {};
+  for (const file of glbs.filter((name) => /^outfit-[a-z0-9_]+\.glb$/u.test(name)).sort()) {
+    const piece = file.slice("outfit-".length, -4);
+    const gltf = readGltf(join(dir, file));
+    const { sexes, primitives } = bySex(gltf, `avatar-outfit-${piece}`, outfitsOut);
+    // What it covers: `hides` in its meshes', nodes' or scene's extras, a list or words ("torso, upperarms").
+    const said = [
+      ...primitives.map((primitive) => primitive.extras?.hides),
+      ...(gltf.json.scenes ?? []).map((scene) => scene.extras?.hides),
+    ];
+    const hides = [
+      ...new Set(
+        said.flatMap((value) => (Array.isArray(value) ? value : String(value ?? "").split(/[\s,]+/u))).filter(Boolean),
+      ),
+    ];
+    pieces[piece] = { hides, ...sexes };
+  }
+  if (Object.keys(pieces).length)
+    writeFileSync(join(outfitsOut, "avatar-outfits.json"), JSON.stringify({ source, pieces }));
+  for (const folder of [out, outfitsOut]) if (!readdirSync(folder).length) rmSync(folder, { recursive: true });
+  console.log(
+    `wrote the avatar: ${readdirSync(out).join(", ")}${Object.keys(pieces).length ? `; outfits: ${Object.keys(pieces).join(", ")}` : ""}`,
+  );
+}
+
 function main() {
   if (process.argv[2] === "--bestiary") return bestiary(process.argv.slice(3));
+  if (process.argv[2] === "--avatar") return avatar();
   if (process.argv[2] === "--folk") {
     if (!process.argv[3]) throw new Error("Usage: build-wanderworld-people.mjs --folk <Bestiary GLB dir>");
     return folk(process.argv[3]);
