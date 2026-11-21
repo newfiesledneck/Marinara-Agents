@@ -22,8 +22,35 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { MeshoptSimplifier } from "three/examples/jsm/libs/meshopt_simplifier.module.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+await MeshoptSimplifier.ready;
+/**
+ * How many vertices' worth of triangles a model's distant version has: the Blender-made creatures and the
+ * avatar get a second, smaller list of triangles over the same vertices, which the game draws past the
+ * "Creature detail distance" (src/kit.js addDistant). A model this small or smaller has none.
+ */
+const DISTANT_VERTICES = 7000;
+
+/**
+ * A distant version of a mesh: about `share` of its triangles, chosen by meshoptimizer's simplifier
+ * from the same vertices (`positions`: x, y, z each), so nothing else about the model changes; null when
+ * it wouldn't save a tenth. `Type` is the full index's array type, which it's given back in.
+ */
+function distantIndex(index, positions, share, Type = Uint32Array) {
+  if (!(share < 0.9) || index.length < 300) return null;
+  const target = Math.max(3, Math.floor((index.length * share) / 3) * 3);
+  const simplify = (flags) =>
+    MeshoptSimplifier.simplify(Uint32Array.from(index), Float32Array.from(positions), 3, target, 1, flags)[0];
+  // (A model shaded flat, or cut into many texture islands, is all seams, which the simplifier keeps;
+  // past them it can still go, as only far-off copies are drawn this way.)
+  let far = simplify([]);
+  if (far.length > target * 1.5) far = simplify(["Permissive"]);
+  return far.length && far.length < index.length * 0.9 ? Type.from(far) : null;
+}
+/** The share of its triangles a model of `vertices` keeps far off. */
+const distantShare = (vertices) => DISTANT_VERTICES / Math.max(1, vertices);
 // Where it all goes, by setting: the bodies (skeletons, heads, hair, skin, and the bare body for a piece
 // left off) are any world's, in one file, bodies.json; the outfits and their cloth are the medieval
 // one's. src/people.js tells them apart by name the same way.
@@ -170,8 +197,9 @@ function skinnedPrimitives(gltf) {
 const b64 = (typed) => Buffer.from(typed.buffer, typed.byteOffset, typed.byteLength).toString("base64");
 
 /** One mesh, quantized: positions int16 within its box, normals int8, uvs uint16 (0…1, wrapped), joint
- *  indices uint8 into the part's joint list, weights uint8. `keep(triangle)` can drop triangles. */
-function packMesh(primitive, texture, jointIndex, keep = () => true) {
+ *  indices uint8 into the part's joint list, weights uint8. `keep(triangle)` can drop triangles. With
+ *  `share`, a distant version too (`far`, distantIndex). */
+function packMesh(primitive, texture, jointIndex, keep = () => true, share = 1) {
   const triangles = [];
   for (let i = 0; i < primitive.index.count; i += 3) {
     const tri = [primitive.index.values[i], primitive.index.values[i + 1], primitive.index.values[i + 2]];
@@ -214,6 +242,9 @@ function packMesh(primitive, texture, jointIndex, keep = () => true) {
   }
   const index = count > 65535 ? new Uint32Array(triangles.length * 3) : new Uint16Array(triangles.length * 3);
   triangles.forEach((tri, i) => tri.forEach((v, c) => (index[i * 3 + c] = remap.get(v))));
+  const places = new Float32Array(count * 3);
+  for (const [v, n] of remap) for (let c = 0; c < 3; c++) places[n * 3 + c] = p[v * 3 + c];
+  const far = distantIndex(index, places, share, index.constructor);
   // Shape keys (glTF morph targets), each only where it moves anything: the vertices (uint16 or uint32),
   // their moves (int16 within ±`d`, a scale per axis) and normals' changes (int8 within ±`n`).
   const morphs = {};
@@ -261,12 +292,16 @@ function packMesh(primitive, texture, jointIndex, keep = () => true) {
     joints: b64(joints),
     weights: b64(weights),
     index: b64(index),
+    ...(far ? { far: b64(far) } : {}),
     wide: index instanceof Uint32Array,
   };
 }
 
-/** A part file: its joints (names and inverse bind matrices) and meshes; a body also carries the skeleton. */
-function packPart(primitives, { texture, keep, skeleton } = {}) {
+/**
+ * A part file: its joints (names and inverse bind matrices) and meshes; a body also carries the skeleton.
+ * `distant`: the share of its triangles each mesh keeps in its distant version (packMesh).
+ */
+function packPart(primitives, { texture, keep, skeleton, distant = 1 } = {}) {
   const names = [];
   const ibms = [];
   const jointIndex = (name) => names.indexOf(name);
@@ -278,7 +313,9 @@ function packPart(primitives, { texture, keep, skeleton } = {}) {
       ibms.push(...Array.from(primitive.ibm.slice(i * 16, i * 16 + 16)).map((value) => Math.round(value * 1e6) / 1e6));
     });
   }
-  const meshes = primitives.map((primitive) => packMesh(primitive, texture(primitive), jointIndex, keep?.(primitive)));
+  const meshes = primitives.map((primitive) =>
+    packMesh(primitive, texture(primitive), jointIndex, keep?.(primitive), distant),
+  );
   // (A mesh hung on a bone rather than skinned has no inverse bind matrices of its own: the game binds it
   // with the body's, avatar.js.)
   const bound = primitives.every((primitive) => primitive.ibm);
@@ -488,9 +525,25 @@ function bestiary(only = []) {
   }
   let count = 0;
   let own = 0;
+  // (Only the models in git, as the bestiary test counts them: one saved but not committed may be half done.)
+  let tracked = null;
+  try {
+    tracked = new Set(
+      execFileSync("git", ["ls-files", "assets/models"], { cwd: join(ROOT, "packages/wanderworld"), encoding: "utf8" })
+        .split(/\r?\n/u)
+        .map((path) => path.split("/").pop()),
+    );
+  } catch {
+    // (no git: every model there counts)
+  }
   for (const file of readdirSync(dir)
     .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro|outfit)-|^giant-base/u.test(name))
     .filter((name) => !only.length || only.includes(name.slice(0, -4)))
+    .filter((name) => {
+      if (!tracked || tracked.has(name)) return true;
+      console.warn(`left out ${name}: it isn't in git yet`);
+      return false;
+    })
     .sort()) {
     const name = file.slice(0, -4);
     const gltf = readGltf(join(dir, file));
@@ -508,9 +561,14 @@ function bestiary(only = []) {
     let top = 0;
     for (const primitive of primitives)
       for (let i = 1; i < primitive.position.values.length; i += 3) top = Math.max(top, primitive.position.values[i]);
+    const vertices = primitives.reduce((sum, primitive) => sum + primitive.position.count, 0);
     const body = {
       height: Math.round(top * 100) / 100,
-      ...packPart(primitives, { texture: () => `folk-${name}`, skeleton: skeletonOf(gltf) }),
+      ...packPart(primitives, {
+        texture: () => `folk-${name}`,
+        skeleton: skeletonOf(gltf),
+        distant: distantShare(vertices),
+      }),
     };
     const packed = {
       source: "Made in Blender by ThatOneCan (packages/wanderworld/assets/scripts)",
@@ -561,6 +619,14 @@ function rigged(name, path, out) {
     const out = new Type(accessor.count * stride);
     for (let i = 0; i < accessor.count; i++)
       for (let c = 0; c < components; c++) out[i * stride + c] = Math.round(floats[i * components + c] * scale);
+    // (Bone weights rounded one by one may not add up to 255 any more, which skinning would draw as the
+    // vertex pulled towards the origin: what's out goes to the biggest one.)
+    if (Type === Uint8Array && components === 4)
+      for (let i = 0; i < accessor.count; i++) {
+        const weights = out.subarray(i * 4, i * 4 + 4);
+        const total = weights.reduce((sum, weight) => sum + weight, 0);
+        if (total) weights[weights.indexOf(Math.max(...weights))] += 255 - total;
+      }
     replaced.set(accessor.bufferView, Buffer.from(out.buffer));
     Object.assign(accessor, { componentType, normalized: true, byteOffset: 0 });
     if (stride !== components) view.byteStride = stride;
@@ -582,6 +648,36 @@ function rigged(name, path, out) {
   if (normals) {
     json.extensionsUsed = [...new Set([...(json.extensionsUsed ?? []), "KHR_mesh_quantization"])];
     json.extensionsRequired = [...new Set([...(json.extensionsRequired ?? []), "KHR_mesh_quantization"])];
+  }
+  // A distant version of each of its meshes (distantIndex), in the same file: an index accessor of its
+  // own over the same vertices, named in the primitive's extras (`far`), which src/rigged.js draws far off.
+  const readAccessor = (index, Type) => {
+    const accessor = json.accessors[index];
+    const view = json.bufferViews[accessor.bufferView];
+    const start = bin.byteOffset + (view.byteOffset ?? 0) + (accessor.byteOffset ?? 0);
+    const size = { SCALAR: 1, VEC3: 3 }[accessor.type];
+    return view.byteStride
+      ? null
+      : new Type(bin.buffer.slice(start, start + accessor.count * size * Type.BYTES_PER_ELEMENT));
+  };
+  const primitives = json.meshes.flatMap((mesh) => mesh.primitives);
+  const vertices = primitives.reduce((sum, primitive) => sum + json.accessors[primitive.attributes.POSITION].count, 0);
+  for (const primitive of primitives) {
+    const type = json.accessors[primitive.indices]?.componentType;
+    const Type = { 5123: Uint16Array, 5125: Uint32Array }[type];
+    const index = Type && readAccessor(primitive.indices, Type);
+    const positions = Type && readAccessor(primitive.attributes.POSITION, Float32Array);
+    const far = index && positions && distantIndex(index, positions, distantShare(vertices), Type);
+    if (!far) continue;
+    json.bufferViews.push({ buffer: 0, byteLength: far.byteLength, target: 34963 });
+    replaced.set(json.bufferViews.length - 1, Buffer.from(far.buffer, far.byteOffset, far.byteLength));
+    json.accessors.push({
+      bufferView: json.bufferViews.length - 1,
+      componentType: type,
+      count: far.length,
+      type: "SCALAR",
+    });
+    primitive.extras = { ...primitive.extras, far: json.accessors.length - 1 };
   }
   // The model without its images: their buffer views dropped and the rest packed up again.
   const dropped = new Set((json.images ?? []).map((entry) => entry.bufferView));
@@ -801,11 +897,18 @@ function avatar() {
     return packed;
   };
   const glbs = readdirSync(dir).filter((name) => name.endsWith(".glb"));
+  // (Each body's distant version keeps DISTANT_VERTICES' worth of its triangles, and its hair and outfit
+  // pieces the same share of theirs.)
+  const shares = {};
   for (const sex of ["male", "female"]) {
     if (!glbs.includes(`avatar-${sex}.glb`)) continue;
     const gltf = readGltf(join(dir, `avatar-${sex}.glb`));
     const primitives = skinnedPrimitives(gltf);
-    const body = part(primitives, namer(gltf, `avatar-${sex}`, out), { skeleton: skeletonOf(gltf) });
+    shares[sex] = distantShare(primitives.reduce((sum, primitive) => sum + primitive.position.count, 0));
+    const body = part(primitives, namer(gltf, `avatar-${sex}`, out), {
+      skeleton: skeletonOf(gltf),
+      distant: shares[sex],
+    });
     // The underwear's styles, each a mesh of its own ("underwear-bottom-briefs", "underwear-top-bra"); a body
     // made before they were has one layer in its own mesh, "underwear-legacy" (briefs, and a bra on her).
     // The brow and lash styles ("eyebrows-01", "eyelashes-01") are pieces too: one of each shows.
@@ -855,7 +958,7 @@ function avatar() {
       const own = primitives.filter(
         (primitive) => (sexOfName(primitive.nodeName || primitive.name || "") ?? sex) === sex,
       );
-      if (own.length) sexes[sex] = part(own, texture);
+      if (own.length) sexes[sex] = part(own, texture, { distant: shares[sex] ?? 1 });
     }
     return { sexes, primitives };
   };

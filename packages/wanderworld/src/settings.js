@@ -18,6 +18,9 @@ export const SETTINGS = {
   ground: { value: "full", options: ["full", "simple"] },
   /** How far you can see before the haze, in metres. */
   drawDistance: { value: 140, options: [60, 90, 140, 200, 300, 450] },
+  /** How far from the camera creatures and people keep their full detail: past it they're drawn in their
+   *  distant version (kit.js DETAIL_DISTANCES). "full": always in full. */
+  creatureDetail: { value: "normal", options: ["near", "normal", "far", "full"] },
   /** Trees and rocks outside town, as a multiple of the forest the world was laid out with (0.5 is "Normal"). */
   density: { value: 0.5, options: [0.25, 0.5, 1, 4, 10] },
   /** How many rocks and boulders lie about, apart from the trees and plants (`density`). */
@@ -462,6 +465,7 @@ export const DEVICE_SETTINGS = new Set([
   "resolution",
   "smooth",
   "drawDistance",
+  "creatureDetail",
   "seasonLook",
   "density",
   "rockDensity",

@@ -31,4 +31,34 @@ assert.ok(titles(small).includes("Gathering, crafting and shops"), "what matches
 // (The most the assistant can be given is Settings → AI assistant → Help at its highest, 25,000 tokens: about 100,000 characters.)
 assert.ok(helpFor("", 1e9).length < 100000);
 
+// The Blender-made models' credits come from one list (help.js BLENDER_MODELS): it is what the kit holds,
+// by where it is, and Help, the README and kit/CREDITS.md each name them all, as made by ThatOneCan, with
+// the built-in body's MakeHuman credit and the giants' base body.
+{
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const { BLENDER_MODELS, CREDITS, MAKEHUMAN_CREDIT, namesOf } = await import("../packages/wanderworld/src/help.js");
+  const pkg = new URL("../packages/wanderworld/", import.meta.url);
+  const kitNames = (folder, pattern) =>
+    readdirSync(new URL(folder, pkg))
+      .map((name) => pattern.exec(name)?.[1])
+      .filter(Boolean)
+      .sort();
+  assert.deepEqual([...BLENDER_MODELS.folk].sort(), kitNames("kit/fantasy/folk/", /^folk-built-(.+)\.json$/u));
+  assert.deepEqual([...BLENDER_MODELS.rigged].sort(), kitNames("kit/creatures/", /^rigged-(.+)\.json$/u));
+  const flat = (text) => text.replace(/\s+/gu, " ");
+  const help = flat(CREDITS.flatMap((part) => part.lines).join(" "));
+  for (const [where, text] of [
+    ["Help", help],
+    ["the README", flat(readFileSync(new URL("README.md", pkg), "utf8"))],
+    ["kit/CREDITS.md", flat(readFileSync(new URL("kit/CREDITS.md", pkg), "utf8"))],
+  ]) {
+    for (const list of Object.values(BLENDER_MODELS))
+      assert.ok(text.includes(namesOf(list)), `${where} names ${namesOf(list)}`);
+    assert.ok(text.includes(MAKEHUMAN_CREDIT), `${where} gives the MakeHuman credit`);
+    assert.ok(text.includes("giant-base.glb"), `${where} names the giants' base body`);
+    assert.ok(text.includes("ThatOneCan"), `${where} credits ThatOneCan`);
+  }
+  console.log("ok: one list of the Blender-made models' credits");
+}
+
 console.log("ok: help for the assistant");

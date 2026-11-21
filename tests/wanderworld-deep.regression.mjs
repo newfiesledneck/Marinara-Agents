@@ -268,4 +268,21 @@ for (const kind of ["dungeon", "stronghold"]) {
   level.dispose();
 }
 
+// Letting a place go frees its own geometry, materials (a list of them too) and their own textures, and
+// never what the kit shares with every world.
+{
+  const { BoxGeometry, Mesh, MeshLambertMaterial, Texture } = await import("three");
+  const { disposeOwn } = await import("../packages/wanderworld/src/world.js");
+  const gone = new Set();
+  const watch = (thing, name) => (thing.addEventListener("dispose", () => gone.add(name)), thing);
+  const shared = watch(new Texture(), "kit texture");
+  shared.userData.shared = true;
+  const own = watch(new MeshLambertMaterial({ map: watch(new Texture(), "own texture") }), "own material");
+  const kit = watch(new MeshLambertMaterial({ map: shared }), "kit material");
+  kit.userData.shared = true;
+  const other = watch(new MeshLambertMaterial({ map: shared }), "second material");
+  disposeOwn(new Mesh(watch(new BoxGeometry(), "geometry"), [own, kit, other]));
+  assert.deepEqual([...gone].sort(), ["geometry", "own material", "own texture", "second material"]);
+}
+
 console.log("ok: deep places");

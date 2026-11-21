@@ -74,6 +74,7 @@ const storage = {
   getItem: (key) => (memory.has(key) ? memory.get(key) : null),
   setItem: (key, value) => memory.set(key, String(value)),
   removeItem: (key) => memory.delete(key),
+  keys: () => [...memory.keys()],
 };
 const saves = createSaves(storage);
 const first = saves.create({ name: "Hollow", seed: "seed-a" });

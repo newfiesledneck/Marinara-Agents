@@ -2,7 +2,9 @@
 // what each does, after the 5e SRD's conditions (SRD 5.1, CC BY 4.0; the credit is srd.js's). A fight here
 // is simpler than a tabletop's, so each condition keeps the part of its rule that a fight here can play:
 // whether the player's own attacks are rolled twice with the worse counting, whether attacks on them are
-// rolled twice with the better counting, whether they can move, and whether they can act at all.
+// rolled twice with the better counting, whether they can move, and whether they can act at all. Left out
+// on purpose (Help says so): paralyzed, stunned and asleep don't fail Strength and Dexterity saves by
+// themselves, and a blow on someone paralyzed or asleep isn't a critical hit by itself.
 //
 // The state is plain data, { [condition]: seconds left }, kept by main.js for as long as the world is open
 // (it isn't saved: nothing here outlasts a fight by much). This module only works things out.

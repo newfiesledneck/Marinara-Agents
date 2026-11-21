@@ -493,10 +493,29 @@ export function armourOf(sheet, worn = {}) {
     worn.unarmored && !armour && !(worn.unarmored === "wisdom" && worn.shield)
       ? Math.max(0, modifier(valueOf(sheet, worn.unarmored) + (worn[worn.unarmored] ?? 0)))
       : 0;
+  // (Heavy armour adds no Dexterity modifier, not even a negative one; light and medium add it, up to theirs.)
   const body = armour
-    ? armour.ac + armour.plus + Math.min(dex, armour.dex) + (worn.defense ?? 0)
+    ? armour.ac + armour.plus + (armour.kind === "heavy" ? 0 : Math.min(dex, armour.dex)) + (worn.defense ?? 0)
     : 10 + dex + bare + (worn.shield ? 0 : (worn.bare ?? 0)); // (`bare`: Bracers of Defense, with no shield either)
   return own - 10 + body + (worn.shield ?? 0);
+}
+
+/**
+ * A creature's Multiattack as it's made here, from its `blows` (srd.js): [{ with, ifHit }], the first being
+ * the blow of its own attack. `with`: the numbers of another attack, { attack, damage, type } (a troll's
+ * claw after its bite), or null for its own; `ifHit`: the blow (by its place here) that must have landed
+ * first (a grick's beak). With `holds` on, its holding attack's blows (a roper's tendrils) are left to the
+ * hold (grapple.js); off, those that deal damage are plain blows (an otyugh's tentacles), the rest none.
+ */
+export function multiattack(stats, holds) {
+  const kept = (stats?.blows ?? [{}])
+    .map((blow, at) => ({ blow, at }))
+    .filter(({ blow }) => !blow.hold || (!holds && blow.damage));
+  if (!kept.length) return [{ with: null }];
+  return kept.map(({ blow }) => ({
+    with: blow.damage ? { attack: blow.attack, damage: blow.damage, type: blow.type } : null,
+    ...(Number.isInteger(blow.ifHit) ? { ifHit: kept.findIndex(({ at }) => at === blow.ifHit) } : {}),
+  }));
 }
 
 /**

@@ -93,6 +93,32 @@ const bite = foeStrike({ foe: wolf, sheet }, dice([6, 20], [2, 4], [3, 4])); // 
 assert.deepEqual([bite.hit, bite.damage, bite.ac], [true, 5, 10]);
 assert.equal(foeStrike({ foe: wolf, sheet, worn: { ac: 2 } }, dice([6, 20])).hit, false, "armour turns it");
 
+// A critical hit doubles a creature's dice, not the flat part written with them: a wolf's 2d4+2 bite
+// with every die a 1 is 4d4+2 = 6.
+const srdWolf = { ...wolf, attack: 4, damage: "2d4+2" }; // (as srd.js SRD_CREATURES has it)
+const critBite = foeStrike({ foe: srdWolf, sheet }, dice([20, 20], [1, 4], [1, 4], [1, 4], [1, 4]));
+assert.deepEqual([critBite.crit, critBite.damage], [true, 6], critBite.detail);
+assert.equal(critBite.detail, "2d4 (1, 1) + 2d4 (1, 1) + 2 = 6");
+assert.equal(foeStrike({ foe: srdWolf, sheet }, dice([15, 20], [1, 4], [1, 4])).damage, 4, "no crit: 2d4+2 as before");
+
+// Multiattack: each blow with its own attack's numbers, as the SRD has them.
+{
+  const { multiattack } = await import("../packages/wanderworld/src/combat.js");
+  const { SRD_CREATURES } = await import("../packages/wanderworld/src/srd.js");
+  const told = (kind, holds) =>
+    multiattack(SRD_CREATURES[kind], holds).map((blow) => (blow.with ? blow.with.damage : SRD_CREATURES[kind].damage));
+  assert.deepEqual(told("troll", true), ["1d6+4", "2d6+4", "2d6+4"], "a troll: a bite and two claws");
+  assert.deepEqual(told("roper", true), ["4d8+4"], "a roper, holds on: its bite; the tendrils hold");
+  assert.deepEqual(told("roper", false), ["4d8+4"], "holds off: its tendrils do no damage, so it bites once");
+  assert.deepEqual(told("otyugh", true), ["2d8+3"]);
+  assert.deepEqual(told("otyugh", false), ["2d8+3", "1d8+3", "1d8+3"], "holds off: two tentacles as plain blows");
+  assert.deepEqual(told("hill_giant", true), ["3d8+5", "3d8+5"]);
+  assert.deepEqual(multiattack(SRD_CREATURES.grick, true)[1].ifHit, 0, "a grick's beak only if its tentacles hit");
+  assert.deepEqual(multiattack(SRD_CREATURES.wolf, true), [{ with: null }], "one blow");
+  for (const [kind, creature] of Object.entries(SRD_CREATURES))
+    if (creature.blows) assert.deepEqual(creature.blows[0], {}, `${kind}'s Multiattack starts with its own attack`);
+}
+
 // Blocking: the attack is rolled twice and the worse roll for the creature counts.
 const guarded = foeStrike({ foe: wolf, sheet, guarded: true }, dice([15, 20], [2, 4], [3, 4], [3, 20]));
 assert.deepEqual([guarded.roll, guarded.hit, guarded.guarded], [3, false, true]);

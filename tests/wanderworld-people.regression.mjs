@@ -288,4 +288,24 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
   assert.equal(Object.keys(COLOUR_FIELD).join(), kinds.join(), "every outfit has a field for its colour");
 }
 
+// A kit file that failed to load (a dropped connection) is asked for again next time, not kept as failed.
+{
+  const { load } = await import("../packages/wanderworld/src/people.js");
+  const was = globalThis.fetch;
+  let asked = 0;
+  globalThis.fetch = async () => {
+    asked += 1;
+    if (asked === 1) throw new Error("offline");
+    return { ok: true, json: async () => ({ fine: true }) };
+  };
+  try {
+    await assert.rejects(load("retry-test.json"), /offline/u);
+    assert.deepEqual(await load("retry-test.json"), { fine: true });
+    assert.deepEqual(await load("retry-test.json"), { fine: true });
+    assert.equal(asked, 2, "tried again once, then kept");
+  } finally {
+    globalThis.fetch = was;
+  }
+}
+
 console.log("wanderworld people regression: OK");

@@ -3,6 +3,10 @@
 Readings of what each setting costs, so the README can tell players which settings matter most. Add new
 readings at the end of each table with the version and date; keep the old ones for comparison.
 
+The last readings are from 0.5.86. They come before the Blender-made monsters, the built-in bodies, the
+regions and the creatures' distant versions, so they say nothing about a crowd of monsters: take new ones
+before relying on them for that.
+
 ## How they're taken
 
 - The Wanderworld harness in Claude's built-in browser (desktop Chromium on the maintainer's PC; the

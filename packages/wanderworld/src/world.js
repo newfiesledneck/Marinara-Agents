@@ -82,7 +82,6 @@ const BLOCK = 18;
 const STREET = 6;
 const PITCH = BLOCK + STREET;
 const BLOCKS_PER_SIDE = 5; // a town's blocks per side (each kind of settlement has its own)
-export const TOWN_HALF = (BLOCKS_PER_SIDE * PITCH) / 2; // 60 m from the centre to the outer street's edge
 const FOUNTAIN_RADIUS = 2.4;
 export const SPAWN = Object.freeze({ x: 0, z: FOUNTAIN_RADIUS + 4 });
 
@@ -91,23 +90,6 @@ const SEAT_HEIGHT = 0.45;
 const ROOF_OVERHANG = 1.1;
 /** How high the kit stall's counter is, drawn at the town's size. */
 const STALL_COUNTER = 1.12;
-/** Every kit prop the town uses, for loading. */
-// (A list of the usual ones; what's loaded for a world is its own `propModels`, so nothing is missed.)
-export const TOWN_PROPS = [
-  "barrel",
-  "barrel-apples",
-  "crate-wooden",
-  "bench",
-  "stall-empty",
-  "farmcrate-apple",
-  "farmcrate-carrot",
-  "farmcrate-empty",
-  "bag",
-  "bucket-wooden-1",
-  "bucket-metal",
-  "prop-wagon",
-  "prop-woodenfence-single",
-];
 /** Clutter by a door: model, simple stand-in, collision radius. */
 const DOORSTEP_CLUTTER = [
   ["barrel", () => barrel(), 0.34],
@@ -298,6 +280,19 @@ const PLAZA_TILE = 3.2;
 const SIDEWALK = 1.2;
 const STONE_GREY = 0x9a9a94;
 const WATER = 0x5b8fb8;
+
+/**
+ * Lets go of an object's own geometry and materials, and the materials' own textures. Kit ones
+ * (`userData.shared`) are every world's, and kit.js keeps them.
+ */
+export function disposeOwn(object) {
+  if (!object.geometry?.userData.shared) object.geometry?.dispose();
+  for (const material of [object.material].flat()) {
+    if (!material || material.userData?.shared) continue;
+    for (const value of Object.values(material)) if (value?.isTexture && !value.userData?.shared) value.dispose();
+    material.dispose();
+  }
+}
 
 /** Deterministic 32-bit string hash (FNV-1a). */
 export function hashString(text) {
@@ -4435,12 +4430,11 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   function dispose() {
     weather.dispose();
     scene.traverse((object) => {
-      // Kit geometry and materials are shared by every world (kit.js keeps them).
-      if (!object.geometry?.userData.shared) object.geometry?.dispose();
-      const materials = Array.isArray(object.material) ? object.material : [object.material];
-      for (const material of materials) if (!material?.userData.shared) material?.dispose();
+      disposeOwn(object);
       object.dispose?.();
     });
+    // (The ground's textures are in its shader's uniforms, where no material holds them.)
+    for (const uniform of Object.values(ground)) if (uniform.value?.isTexture) uniform.value.dispose();
   }
 
   const map = mapInfo(land);

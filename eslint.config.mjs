@@ -10,6 +10,8 @@ const maintainedSourceFiles = [
   "scripts/**/*.{js,mjs}",
   "tests/**/*.{js,mjs,ts,tsx}",
   "eslint.config.mjs",
+  // (Hand-written, not built: the server part's trust boundary is checked like any source.)
+  "packages/wanderworld/server.mjs",
 ];
 
 export default tseslint.config(
@@ -20,6 +22,7 @@ export default tseslint.config(
       "node_modules/**",
       "packages/*/client.js",
       "packages/*/server.mjs",
+      "!packages/wanderworld/server.mjs",
       "sources/engine/**",
     ],
   },
