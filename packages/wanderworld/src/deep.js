@@ -49,14 +49,16 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { ANIMALS } from "./animals.js";
 import { box } from "./buildings.js";
 import { noise3 } from "./caves.js";
-import { cavePlan, cavernPlan, openAt } from "./deepcave.js";
-import { kitModels } from "./kit.js";
+import { cavePlan, cavernPlan, MAX_DEPTH, openAt } from "./deepcave.js";
+import { buildDungeon, dungeonPlan } from "./dungeon.js";
+import { kitModel, kitModels } from "./kit.js";
 import { SRD_CREATURES } from "./srd.js";
 import { createCollider, hashString, rng } from "./world.js";
 
 const NATURAL = new Set(["cave", "cavern"]);
 const DRY = { depth: 0, level: 0 };
 const VIS = 1; // metres: the rock's mesh is carved on a grid this fine
+const LAMPS = 4; // the most of a level's own lights lit at once (the nearest the player), for phones
 /** How high the roof is: at the walls (`low`), at the most (`high`) and how far in it takes to rise. */
 const ROOF = { cave: { low: 3.4, high: 5.8, spread: 5 }, cavern: { low: 4.2, high: 15, spread: 13 } };
 const STONE_DARK = new Color(0x5a534a);
@@ -77,27 +79,32 @@ export const deepSeed = (entrance, depth) => hashString(`${entrance}:deep:${dept
 export const leadsDown = (entrance, share) => (hashString(`${entrance}:leads down`) % 1000) / 1000 < share;
 
 /**
- * The plan for the level of `kind` at `depth` with seed `seed`. A cave or a cavern is deepcave.js's; any
- * other kind is `generators[kind]`'s when there is one (dungeon.js's dungeonPlan(seed, depth, kind)), and
- * else a cave.
+ * The plan for the level of `kind` at `depth` with seed `seed`: a cavern or a cave from deepcave.js, a
+ * dungeon or a stronghold from dungeon.js, and anything else a cave.
  */
-export function deepPlan(seed, depth, kind, generators = {}) {
+export function deepPlan(seed, depth, kind) {
   if (kind === "cavern") return cavernPlan(seed, depth);
-  if (kind !== "cave" && typeof generators[kind] === "function") return generators[kind](seed, depth, kind);
+  if (kind === "dungeon" || kind === "stronghold") {
+    const plan = dungeonPlan(seed, depth, kind);
+    return depth >= MAX_DEPTH ? { ...plan, down: null } : plan; // (no deeper than the caves go)
+  }
   return cavePlan(seed, depth);
 }
 
 /** Who lives in each kind of place: the common sort, and what's bigger (at a "boss" spot). */
 const DWELLERS = {
   cave: {
-    common: ["rat", "spider", "snake", "bat", "slime", "wolf", "kobold", "goblin"],
+    common: ["rat", "spider", "snake", "bat", "slime", "wolf", "kobold", "goblin", "grick"],
     boss: ["bugbear", "ogre", "troll"],
   },
   cavern: {
     common: ["spider", "bat", "slime", "goblin", "kobold", "lizardfolk", "gnoll"],
-    boss: ["ogre", "minotaur", "troll"],
+    boss: ["ogre", "minotaur", "troll", "roper", "otyugh"],
   },
-  dungeon: { common: ["skeleton", "ghoul", "rat", "slime", "spider"], boss: ["ghoul", "minotaur", "wizard"] },
+  dungeon: {
+    common: ["skeleton", "ghoul", "rat", "slime", "spider", "mimic"],
+    boss: ["ghoul", "minotaur", "wizard", "otyugh"],
+  },
   stronghold: { common: ["bandit", "bandit", "hobgoblin", "orc"], boss: ["bugbear", "witch", "wizard", "ogre"] },
 };
 /** How many stand at each kind of spot, least and most. */
@@ -159,8 +166,8 @@ export function boxesOf({ x, z, w, d, angle = 0 }) {
 
 /**
  * Has `material` leave out whatever is between the camera (`cut.eye`) and the player (`cut.focus`), in a
- * tube that widens toward them, above the floor: rock, roof and walls alike. One shader change, no extra
- * meshes.
+ * tube that widens toward them, above the floor: rock, roof and walls alike; and the roof over the player,
+ * as a house's room has none. One shader change, no extra meshes.
  */
 function cutAway(material, cut) {
   material.onBeforeCompile = (shader) => {
@@ -170,7 +177,12 @@ function cutAway(material, cut) {
       .replace("#include <common>", "#include <common>\nvarying vec3 deepAt;")
       .replace(
         "#include <project_vertex>",
-        "#include <project_vertex>\ndeepAt = (modelMatrix * vec4(transformed, 1.0)).xyz;",
+        `#include <project_vertex>
+        #ifdef USE_INSTANCING
+          deepAt = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+        #else
+          deepAt = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        #endif`,
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
@@ -185,7 +197,8 @@ function cutAway(material, cut) {
         float deepT = dot(deepAt - deepEye, deepWay) / (deepLength * deepLength);
         vec3 deepNear = deepEye + deepWay * clamp(deepT, 0.0, 1.0);
         float deepReach = mix(0.8, 2.4, clamp(deepT, 0.0, 1.0));
-        if (deepAt.y > 0.25 && deepT < 1.0 - 0.6 / deepLength && distance(deepAt, deepNear) < deepReach) discard;`,
+        if (deepAt.y > 0.25 && deepT < 1.0 - 0.6 / deepLength && distance(deepAt, deepNear) < deepReach) discard;
+        if (deepAt.y > deepFocus.y + 2.0 && distance(deepAt.xz, deepFocus.xz) < 8.0) discard;`,
       );
   };
   material.customProgramCacheKey = () => "wanderworld-deep-cut";
@@ -236,7 +249,8 @@ function rockGeometry(plan, open) {
   const wallPoint = (point, s, rows) => {
     const top = roofAt(point.x, point.z, 0) + 0.3;
     const y = -0.3 + ((top + 0.3) * s) / rows;
-    const push = 0.15 + 0.45 * Math.max(0, 0.5 + 0.5 * noise(point.x * 0.7, y * 0.6, point.z * 0.7));
+    const lump = noise(point.x * 0.7, y * 0.6, point.z * 0.7) + noise(point.x * 1.9, y * 1.7, point.z * 1.9) * 0.5;
+    const push = 0.1 + 0.8 * Math.max(0, 0.5 + 0.5 * lump);
     const bands = 0.9 + Math.sin(y * 2.2 + noise(point.x * 0.3, 7, point.z * 0.3) * 2) * 0.08;
     const tint = colour
       .copy(STONE_DARK)
@@ -249,7 +263,7 @@ function rockGeometry(plan, open) {
     };
   };
   const wall = (p, q) => {
-    const rows = Math.max(2, Math.ceil(Math.max(roofAt(p.x, p.z, 0), roofAt(q.x, q.z, 0)) / 1.4));
+    const rows = Math.max(2, Math.ceil(Math.max(roofAt(p.x, p.z, 0), roofAt(q.x, q.z, 0)) / 0.9));
     for (let s = 0; s < rows; s++)
       quad(wallPoint(p, s, rows), wallPoint(q, s, rows), wallPoint(q, s + 1, rows), wallPoint(p, s + 1, rows));
   };
@@ -301,14 +315,14 @@ function rockGeometry(plan, open) {
 /** A built level's floor (a dungeon's, a stronghold's), under its rooms and passages: dark flagstone. */
 function floorGeometry(plan) {
   const slabs = [];
-  for (const room of plan.rooms) slabs.push(box(room.w, 0.1, room.d, room.x, -0.05, room.z, 0x47423b));
+  for (const room of plan.rooms) slabs.push(box(room.w, 0.1, room.d, room.x, -0.07, room.z, 0x47423b));
   for (const passage of plan.passages) {
     for (let i = 1; i < passage.points.length; i++) {
       const a = passage.points[i - 1];
       const b = passage.points[i];
       const length = Math.hypot(b.x - a.x, b.z - a.z);
       slabs.push(
-        box(passage.width, 0.1, length + passage.width, 0, -0.05, 0, 0x3f3a34)
+        box(passage.width, 0.1, length + passage.width, 0, -0.07, 0, 0x3f3a34)
           .rotateY(Math.atan2(b.x - a.x, b.z - a.z))
           .translate((a.x + b.x) / 2, 0, (a.z + b.z) / 2),
       );
@@ -336,15 +350,47 @@ export function createDeep(plan) {
   const scene = new Scene();
   scene.background = new Color(FOG);
   scene.fog = plan.kind === "cavern" ? new Fog(FOG, 16, 60) : new Fog(FOG, 10, 38);
-  scene.add(new HemisphereLight(0x6a7088, 0x1a140e, 0.55));
+  scene.add(new HemisphereLight(0x6a7088, 0x1a140e, 0.9));
   // The light the player carries (moved with them in update).
-  const torch = new PointLight(0xffb36a, 26, 18, 1.3);
+  const torch = new PointLight(0xffb36a, 30, 22, 1.2);
   scene.add(torch);
-  for (const light of (plan.lights ?? []).slice(0, 4)) {
-    const lamp = new PointLight(light.colour, 10, light.range, 1.5);
-    lamp.position.set(light.x, light.y, light.z);
+  // The plan's own lights (crystals, a camp's fire, a dungeon's torches): only the few nearest the player
+  // are lit at once (update), so a level with many costs no more than one with few.
+  const lights = plan.lights ?? [];
+  const lamps = lights.slice(0, LAMPS).map(() => {
+    const lamp = new PointLight(0xffffff, 0, 10, 1.5);
     scene.add(lamp);
-  }
+    return lamp;
+  });
+  const light = (lamp, from) => {
+    lamp.color.setHex(from.colour);
+    lamp.intensity = 10;
+    lamp.distance = from.range;
+    lamp.position.set(from.x, from.y, from.z);
+  };
+  lamps.forEach((lamp, i) => light(lamp, lights[i]));
+  const materials = new Map(); // a kit material → this level's copy of it, cut away like the rock
+  const own = (kitMaterial, glow = false) => {
+    const key = `${kitMaterial.uuid}:${glow ? 1 : 0}`;
+    if (!materials.has(key)) {
+      const copy = kitMaterial.clone();
+      copy.userData = {};
+      if (glow) {
+        copy.emissive = new Color(0xffffff);
+        copy.emissiveMap = copy.map;
+        copy.emissiveIntensity = 0.7;
+      }
+      materials.set(key, cutAway(copy, cut));
+    }
+    return materials.get(key);
+  };
+  // A built level is dungeon.js's to lay out from the kit, with its materials cut away like the rock.
+  const built = natural
+    ? null
+    : buildDungeon(plan, (set, name) =>
+        kitModel(set, name).then((parts) => parts.map((part) => ({ ...part, material: own(part.material) }))),
+      );
+  if (built) scene.add(built.object);
   const material = cutAway(new MeshLambertMaterial({ vertexColors: true, flatShading: true, side: DoubleSide }), cut);
   scene.add(new Mesh(natural ? rockGeometry(plan, open) : floorGeometry(plan), material));
   for (const water of plan.water ?? []) {
@@ -355,7 +401,7 @@ export function createDeep(plan) {
       .translate(water.x, 0.05, water.z);
     scene.add(new Mesh(pool, new MeshPhongMaterial({ color: 0x16313d, specular: 0x557788, shininess: 90 })));
   }
-  if (plan.down) scene.add(hole(plan.down));
+  if (plan.down && natural) scene.add(hole(plan.down)); // (a built level shows its own: a trapdoor, a breach)
 
   const collider = createCollider(
     [],
@@ -363,9 +409,9 @@ export function createDeep(plan) {
   );
   const blocked = (x, z, margin = 0.3) => open(x, z) < margin || collider.insideBox(x, z, margin);
   const { minX, minZ, maxX, maxZ } = plan.bounds;
-  const materials = new Map(); // a kit material → this level's copy of it, cut away like the rock
   let gone = false;
   let clock = 0;
+  let lampsAt = 0;
 
   return {
     plan,
@@ -390,12 +436,23 @@ export function createDeep(plan) {
       clock += dt;
       if (!player) return;
       torch.position.set(player.x, player.y + 2.1, player.z);
-      torch.intensity = 26 + Math.sin(clock * 13) * 1.4 + Math.sin(clock * 7.3) * 1.1;
+      torch.intensity = 30 + Math.sin(clock * 13) * 1.4 + Math.sin(clock * 7.3) * 1.1;
       cut.eye.copy(camera.position);
       cut.focus.set(player.x, player.y + 1.4, player.z);
+      if (lights.length > lamps.length && clock >= lampsAt) {
+        lampsAt = clock + 0.5;
+        const near = [...lights].sort(
+          (a, b) => Math.hypot(a.x - player.x, a.z - player.z) - Math.hypot(b.x - player.x, b.z - player.z),
+        );
+        lamps.forEach((lamp, i) => light(lamp, near[i]));
+      }
     },
-    /** The kit pieces (crystals, rubble, a tower's walls …), once they've loaded; without the kit, none. */
+    /**
+     * A natural level's kit pieces (crystals, rubble, a tower's walls …), once they've loaded; without the
+     * kit, none. (A built level's are laid out as it's made: its walls aren't something to do without.)
+     */
     async dress() {
+      if (built) return;
       const sets = new Map();
       for (const item of plan.pieces ?? []) {
         if (!sets.has(item.kit)) sets.set(item.kit, new Set());
@@ -407,18 +464,7 @@ export function createDeep(plan) {
         if (!models) continue;
         for (const item of plan.pieces.filter((entry) => entry.kit === set)) {
           for (const part of models.get(item.name)) {
-            const key = `${part.material.uuid}:${item.glow ? 1 : 0}`;
-            if (!materials.has(key)) {
-              const own = part.material.clone();
-              own.userData = {};
-              if (item.glow) {
-                own.emissive = new Color(0xffffff);
-                own.emissiveMap = own.map;
-                own.emissiveIntensity = 0.7;
-              }
-              materials.set(key, cutAway(own, cut));
-            }
-            const mesh = new Mesh(part.geometry, materials.get(key));
+            const mesh = new Mesh(part.geometry, own(part.material, item.glow));
             mesh.position.set(item.x, item.y ?? 0, item.z);
             mesh.rotation.y = item.angle ?? 0;
             mesh.scale.setScalar(item.scale ?? 1);
@@ -435,6 +481,7 @@ export function createDeep(plan) {
         // Kit geometry is shared (kit.js keeps it); this level's own copies of its materials aren't.
         if (!object.geometry?.userData.shared) object.geometry?.dispose();
         if (!object.material?.userData?.shared) object.material?.dispose?.();
+        if (object.isInstancedMesh) object.dispose();
       });
     },
   };

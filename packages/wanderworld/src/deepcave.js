@@ -56,13 +56,14 @@ export function fromLine(points, x, z) {
   return least;
 }
 
-/** How far inside `room` (x, z) is, in metres (below 0 outside it): an ellipse for a chamber, else a box. */
+/** How far inside `room` (x, z) is, in metres (below 0 outside it): an ellipse for a chamber, else a box
+ * (and so is any room laid on a grid, dungeon.js). */
 export function intoRoom(room, x, z) {
   const a = room.w / 2;
   const b = room.d / 2;
   const dx = x - room.x;
   const dz = z - room.z;
-  if (room.shape === "chamber") return (1 - Math.hypot(dx / a, dz / b)) * Math.min(a, b);
+  if (room.shape === "chamber" && !room.grid) return (1 - Math.hypot(dx / a, dz / b)) * Math.min(a, b);
   const ox = Math.abs(dx) - a;
   const oz = Math.abs(dz) - b;
   return ox <= 0 && oz <= 0 ? -Math.max(ox, oz) : -Math.hypot(Math.max(ox, 0), Math.max(oz, 0));
@@ -78,9 +79,9 @@ export function inWater(water, x, z, grow = 0) {
 }
 
 /**
- * How far into the open floor (x, z) is, in metres, for `plan` (below 0: in the rock). Rooms and passages
- * are open; a natural kind's edges are worn back by noise; rock pillars stand in it. Water is open floor
- * here (it has colliders of its own).
+ * How far into the open floor (x, z) is, in metres, for `plan` (below 0: in the rock). Rooms, passages
+ * and a built level's doorways are open; a natural kind's edges are worn back by noise; rock pillars
+ * stand in it. Water is open floor here (it has colliders of its own).
  */
 export function openAt(plan) {
   const rough = ROUGH[plan.kind] ?? 0;
@@ -89,6 +90,8 @@ export function openAt(plan) {
     let open = -Infinity;
     for (const room of plan.rooms) open = Math.max(open, intoRoom(room, x, z));
     for (const passage of plan.passages) open = Math.max(open, passage.width / 2 - fromLine(passage.points, x, z));
+    // (Through a wall's thickness, where a doorway is: dungeon.js.)
+    for (const doorway of plan.doorways ?? []) open = Math.max(open, 1.4 - Math.hypot(x - doorway.x, z - doorway.z));
     // Worn back here and there, more at the edge and none deep in the rock: never in.
     if (rough) {
       const worn = rough * Math.max(0, 0.5 + 0.5 * noise(x * 0.21, 0.5, z * 0.21));
@@ -177,8 +180,8 @@ function boundsOf(rooms, passages, rough) {
 function downKind(random, kind, depth) {
   if (depth >= MAX_DEPTH) return null;
   const roll = random();
-  if (kind === "cave") return roll < 0.55 ? "cavern" : roll < 0.85 ? "dungeon" : "cave";
-  return roll < 0.5 ? "cave" : "dungeon";
+  if (kind === "cave") return roll < 0.5 ? "cavern" : roll < 0.78 ? "dungeon" : roll < 0.9 ? "stronghold" : "cave";
+  return roll < 0.4 ? "cave" : roll < 0.8 ? "dungeon" : "stronghold";
 }
 
 /** Whether (x, z) keeps `clear` metres from every collider (as a box grown by that much). */

@@ -1,6 +1,6 @@
 # Wanderworld quest plan
 
-Status: a plan, written 2026-11-20; none of it is built. It covers quests, deep places and regions
+Status: a plan, written 2026-11-20; section 8 (deep places) is partly built, as it says there. It covers quests, deep places and regions
 with a purpose. It collects what was agreed in conversation on
 2026-11-19 and 2026-11-20, and follows the design principles in [CONCEPT.md](CONCEPT.md): it works with
 or without AI, every part can be switched off and is explained where it's switched, lore comes first,
@@ -33,13 +33,13 @@ What we want:
 | Factions and relationships | lore keywords: `ww:faction:`, `ww:enemy of:`, `ww:rival of:` and the rest (`keywords.js`) |
 | People from lore           | `spawnsFromLore`; the party follows through `crowd.setFollowing`                          |
 | Fights                     | SRD creatures with CR, loot and tactics; real-time or turn-based                          |
-| Caves                      | outside only: rock and a dark mouth set into a hillside (`caves.js`)                      |
+| Caves                      | a mouth in a hillside (`caves.js`), and levels below it (`deep.js`, `deepcave.js`)        |
 | Building interiors         | one furnished room per door (`interiors.js`), behind the `interiors` setting              |
 | Changes the AI proposes    | the assistant's propose, confirm and undo                                                 |
 | The inventory              | Wanderworld's own, or Quartermaster's sheet when it's installed                           |
 
-Indoors there are no creatures and no fights yet: about 35 places in `main.js` check `core.interior` and
-give nothing. Deep places need those opened up first (phase 4).
+In a house's room there are no creatures and no fights: `main.js` checks `inHouse()`. Below ground (deep
+places) there are both.
 
 ---
 
@@ -250,6 +250,31 @@ about half the time. `buildDungeon(plan)` lays a plan out from the kit: the stru
 (Quaternius's Updated Modular Dungeon), furniture from the props kit and fallen rock from the nature kit. Still to come: locks and keys
 (doors and bars stand closed but don't stop anyone yet), traps, a faction's own banners and colours in
 its keep, and stairs between levels when a stronghold's next level is another stronghold.
+
+**Built: going down, caves and caverns.** `src/deep.js` enters a deep place from a cave's mouth and
+loads one level at a time; `src/deepcave.js` makes the cave and cavern plans. What there is now:
+
+- "Go in" at a cave that leads down (Settings → World → Places → Caves, dungeons and strongholds: on or
+  off, and a few, half, most or all of a world's caves) goes to the first level, always a small cave.
+  Other caves keep their scene card. "Go further down" at the way down, "Go back up" where you came in,
+  and "Leave" on the first level. Four levels at most. A cave leads on to a cavern, a dungeon, a
+  stronghold or another cave; a cavern to a cave, a dungeon or a stronghold; a dungeon or a keep to a cave.
+- Caves and caverns are one merged mesh each, carved from the plan's rooms and passages worn back by
+  noise (never narrower than 3 m), with colliders from the same shape. Caverns have pillars, a pool or a
+  stream, rubble, crystals and sometimes a ruined tower, a camp or a shrine from the kit. Not yet: a lost
+  village's houses in a cavern, and uneven floors (the plan's `floorAt` is left unused: the floor is flat).
+- It's dark: the player's light, glowing crystals, a little daylight at the way out, and the four of a
+  level's own lights nearest the player. The rock, roof or wall between the camera and the player is
+  cut away by a shader, and so is the roof just over them.
+- Creatures and fights below ground: the level's creatures are a herd of their own, of the kinds that
+  suit the place, picked by the party's level and depth (Settings: creatures on or off). Real-time and
+  turn-based fights, companions' fighting, searching the beaten and the beaten staying away all work
+  there as outside. House interiors still have none.
+- The party comes along; anyone told to wait, and the player's own dog and horse, stay outside. Saving
+  while below ground saves the cave's mouth as where you are.
+
+Still to come: quest-owned spawns, captives and escorts, the plan's `captive` spots, light spells, and a
+stronghold on the surface with its cellars leading down.
 
 ---
 

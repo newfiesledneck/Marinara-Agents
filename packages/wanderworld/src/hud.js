@@ -871,11 +871,11 @@ export function createHud(root, handlers) {
       'On: if the chat has no line yet describing where you are, Illustrate has one told first, so the picture matches. The AI writes it if arrivals use the AI; otherwise it\'s a written line. Needs "Lines about where you are" on. Not indoors.',
     interiors: "On: you can walk into furnished rooms (still unfinished). Off: a door shows who's inside.",
     deepPlaces:
-      "On: \"Go in\" at a cave's mouth takes you down into it, a level at a time: a small cave, a big cavern, and deeper down more caves and, later, dungeons. Your party comes with you. Off: a cave's mouth shows its card, for starting a scene there.",
+      "On: \"Go in\" at a cave's mouth takes you down into it, a level at a time: a small cave, then a big cavern, a dungeon, a stronghold or another cave, up to four levels down. Your party comes with you. Off: a cave's mouth shows its card, for starting a scene there.",
     deepShare:
       "Which of a world's caves lead down. The rest show their card as before. A cave keeps its answer: the same cave always leads to the same place.",
     deepCreatures:
-      "On: creatures live down there, the kinds that suit the place (rats, spiders, snakes, bats and slimes in caves), no tougher than your level can take, and tougher the deeper you go. The kinds switched off in Settings → Creatures stay off. Off: the deep places are empty.",
+      "On: creatures live down there, the kinds that suit the place (rats, spiders, snakes, bats and slimes in caves, skeletons and ghouls in dungeons, bandits in strongholds), no tougher than your level can take, and tougher the deeper you go. The kinds switched off in Settings → Creatures stay off. Off: the deep places are empty.",
     worldEvents:
       "On: once a week is market day and every fourth week an evening festival, when much of the town gathers in the square. Off: every day is the same.",
     approach: "How often townsfolk walk up to greet you, or to confront you. 0 is never.",
@@ -1672,7 +1672,7 @@ export function createHud(root, handlers) {
   at("World", "Places");
   group(
     "Caves, dungeons and strongholds",
-    "A cave's mouth can lead down into the rock: winding passages and chambers, a cavern with pillars and a pool, and ways further down. It's dark down there, so you carry a light. Fights work there as they do outside, by the combat settings in Inventory → Combat. You leave the way you came in.",
+    "A cave's mouth can lead down into the rock: winding passages and chambers, a cavern with pillars and a pool, and further down dungeons and strongholds. It's dark down there, so you carry a light. Fights work there as they do outside, by the combat settings in Inventory → Combat. You leave the way you came in.",
   );
   toggle("deepPlaces", "Caves lead down");
   choice(

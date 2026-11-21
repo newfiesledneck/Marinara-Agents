@@ -1,10 +1,10 @@
 // Wanderworld's deep places (deep.js, deepcave.js): the levels below a cave's mouth. Plans are the same for
 // the same seed; every room can be walked to from where you come in, through passages at least the
 // narrowest allowed; you come in, go down and meet creatures on the open floor; and the colliders keep
-// anyone walking about inside the rock's edge. When dungeon.js is there, its plans are held to the same.
+// anyone walking about inside the rock's edge. dungeon.js's dungeons and strongholds are held to the same.
 // Run: node tests/wanderworld-deep.regression.mjs
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { dungeonPlan } from "../packages/wanderworld/src/dungeon.js";
 import { createHerd } from "../packages/wanderworld/src/herd.js";
 import { boxesOf, createDeep, creaturesFor, deepPlan, deepSeed, leadsDown } from "../packages/wanderworld/src/deep.js";
 import { CELL, cavePlan, cavernPlan, intoRoom, MIN_WIDTH, openAt } from "../packages/wanderworld/src/deepcave.js";
@@ -132,16 +132,12 @@ for (const make of [cavePlan, cavernPlan]) {
 assert.equal(deepSeed("seed:3", 2), deepSeed("seed:3", 2), "a level's seed comes from its entrance and depth");
 assert.notEqual(deepSeed("seed:3", 2), deepSeed("seed:3", 3), "each depth its own");
 assert.deepEqual(deepPlan(77, 1, "cave"), cavePlan(77, 1), "a cave is deepcave.js's");
-assert.deepEqual(
-  deepPlan(77, 2, "dungeon"),
-  cavePlan(77, 2),
-  "with no dungeon generator, a dungeon falls back to a cave",
-);
-assert.equal(
-  deepPlan(77, 2, "dungeon", { dungeon: () => ({ kind: "dungeon" }) }).kind,
-  "dungeon",
-  "a generator is used",
-);
+assert.deepEqual(deepPlan(77, 2, "cavern"), cavernPlan(77, 2), "and a cavern");
+assert.deepEqual(deepPlan(77, 2, "dungeon"), dungeonPlan(77, 2, "dungeon"), "a dungeon is dungeon.js's");
+assert.deepEqual(deepPlan(77, 2, "stronghold"), dungeonPlan(77, 2, "stronghold"), "and a stronghold");
+assert.deepEqual(deepPlan(77, 2, "tunnel"), cavePlan(77, 2), "a kind with no plan of its own is a cave");
+for (let seed = 1; seed < 20; seed++)
+  assert.equal(deepPlan(seed, 4, "dungeon").down, null, "nothing goes deeper than four levels, whatever the kind");
 
 // Which caves lead down: none, all, or a share, the same each time.
 const caves = Array.from({ length: 200 }, (_, i) => `world:${i}`);
@@ -166,7 +162,8 @@ for (let seed = 1; seed <= 24; seed++) {
     }
   }
 }
-for (const kind of ["cavern", "dungeon", "cave", "none"]) assert.ok(kinds.has(kind), `ways down lead to ${kind} too`);
+for (const kind of ["cavern", "dungeon", "stronghold", "cave", "none"])
+  assert.ok(kinds.has(kind), `ways down lead to ${kind} too`);
 
 // ── Built: a mesh within a phone's budget, colliders as planned ──
 for (const make of [cavePlan, cavernPlan]) {
@@ -238,19 +235,37 @@ for (const make of [cavePlan, cavernPlan]) {
   level.dispose();
 }
 
-// ── dungeon.js, when it's there: its plans hold to the same rules ──
-const dungeonFile = new URL("../packages/wanderworld/src/dungeon.js", import.meta.url);
-if (existsSync(dungeonFile)) {
-  const { dungeonPlan } = await import(dungeonFile.href);
-  for (const kind of ["dungeon", "stronghold"])
-    for (let seed = 1; seed <= 12; seed++)
-      for (const depth of [1, 2, 3]) {
-        const made = dungeonPlan(seed * 104729, depth, kind);
-        assert.deepEqual(made, dungeonPlan(seed * 104729, depth, kind), `${kind}: the same seed, the same plan`);
-        assert.equal(made.kind, kind);
-        check(made, `${kind} ${seed} at ${depth}`);
-      }
-  console.log("ok: dungeon.js's plans too");
+// ── dungeon.js's plans hold to the same rules, and build into a level the same way ──
+for (const kind of ["dungeon", "stronghold"])
+  for (let seed = 1; seed <= 12; seed++)
+    for (const depth of [1, 2, 3]) {
+      const made = deepPlan(seed * 104729, depth, kind);
+      assert.equal(made.kind, kind);
+      check(made, `${kind} ${seed} at ${depth}`);
+    }
+for (const kind of ["dungeon", "stronghold"]) {
+  const made = deepPlan(4242, 2, kind);
+  const level = createDeep(made);
+  assert.ok(!level.blocked(made.entry.x, made.entry.z), `${kind}: where you come in isn't blocked`);
+  // Lit by the few lights nearest the player, wherever they go.
+  const lamps = [];
+  level.scene.traverse((object) => object.isPointLight && lamps.push(object));
+  assert.ok(lamps.length <= 5, `${kind}: ${lamps.length} lights at most (the player's own, and four)`);
+  level.update(1, { position: { x: 0, y: 9, z: 0 } }, { x: made.entry.x, y: 0, z: made.entry.z });
+  const nearest = Math.min(...made.lights.map((light) => Math.hypot(light.x - made.entry.x, light.z - made.entry.z)));
+  assert.ok(
+    lamps.some(
+      (lamp) => Math.abs(Math.hypot(lamp.position.x - made.entry.x, lamp.position.z - made.entry.z) - nearest) < 1e-6,
+    ),
+    `${kind}: the light nearest the player is lit`,
+  );
+  const dwelling = creaturesFor(made, 2);
+  if (kind === "stronghold")
+    assert.ok(
+      dwelling.some((entry) => entry.kind === "bandit"),
+      "bandits keep a stronghold",
+    );
+  level.dispose();
 }
 
 console.log("ok: deep places");

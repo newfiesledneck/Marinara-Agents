@@ -7458,9 +7458,6 @@ function leaveInterior(now = false) {
 
 // ── Deep places (deep.js): the levels below a cave's mouth ──────────────────
 
-/** The generators of the built kinds, by kind. dungeon.js's dungeonPlan joins here once it's in. */
-const DEEP_GENERATORS = {};
-
 /**
  * Into a level below `cave`: `kinds` is the kind of each level from the first one down to this one. One
  * level is loaded at a time, with creatures of its own (Settings → World → Places), and the party comes
@@ -7471,7 +7468,7 @@ function enterDeep(cave, kinds, up = false) {
     const before = core.interior?.deep ? core.interior : null;
     if (core.battle) battleEnd("");
     const seed = deepSeed(`${core.seed}:${cave.outpost}`, kinds.length);
-    const plan = deepPlan(seed, kinds.length, kinds.at(-1), DEEP_GENERATORS);
+    const plan = deepPlan(seed, kinds.length, kinds.at(-1));
     const level = createDeep(plan);
     if (core.settings.props) void level.dress();
     // Its creatures are a herd of their own (any kind switched on in Settings → Creatures); the world's
