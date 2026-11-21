@@ -736,9 +736,9 @@ switch off, nothing grabs or throws.
   of its own (an ogre, a troll, a minotaur, and giants once they're in) sometimes grabs someone Medium or
   smaller and throws them: 3 metres at Strength 18, further for a stronger or bigger one. A Strength or
   Dexterity save against 8 + its proficiency + its Strength modifier avoids it. They fly in an arc, land
-  prone, take 1d6 falling damage for every 3 metres and get up. A throw never goes through a wall, a tree
-  or a rock, or into deep water, and doesn't happen where fights are kept out. Switch: "Giants grab and
-  throw".
+  prone, take 1d6 falling damage for every full 3 metres (at least 1d6) and get up. A throw never goes
+  through a wall, a tree or a rock, or into deep water, and doesn't happen where fights are kept out.
+  Switch: "Giants grab and throw".
 
 By turns, "grapple" and "throw" are among the moves the AI can choose for a creature that has them. In a
 narrated moment, who is held or thrown is in the lines the AI tells, so it hears of it only when AI
@@ -1098,6 +1098,9 @@ still count, and come first.
   provider charged. Only Wanderworld's own calls are in it.
   Anything shaped like a key in a provider's error message is hidden before it is shown.
 - The scattered, pond and quarters layouts are only built when chosen; "Surprise me" picks from the first four.
+- Simpler than the 5e SRD on purpose: paralyzed, stunned or asleep doesn't make Strength and Dexterity
+  saves fail by themselves, a blow on someone paralyzed or asleep isn't a critical hit by itself, and a
+  blow that lands always deals at least 1 damage.
 - Two browsers playing the same world at the same moment take turns: the save that reaches the Engine
   first wins whole, the other browser loads it, and nothing is merged.
 - Prompt caching is the provider's to do; Wanderworld only orders its prompts so that it can. The AI

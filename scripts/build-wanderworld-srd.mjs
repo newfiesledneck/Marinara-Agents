@@ -513,10 +513,34 @@ for (const [kind, id] of Object.entries(CREATURE_OF)) {
   if (Number.isInteger(sheet.abilities?.str)) made.str = sheet.abilities.str;
   const held = holdOf(sheet, attack);
   if (held) made.hold = held;
-  // How many blows its Multiattack is, of this attack.
-  const multi = (sheet.actions ?? []).find((action) => Array.isArray(action.sequence));
-  const times = multi?.sequence.reduce((sum, step) => sum + (Number(step.times) || 1), 0) ?? 0;
-  if (times > 1) made.multi = Math.min(4, times);
+  // Its Multiattack, blow by blow in the SRD's order, with a blow of its own attack first: {} for one of
+  // those, { attack, damage, type } for another attack (a troll's claws after its bite), hold for one of its
+  // holding attack (a roper's tendrils), and ifHit for one made only if another blow landed (a grick's beak).
+  const actions = sheet.actions ?? [];
+  const sequence = actions.find((action) => Array.isArray(action.sequence))?.sequence ?? [];
+  const steps = sequence.flatMap((step, at) => Array.from({ length: Number(step.times) || 1 }, () => ({ step, at })));
+  if (steps.length > 1) {
+    const own = steps.findIndex(({ step }) => step.action === attack.id);
+    if (own < 0) console.warn(`${kind}'s Multiattack hasn't its own attack in it`);
+    if (own > 0) steps.unshift(...steps.splice(own, 1));
+    const kept = steps
+      .map(({ step, at }) => {
+        const used = actions.find((action) => action.id === step.action);
+        const blow =
+          used === attack
+            ? {}
+            : Number.isInteger(used?.toHit) && used.damage?.dice
+              ? { attack: used.toHit, damage: diceWithFlat(used.damage), type: used.damage.type ?? "" }
+              : {};
+        if (held && !held.main && used?.name === held.name) blow.hold = true;
+        else if (used !== attack && !blow.damage) return null; // (a step that isn't a blow)
+        return { blow, step, at };
+      })
+      .filter(Boolean);
+    for (const { blow, step } of kept)
+      if (Number.isInteger(step.ifHit)) blow.ifHit = kept.findIndex(({ at }) => at === step.ifHit);
+    made.blows = kept.map(({ blow }) => blow);
+  }
   // Pack Tactics: the better of two rolls with one of its own beside what it attacks.
   if ((sheet.attackModes ?? []).some((mode) => mode.mode === "advantage" && mode.allyAdjacent)) made.pack = true;
   // A breath (or the like): an area with a save, back on a roll of the die each round.
@@ -771,7 +795,9 @@ export const SRD_CLASSES = ${JSON.stringify(classes)};
  * as), hp (its hit dice's average), ac, attack (what its attack up close adds to the roll), damage (dice),
  * dex (what it adds to initiative), and where it has them ranged { name, attack, damage, range (metres) },
  * spells (names from SRD_SPELLS) and wit (what its casting adds), size, str (its Strength) and hold (what it
- * grabs and holds with, with its escape DC); and for the info card scores (the six ability scores, Strength
+ * grabs and holds with, with its escape DC), blows (its Multiattack, its own attack's blow first: {} for
+ * another of those, { attack, damage, type } for another attack, hold for one of its holding attack, ifHit
+ * for one made only if that blow landed); and for the info card scores (the six ability scores, Strength
  * first), speed and senses (in metres), unmoved (the conditions it is immune to), alignment, and traits and
  * acts (a line each, shortened) }.
  */

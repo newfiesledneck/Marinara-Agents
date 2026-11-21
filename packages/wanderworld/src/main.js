@@ -197,6 +197,7 @@ import {
   gearWorn,
   initiativeOrder,
   lootOf,
+  multiattack,
   offhandOf,
   personWords,
   playerStrike,
@@ -13287,14 +13288,18 @@ function foeAttacks(event, what, with_ = null) {
   if (shielded) narrate(null, `${who} casts ${shielded} in answer: +5 AC, and the blow is turned.`);
   if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) return void defeated();
   if (extras && result.hit) foeExtras(stats, what, event);
-  // (Multiattack: its other blows, one after another; with holds on, less those its holding attack makes, a
-  // roper's four tendrils. Then the hold that comes of them landing.)
-  const blows = Math.max(1, (stats.multi ?? 1) - (grips().holds ? (stats.hold?.times ?? 0) : 0));
-  let hits = result.hit ? 1 : 0;
+  // (Multiattack: its other blows, one after another, each with its own numbers (combat.js multiattack).
+  // Then the hold that comes of them landing.)
+  const blows = multiattack(stats, grips().holds);
+  const landed = [result.hit];
   if (extras && !event.again && !core.downed)
-    for (let more = 1; more < blows && !core.downed; more++)
-      hits += foeAttacks({ ...event, again: true }, what) ? 1 : 0;
-  if (extras && !event.again && !core.downed) gripAfter(event, what, stats, hits, blows);
+    for (let more = 1; more < blows.length && !core.downed; more++) {
+      const blow = blows[more];
+      landed[more] =
+        (blow.ifHit === undefined || !!landed[blow.ifHit]) && !!foeAttacks({ ...event, again: true }, what, blow.with);
+    }
+  if (extras && !event.again && !core.downed)
+    gripAfter(event, what, stats, landed.filter(Boolean).length, blows.length);
   return result.hit;
 }
 

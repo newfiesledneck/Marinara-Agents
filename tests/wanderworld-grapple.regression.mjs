@@ -129,6 +129,8 @@ assert.equal(fallDice(1), "1d6");
 assert.equal(fallDice(3), "1d6");
 assert.equal(fallDice(6), "2d6");
 assert.equal(fallDice(9), "3d6");
+assert.equal(fallDice(4.5), "1d6", "every full 3 metres: 4.5 m is one");
+assert.equal(fallDice(8.9), "2d6");
 
 // Who throws, and how hard: Large or bigger, Strength 18 or more, no hold of its own.
 const ogre = tossOf(SRD_CREATURES.ogre);
