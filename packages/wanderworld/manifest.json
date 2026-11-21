@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.7.42",
+  "version": "0.7.43",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -187,9 +187,11 @@
         "kit/generic/art/water.webp",
         "kit/generic/art/wood-beam.webp",
         "kit/generic/avatar/avatar-female-1.webp",
+        "kit/generic/avatar/avatar-female-2.webp",
         "kit/generic/avatar/avatar-female.json",
         "kit/generic/avatar/avatar-female.webp",
         "kit/generic/avatar/avatar-male-1.webp",
+        "kit/generic/avatar/avatar-male-2.webp",
         "kit/generic/avatar/avatar-male.json",
         "kit/generic/avatar/avatar-male.webp",
         "kit/generic/nature/bark-birchtree.webp",
@@ -236,7 +238,7 @@
     },
     {
       "path": "client.js",
-      "sha256": "a026bbf093ecc46f0b09c7931a1a8181ab9926fb7366b02e1a88fc7c7287893a",
+      "sha256": "3520afcaf13dabdfbbd3fa8da1a33b8cb5206746089a8e3551f57f89044625cb",
       "bytes": 3468122
     },
     {
@@ -1000,29 +1002,39 @@
       "bytes": 111740
     },
     {
+      "path": "kit/generic/avatar/avatar-female-2.webp",
+      "sha256": "811eb0a68f84cca0577f5220d805089776deec58e9726aaac741316064c297db",
+      "bytes": 293766
+    },
+    {
       "path": "kit/generic/avatar/avatar-female.json",
-      "sha256": "36af6cc621254d20cdb9efa585263e4c181012283ee2210e330805769538a393",
-      "bytes": 2169482
+      "sha256": "0a784403be4b44477882095be0098782be673ece4b82dccff77a1d1442bbe221",
+      "bytes": 8592858
     },
     {
       "path": "kit/generic/avatar/avatar-female.webp",
-      "sha256": "b8578ad192cced931e733c85880938a6c2417cbd4d23133556ed6f02d9c143e8",
-      "bytes": 75292
+      "sha256": "bbdc35e5be896a8961e79583ddadd5f876ec99e2bfbfa23d86d3d9f6ce0aa5cd",
+      "bytes": 65062
     },
     {
       "path": "kit/generic/avatar/avatar-male-1.webp",
-      "sha256": "1ba9e494548ccda11df713de5de9673abe9a75eb4eef12713a1ee52bc96121db",
-      "bytes": 125084
+      "sha256": "bc3d9bd90ffdacce510e5727903216d7f4b77ee9de7e83e0555a3f1c7bca92aa",
+      "bytes": 114834
+    },
+    {
+      "path": "kit/generic/avatar/avatar-male-2.webp",
+      "sha256": "e8ef5283d1b416f2800ae4c134d23fb422c099bf4b74c5e06d27f4c9a6b5c153",
+      "bytes": 169836
     },
     {
       "path": "kit/generic/avatar/avatar-male.json",
-      "sha256": "210a78804df3465c5db492d6e3ed8cfcec6cadffa34047aa092b5e464369c43b",
-      "bytes": 2007244
+      "sha256": "cefe429f017c152bdffb09ce6e0afddabd57abeb3f143fef5ea423634106dd86",
+      "bytes": 4123730
     },
     {
       "path": "kit/generic/avatar/avatar-male.webp",
-      "sha256": "4087da5ea5ee8c32230f1194d807baafcff38723a2660c9982e3d81e597bd3e8",
-      "bytes": 70274
+      "sha256": "f8f7fb9ac644085b2eba3778e5a279941a473ba4934b8b813627980bf92ed102",
+      "bytes": 66574
     },
     {
       "path": "kit/generic/nature/bark-birchtree.webp",

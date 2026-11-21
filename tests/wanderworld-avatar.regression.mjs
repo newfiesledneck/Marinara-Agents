@@ -69,8 +69,16 @@ for (const sex of ["male", "female"]) {
     file.skeleton.names.includes("pelvis") && file.skeleton.names.includes("hand_r"),
     "on the people's skeleton",
   );
-  const vertices = file.meshes.reduce((sum, mesh) => sum + mesh.count, 0);
+  // (Only one underwear top and one bottom are ever shown, so the body is counted without them, and each
+  // underwear style on its own.)
+  const isUnder = (mesh) => /^underwear-/u.test(mesh.piece ?? "");
+  const vertices = file.meshes.filter((mesh) => !isUnder(mesh)).reduce((sum, mesh) => sum + mesh.count, 0);
   assert.ok(vertices < 32000, `the ${sex} body stays within its budget (${vertices} vertices)`);
+  for (const mesh of file.meshes.filter(isUnder))
+    assert.ok(
+      mesh.count < 9000,
+      `the ${sex} ${mesh.piece} ${mesh.part} stays within its budget (${mesh.count} vertices)`,
+    );
 }
 
 // An outfit piece, made up here from the body's nails (the kit has none yet), to wear below.
@@ -184,11 +192,11 @@ for (const sex of ["male", "female"]) {
 {
   const count = (person) => bodyMesh(person).geometry.index.count;
   assert.deepEqual(await avatarChoices("female").then(({ tops, bottoms }) => ({ tops, bottoms })), {
-    tops: ["bra"],
-    bottoms: ["briefs"],
+    tops: ["bra", "sports_bra", "bralette"],
+    bottoms: ["briefs", "boxer_briefs", "boxers", "boyshorts", "bikini", "thong"],
   });
   const maleChoices = await avatarChoices("male");
-  assert.deepEqual(maleChoices.bottoms, ["briefs"], "a body with one underwear layer has briefs");
+  assert.deepEqual(maleChoices.bottoms, ["briefs", "boxer_briefs", "boxers"], "his underwear styles");
   const female = await createAvatar({ ...EVERYDAY, body: "female" }, "Rowan");
   assert.deepEqual(female.avatar.underwear, { top: "bra", bottom: "briefs" }, "she wears a bra and briefs unless said");
   const bare = await createAvatar({ ...EVERYDAY, body: "female", underwear: { top: "none", bottom: "none" } }, "Rowan");
