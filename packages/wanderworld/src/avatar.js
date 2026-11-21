@@ -33,6 +33,7 @@ import {
 } from "./looks.js";
 import { geometryOf, humanoidNodes, load, rigOf, sexFor, skeletonFor, texture, view } from "./people.js";
 import { hashString, rng } from "./world.js";
+import { drawDistant } from "./kit.js";
 
 /** The region of the body each bone's vertices are, for what an outfit piece `hides`. */
 const REGION_OF = {
@@ -270,9 +271,19 @@ function bodyKit(sex) {
             if (attributes.skinWeight.array[v * 4 + c] > attributes.skinWeight.array[v * 4 + best]) best = c;
           regions[offset + v] = REGION_OF[file.joints[attributes.skinIndex.array[v * 4 + best]]] ?? "";
         }
-        const index = Uint32Array.from(geometry.index.array, (vertex) => vertex + offset);
+        // (Its triangles, and those of its distant version: the full ones again where it has none.)
+        const { full, far } = geometry.userData.distant ?? { full: { count: geometry.index.count } };
+        const at = (range) =>
+          Uint32Array.from(geometry.index.array.subarray(range.start ?? 0, (range.start ?? 0) + range.count), (vertex) => vertex + offset);
+        const index = at(full);
         for (const [key, morph] of Object.entries(morphsOf(mesh, offset))) (morphs[key] ??= []).push(morph);
-        meshes.push({ ...mesh, start: offset, index, group: `${mesh.alpha ? "cut" : "solid"}:${mesh.texture}` });
+        meshes.push({
+          ...mesh,
+          start: offset,
+          index,
+          far: far ? at(far) : index,
+          group: `${mesh.alpha ? "cut" : "solid"}:${mesh.texture}`,
+        });
         geometry.dispose();
         offset += mesh.count;
       }
@@ -341,23 +352,35 @@ function trianglesOf(kit, underwear, hides) {
       if (!COVERED.has(mesh.part)) return () => false;
       return (a, b, c) => hides.has(kit.regions[a]) && hides.has(kit.regions[b]) && hides.has(kit.regions[c]);
     };
+    // (Twice: the full triangles, then the distant version's, each group with its part of both.)
     const groups = [];
     const kept = [];
+    const far = [];
+    const keep = (list, index, hide) => {
+      for (let i = 0; i < index.length; i += 3) {
+        const [a, b, c] = [index[i], index[i + 1], index[i + 2]];
+        if (!hide(a, b, c)) list.push(a, b, c);
+      }
+    };
     for (const mesh of kit.meshes) {
       if (!worn(mesh, underwear, kit.sex)) continue;
       const hide = hidden(mesh);
-      if (groups.at(-1)?.name !== mesh.group) groups.push({ name: mesh.group, start: kept.length, count: 0, mesh });
-      for (let i = 0; i < mesh.index.length; i += 3) {
-        const [a, b, c] = [mesh.index[i], mesh.index[i + 1], mesh.index[i + 2]];
-        if (hide(a, b, c)) continue;
-        kept.push(a, b, c);
-      }
+      if (groups.at(-1)?.name !== mesh.group)
+        groups.push({ name: mesh.group, start: kept.length, count: 0, farStart: far.length, farCount: 0, mesh });
+      keep(kept, mesh.index, hide);
+      keep(far, mesh.far ?? mesh.index, hide);
       groups.at(-1).count = kept.length - groups.at(-1).start;
+      groups.at(-1).farCount = far.length - groups.at(-1).farStart;
     }
     const Type = kit.position.length / 3 > 65535 ? Uint32Array : Uint16Array;
+    const index = new Type(kept.length + far.length);
+    index.set(kept);
+    index.set(far, kept.length);
     kit.indices.set(key, {
-      index: new BufferAttribute(Type.from(kept), 1),
-      groups: groups.filter((group) => group.count),
+      index: new BufferAttribute(index, 1),
+      groups: groups
+        .filter((group) => group.count)
+        .map((group) => ({ ...group, farStart: kept.length + group.farStart })),
     });
   }
   return kit.indices.get(key);
@@ -462,6 +485,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     mesh.userData.sharedShadow = true; // (disposed here, so the shared data stays: avatar.js `dispose`)
     root.add(mesh);
     mesh.bind(skeletonFor(root, bones, part, stretch, fallback), mesh.matrixWorld);
+    drawDistant(mesh); // (its distant version, past the Creature detail distance: kit.js)
     return mesh;
   };
 
@@ -502,8 +526,13 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   for (const [attribute, shared] of Object.entries(kit.shared)) geometry.setAttribute(attribute, shared);
   const { index, groups } = trianglesOf(kit, filled.underwear, hides);
   geometry.setIndex(index);
+  geometry.userData.distant = { groups: true }; // (each group has its own: kit.js drawDistant)
   const materials = groups.map((group, i) => {
     geometry.addGroup(group.start, group.count, i);
+    geometry.groups[i].distant = {
+      full: { start: group.start, count: group.count },
+      far: { start: group.farStart, count: group.farCount },
+    };
     const cut = !!group.mesh.alpha;
     // Brows and lashes are cut out by their texture (alpha-tested, so they need no sorting). Every part is
     // seen from both sides, as the model's materials say: some faces (the irises) face inwards, and shown
@@ -540,6 +569,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
         for (const attribute of ["uv", "skinIndex", "skinWeight"])
           if (shared.attributes[attribute]) geometry.setAttribute(attribute, shared.attributes[attribute]);
         geometry.setIndex(shared.index);
+        geometry.userData.distant = shared.userData.distant;
         geometry.boundingBox = shared.boundingBox;
         geometry.boundingSphere = shared.boundingSphere;
         const own = geometry;

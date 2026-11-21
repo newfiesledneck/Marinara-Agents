@@ -1110,3 +1110,19 @@ console.log("wanderworld regression: OK");
   setGenderShares({ male: 50, female: 50, custom: 0 });
   console.log("ok: genders by the shares set");
 }
+
+// The package build's size gate (build-wanderworld-package.mjs): nothing to say under the warning, the
+// largest files named above it, and refused above the limit.
+{
+  const { zipSizeCheck } = await import("../scripts/deterministic-zip.mjs");
+  const entries = Array.from({ length: 12 }, (_, i) => ({ name: `kit/f${i}.json`, data: Buffer.alloc(i + 1) }));
+  assert.equal(zipSizeCheck(entries, 50, { warn: 50, refuse: 90 }), null);
+  const big = zipSizeCheck(entries, 60, { warn: 50, refuse: 90 });
+  assert.equal(big.refuse, false);
+  const named = big.message.split("\n").slice(1);
+  assert.equal(named.length, 10, "the ten largest");
+  assert.match(named[0], /kit\/f11\.json$/u);
+  assert.match(named[9], /kit\/f2\.json$/u);
+  assert.equal(zipSizeCheck(entries, 91, { warn: 50, refuse: 90 }).refuse, true);
+  console.log("ok: the package size gate");
+}

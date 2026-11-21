@@ -763,7 +763,7 @@ What's built but unproven, half-built, or agreed and not started. Newest decisio
      world's animals from its seed and moves them; `main.js` rides one (mode "ride": the player sits at
      its back's height and moves it with `herd.carry`; `clips.js` act "ride" is the seated body with
      the legs down either side and the hands forward). The outfits' pieces are bundled one file an
-     outfit, since a package may list at most 256 asset files (`validate-catalog.mjs`); the kit has 244. _In since:_ jumping (0.5.2x), a saddle on a horse that's someone's own (0.5.46: `herd.js saddle`, the props kit's CC-BY model set on the horse's body). _Next:_ reins, a rider that moves with the gait, others riding, remembering where a mount was left, a
+     outfit, since a package may list at most 256 asset files (`validate-catalog.mjs`); the kit had 190 at 0.7.43. _In since:_ jumping (0.5.2x), a saddle on a horse that's someone's own (0.5.46: `herd.js saddle`, the props kit's CC-BY model set on the horse's body). _Next:_ reins, a rider that moves with the gait, others riding, remembering where a mount was left, a
      hitching rail, telling the AI what's about, and monsters the same way (Ultimate Monsters, the
      Bestiary kit) once there's something for them to do. Ogres and goblins can be the humanoid body at
      another size with the clips there are.
@@ -1170,7 +1170,8 @@ swingReach`); "+N Max" worn and used (`sheet.js bonusesIn / wornMax / useItem`, 
   textured Quaternius kits, so they suit props, tools and creatures better than buildings beside the
   kit's. Poly Pizza is mostly CC-BY (attribution), a CC0 subset only; Synty is paid, not CC0.
 - _Downloads that need credit (CC-BY 3.0), and the rule for using them._ The maintainer has these from
-  Poly Pizza (poly.pizza), kept with the other packs, none used yet. **CC0** (no credit needed): Crystal
+  Poly Pizza (poly.pizza), kept with the other packs. Of the CC-BY ones only the Saddle is in the package
+  (since 0.5.46), credited in all three places below. **CC0** (no credit needed): Crystal
   Pack, Signs pack and Medieval Torture Devices, all by iPoly3D. **CC-BY 3.0**
   (https://creativecommons.org/licenses/by/3.0/): Slime Enemy by Charlie; Urban Clutter by Superlink121;
   Animals by molochdadev; Animal Kit, Wizardus Maximus and Adventurer by madtrollstudio (a Bear by
@@ -1185,7 +1186,7 @@ swingReach`); "+N Max" worn and used (`sheet.js bonusesIn / wornMax / useItem`, 
   with the link; (3) the README's Credits says some models are CC-BY and points to both. Whoever passes
   the package on has to keep those credits, which CC0 art never asks. Check each model's own page for
   its licence before using it (the list above is as downloaded), and ask the maintainer of the catalog
-  whether a package may ship CC-BY art at all before the first one goes in.
+  before another one goes in.
 - _Paid tiers that would help (the maintainer may buy them later; nothing here depends on them):_ the
   Pro and Source tiers of **Modular Character Outfits - Fantasy** (12 outfits against the free tier's
   two: the looks by trade in plan item 1), **Universal Base Characters** (six body builds and twenty

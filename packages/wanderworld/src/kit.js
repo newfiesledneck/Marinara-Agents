@@ -15,9 +15,58 @@ import {
   RepeatWrapping,
   SRGBColorSpace,
   TextureLoader,
+  Vector3,
 } from "three";
 
 const BASE = "/api/capability-packages/wanderworld/assets/kit/";
+
+// ── Distant versions ─────────────────────────────────────────────────────────
+// The Blender-made creatures and the built-in bodies carry a second, smaller list of triangles over the
+// same vertices (scripts/build-wanderworld-people.mjs), drawn past the camera distance Settings → Display
+// → "Creature detail distance" says. It's the same mesh with the same skin, so it moves as it always does.
+
+/** CREATURE_DETAIL's metres for each choice (settings.js): "full" draws everything in full, always. */
+export const DETAIL_DISTANCES = { near: 20, normal: 35, far: 60, full: Infinity };
+let detailFar = DETAIL_DISTANCES.normal;
+/** Sets how far off, in metres from the camera, a creature or person is drawn in its distant version. */
+export function setDetailDistance(metres) {
+  detailFar = Number.isFinite(metres) || metres === Infinity ? metres : DETAIL_DISTANCES.normal;
+}
+
+/**
+ * Puts a mesh's distant version (`far`: indices into its own vertices) after its full index, in one index
+ * buffer, so a mesh drawing it can pick either by its draw range (drawDistant). Once a geometry.
+ */
+export function addDistant(geometry, far) {
+  const full = geometry.index;
+  if (!full || !far?.length || geometry.userData.distant) return;
+  const both = new full.array.constructor(full.count + far.length);
+  both.set(full.array);
+  both.set(far, full.count);
+  geometry.setIndex(new BufferAttribute(both, 1));
+  geometry.userData.distant = { full: { start: 0, count: full.count }, far: { start: full.count, count: far.length } };
+  geometry.setDrawRange(0, full.count);
+}
+
+const seen = new Vector3();
+/** Whether `object` is further from `camera` than the distant versions start. */
+export const isDistant = (object, camera) =>
+  seen.setFromMatrixPosition(object.matrixWorld).distanceToSquared(camera.position) > detailFar * detailFar;
+
+/**
+ * Draws `mesh` in its distant version while it's far off: its geometry's (addDistant), or for a geometry
+ * in parts, each group's (`group.distant`: { full, far }, each { start, count }). Set each time it's drawn,
+ * so meshes sharing one geometry each draw their own.
+ */
+export function drawDistant(mesh) {
+  if (!mesh.geometry?.userData.distant) return;
+  mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
+    const lod = group?.distant ?? geometry.userData.distant;
+    const range = isDistant(mesh, camera) ? lod.far : lod.full;
+    if (group?.distant) Object.assign(group, range);
+    else if (lod.full) geometry.setDrawRange(range.start, range.count);
+  };
+}
 /** Where each set is in the kit. */
 export const KIT_DIRS = {
   nature: "generic/nature",
