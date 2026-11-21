@@ -758,7 +758,9 @@ for (const [text, dog, horse] of [
   const { foeOf } = await import("../packages/wanderworld/src/combat.js");
   const world = createWorld(4242);
   const counts = { strays: 0, farm: 0, wild: 0, hostile: 0, monsters: 100, town: 0 };
-  const kinds = new Set(herdFor(world, 4242, { counts }).map((beast) => beast.kind));
+  const kinds = new Set(
+    [4242, 4243, 4244].flatMap((seed) => herdFor(world, seed, { counts }).map((beast) => beast.kind)),
+  );
   for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", "lizardfolk", "ghoul"])
     assert.ok(kinds.has(kind), `${kind}s spawn as monsters`);
   const sized = (sizes) => herdFor(world, 4242, { counts, sizes }).filter((beast) => (beast.scale ?? 1) >= 1.25);
@@ -779,6 +781,52 @@ for (const [text, dog, horse] of [
   assert.equal(monsterScale("bat", "more", true, 1), null, "bats keep their size");
   assert.equal(monsterScale("bandit", "more", true, 1), null, "people keep their size");
   assert.ok(foeOf("troll", { troll: { hp: 84 } }, 1.7).hp > 84, "a huge one has more HP");
+}
+
+// The Monsters number holds whichever kinds are on (only trolls on: a hundred trolls), rare kinds turn up
+// across worlds, and respawn counts out new ones out of sight, keeping what's near and what's in a fight.
+{
+  const world = createWorld(4242);
+  const only = { strays: 0, farm: 0, wild: 0, hostile: 0, monsters: 100, town: 0 };
+  const allOff = Object.keys(ANIMALS).filter((kind) => kind !== "troll");
+  const trolls = herdFor(world, 4242, { counts: only, off: allOff });
+  assert.equal(trolls.length, 100, "only trolls on, a hundred asked for: a hundred");
+  assert.ok(
+    trolls.every((beast) => beast.kind === "troll"),
+    "and all trolls",
+  );
+  const seen = new Set();
+  for (let seed = 1; seed <= 6; seed++)
+    for (const beast of herdFor(world, seed, { counts: { ...only, monsters: 40 } })) seen.add(beast.kind);
+  for (const kind of ["ogre", "troll", "minotaur"]) assert.ok(seen.has(kind), `a rare ${kind} turns up in some world`);
+
+  const herd = createHerd();
+  const few = { ...only, monsters: 12 };
+  herd.setWorld(world, 4242, { counts: few });
+  const own = () => herd.snapshot().filter((beast) => ANIMALS[beast.kind].group === "monsters" && !beast.lore);
+  const before = own();
+  assert.equal(before.length, 12);
+  const player = { x: before[0].x, z: before[0].z };
+  const fighting = before.find((beast) => Math.hypot(beast.x - player.x, beast.z - player.z) > 120);
+  herd.respawn(player, new Set(fighting ? [fighting.id] : []));
+  const after = own();
+  assert.equal(after.length, 12, "respawned: the Monsters number again");
+  assert.ok(
+    after.some((beast) => beast.id === before[0].id),
+    "the one by the player stays",
+  );
+  if (fighting)
+    assert.ok(
+      after.some((beast) => beast.id === fighting.id),
+      "and the one in a fight",
+    );
+  for (const beast of after.filter((entry) => entry.id.startsWith("beast-r")))
+    assert.ok(Math.hypot(beast.x - player.x, beast.z - player.z) >= 110, "new ones come out of sight");
+  assert.ok(
+    after.some((beast) => beast.id.startsWith("beast-r")),
+    "and new ones came",
+  );
+  herd.detach();
 }
 
 console.log("wanderworld animals regression: OK");

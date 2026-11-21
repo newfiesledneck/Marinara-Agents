@@ -4,7 +4,7 @@ A walkable, low-poly 3D world on its own Home tab in Marinara Engine, generated 
 persona and lorebooks. A fantasy survival setting gets a fantasy world; a modern daily-life setting gets
 a modern town. Buildings can be entered, and their interiors are generated the first time you go in.
 
-Status: **0.7.36, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
+Status: **0.7.37, 2026-11-14: an alpha offered to Engine `staging` testers. A seeded settlement and
 countryside with named places, saved worlds and a Journal; up to thirty of your characters (and people a
 world invents) living their days in it; AI conversations, moments, schedules, scenes, pictures, a world
 set up or written by the AI from cards and lorebooks, an AI assistant that changes a world on request, and the
@@ -494,7 +494,7 @@ invents its people (`POST /world-write`: places, people, detail; family from the
 became `ww:<what>:<value>`; strangers and knowing, stances, the narrator card, scenes from anywhere,
 campfires, errands, the world's voice; Illustrate's sizes, AI rewrite with review, `{world_look}`._
 
-_0.5.1 to 0.7.36: buildings dressed each in their own style, the open forge, places to work and rest
+_0.5.1 to 0.7.37: buildings dressed each in their own style, the open forge, places to work and rest
 out of doors and the clips for them (below: "A livelier town"); the chat goes with a picture's rewrite; open ground in a settlement is put to use and
 streets are named only where laid; three more layouts (scattered, pond, quarters); an age range for the
 people the AI makes; and the AI assistant (`POST /assistant`), below._
@@ -690,7 +690,7 @@ plans their days from who they are:
 - TTS: the character's Engine voice, auto-play or on tap.
 - Content rating for scenes and conversations.
 
-## Outstanding (as of 0.7.36, 2026-11-14)
+## Outstanding (as of 0.7.37, 2026-11-14)
 
 What's built but unproven, half-built, or agreed and not started. Newest decisions first.
 
@@ -1130,6 +1130,7 @@ swingReach`); "+N Max" worn and used (`sheet.js bonusesIn / wornMax / useItem`, 
        _In (0.7.34):_ all eleven monsters modelled in Blender (one `make_<kind>.py` each, the other ten written by sub-agents from reference descriptions and checked with `assets/scripts/preview.py`), packed a file each into `kit/fantasy/folk/folk-built-<kind>.json`; `bestiary.js` is the fallback.
        _In (0.7.35):_ creature revisions from review: `digitigrade` (0-1) in `wwblend.py humanoid_joints/humanoid_body` raises the ankle and brings the knee forward on the people's skeleton; the ghoul and troll bend the rest pose's spine (`stooped()` in their scripts), which the people's clips keep since they play as turns from the rest pose.
        _In (0.7.36):_ bigger monsters: `herd.js MONSTER_SIZES`/`monsterScale` roll a size per spawned monster from its own seed (only a group's first may be huge; flying kinds and people keep theirs), `animalSizes` setting; size already scales a foe's HP, damage and XP in `combat.js foeOf`; `main.js creatureWord` names a big or huge one in the story.
+       _In (0.7.37):_ monster counts and respawn: `herdFor` picks kinds by weight (`RARE_SHARE` for rare ones, twice for `favour`) and keeps trying until the Monsters number is placed; `createHerd().respawn(player, keep)` swaps the world's own monsters beyond `NEAR` for new ones out of sight, on the `monsterRespawn` timer in `main.js`.
        _Not yet:_ other reactions beyond Shield and Counterspell; difficult terrain; a companion's own slots;
        people fighting back by turns, companions joining in against them, creatures at range; more
        effects (poison, burning, slowed) and effects on the player; the 5e ruleset as a source of

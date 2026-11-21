@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.37 — 2026-11-20
+
+- The Monsters slider is how many there are, whichever kinds are on: with only trolls switched on and the slider at 100, there are 100 trolls. With other kinds on, a rare kind is only less likely.
+- Ogres, trolls, minotaurs and dragons turn up more often: half as often as a common kind, instead of a fifth.
+- New monsters: every 10 minutes of play (Settings → Creatures → New monsters every; 0 for never) the monsters out of sight go and others come, with kinds not about yet likelier, so in time you meet every kind that's on. Nothing in sight goes, nor anything in a fight, placed by a lorebook or owned.
+
 ## 0.7.36 — 2026-11-20
 
 - Bigger monsters: now and then a monster is bigger than the rest of its kind, and once in a while the first of a group is huge. The story calls it a big or a huge troll, ogre or goblin. A bigger one has more HP, hits harder and is worth more XP. Settings → Creatures → Bigger monsters sets how often: never, now and then (the default) or often.

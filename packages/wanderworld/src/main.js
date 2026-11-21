@@ -678,6 +678,7 @@ function buildWorld(seed, place = null) {
   core.world.scene.add(core.player);
   core.crowd.setWorld(core.world);
   core.herd.setWorld(core.world, hashString(seed), herdOptions());
+  core.respawnAt = null; // (the monsters are counted out again a full while from now)
   syncPets();
   syncSpawns();
   resetMode();
@@ -3742,6 +3743,7 @@ function restockHerd() {
     core.player.rotation.z = 0;
   }
   core.herd.setWorld(core.world, hashString(core.seed), herdOptions());
+  core.respawnAt = null;
   syncPets();
   syncSpawns();
 }
@@ -13105,6 +13107,16 @@ function step(dt) {
     }
     core.owners.set(PLAYER_ID, core.player.position);
     const at = core.player.position;
+    // Every so often the monsters out of sight are counted out again, so others turn up (Settings →
+    // Creatures → New monsters every; 0: never). Those in a fight stay.
+    const every = (core.settings.monsterRespawn ?? 0) * 60;
+    if (every > 0) {
+      core.respawnAt ??= core.clock + every;
+      if (core.clock >= core.respawnAt) {
+        core.respawnAt = core.clock + every;
+        core.herd.respawn(at, new Set((core.battle?.order ?? []).map((entry) => entry.id)));
+      }
+    } else core.respawnAt = null;
     core.herd.update(dt, {
       player: at,
       owners: core.owners,
