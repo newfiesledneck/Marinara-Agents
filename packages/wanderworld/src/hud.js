@@ -13,6 +13,7 @@ import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
 import { SETTINGS } from "./settings.js";
 import { LAND_CHOICES } from "./land.js";
+import { FACTION_EXPLAIN, FACTION_SETTINGS } from "./factions.js";
 import { kindWords, SHEET_KINDS, xpNeeded } from "./sheet.js";
 import {
   INK_BUTTON,
@@ -802,6 +803,7 @@ export function createHud(root, handlers) {
       ? "Now: all of them, for everyone. That can cost a lot."
       : `Now ${count}: one person gets ${count}, two get ${Math.ceil(count / 2)} each, three get ${Math.ceil(count / 3)} each.`;
   const EXPLAIN = {
+    ...FACTION_EXPLAIN,
     genderMale: (s) => {
       const total = s.genderMale + s.genderFemale + s.genderCustom;
       const of = (value) => (total ? Math.round((value / total) * 100) : 0);
@@ -1304,7 +1306,12 @@ export function createHud(root, handlers) {
     add(head, about, list, reset);
   }
 
-  heading("World", "The world's time, weather, places and shops.", ["Time and weather", "Places", "Vendors"]);
+  heading("World", "The world's time, weather, places, factions and shops.", [
+    "Time and weather",
+    "Places",
+    "Factions",
+    "Vendors",
+  ]);
   at("World", "Time and weather");
   choice("time", "Time", TIME_LABELS);
   choice("timeSpeed", "Time speed", {
@@ -1349,6 +1356,11 @@ export function createHud(root, handlers) {
   toggle("besidePlaces", "Places you're beside count too");
   toggle("interiors", "Walk into buildings (unfinished)");
   toggle("worldEvents", "Market days and festivals");
+  at("World", "Factions");
+  intro(
+    "How each faction regards you (Journal → Factions), what that changes, and the regions travel makes for a purpose. All of it runs on the game's own rules; only the last setting adds anything to what the AI is told.",
+  );
+  for (const [name, label] of FACTION_SETTINGS) toggle(name, label);
 
   // People: how they act round the player, how they get on, what they remember. Rules alone.
   heading(
@@ -2397,6 +2409,9 @@ export function createHud(root, handlers) {
     onPicture: () => handlers.onPicture?.(),
     onMap: (canvas, view) => handlers.onMap?.(canvas, view),
     onWaypoint: (at) => handlers.onWaypoint?.(at),
+    onRegions: (canvas) => handlers.onRegions?.(canvas),
+    onStanding: (id, value, locked) => handlers.onStanding?.(id, value, locked),
+    onPurposeAhead: (side, kind, faction) => handlers.onPurposeAhead?.(side, kind, faction),
   };
   const journal = createJournal(PANEL, journalHandlers, (id) => id !== "map");
   // The Map: the Journal's map in a window of its own, with a button of its own.

@@ -2481,7 +2481,15 @@ function buildCountry(random, town, land, ground) {
         });
       }
       const inside = toWorld(cave.use);
-      caves.push({ x: inside.x, z: inside.z, angle: outpost.angle, mouth: inside, outpost: outpost.index });
+      caves.push({
+        x: inside.x,
+        z: inside.z,
+        angle: outpost.angle,
+        mouth: inside,
+        outpost: outpost.index,
+        // (What it leads to, when a region's purpose made it: "cave", "cavern", "dungeon", "stronghold".)
+        ...(outpost.deep ? { deep: outpost.deep } : {}),
+      });
       continue;
     }
     if (outpost.kind === "hamlet") {
@@ -4475,6 +4483,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
         x: outpost.x,
         z: outpost.z,
         ...(outpost.inTown ? { inTown: true } : {}),
+        ...(outpost.deep ? { deep: outpost.deep } : {}),
         door: country.doorOf.get(outpost.index) ?? null,
         doors: country.doorsOf.get(outpost.index) ?? [],
       })),

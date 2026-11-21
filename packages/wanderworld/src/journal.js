@@ -15,6 +15,7 @@ const TABS = [
   ["party", "Party"],
   ["home", "Home"],
   ["places", "Places"],
+  ["factions", "Factions"],
   ["map", "Map"],
   ["world", "World"],
 ];
@@ -1071,6 +1072,72 @@ export function createJournal(panelCss, handlers, shows = () => true) {
     intoViews(["This world", "Setting", "Creatures", "Lore"], worldView, (view) => (worldView = view));
   }
 
+  // Factions: how each regards you, set by hand and locked here, and the regions you know of (factions.js).
+  function drawFactions() {
+    const { list = [], regions = [] } = data.factions ?? {};
+    body.append(
+      explain(
+        "How each faction regards you, from Hated through Neutral to Honoured (−100 to 100). It moves a little with what you do. Set it with the slider; locked, it stays there. What it changes is in Menu → Settings → World → Factions.",
+      ),
+    );
+    if (!list.length)
+      body.append(
+        line(
+          "No factions in this world yet. A lorebook entry keyed ww:faction:<name> makes one, and ww:member of:<name> puts someone in it.",
+          MUTED,
+        ),
+      );
+    for (const faction of list) {
+      const head = element("div", "display:flex;align-items:center;gap:6px;margin-top:6px;");
+      head.append(
+        element("span", `width:12px;height:12px;border-radius:3px;flex:none;background:${faction.colour};`),
+        element("span", "flex:1;font-weight:700;font-size:13px;", faction.name),
+        element("span", "font-size:13px;", `${faction.word} (${faction.value})`),
+      );
+      const controls = element("div", "display:flex;align-items:center;gap:8px;font-size:12px;");
+      const range = element("input", "flex:1;");
+      Object.assign(range, { type: "range", min: "-100", max: "100", step: "1", value: String(faction.value) });
+      range.setAttribute("aria-label", `Standing with ${faction.name}`);
+      const lock = element("input");
+      lock.type = "checkbox";
+      lock.checked = faction.locked;
+      const set = () => handlers.onStanding?.(faction.id, Number(range.value), lock.checked);
+      range.addEventListener("change", set);
+      lock.addEventListener("change", set);
+      const lockLabel = element("label", "display:flex;align-items:center;gap:3px;");
+      lockLabel.append(lock, "Lock");
+      controls.append(range, lockLabel);
+      body.append(head, controls);
+      for (const text of faction.lines) body.append(line(text, "font-size:12px;"));
+    }
+    if (regions.length) {
+      body.append(section("Regions you know of"));
+      for (const text of regions) body.append(line(text, "font-size:12px;"));
+    }
+    // By hand: what the next region not made yet that way is for (as a quest would ask).
+    body.append(section("The next region that way"));
+    body.append(explain("Gives the next region you haven't been to, that way from here, a purpose. It's kept."));
+    const pick = (options) => {
+      const select = element("select", FIELD);
+      for (const [value, label] of options)
+        select.append(Object.assign(element("option"), { value, textContent: label }));
+      return select;
+    };
+    const side = pick(["north", "east", "south", "west"].map((way) => [way, way]));
+    const kind = pick(data.factions?.kinds ?? []);
+    const whose = pick([["", "nobody's"], ...list.map((faction) => [faction.id, faction.name])]);
+    const note = element("span", MUTED, "");
+    const give = button("Give it", SMALL, () => {
+      const name = handlers.onPurposeAhead?.(side.value, kind.value, whose.value);
+      note.textContent = name
+        ? `${name} it is.`
+        : "Not given: a faction's land needs its faction, and that way needs a region you haven't been to.";
+    });
+    const row = element("div", "display:flex;gap:4px;flex-wrap:wrap;align-items:center;");
+    row.append(side, kind, whose, give, note);
+    body.append(row);
+  }
+
   let map = null; // the Map tab's canvas, redrawn in place as you walk
   let mapView = { x: 0, z: 0, zoom: 1 }; // what the map shows: its middle, and how close
   let mapHalf = 160; // half the region's side, in metres (from the last drawing)
@@ -1163,6 +1230,15 @@ export function createJournal(panelCss, handlers, shows = () => true) {
       mapNote,
     );
     body.append(map, controls);
+    // The regions round this one, as far as you know them, each faction's land in its colour.
+    const regions = mapCanvas(180, 180);
+    if (handlers.onRegions?.(regions))
+      body.append(
+        explain(
+          "The regions round this one that you've been to (and any your lore or a quest told of, paler). A faction's land is in its colour; the letters mark a stronghold (S), outposts (O), a town (T), hamlets (H), a ruin (R) and caves (C).",
+        ),
+        regions,
+      );
     redrawMap();
   }
 
@@ -1176,6 +1252,7 @@ export function createJournal(panelCss, handlers, shows = () => true) {
       party: drawParty,
       home: drawHome,
       places: drawPlaces,
+      factions: drawFactions,
       map: drawMap,
       world: drawWorld,
     })[tab]();
@@ -1192,12 +1269,18 @@ export function createJournal(panelCss, handlers, shows = () => true) {
       const peopleChanged = next.placesChanged || next.relationsChanged || next.partyChanged;
       if (tab === "people" && peopleView !== "doing" && body.childElementCount && !peopleChanged) return;
       // No redraw under the cursor in the lists with buttons and fields.
-      const lists = tab === "places" || tab === "party" || tab === "home" || tab === "relations" || tab === "world";
+      const lists =
+        tab === "places" ||
+        tab === "party" ||
+        tab === "home" ||
+        tab === "relations" ||
+        tab === "world" ||
+        tab === "factions";
       // The lore picker redraws only when it's opened or its lorebooks arrive (showLore), never under you.
       if (picker && body.childElementCount) return;
       // The World tab's clock ticks on even when the tab isn't redrawn.
       if (tab === "world" && worldClock?.isConnected) worldClock.textContent = next.world.time;
-      const changed = next.partyChanged || next.relationsChanged || next.placesChanged;
+      const changed = next.partyChanged || next.relationsChanged || next.placesChanged || next.factionsChanged;
       if (lists && !picker && body.childElementCount && (!changed || groupEdit)) return; // a group's ticks are already shown
       draw();
     },

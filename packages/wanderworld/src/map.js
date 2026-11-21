@@ -90,7 +90,7 @@ export function clampView(view, half) {
  * Draws `info` (world.js map info) on `canvas`. `options`: { labels: [{ x, z, text, zoom (shown from
  * that zoom up) }], player: { x, z, angle }, edges: { north, east, south, west } (names of the regions
  * beyond), view: { x, z, zoom } (what's at the middle, and how close: 1 is the whole region), home and
- * waypoint: { x, z } }.
+ * waypoint: { x, z }, frame (a colour: the border of a faction's land) }.
  */
 export function drawMap(canvas, info, options = {}) {
   const context = canvas.getContext("2d");
@@ -176,6 +176,13 @@ export function drawMap(canvas, info, options = {}) {
     }
     context.fill();
     context.stroke();
+  }
+
+  // A faction's land has its colour round the edge.
+  if (options.frame) {
+    context.strokeStyle = options.frame;
+    context.lineWidth = Math.max(4, size / 60);
+    context.strokeRect(0, 0, size, size);
   }
 
   // Names, the regions beyond each edge, and the player.
@@ -284,5 +291,47 @@ export function drawMap(canvas, info, options = {}) {
     context.fill();
     context.stroke();
     context.restore();
+  }
+}
+
+/**
+ * The map of regions: a square for each region the player knows (factions.js knownRegions), in its
+ * faction's colour where it's a faction's land, paler where it's only been heard of, with the one they're
+ * in outlined. `cells`: [{ key, x, z, visited, colour (or null), mark (a letter for another purpose, or
+ * "") }]; `here`: the key of the region they're in.
+ */
+export function drawRegions(canvas, cells, here) {
+  const context = canvas.getContext("2d");
+  if (!context || !cells.length) return;
+  const size = canvas.width;
+  const [hx, hz] = here.split(",").map(Number);
+  // Wide enough for every region known, centred on this one (5 across at least, 9 at most).
+  const far = cells.map((cell) => Math.max(Math.abs(cell.x - hx), Math.abs(cell.z - hz)));
+  const reach = Math.min(4, Math.max(2, ...far));
+  const span = reach * 2 + 1;
+  const cell = size / span;
+  context.fillStyle = "#efe4c8";
+  context.fillRect(0, 0, size, size);
+  context.font = `600 ${Math.round(cell * 0.42)}px Georgia, serif`;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  for (const entry of cells) {
+    const i = entry.x - hx + reach;
+    const j = entry.z - hz + reach;
+    if (i < 0 || j < 0 || i >= span || j >= span) continue;
+    const [x, y] = [i * cell, j * cell];
+    context.globalAlpha = entry.visited ? 1 : 0.45;
+    context.fillStyle = entry.colour ?? "#b9c79a";
+    context.fillRect(x + 2, y + 2, cell - 4, cell - 4);
+    context.globalAlpha = 1;
+    if (entry.mark) {
+      context.fillStyle = "#2a1a0a";
+      context.fillText(entry.mark, x + cell / 2, y + cell / 2);
+    }
+    if (entry.key === here) {
+      context.strokeStyle = "#2a1a0a";
+      context.lineWidth = 3;
+      context.strokeRect(x + 2, y + 2, cell - 4, cell - 4);
+    }
   }
 }
