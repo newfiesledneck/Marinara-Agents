@@ -103,7 +103,9 @@ for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", 
     .map((name) => name.slice(0, -4));
   assert.ok(models.includes("goblin"), "the goblin is made in Blender");
   const folk = join(pkg, "kit/fantasy/folk");
-  const built = JSON.parse(readFileSync(join(folk, "folk-built.json"), "utf8")).folk;
+  const built = {};
+  for (const name of readdirSync(folk).filter((file) => /^folk-built-.+\.json$/u.test(file)))
+    Object.assign(built, JSON.parse(readFileSync(join(folk, name), "utf8")).folk);
   assert.deepEqual(Object.keys(built).sort(), models.sort(), "the kit has every model and only those");
   for (const [kind, body] of Object.entries(built)) {
     assert.ok(BESTIARY[kind] && ANIMALS[kind]?.built, `${kind} is one of Wanderworld's own monsters`);

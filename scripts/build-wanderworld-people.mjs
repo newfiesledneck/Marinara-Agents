@@ -395,14 +395,16 @@ function folk(dir) {
 /**
  * The monsters made in Blender (packages/wanderworld/assets/scripts/make_*.py, each a .glb in
  * assets/models/ on the people's skeleton, with one texture of its own), into
- * kit/fantasy/folk/folk-built.json with a texture each (folk-<name>.webp). The game moves them with the people's animations, as it does the imp and the puglin; their
+ * kit/fantasy/folk/folk-built-<name>.json with a texture each (folk-<name>.webp): a file each, so the game
+ * fetches only the creatures a world has. The game moves them with the people's animations, as it does the imp and the puglin; their
  * own actions stay in the .glb for anyone using the model elsewhere.
  */
 function bestiary() {
   const dir = join(ROOT, "packages/wanderworld/assets/models");
   const out = join(KIT, "fantasy/folk");
   mkdirSync(out, { recursive: true });
-  const all = { source: "Made in Blender by packages/wanderworld/assets/scripts", folk: {} };
+  for (const old of readdirSync(out).filter((name) => /^folk-built/u.test(name))) rmSync(join(out, old));
+  let count = 0;
   for (const file of readdirSync(dir)
     .filter((name) => name.endsWith(".glb"))
     .sort()) {
@@ -416,13 +418,18 @@ function bestiary() {
     let top = 0;
     for (const primitive of primitives)
       for (let i = 1; i < primitive.position.values.length; i += 3) top = Math.max(top, primitive.position.values[i]);
-    all.folk[name] = {
+    const body = {
       height: Math.round(top * 100) / 100,
       ...packPart(primitives, { texture: () => `folk-${name}`, skeleton: skeletonOf(gltf) }),
     };
+    const packed = {
+      source: "Made in Blender by ThatOneCan (packages/wanderworld/assets/scripts)",
+      folk: { [name]: body },
+    };
+    writeFileSync(join(out, `folk-built-${name}.json`), JSON.stringify(packed));
+    count++;
   }
-  writeFileSync(join(out, "folk-built.json"), JSON.stringify(all));
-  console.log(`wrote ${Object.keys(all.folk).length} to ${out}`);
+  console.log(`wrote ${count} to ${out}`);
 }
 
 function main() {
