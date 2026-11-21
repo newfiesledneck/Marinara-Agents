@@ -1120,7 +1120,9 @@ still count, and come first.
   within 1.5 m is a critical hit. Simpler than the SRD on purpose: a blow that lands always deals at
   least 1 damage.
 - Two browsers playing the same world at the same moment take turns: the save that reaches the Engine
-  first wins whole, the other browser loads it, and nothing is merged.
+  first wins whole, the other browser loads it, and nothing is merged. From the moment the Engine
+  refuses its save, the other browser saves nothing of that world until it has loaded it again: at
+  once, or when the menu closes if it's open.
 - Prompt caching is the provider's to do; Wanderworld only orders its prompts so that it can. The AI
   assistant, scene plans and Illustrate aren't reordered.
 - A bridge is built only where a road crosses the river; a place with no road to it (a cave) has none.

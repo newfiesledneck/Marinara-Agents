@@ -965,20 +965,31 @@ async function syncSaves() {
   }
 }
 
-/** Saves another browser wrote (store.js `onChange`): the world being played, when it's one of them, is stale. */
+/**
+ * Saves another browser wrote (store.js `onChange`, or a save of this one the Engine refused as older than
+ * its own): the world being played, when it's one of them, is stale. Nothing saves it (saves.js `stale`)
+ * and it's loaded again from the Engine's copy at once, or when the menu closes if it's open (`resume`).
+ */
 function savesChanged(keys) {
   const kept = core.save && keys.includes(WORLD_KEY(core.save.id)) ? core.saves.read(core.save.id) : null;
   if (!core.world || !kept) return;
   core.staleWorld = kept.id;
-  if (!core.paused) {
-    playWorld(kept.id);
-    core.hud?.setNotice("This world was played in another browser since, so it was loaded from there.");
-  }
+  if (!core.paused) reloadStale();
 }
+/** The world being played loaded again from the Engine's newer copy (savesChanged). */
+function reloadStale() {
+  if (core.mode === "talk") endTalk();
+  playWorld(core.save.id);
+}
+const STALE_NOTICE = "This world was saved from another browser since, so it was loaded again from there.";
 
 /** The Menu's Save world: saved now, and sent to the Engine now. */
 async function saveWorldNow() {
   if (!core.save || !core.world) return;
+  if (core.staleWorld === core.save.id)
+    return void core.hud?.setNotice(
+      "Not saved: this world was saved from another browser since. It's loaded from there when you carry on.",
+    );
   savePlace(true, captureThumbnail());
   await core.store.flush();
   core.hud?.setNotice(
@@ -1020,6 +1031,7 @@ function playWorld(id) {
     return;
   }
   savePlace(true);
+  if (stale && core.save?.id === id) core.hud?.setNotice(STALE_NOTICE);
   core.staleWorld = null;
   // What was still to happen in the world being left (replies read out one by one, a fade) doesn't
   // happen in this one.
@@ -1090,6 +1102,8 @@ function playWorld(id) {
 }
 
 function resume() {
+  // (Play doesn't carry on in a world the Engine has a newer copy of: it's loaded again first.)
+  if (core.world && core.save && core.staleWorld === core.save.id) return void reloadStale();
   core.menu?.hide();
   core.hud?.setMenuOpen(false);
   if (core.input) core.input.stickElement.style.visibility = "";
@@ -15182,7 +15196,8 @@ function attach(element) {
       // settings and the last world played are this browser's to write over.
       onConflict: (key) => key.startsWith(WORLD_KEY("")),
     });
-    core.saves = createSaves(core.store);
+    // (Nothing writes over a world the Engine has a newer copy of: every save goes through `write`.)
+    core.saves = createSaves(core.store, { stale: (id) => !!id && id === core.staleWorld });
     globalThis.addEventListener?.("pagehide", () => void core.store.flush());
     // Hidden (another tab, the phone locked): saved and sent now. Shown again: another browser may
     // have played meanwhile, so the Engine's saves are read again before anything is saved over them.

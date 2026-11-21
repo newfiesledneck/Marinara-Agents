@@ -628,7 +628,6 @@ export function checkWorld(raw) {
 
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
-/** The saved worlds in `storage` (store.js, or anything with getItem/setItem/removeItem). */
 /**
  * How many lines of the chat a world keeps, to scroll back through (what's sent to the AI is far less:
  * each prompt takes its own last few).
@@ -637,7 +636,12 @@ const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slic
  */
 export const LOG_KEPT = 500;
 
-export function createSaves(storage = globalThis.localStorage) {
+/**
+ * The saved worlds in `storage` (store.js, or anything with getItem/setItem/removeItem). `stale(id)`: the
+ * Engine has a newer copy of world `id` than the one in play (another browser saved it since), so `write`
+ * keeps nothing of it until it's loaded again.
+ */
+export function createSaves(storage = globalThis.localStorage, { stale = () => false } = {}) {
   const read = (key) => {
     try {
       return storage?.getItem(key) ?? null;
@@ -731,9 +735,9 @@ export function createSaves(storage = globalThis.localStorage) {
     read(id) {
       return checkWorld(parse(WORLD_KEY(id), null));
     },
-    /** Saves a world's record (and its thumbnail, a small image data URL, when given). */
+    /** Saves a world's record (and its thumbnail, a small image data URL, when given); null when it's `stale`. */
     write(world, thumbnail) {
-      return put(world, thumbnail);
+      return stale(world?.id) ? null : put(world, thumbnail);
     },
     rename(id, name) {
       const world = this.read(id);
