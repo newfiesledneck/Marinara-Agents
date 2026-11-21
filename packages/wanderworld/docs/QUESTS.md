@@ -256,6 +256,29 @@ Purposes come from lore (a faction or place entry) or from a quest (a quest need
 next region that way gets one, and keeps it). The map can show each faction's regions in its colour, as
 far as the player knows them.
 
+**Built (`src/factions.js`).** `travel` gives a new region its purpose: lore's (`ww:region:east` on a
+faction's entry, `ww:region:north-east:stronghold` on any), a quest's or one set by hand, else the
+seed's (`seededPurpose`, the same for the same world; a faction's land only goes to a faction without
+one). `landscapeForPurpose` makes the land for it. A faction gets a walled town and a watchtower, with
+banners in its colour (`bannerMesh`) and guards (`purposeSpawns`) on its square and at its tower. A
+stronghold is a hamlet with a gate in a hillside and bandits at it. Outposts are three watchtowers with
+bandits. A town is a village, hamlets are a hamlet and two or three more, a ruin is ruins with a dungeon
+mouth beside them, and caves are a rugged hillside with three cave mouths. Purposes are kept in
+`save.purposes` (region key → `{ kind, faction, from }`), and a purpose once given is never replaced.
+
+- **For quests:** `main.js purposeAhead(side, kind, faction)` gives the next region not yet made that
+  way a purpose and returns its name. Journal → Factions does the same by hand.
+- **For the deep places:** the gate and every cave mouth made this way is an ordinary `caves.js` mouth.
+  It carries `deep` (`"cave"`, `"cavern"`, `"dungeon"` or `"stronghold"`, `land.js DEEP_KINDS`) on the
+  landscape's outpost, on `world.layout.outposts[i]`, on `world.caves[i]` and on the cave's zone. The
+  inside is for `src/deep.js`.
+- **The map:** Journal → Map draws the regions known (`knownRegions`: the ones visited, plus any that
+  lore, a quest or the player told of) under the region map, each faction's land in its colour. On a
+  faction's land the region map has a border in that colour.
+- **Not yet:** a faction's land has no townsfolk of its own beyond its guards and any lore members who
+  live there. The guards are the `bandit` kind, named "<Faction> guard"; a guard body of its own would
+  need a model and an SRD stat block.
+
 ---
 
 ## 10. Factions
@@ -265,6 +288,25 @@ far as the player knows them.
 - Standing changes prices, who will talk to the player, whether a faction's guards fight on sight,
   which quests they offer, and whether their land is safe to cross.
 - `ww:faction:` already exists in lore. Enmity between factions would be `ww:enemy of:<faction>`.
+
+**Built (`src/factions.js`).** `save.standing` holds, for each faction id, `{ value, locked, day, moved,
+once }`. `moveStanding` moves it by rule: at most `STANDING.DAY_CAP` (10) a day, a locked one never,
+and helping a faction lowers each enemy's standing by a third as much (at least 1). `ww:enemy of:` on a
+faction's entry sets `faction.enemies`, which counts both ways. The words are at −75, −40, −10, 10, 40 and 75. Hostile and below is `isHostile`.
+
+- **One call for quests:** `main.js changeStanding(factionId, delta, why, { whole, once })`. `whole`
+  counts a quest's reward in full, past the day's limit.
+- **What moves it now:** an errand done for a member (+3), a hostile creature beaten on the faction's
+  land (+1), buying or selling at its vendors (+1, once a day), a blow at its guard (−5) and a guard
+  beaten (−10).
+- **What it changes,** each switchable in Settings → World → Factions: prices (`priceFactor`, 1.2 at
+  −100 to 0.8 at 100, multiplied into `haggleFactor`); members won't talk at Hostile; guards turn
+  hostile at Hostile (`syncSpawns` again when it crosses); and at Hostile its land is no refuge
+  (`aggressionAllowed`). With `factionTold`, `towardPlayer` adds one sentence
+  (`standingSentence`) for a member who speaks.
+- **Journal → Factions** shows each faction's standing with a slider and Lock, its people, land, enemies
+  and what the standing does now.
+- **Not yet:** which quests a faction offers (needs quests, phase 1).
 
 ---
 
