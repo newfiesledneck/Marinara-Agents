@@ -129,11 +129,7 @@ const idOf = (value) => {
   const id = text(value, MAX.id);
   return /^[\w:./@-]+$/u.test(id) ? id : "";
 };
-const ids = (list, max) =>
-  (Array.isArray(list) ? list : [])
-    .map(idOf)
-    .filter(Boolean)
-    .slice(0, max);
+const ids = (list, max) => (Array.isArray(list) ? list : []).map(idOf).filter(Boolean).slice(0, max);
 const isRecord = (value) => !!value && typeof value === "object" && !Array.isArray(value);
 const docId = (prefix, key) => `${prefix}-${createHash("sha256").update(key).digest("hex").slice(0, 40)}`;
 
@@ -233,7 +229,9 @@ export const checkCombatLine = (data) =>
     .trim();
 
 /** What the model that chooses a creature's move is told. With `talk`, it gives the line it says too. */
-export const combatMoveInstruction = (talk) => `You decide what one fighter does on its turn in a fight by turns, in a roleplay world. You're told what it is, how it stands, whom it's fighting, what has just happened, and the moves it can make now, each with an id. Choose the one move that fits what it is and the moment: an animal fights as an animal does and runs when it's badly hurt, a coward gives up sooner, a brute closes in, one who shoots or casts keeps its distance, and a hurt caster may mend itself. The game rolls every attack and save: you only choose.${
+export const combatMoveInstruction = (
+  talk,
+) => `You decide what one fighter does on its turn in a fight by turns, in a roleplay world. You're told what it is, how it stands, whom it's fighting, what has just happened, and the moves it can make now, each with an id. Choose the one move that fits what it is and the moment: an animal fights as an animal does and runs when it's badly hurt, a coward gives up sooner, a brute closes in, one who shoots or casts keeps its distance, and a hurt caster may mend itself. The game rolls every attack and save: you only choose.${
   talk
     ? ` Also give one short thing it says as it moves (under 15 words, no quotation marks), or for an animal or a monster that doesn't talk, what it does, starting with a verb.`
     : ""
@@ -297,7 +295,9 @@ export function checkStock(data) {
       price: Number.isFinite(item.price) ? Math.max(1, Math.min(9999, Math.round(item.price))) : 0,
       quantity: Number.isFinite(item.quantity) ? Math.max(1, Math.min(9, Math.round(item.quantity))) : 1,
     }))
-    .filter((item) => item.name && item.price > 0 && !seen.has(item.name.toLowerCase()) && seen.add(item.name.toLowerCase()))
+    .filter(
+      (item) => item.name && item.price > 0 && !seen.has(item.name.toLowerCase()) && seen.add(item.name.toLowerCase()),
+    )
     .slice(0, 12);
 }
 
@@ -331,7 +331,9 @@ export function questWriteMessages({ worldName, setting, giver, premise, avoid, 
       role: "user",
       content: [
         `The world: ${([worldName, setting].filter(Boolean).join(": ") || "a small town and the country round it").replace(/[.\s]+$/u, "")}.`,
-        giver ? `Who's asking: ${giver}.` : "It's posted on the town's noticeboard by someone in town (use one of the people).",
+        giver
+          ? `Who's asking: ${giver}.`
+          : "It's posted on the town's noticeboard by someone in town (use one of the people).",
         premise && `What it's about (from the world's lore): ${premise}`,
         avoid.length && `Recent quests, so don't repeat them: ${avoid.join(" | ")}.`,
         listed("People", lists.people),
@@ -556,11 +558,17 @@ export function talkMessages(input) {
     style,
     cached &&
       `The newest message begins with a <context> block: where and when this is, who is near, how ${character.name} feels about ${persona.name} and their memories. Nobody says it aloud: it is what is true right now. Use it, and never mention or quote it.`,
-    section(`${character.name}`, [card(character.description), card(character.personality)].filter(Boolean).join("\n\n")),
+    section(
+      `${character.name}`,
+      [card(character.description), card(character.personality)].filter(Boolean).join("\n\n"),
+    ),
     section("Their situation", card(character.scenario)),
     section(`How ${character.name} looks`, card(cutWords(character.appearance, MAX.card))),
     section(`How ${character.name} talks (examples)`, card(character.examples)),
-    section(`${persona.name}, who they're talking to`, [persona.description, persona.personality, cutWords(persona.appearance, MAX.card)].filter(Boolean).join("\n\n")),
+    section(
+      `${persona.name}, who they're talking to`,
+      [persona.description, persona.personality, cutWords(persona.appearance, MAX.card)].filter(Boolean).join("\n\n"),
+    ),
     section("The world", input.setting),
     section("What they know (lore)", input.lore.join("\n\n")),
   ];
@@ -610,7 +618,9 @@ export function talkMessages(input) {
   }
   const line =
     input.line ||
-    (input.inParty ? `*${persona.name} turns to ${character.name}, beside them.*` : `*${persona.name} walks up to ${character.name}.*`);
+    (input.inParty
+      ? `*${persona.name} turns to ${character.name}, beside them.*`
+      : `*${persona.name} walks up to ${character.name}.*`);
   messages.push({ role: "user", content: cached && now ? `<context>\n${now}\n</context>\n\n${line}` : line });
   return messages;
 }
@@ -699,7 +709,10 @@ An entry headed "Character card" is the character themself. Give it their name f
     `{"entries": [{"n": 1, "keys": ["tavern1", "located in town1"]}, {"n": 2, "keys": []}]${input.places ? ', "names": {"tavern1": "The Gilded Stag"}' : ""}}`,
   ];
   const entries = input.entries
-    .map((entry, at) => `${at + 1}. ${entry.title}${entry.keys.length ? ` [${entry.keys.join(", ")}]` : ""}\n${entry.content}`)
+    .map(
+      (entry, at) =>
+        `${at + 1}. ${entry.title}${entry.keys.length ? ` [${entry.keys.join(", ")}]` : ""}\n${entry.content}`,
+    )
     .join("\n\n");
   const user = [
     section("The world", [input.worldName, input.setting].filter(Boolean).join(": ")),
@@ -707,7 +720,11 @@ An entry headed "Character card" is the character themself. Give it their name f
     input.people && input.persona && section("The player", input.persona),
     section(
       "Already placed",
-      input.placed.map((item) => `${item.slot}${item.name ? ` = ${item.name}` : ""}${item.title ? ` (entry "${item.title}")` : ""}`).join("\n"),
+      input.placed
+        .map(
+          (item) => `${item.slot}${item.name ? ` = ${item.name}` : ""}${item.title ? ` (entry "${item.title}")` : ""}`,
+        )
+        .join("\n"),
     ),
     section("Entries", entries),
   ];
@@ -727,12 +744,14 @@ function loreSlot(word) {
 
 /** Keywords from a model, checked: plain words only, and no numbered place past what a world can build. */
 function checkKeys(list) {
-  return (Array.isArray(list) ? list : [])
-    .map((key) => text(key, 60))
-    .filter((key) => /^[\p{L}\p{N} '’.-]+$/u.test(key))
-    // Every numbered place a keyword uses, alone or inside "lives in home3", must be one the world can build.
-    .filter((key) => (key.toLowerCase().match(/\b[a-z]+\d+\b/gu) ?? []).every((word) => loreSlot(word)))
-    .slice(0, 8);
+  return (
+    (Array.isArray(list) ? list : [])
+      .map((key) => text(key, 60))
+      .filter((key) => /^[\p{L}\p{N} '’.-]+$/u.test(key))
+      // Every numbered place a keyword uses, alone or inside "lives in home3", must be one the world can build.
+      .filter((key) => (key.toLowerCase().match(/\b[a-z]+\d+\b/gu) ?? []).every((word) => loreSlot(word)))
+      .slice(0, 8)
+  );
 }
 
 /**
@@ -756,10 +775,36 @@ async function writersCards(resources, body) {
 
 // ── The AI assistant ─────────────────────────────────────────────────────────
 /** The kinds of relationship an edit may set (relationships.js KINDS), and "none" to end one. */
-const ASSISTANT_KINDS = ["acquaintance", "friend", "romance", "partner", "family", "colleague", "mentor", "rival", "enemy", "fear", "none"];
+const ASSISTANT_KINDS = [
+  "acquaintance",
+  "friend",
+  "romance",
+  "partner",
+  "family",
+  "colleague",
+  "mentor",
+  "rival",
+  "enemy",
+  "fear",
+  "none",
+];
 const ASSISTANT_MAX_EDITS = 60;
 /** The parts of a world that may be left out of a message to the assistant (assistant-context.js PARTS). */
-const ASSISTANT_PARTS = ["people", "relations", "places", "days", "here", "ties", "lore", "board", "help", "ages", "chat", "recaps", "memories"];
+const ASSISTANT_PARTS = [
+  "people",
+  "relations",
+  "places",
+  "days",
+  "here",
+  "ties",
+  "lore",
+  "board",
+  "help",
+  "ages",
+  "chat",
+  "recaps",
+  "memories",
+];
 const ASSISTANT_PART_WORDS = {
   people: "everyone in detail (only names, homes and work are listed for most)",
   relations: "relationships",
@@ -828,7 +873,11 @@ export function readAssistant(raw) {
   if (/```wanderworld/iu.test(answer) && !blocks.length)
     return { reply, edits: [], problem: "The assistant's changes were cut short, so nothing was changed. Ask again." };
   if (!blocks.length) return { reply, edits: [], problem: "" };
-  const nothing = (why) => ({ reply, edits: [], problem: `${why}, so nothing was changed. Ask again, or put it another way.` });
+  const nothing = (why) => ({
+    reply,
+    edits: [],
+    problem: `${why}, so nothing was changed. Ask again, or put it another way.`,
+  });
   let parsed;
   try {
     parsed = JSON.parse(blocks.at(-1));
@@ -838,11 +887,13 @@ export function readAssistant(raw) {
   // Looking something up (a part that was left out, lore, a person, their memories): nothing else is
   // read from such an answer.
   if (isRecord(parsed) && !Array.isArray(parsed.edits)) {
-    const asked = (value) => [...new Set((Array.isArray(value) ? value : []).map((words) => text(words, 80)).filter(Boolean))].slice(0, 6);
+    const asked = (value) =>
+      [...new Set((Array.isArray(value) ? value : []).map((words) => text(words, 80)).filter(Boolean))].slice(0, 6);
     const need = asked(parsed.need).filter((part) => ASSISTANT_PARTS.includes(part));
     const look = { lore: asked(parsed.lore), people: asked(parsed.people), memories: asked(parsed.memories) };
     const looking = look.lore.length + look.people.length + look.memories.length > 0;
-    if (need.length || looking) return { reply, edits: [], problem: "", ...(need.length ? { need } : {}), ...(looking ? { look } : {}) };
+    if (need.length || looking)
+      return { reply, edits: [], problem: "", ...(need.length ? { need } : {}), ...(looking ? { look } : {}) };
   }
   const list = Array.isArray(parsed) ? parsed : isRecord(parsed) ? parsed.edits : null;
   if (!Array.isArray(list)) return nothing("The assistant's changes weren't in the format Wanderworld reads");
@@ -858,7 +909,9 @@ export function readAssistant(raw) {
   return {
     reply,
     edits,
-    problem: dropped ? `${dropped} of the assistant's changes ${dropped === 1 ? "wasn't" : "weren't"} in a form Wanderworld reads and ${dropped === 1 ? "was" : "were"} left out.` : "",
+    problem: dropped
+      ? `${dropped} of the assistant's changes ${dropped === 1 ? "wasn't" : "weren't"} in a form Wanderworld reads and ${dropped === 1 ? "was" : "were"} left out.`
+      : "",
   };
 }
 
@@ -908,7 +961,9 @@ function readAssistantEdit(item, name) {
     const person = name(item.person);
     const fields = {
       ...(["male", "female", "custom", "auto"].includes(item.body) ? { body: item.body } : {}),
-      ...(item.voice === "none" || Object.hasOwn(TALK_STYLES, item.voice) ? { voice: item.voice === "none" ? "" : item.voice } : {}),
+      ...(item.voice === "none" || Object.hasOwn(TALK_STYLES, item.voice)
+        ? { voice: item.voice === "none" ? "" : item.voice }
+        : {}),
       ...(score(item.aggression) !== null ? { aggression: score(item.aggression) } : {}),
       ...(score(item.sociability) !== null ? { sociability: score(item.sociability) } : {}),
       ...(ASSISTANT_STANCES.includes(item.stance) ? { stance: item.stance === "none" ? "" : item.stance } : {}),
@@ -924,8 +979,16 @@ function readAssistantEdit(item, name) {
     const entries = (Array.isArray(item.entries) ? item.entries : [])
       .filter(isRecord)
       .slice(0, 12)
-      .map((entry) => ({ from: hour(entry.from), to: hour(entry.to), activity: entry.activity, place: text(entry.place, 80) }))
-      .filter((entry) => entry.from !== null && entry.to !== null && entry.from !== entry.to && ACTIVITIES.includes(entry.activity));
+      .map((entry) => ({
+        from: hour(entry.from),
+        to: hour(entry.to),
+        activity: entry.activity,
+        place: text(entry.place, 80),
+      }))
+      .filter(
+        (entry) =>
+          entry.from !== null && entry.to !== null && entry.from !== entry.to && ACTIVITIES.includes(entry.activity),
+      );
     return entries.length ? { do: "day", person, entries } : null;
   }
   if (item.do === "add_person") {
@@ -966,7 +1029,8 @@ function readAssistantEdit(item, name) {
     return from !== null && to !== null && from !== to ? { do: "hours", place, open: false, from, to } : null;
   }
   if (item.do === "world") {
-    const age = (value) => (value === "none" ? { value: null } : ageOf(value) !== null ? { value: ageOf(value) } : null);
+    const age = (value) =>
+      value === "none" ? { value: null } : ageOf(value) !== null ? { value: ageOf(value) } : null;
     const fields = {
       ...(block(item.setting, 600) ? { setting: text(item.setting, 600) } : {}),
       ...(text(item.look, 200) ? { look: text(item.look, 200) } : {}),
@@ -1088,7 +1152,12 @@ export function assistantMessages(input) {
     section("What lore is tied to", input.ties.join("\n")),
     section("The noticeboard", input.board),
     section("This world's own lore", input.entries.map((entry) => `${entry.title}: ${entry.content}`).join("\n\n")),
-    section("What people remember", (input.memories ?? []).map((person) => `${person.name}:\n${person.lines.map((entry) => `  ${entry}`).join("\n")}`).join("\n\n")),
+    section(
+      "What people remember",
+      (input.memories ?? [])
+        .map((person) => `${person.name}:\n${person.lines.map((entry) => `  ${entry}`).join("\n")}`)
+        .join("\n\n"),
+    ),
     section("Lore titles (look one up to read it)", (input.loreIndex ?? []).join("; ")),
     section("Looked up for you", (input.found ?? []).map((entry) => `${entry.title}:\n${entry.content}`).join("\n\n")),
     section("The recent chat in the world (oldest first)", input.chat ?? ""),
@@ -1108,7 +1177,10 @@ export function assistantMessages(input) {
     : `\n\n# Looking things up\n\nTo keep this short, only what the request seemed to need was sent${leftOut ? `. Not sent: ${leftOut}` : ""}. Lore is listed by title only, under "Lore titles". Never guess at what you weren't shown, and never tell the player you can't see something you could look up. To look something up, answer with nothing but this block (only the keys you need), and you will be asked again with what was found, up to three times:\n\`\`\`wanderworld\n{"need": ["${omitted[0] ?? "relations"}"], "lore": ["a title, or a few words to search for"], "people": ["a name: everything about them"], "memories": ["a name: what they remember"]}\n\`\`\`\n"need" takes the parts named as not sent. "lore" searches this world's lore and the player's lorebooks and brings back the entries that match, in full.`;
   const turns = input.history.map((turn) => ({ role: turn.role, content: turn.text }));
   if (input.cache === false)
-    return [{ role: "system", content: `${ASSISTANT_INSTRUCTION}\n\n# The world as it is now\n\n${world}${left}` }, ...turns];
+    return [
+      { role: "system", content: `${ASSISTANT_INSTRUCTION}\n\n# The world as it is now\n\n${world}${left}` },
+      ...turns,
+    ];
   const now = `<context>\n# The world as it is now\n\n${world}${left}\n</context>`;
   const last = turns.at(-1);
   if (last?.role === "user") turns[turns.length - 1] = { role: "user", content: `${now}\n\n${last.content}` };
@@ -1183,7 +1255,9 @@ export function worldWriteMessages(input) {
   const world = `The world can build these places, each named by its kind and a number counting from 1 ("tavern1" is the first tavern): ${kinds}. town1 is the main settlement; other towns are small hamlets out in the country. Square, fountain, taverns, shops, smithies, temples, halls and homes stand in town1; the rest lie out in the country.`;
   const placed = section(
     "Already placed",
-    input.placed.map((item) => `${item.slot}${item.name ? ` = ${item.name}` : ""}${item.title ? ` (${item.title})` : ""}`).join("\n"),
+    input.placed
+      .map((item) => `${item.slot}${item.name ? ` = ${item.name}` : ""}${item.title ? ` (${item.title})` : ""}`)
+      .join("\n"),
   );
   const ages = ageRule(input.ages);
   const genders = genderRule(input.genders);
@@ -1205,14 +1279,27 @@ export function worldWriteMessages(input) {
         role: "user",
         content: [
           section("The world", [input.worldName, input.setting].filter(Boolean).join(": ")),
-          section("People", input.people.map((person, at) => `${at + 1}. ${person.name}\n${person.text || "(nothing is written of them: invent someone who fits)"}`).join("\n\n")),
+          section(
+            "People",
+            input.people
+              .map(
+                (person, at) =>
+                  `${at + 1}. ${person.name}\n${person.text || "(nothing is written of them: invent someone who fits)"}`,
+              )
+              .join("\n\n"),
+          ),
         ]
           .filter(Boolean)
           .join("\n\n"),
       },
     ];
   }
-  const about = section("The world", [input.worldName, input.setting || "No setting was given: invent one that suits a small, walkable, low-poly world."].filter(Boolean).join(": "));
+  const about = section(
+    "The world",
+    [input.worldName, input.setting || "No setting was given: invent one that suits a small, walkable, low-poly world."]
+      .filter(Boolean)
+      .join(": "),
+  );
   const cast = section("Characters who live here", input.characters.join(", "));
   if (input.step === "people") {
     return [
@@ -1241,11 +1328,19 @@ export function worldWriteMessages(input) {
         content: [
           about,
           section("What this world is", input.premise),
-          section("Places", input.places.map((item) => `${item.slot} = ${item.name}${item.lore ? `: ${item.lore.slice(0, 240)}` : ""}`).join("\n")),
+          section(
+            "Places",
+            input.places
+              .map((item) => `${item.slot} = ${item.name}${item.lore ? `: ${item.lore.slice(0, 240)}` : ""}`)
+              .join("\n"),
+          ),
           cast,
           input.persona && section("The player", input.persona),
           input.cards?.length &&
-            section("What the cards say", input.cards.map((card) => `${card.name}${card.player ? " (the player)" : ""}: ${card.text}`).join("\n\n")),
+            section(
+              "What the cards say",
+              input.cards.map((card) => `${card.name}${card.player ? " (the player)" : ""}: ${card.text}`).join("\n\n"),
+            ),
           placed,
         ]
           .filter(Boolean)
@@ -1345,7 +1440,9 @@ async function listPeople(resources, wanted, locals) {
   const engine = wanted.filter((id) => !id.startsWith("local:"));
   const records = engine.length ? await resources.listCharacters(engine) : [];
   return wanted
-    .map((id) => (id.startsWith("local:") ? own.find((record) => record.id === id) : records.find((record) => record?.id === id)))
+    .map((id) =>
+      id.startsWith("local:") ? own.find((record) => record.id === id) : records.find((record) => record?.id === id),
+    )
     .filter(Boolean);
 }
 
@@ -1371,7 +1468,8 @@ export function checkLoreSetup(value, count) {
 /** A schedule entry, checked: { from, to (hours 0–24, half hours), activity, place (a place id or name) }. */
 export function checkEntry(raw, places = null) {
   if (!isRecord(raw)) return null;
-  const hour = (value) => (Number.isFinite(Number(value)) ? Math.round(Math.max(0, Math.min(24, Number(value))) * 4) / 4 : null);
+  const hour = (value) =>
+    Number.isFinite(Number(value)) ? Math.round(Math.max(0, Math.min(24, Number(value))) * 4) / 4 : null;
   const from = hour(raw.from);
   const to = hour(raw.to);
   const activity = ACTIVITIES.includes(raw.activity) ? raw.activity : null;
@@ -1380,7 +1478,9 @@ export function checkEntry(raw, places = null) {
   if (places) {
     // A place the world has, by id or by name (any case); home and work stand for the person's own.
     const wanted = place.toLowerCase().replace(/^the /u, "");
-    const found = places.find((entry) => entry.id === place || entry.name.toLowerCase().replace(/^the /u, "") === wanted);
+    const found = places.find(
+      (entry) => entry.id === place || entry.name.toLowerCase().replace(/^the /u, "") === wanted,
+    );
     place = found ? found.id : "";
   }
   if (!place && (activity === "visit" || activity === "sit")) return null;
@@ -1423,7 +1523,7 @@ export function momentMessages(input) {
   const speaker = input.telling === "speaker" ? input.listeners.find((person) => person.id === input.speaker) : null;
   const system = [
     // (The same for the narrator and for every speaker, moment after moment.)
-    "This is Wanderworld, a small living world the player walks around in. What follows is the world and who is in it, then what is happening right now. Your part in it, and exactly what to write, come last, under \"Your part\".",
+    'This is Wanderworld, a small living world the player walks around in. What follows is the world and who is in it, then what is happening right now. Your part in it, and exactly what to write, come last, under "Your part".',
     `The player is ${input.persona.name}.${input.persona.card ? " " + input.persona.card : ""} Never write ${input.persona.name}'s words, thoughts or choices.`,
     TALK_STYLES[input.style] ?? TALK_STYLES.natural,
     section("The world", input.setting),
@@ -1469,9 +1569,7 @@ export function momentMessages(input) {
       section(
         "Just before",
         [
-          !people
-            ? "(What you told last: don't say it again.)"
-            : "(What every one of them saw and heard, in order.)",
+          !people ? "(What you told last: don't say it again.)" : "(What every one of them saw and heard, in order.)",
           input.recent.some((line) => line.stamp) &&
             "(In brackets: when and where each happened. It may have been a while ago, or somewhere else; now and here are under Right now.)",
           ...input.recent.map((line) => `${line.stamp ? `[${line.stamp}] ` : ""}${line.who}: ${line.text}`),
@@ -1558,14 +1656,14 @@ export function fillTemplate(template, values) {
         return !keys.length || keys.some(value);
       })
       .join(" ")
-  )
-    .replace(/\{(\w+)\}/gu, (match, key) => value(key))
-    .replace(/^[\s,.]+/u, "")
-    .replace(/[ \t]+/gu, " ")
-    .replace(/\s+([,.])/gu, "$1")
-    .replace(/([,.]){2,}/gu, "$1")
-    .trim()
-    .slice(0, MAX.picture);
+      .replace(/\{(\w+)\}/gu, (match, key) => value(key))
+      .replace(/^[\s,.]+/u, "")
+      .replace(/[ \t]+/gu, " ")
+      .replace(/\s+([,.])/gu, "$1")
+      .replace(/([,.]){2,}/gu, "$1")
+      .trim()
+      .slice(0, MAX.picture)
+  );
 }
 
 const POVS = {
@@ -1641,7 +1739,7 @@ async function engineFetch(path, options = {}) {
       const body = await response.json();
       detail = typeof body?.error === "string" ? body.error : "";
     } catch {
-      detail = "";
+      // (no JSON body: the status alone says it)
     }
     throw new Error(`The Engine answered ${response.status}${detail ? `: ${detail}` : ""}`);
   }
@@ -1691,9 +1789,26 @@ async function putDocument(documents, id, kind, name, data, existing) {
   const now = new Date().toISOString();
   if (existing === undefined) existing = await documents.getById(PACKAGE_ID, id);
   if (!existing) {
-    return documents.create({ id, packageId: PACKAGE_ID, kind, name, description: `Wanderworld ${kind}`, data, createdAt: now, updatedAt: now });
+    return documents.create({
+      id,
+      packageId: PACKAGE_ID,
+      kind,
+      name,
+      description: `Wanderworld ${kind}`,
+      data,
+      createdAt: now,
+      updatedAt: now,
+    });
   }
-  return documents.update({ id, packageId: PACKAGE_ID, expectedRevision: existing.revision, name, description: existing.description, data, updatedAt: now });
+  return documents.update({
+    id,
+    packageId: PACKAGE_ID,
+    expectedRevision: existing.revision,
+    name,
+    description: existing.description,
+    data,
+    updatedAt: now,
+  });
 }
 
 async function removeDocument(documents, id) {
@@ -1812,7 +1927,10 @@ export function createCallLog(kept = 50) {
   return {
     add(entry) {
       const usage = usageOf(entry.usage);
-      const messages = (entry.messages ?? []).map((message) => ({ role: words(message.role).slice(0, 40), content: words(message.content) }));
+      const messages = (entry.messages ?? []).map((message) => ({
+        role: words(message.role).slice(0, 40),
+        content: words(message.content),
+      }));
       const reply = words(entry.reply);
       const call = {
         id: next++,
@@ -1849,7 +1967,8 @@ export function createCallLog(kept = 50) {
       if (usage) {
         totals.counted++;
         if (usage.cached !== null) totals.cacheKnown++;
-        for (const key of ["prompt", "completion", "total", "cached", "cacheWrite", "reasoning"]) totals[key] += usage[key] ?? 0;
+        for (const key of ["prompt", "completion", "total", "cached", "cacheWrite", "reasoning"])
+          totals[key] += usage[key] ?? 0;
         if (usage.cost !== null) totals.cost = (totals.cost ?? 0) + usage.cost;
         kind.total += usage.total;
       }
@@ -1916,7 +2035,9 @@ export async function activate(context) {
     const held = prices.get(key);
     if (held && Date.now() - held.at < 3600000) return held.price;
     const price = engineFetch(`/api/connections/${encodeURIComponent(connectionId)}/models`, { method: "GET" })
-      .then((body) => (Array.isArray(body?.models) ? body.models : []).find((row) => row?.id === modelId)?.pricing ?? null)
+      .then(
+        (body) => (Array.isArray(body?.models) ? body.models : []).find((row) => row?.id === modelId)?.pricing ?? null,
+      )
       .catch(() => {
         if (prices.get(key)?.price === price) prices.delete(key);
         return null;
@@ -1948,7 +2069,13 @@ export async function activate(context) {
     );
     const started = Date.now();
     // Every call is also kept for Settings → Debug, whether or not Debug Mode is on.
-    const noted = { what, model: model?.model, temperature: options?.temperature, maxTokens: options?.maxTokens, messages };
+    const noted = {
+      what,
+      model: model?.model,
+      temperature: options?.temperature,
+      maxTokens: options?.maxTokens,
+      messages,
+    };
     let result;
     try {
       result = await model.chatComplete(messages, { ...options, debugMode: debug });
@@ -1957,7 +2084,13 @@ export async function activate(context) {
       throw error;
     }
     const content = typeof result?.content === "string" ? result.content : "";
-    const logged = callLog.add({ ...noted, ms: Date.now() - started, reply: content, finish: result?.finishReason, usage: result?.usage });
+    const logged = callLog.add({
+      ...noted,
+      ms: Date.now() - started,
+      reply: content,
+      finish: result?.finishReason,
+      usage: result?.usage,
+    });
     if (usageOf(result?.usage) && model?.connectionId && model?.model)
       void priceOf(model.connectionId, model.model).then((pricing) => callLog.price(logged, pricing));
     logger.debugOverride?.(
@@ -2010,7 +2143,12 @@ export async function activate(context) {
         promptOverrides: [{ id: `avatar:${name}`, prompt, ...(negative ? { negativePrompt: negative } : {}) }],
       }),
     }).catch((error) => {
-      callLog.add({ ...noted, note: `${width}x${height}`, ms: Date.now() - started, error: error?.message ?? String(error) });
+      callLog.add({
+        ...noted,
+        note: `${width}x${height}`,
+        ms: Date.now() - started,
+        error: error?.message ?? String(error),
+      });
       throw error;
     });
     callLog.add({
@@ -2023,7 +2161,9 @@ export async function activate(context) {
       debug,
       "[debug/wanderworld/image] response (%d ms, %s)",
       Date.now() - started,
-      typeof result?.image === "string" ? `a picture of about ${Math.round((result.image.length * 3) / 4 / 1024)} KB` : "no picture",
+      typeof result?.image === "string"
+        ? `a picture of about ${Math.round((result.image.length * 3) / 4 / 1024)} KB`
+        : "no picture",
     );
     return result;
   };
@@ -2088,7 +2228,8 @@ export async function activate(context) {
           : [];
         // (In the order asked for: from the whole world down to this spot, the same from one line to the next.)
         const asked = new Map(loreIds.map((entry, index) => [entry.entryId, index]));
-        if (Array.isArray(loreEntries)) loreEntries.sort((a, b) => (asked.get(a?.id) ?? 1e9) - (asked.get(b?.id) ?? 1e9));
+        if (Array.isArray(loreEntries))
+          loreEntries.sort((a, b) => (asked.get(a?.id) ?? 1e9) - (asked.get(b?.id) ?? 1e9));
         const input = {
           character: characterCard(record, body.characterName),
           persona: personaCard(personaRecord, text(body.personaName, MAX.name), body.worn, body.sheet),
@@ -2103,16 +2244,24 @@ export async function activate(context) {
           companions: text(body.companions, 300),
           cache: body.cache !== false,
           relationship: text(body.relationship, 600),
-          memories: (Array.isArray(body.memories) ? body.memories : []).map((line) => text(line, 260)).filter(Boolean).slice(0, 5000),
+          memories: (Array.isArray(body.memories) ? body.memories : [])
+            .map((line) => text(line, 260))
+            .filter(Boolean)
+            .slice(0, 5000),
           setting: block(body.setting, 600),
           lore: [
             ...loreEntries.map((entry) => `${text(entry.name, MAX.name)}: ${block(entry.content, MAX.loreText)}`),
-            ...(Array.isArray(body.loreTexts) ? body.loreTexts : []).map((entry) => block(entry, MAX.loreText)).filter(Boolean),
+            ...(Array.isArray(body.loreTexts) ? body.loreTexts : [])
+              .map((entry) => block(entry, MAX.loreText))
+              .filter(Boolean),
           ].slice(0, MAX.lore),
           history: (Array.isArray(body.history) ? body.history : [])
             .filter(isRecord)
             .slice(-MAX.history)
-            .map((entry) => ({ from: entry.from === "character" ? "character" : "player", text: text(entry.text, MAX.line) }))
+            .map((entry) => ({
+              from: entry.from === "character" ? "character" : "player",
+              text: text(entry.text, MAX.line),
+            }))
             .filter((entry) => entry.text),
           line: text(body.line, MAX.line),
           style: text(body.style, 20),
@@ -2141,9 +2290,17 @@ export async function activate(context) {
         const height = Number.isInteger(body.height) ? Math.max(256, Math.min(1536, body.height)) : 512;
         try {
           const connection = await imageConnection(idOf(body.connectionId));
-          if (!connection) return reply.status(409).send({ error: "Add an image generation connection in the Engine first." });
+          if (!connection)
+            return reply.status(409).send({ error: "Add an image generation connection in the Engine first." });
           const name = slug(body.name);
-          const result = await paint(body, connection, { name, prompt, width, height, styleProfileId, negative: text(body.negative, 600) });
+          const result = await paint(body, connection, {
+            name,
+            prompt,
+            width,
+            height,
+            styleProfileId,
+            negative: text(body.negative, 600),
+          });
           if (typeof result?.image !== "string" || !result.image.startsWith("data:image/")) {
             return reply.status(502).send({ error: "The Engine sent back no picture." });
           }
@@ -2168,7 +2325,8 @@ export async function activate(context) {
         // Contexts of scenes that were planned but never started (the planner cancelled) go after a few days.
         const stale = Date.now() - 3 * 24 * 3600 * 1000;
         for (const doc of await documents.list(PACKAGE_ID, ORIGIN_KIND)) {
-          if (Date.parse(doc.data?.at ?? doc.updatedAt) < stale) await removeDocument(documents, doc.id).catch(() => false);
+          if (Date.parse(doc.data?.at ?? doc.updatedAt) < stale)
+            await removeDocument(documents, doc.id).catch(() => false);
         }
         return { ok: true };
       });
@@ -2196,12 +2354,19 @@ export async function activate(context) {
             doing: text(person.doing, 120),
             feeling: text(person.feeling, 600),
             others: text(person.others, 500),
-            knows: (Array.isArray(person.knows) ? person.knows : []).map((known) => block(known, MAX.loreText)).filter(Boolean).slice(0, 5000),
+            knows: (Array.isArray(person.knows) ? person.knows : [])
+              .map((known) => block(known, MAX.loreText))
+              .filter(Boolean)
+              .slice(0, 5000),
             inParty: person.inParty === true,
           }))
           .filter((person) => person.id)
           .slice(0, 5); // the client's MAX_LISTENERS
-        const records = await listPeople(resources, listeners.map((person) => person.id), body.locals);
+        const records = await listPeople(
+          resources,
+          listeners.map((person) => person.id),
+          body.locals,
+        );
         const cards = new Map(records.map((record) => [record.id, characterCard(record)]));
         const personaId = idOf(body.personaId);
         const [personaRecord] = personaId ? await resources.listPersonas([personaId]) : [];
@@ -2210,7 +2375,11 @@ export async function activate(context) {
           .filter((person) => cards.has(person.id))
           .map((person) => {
             const card = cards.get(person.id);
-            return { ...person, name: card.name, card: cardWords([card.personality, card.description], MAX.card, card.name, persona.name) };
+            return {
+              ...person,
+              name: card.name,
+              card: cardWords([card.personality, card.description], MAX.card, card.name, persona.name),
+            };
           });
         const places = (Array.isArray(body.places) ? body.places : [])
           .filter(isRecord)
@@ -2219,14 +2388,29 @@ export async function activate(context) {
           .slice(0, 60);
         // The user's narrator card, when they've set one: an Engine character, read from the Engine.
         const narratorId = idOf(body.narratorId);
-        const [narratorRecord] = narratorId && !narratorId.startsWith("local:") ? await resources.listCharacters([narratorId]) : [];
+        const [narratorRecord] =
+          narratorId && !narratorId.startsWith("local:") ? await resources.listCharacters([narratorId]) : [];
         const narratorCard = narratorRecord ? characterCard(narratorRecord) : null;
         const input = {
           narrator: narratorCard
-            ? { name: narratorCard.name, card: cardWords([narratorCard.personality, narratorCard.description], MAX.card, narratorCard.name, persona.name, "\n") }
+            ? {
+                name: narratorCard.name,
+                card: cardWords(
+                  [narratorCard.personality, narratorCard.description],
+                  MAX.card,
+                  narratorCard.name,
+                  persona.name,
+                  "\n",
+                ),
+              }
             : null,
           // (What they have on is told with what's happening now: it changes, and their card doesn't.)
-          persona: { name: persona.name, card: cardWords([persona.description, persona.appearance], MAX.card, persona.name, persona.name), worn: persona.worn, sheet: persona.sheet },
+          persona: {
+            name: persona.name,
+            card: cardWords([persona.description, persona.appearance], MAX.card, persona.name, persona.name),
+            worn: persona.worn,
+            sheet: persona.sheet,
+          },
           listeners: heard,
           action: text(body.action, 300),
           line: text(body.line, MAX.line),
@@ -2236,12 +2420,22 @@ export async function activate(context) {
           weather: text(body.weather, 40),
           setting: block(body.setting, 600),
           style: text(body.style, 20),
-          lore: (Array.isArray(body.lore) ? body.lore : []).map((entry) => block(entry, MAX.loreText)).filter(Boolean).slice(0, MAX.lore),
-          worldLore: (Array.isArray(body.worldLore) ? body.worldLore : []).map((entry) => block(entry, MAX.loreText)).filter(Boolean).slice(0, MAX.lore),
+          lore: (Array.isArray(body.lore) ? body.lore : [])
+            .map((entry) => block(entry, MAX.loreText))
+            .filter(Boolean)
+            .slice(0, MAX.lore),
+          worldLore: (Array.isArray(body.worldLore) ? body.worldLore : [])
+            .map((entry) => block(entry, MAX.loreText))
+            .filter(Boolean)
+            .slice(0, MAX.lore),
           recent: (Array.isArray(body.recent) ? body.recent : [])
             .filter(isRecord)
             .slice(-12)
-            .map((line) => ({ who: text(line.who, MAX.name) || "Someone", text: text(line.text, 400), stamp: text(line.stamp, 120) }))
+            .map((line) => ({
+              who: text(line.who, MAX.name) || "Someone",
+              text: text(line.text, 400),
+              stamp: text(line.stamp, 120),
+            }))
             .filter((line) => line.text),
           places,
         };
@@ -2254,22 +2448,40 @@ export async function activate(context) {
           if (body.separate === true && heard.length) {
             const open = (person) => ({ ...person, knows: [] });
             const bare = (person) => ({ ...open(person), feeling: "", others: "", card: "" });
-            const first = await askModel("moment/narrator", body, model, momentMessages({ ...input, listeners: heard.map(open), telling: "narrator" }), { temperature, maxTokens: 400 });
+            const first = await askModel(
+              "moment/narrator",
+              body,
+              model,
+              momentMessages({ ...input, listeners: heard.map(open), telling: "narrator" }),
+              { temperature, maxTokens: 400 },
+            );
             const told = readJson(first?.content, api.runtime.json?.parseJsonish);
             if (!told) return reply.status(502).send({ error: "The model's answer wasn't readable." });
             const out = { narration: text(told.narration, 600), replies: [], plans: [] };
-            const speakers = [...new Set((Array.isArray(told.speakers) ? told.speakers : []).map(idOf))].filter((id) => heard.some((person) => person.id === id)).slice(0, 3);
+            const speakers = [...new Set((Array.isArray(told.speakers) ? told.speakers : []).map(idOf))]
+              .filter((id) => heard.some((person) => person.id === id))
+              .slice(0, 3);
             for (const id of speakers) {
               const messages = momentMessages({
                 ...input,
                 listeners: heard.map((person) => (person.id === id ? person : bare(person))),
                 telling: "speaker",
                 speaker: id,
-                told: { narration: out.narration, replies: out.replies.map((said) => ({ name: heard.find((person) => person.id === said.id).name, text: said.text })) },
+                told: {
+                  narration: out.narration,
+                  replies: out.replies.map((said) => ({
+                    name: heard.find((person) => person.id === said.id).name,
+                    text: said.text,
+                  })),
+                },
               });
               try {
                 const answer = await askModel("moment/speaker", body, model, messages, { temperature, maxTokens: 400 });
-                const said = checkMoment(readJson(answer?.content, api.runtime.json?.parseJsonish) ?? {}, heard.filter((person) => person.id === id), places);
+                const said = checkMoment(
+                  readJson(answer?.content, api.runtime.json?.parseJsonish) ?? {},
+                  heard.filter((person) => person.id === id),
+                  places,
+                );
                 out.replies.push(...said.replies.slice(0, 1));
                 out.plans.push(...said.plans);
               } catch (error) {
@@ -2301,13 +2513,29 @@ export async function activate(context) {
           .map((place) => ({ id: idOf(place.id), name: text(place.name, MAX.name), kind: text(place.kind, 40) }))
           .filter((place) => place.id && place.name)
           .slice(0, 60);
-        const current = (Array.isArray(body.current) ? body.current : []).map((entry) => checkEntry(entry)).filter(Boolean);
+        const current = (Array.isArray(body.current) ? body.current : [])
+          .map((entry) => checkEntry(entry))
+          .filter(Boolean);
         const system = [
           `You plan one ordinary day for ${card.name}, who lives in Wanderworld. Answer with one JSON object and nothing else.`,
-          section(card.name, cutText([card.description, card.personality, card.scenario].filter(Boolean).join("\n\n"), MAX.card)),
-          section("Their home and work", [text(body.home, MAX.name) && `Home: ${text(body.home, MAX.name)}`, text(body.work, MAX.name) && `Work: ${text(body.work, MAX.name)}`].filter(Boolean).join("\n")),
+          section(
+            card.name,
+            cutText([card.description, card.personality, card.scenario].filter(Boolean).join("\n\n"), MAX.card),
+          ),
+          section(
+            "Their home and work",
+            [
+              text(body.home, MAX.name) && `Home: ${text(body.home, MAX.name)}`,
+              text(body.work, MAX.name) && `Work: ${text(body.work, MAX.name)}`,
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          ),
           section("Places", places.map((place) => `${place.name} (${place.kind})`).join(", ")),
-          section("Their schedule now", current.map((entry) => `${entry.from}-${entry.to} ${entry.activity} ${entry.place}`).join("\n")),
+          section(
+            "Their schedule now",
+            current.map((entry) => `${entry.from}-${entry.to} ${entry.activity} ${entry.place}`).join("\n"),
+          ),
           `{"entries": [{"from": 7, "to": 9, "activity": "${ACTIVITIES.join("|")}", "place": "a place name from Places, or empty for home, work and walk"}]}
 Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at their home (nights too), "work" at their work, "eat" somewhere they'd eat, "visit" and "sit" at a named place, "walk" about town.`,
         ]
@@ -2316,7 +2544,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const ask = text(body.request, 400);
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await askModel("plan", body, model,
+          const result = await askModel(
+            "plan",
+            body,
+            model,
             [
               { role: "system", content: system },
               { role: "user", content: ask ? `Plan the day, and: ${ask}` : "Plan the day." },
@@ -2324,7 +2555,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
             { temperature: 0.7, maxTokens: 900 },
           );
           const value = readJson(result?.content, api.runtime.json?.parseJsonish);
-          const entries = (Array.isArray(value?.entries) ? value.entries : []).map((entry) => checkEntry(entry, places.length ? [...places, { id: "", name: "" }] : null)).filter(Boolean).slice(0, 16);
+          const entries = (Array.isArray(value?.entries) ? value.entries : [])
+            .map((entry) => checkEntry(entry, places.length ? [...places, { id: "", name: "" }] : null))
+            .filter(Boolean)
+            .slice(0, 16);
           if (!entries.length) return reply.status(502).send({ error: "The model didn't give a usable plan." });
           return { entries };
         } catch (error) {
@@ -2358,7 +2592,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           .filter((entry) => !/^character card\b/iu.test(text(entry.title, 120))) // only the Engine's cards are cards
           .map((entry) => ({
             title: text(entry.title, 120) || "Entry",
-            keys: (Array.isArray(entry.keys) ? entry.keys : []).map((key) => text(key, 60)).filter(Boolean).slice(0, 12),
+            keys: (Array.isArray(entry.keys) ? entry.keys : [])
+              .map((key) => text(key, 60))
+              .filter(Boolean)
+              .slice(0, 12),
             content: block(entry.content, 600),
           }));
         // The cast's cards and the persona, read here from the Engine: entries of their own, first, in the
@@ -2372,7 +2609,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           return {
             title: `Character card: ${card?.name ?? "(gone)"}`,
             keys: [],
-            content: cutText(replaceNames(words, card?.name ?? "", text(body.persona, MAX.name) || "the player"), MAX.card),
+            content: cutText(
+              replaceNames(words, card?.name ?? "", text(body.persona, MAX.name) || "the player"),
+              MAX.card,
+            ),
           };
         });
         const personaId = idOf(body.personaId);
@@ -2382,7 +2622,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           cards.push({
             title: `Character card: player (${card.name})`,
             keys: [],
-            content: cutText([card.description, card.personality, card.appearance].filter(Boolean).join("\n"), MAX.card),
+            content: cutText(
+              [card.description, card.personality, card.appearance].filter(Boolean).join("\n"),
+              MAX.card,
+            ),
           });
         }
         entries.unshift(...cards);
@@ -2392,7 +2635,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           setting: text(body.setting, 600),
           worldName: text(body.worldName, MAX.name),
           persona: text(body.persona, MAX.name),
-          characters: (Array.isArray(body.characters) ? body.characters : []).map((name) => text(name, MAX.name)).filter(Boolean).slice(0, 60),
+          characters: (Array.isArray(body.characters) ? body.characters : [])
+            .map((name) => text(name, MAX.name))
+            .filter(Boolean)
+            .slice(0, 60),
           places: body.places === true,
           people: body.people === true,
           placed: (Array.isArray(body.placed) ? body.placed : [])
@@ -2425,9 +2671,13 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           .map((person) => ({ name: text(person.name, 60), text: block(person.text, 1200) }))
           .filter((person) => person.name)
           .slice(0, 12);
-        const count = step === "detail" ? described.length : Math.max(1, Math.min(12, Math.round(Number(body.count)) || 1));
+        const count =
+          step === "detail" ? described.length : Math.max(1, Math.min(12, Math.round(Number(body.count)) || 1));
         if (step === "detail" && !count) return reply.status(400).send({ error: "Nobody to fill in." });
-        const characters = (Array.isArray(body.characters) ? body.characters : []).map((name) => text(name, MAX.name)).filter(Boolean).slice(0, 60);
+        const characters = (Array.isArray(body.characters) ? body.characters : [])
+          .map((name) => text(name, MAX.name))
+          .filter(Boolean)
+          .slice(0, 60);
         const messages = worldWriteMessages({
           step,
           count,
@@ -2481,9 +2731,14 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         // The chat starts with something the player said (the oldest turns kept may begin mid-way).
         while (history.length && history[0].role !== "user") history.shift();
         const keywords = body.task === "keywords";
-        if (!keywords && history.at(-1)?.role !== "user") return reply.status(400).send({ error: "Ask something first." });
+        if (!keywords && history.at(-1)?.role !== "user")
+          return reply.status(400).send({ error: "Ask something first." });
         const bookEntries = list(body.bookEntries, 20)
-          .map((entry) => ({ title: text(entry.title, 120), keys: text(entry.keys, 600), content: block(entry.content, MAX.loreText) }))
+          .map((entry) => ({
+            title: text(entry.title, 120),
+            keys: text(entry.keys, 600),
+            content: block(entry.content, MAX.loreText),
+          }))
           .filter((entry) => entry.title);
         if (keywords && (!bookEntries.length || !block(body.keywordPrompt, 12000)))
           return reply.status(400).send({ error: "Choose the lorebook entries to draft keywords for." });
@@ -2492,7 +2747,9 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           keywordPrompt: block(body.keywordPrompt, 12000),
           chat: block(body.chat, 5000),
           recaps: block(body.recaps, 8000),
-          omitted: (Array.isArray(body.omitted) ? body.omitted : []).filter((part) => typeof part === "string").slice(0, 20),
+          omitted: (Array.isArray(body.omitted) ? body.omitted : [])
+            .filter((part) => typeof part === "string")
+            .slice(0, 20),
           final: body.final === true,
           cache: body.cache !== false,
           worldName: text(body.worldName, MAX.name),
@@ -2507,14 +2764,26 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
               home: text(person.home, 120),
               work: text(person.work, 120),
               owner: person.owner === true,
-              relations: (Array.isArray(person.relations) ? person.relations : []).map((line) => text(line, 100)).filter(Boolean).slice(0, 12),
+              relations: (Array.isArray(person.relations) ? person.relations : [])
+                .map((line) => text(line, 100))
+                .filter(Boolean)
+                .slice(0, 12),
               lore: block(person.lore, MAX.loreText),
               more: text(person.more, 400),
             }))
             .filter((person) => person.name),
-          groups: (Array.isArray(body.groups) ? body.groups : []).map((line) => text(line, 400)).filter(Boolean).slice(0, 40),
-          factions: (Array.isArray(body.factions) ? body.factions : []).map((line) => text(line, 400)).filter(Boolean).slice(0, 40),
-          ties: (Array.isArray(body.ties) ? body.ties : []).map((line) => text(line, 300)).filter(Boolean).slice(0, 120),
+          groups: (Array.isArray(body.groups) ? body.groups : [])
+            .map((line) => text(line, 400))
+            .filter(Boolean)
+            .slice(0, 40),
+          factions: (Array.isArray(body.factions) ? body.factions : [])
+            .map((line) => text(line, 400))
+            .filter(Boolean)
+            .slice(0, 40),
+          ties: (Array.isArray(body.ties) ? body.ties : [])
+            .map((line) => text(line, 300))
+            .filter(Boolean)
+            .slice(0, 120),
           here: block(body.here, 1500),
           board: block(body.board, 3000),
           places: list(body.places, 160)
@@ -2524,9 +2793,18 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
             .map((entry) => ({ title: text(entry.title, 120), content: block(entry.content, MAX.loreText) }))
             .filter((entry) => entry.title && entry.content),
           memories: list(body.memories, 40)
-            .map((person) => ({ name: text(person.name, 80), lines: (Array.isArray(person.lines) ? person.lines : []).map((entry) => text(entry, 260)).filter(Boolean).slice(-5000) }))
+            .map((person) => ({
+              name: text(person.name, 80),
+              lines: (Array.isArray(person.lines) ? person.lines : [])
+                .map((entry) => text(entry, 260))
+                .filter(Boolean)
+                .slice(-5000),
+            }))
             .filter((person) => person.name && person.lines.length),
-          loreIndex: (Array.isArray(body.loreIndex) ? body.loreIndex : []).map((title) => text(title, 100)).filter(Boolean).slice(0, 250),
+          loreIndex: (Array.isArray(body.loreIndex) ? body.loreIndex : [])
+            .map((title) => text(title, 100))
+            .filter(Boolean)
+            .slice(0, 250),
           found: list(body.found, 24)
             .map((entry) => ({ title: text(entry.title, 200), content: block(entry.content, MAX.loreText) }))
             .filter((entry) => entry.title && entry.content),
@@ -2536,10 +2814,17 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         });
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await askModel(keywords ? "keywords" : "assistant", body, model, messages, { temperature: 0.4, maxTokens: 4000 });
+          const result = await askModel(keywords ? "keywords" : "assistant", body, model, messages, {
+            temperature: 0.4,
+            maxTokens: 4000,
+          });
           // A keyword draft is words to copy: nothing in it is read as a change.
           if (keywords)
-            return { reply: block(String(result?.content ?? "").replace(/<think>[\s\S]*?<\/think>/giu, ""), 12000), edits: [], problem: "" };
+            return {
+              reply: block(String(result?.content ?? "").replace(/<think>[\s\S]*?<\/think>/giu, ""), 12000),
+              edits: [],
+              problem: "",
+            };
           return readAssistant(result?.content);
         } catch (error) {
           logger.warn("[wanderworld] the assistant didn't answer: %s", error?.message ?? error);
@@ -2551,10 +2836,15 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const body = isRecord(request.body) ? request.body : {};
         const worldId = idOf(body.worldId);
         const template = block(body.template, 20000);
-        if (!worldId || !template) return reply.status(400).send({ error: "A world and a prompt template are needed." });
+        if (!worldId || !template)
+          return reply.status(400).send({ error: "A world and a prompt template are needed." });
         const facts = isRecord(body.facts) ? body.facts : {};
         const people = (Array.isArray(facts.people) ? facts.people : []).filter(isRecord).slice(0, 8);
-        const records = await listPeople(resources, people.map((person) => idOf(person.id)).filter(Boolean), body.locals);
+        const records = await listPeople(
+          resources,
+          people.map((person) => idOf(person.id)).filter(Boolean),
+          body.locals,
+        );
         const cards = new Map(records.map((record) => [record.id, characterCard(record)]));
         const personaId = idOf(body.personaId);
         const [personaRecord] = personaId ? await resources.listPersonas([personaId]) : [];
@@ -2581,7 +2871,12 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
             persona.appearance || persona.worn
               ? `${persona.name}: ${[cutWords(persona.appearance, MAX.appearance), persona.worn].filter(Boolean).join(" ")}`
               : "",
-          people: people.map((person) => `${cards.get(idOf(person.id))?.name ?? text(person.name, MAX.name)}${text(person.doing, 80) ? ` (${text(person.doing, 80)})` : ""}`).join(", "),
+          people: people
+            .map(
+              (person) =>
+                `${cards.get(idOf(person.id))?.name ?? text(person.name, MAX.name)}${text(person.doing, 80) ? ` (${text(person.doing, 80)})` : ""}`,
+            )
+            .join(", "),
           people_appearance: looks.join("; "),
           place: text(facts.place, 200),
           place_kind: text(facts.placeKind, 60),
@@ -2600,12 +2895,18 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         let prompt = block(body.prompt, MAX.picture) || fillTemplate(template, values);
         if (!prompt) return reply.status(400).send({ error: "The template came out empty." });
         // The chosen style is always in it: a template with no {style} has it added at the end.
-        if (!block(body.prompt, MAX.picture) && values.style && !/\{style\}/u.test(template)) prompt = `${prompt} ${values.style}.`;
+        if (!block(body.prompt, MAX.picture) && values.style && !/\{style\}/u.test(template))
+          prompt = `${prompt} ${values.style}.`;
         let improved = false;
         if (body.improve === true && !block(body.prompt, MAX.picture)) {
           try {
-            const model = await languageModels.resolveForRequest({ connectionId: idOf(body.textConnectionId) || undefined });
-            const result = await askModel("illustrate", body, model,
+            const model = await languageModels.resolveForRequest({
+              connectionId: idOf(body.textConnectionId) || undefined,
+            });
+            const result = await askModel(
+              "illustrate",
+              body,
+              model,
               [
                 {
                   role: "system",
@@ -2631,9 +2932,17 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const height = Number.isInteger(body.height) ? Math.max(256, Math.min(1536, body.height)) : 640;
         try {
           const connection = await imageConnection(idOf(body.connectionId));
-          if (!connection) return reply.status(409).send({ error: "Add an image generation connection in the Engine first." });
+          if (!connection)
+            return reply.status(409).send({ error: "Add an image generation connection in the Engine first." });
           const name = slug(values.place || "moment");
-          const result = await paint(body, connection, { name, prompt, width, height, styleProfileId, negative: text(body.negative, 600) });
+          const result = await paint(body, connection, {
+            name,
+            prompt,
+            width,
+            height,
+            styleProfileId,
+            negative: text(body.negative, 600),
+          });
           if (typeof result?.image !== "string" || !result.image.startsWith("data:image/")) {
             return reply.status(502).send({ error: "The Engine sent back no picture." });
           }
@@ -2658,7 +2967,12 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const all = (await pictureDocs()).filter((doc) => doc.data?.worldId === world);
         return {
           pictures: all
-            .map((doc) => ({ id: doc.id, caption: doc.data.caption ?? "", prompt: doc.data.prompt ?? "", at: doc.data.at }))
+            .map((doc) => ({
+              id: doc.id,
+              caption: doc.data.caption ?? "",
+              prompt: doc.data.prompt ?? "",
+              at: doc.data.at,
+            }))
             .sort((a, b) => String(b.at).localeCompare(String(a.at))),
         };
       });
@@ -2683,13 +2997,17 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
             .filter((doc) => worldOf(String(doc.data?.originId ?? "")) === world)
             .map((doc) => removeDocument(documents, doc.id)),
         ];
-        return { removed: (await Promise.all(gone.map((removal) => removal.catch(() => false)))).filter(Boolean).length };
+        return {
+          removed: (await Promise.all(gone.map((removal) => removal.catch(() => false)))).filter(Boolean).length,
+        };
       });
 
       // Saved worlds: text the client wrote and will check when it reads it back (saves.js checkWorld), kept
       // by key. Only the client's own save keys are taken, and only so many, each within a size.
       const saveDocs = async () =>
-        (await documents.list(PACKAGE_ID, SAVE_KIND)).filter((doc) => SAVE_KEY.test(doc.data?.key ?? "") && typeof doc.data.value === "string");
+        (await documents.list(PACKAGE_ID, SAVE_KIND)).filter(
+          (doc) => SAVE_KEY.test(doc.data?.key ?? "") && typeof doc.data.value === "string",
+        );
       routes.get("/saves", async () => ({
         keys: Object.fromEntries((await saveDocs()).map((doc) => [doc.data.key, doc.data.value])),
       }));
@@ -2702,7 +3020,9 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           saves: Object.fromEntries(
             (await saveDocs()).map((doc) => [
               doc.data.key,
-              have[doc.data.key] === doc.revision ? { revision: doc.revision } : { revision: doc.revision, value: doc.data.value },
+              have[doc.data.key] === doc.revision
+                ? { revision: doc.revision }
+                : { revision: doc.revision, value: doc.data.value },
             ]),
           ),
         };
@@ -2733,8 +3053,11 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         }
         // (A write from before revisions: two of one save can cross, so the later one is tried once more
         // against what's there now.)
-        const kept = (await putDocument(documents, id, SAVE_KIND, key, data, existing)) ?? (await putDocument(documents, id, SAVE_KIND, key, data));
-        if (!kept) return reply.status(409).send({ error: "The save was being written already: it will be tried again." });
+        const kept =
+          (await putDocument(documents, id, SAVE_KIND, key, data, existing)) ??
+          (await putDocument(documents, id, SAVE_KIND, key, data));
+        if (!kept)
+          return reply.status(409).send({ error: "The save was being written already: it will be tried again." });
         return { ok: true, revision: kept.revision };
       });
       routes.delete("/save/:key", async (request) => {
@@ -2763,10 +3086,14 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           sheet: block(body.sheet, 6000), // (the character sheet's lines, when its tracker shares this call)
           itemStats: body.itemStats === true, // (told how item stats are written: the client's setting)
         };
-        if (!input.template || !input.told) return reply.status(400).send({ error: "Nothing to read (promptTemplate, text)" });
+        if (!input.template || !input.told)
+          return reply.status(400).send({ error: "Nothing to read (promptTemplate, text)" });
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await askModel("inventory", body, model, inventoryMessages(input), { temperature: 0, maxTokens: input.sheet ? 2648 : 2048 });
+          const result = await askModel("inventory", body, model, inventoryMessages(input), {
+            temperature: 0,
+            maxTokens: input.sheet ? 2648 : 2048,
+          });
           const data = readJson(result?.content, api.runtime.json?.parseJsonish);
           if (!data) return reply.status(502).send({ error: "The model's answer wasn't readable." });
           if (!input.sheet) return { data };
@@ -2791,7 +3118,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         };
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await askModel("combat-line", body, model, combatLineMessages(input), { temperature: 0.9, maxTokens: 120 });
+          const result = await askModel("combat-line", body, model, combatLineMessages(input), {
+            temperature: 0.9,
+            maxTokens: 120,
+          });
           const line = checkCombatLine(readJson(result?.content, api.runtime.json?.parseJsonish));
           if (!line) return reply.status(502).send({ error: "The model's answer wasn't readable." });
           return { line };
@@ -2823,7 +3153,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         };
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await askModel("combat-move", body, model, combatMoveMessages(input), { temperature: 0.6, maxTokens: 200 });
+          const result = await askModel("combat-move", body, model, combatMoveMessages(input), {
+            temperature: 0.6,
+            maxTokens: 200,
+          });
           return checkCombatMove(
             readJson(result?.content, api.runtime.json?.parseJsonish),
             options.map((option) => option.id),
@@ -2848,7 +3181,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         };
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await askModel("vendor-stock", body, model, vendorStockMessages(input), { temperature: 0.8, maxTokens: 1200 });
+          const result = await askModel("vendor-stock", body, model, vendorStockMessages(input), {
+            temperature: 0.8,
+            maxTokens: 1200,
+          });
           const stock = checkStock(readJson(result?.content, api.runtime.json?.parseJsonish));
           if (stock.length < 3) return reply.status(502).send({ error: "The model's answer wasn't readable." });
           return { stock };
@@ -2867,13 +3203,19 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           setting: text(body.setting, 600),
           giver: text(body.giver, 200),
           premise: text(body.premise, 800),
-          avoid: (Array.isArray(body.avoid) ? body.avoid : []).map((entry) => text(entry, 160)).filter(Boolean).slice(0, 4),
+          avoid: (Array.isArray(body.avoid) ? body.avoid : [])
+            .map((entry) => text(entry, 160))
+            .filter(Boolean)
+            .slice(0, 4),
           lists: questLists(body.lists),
         };
         if (!input.lists.people.length) return reply.status(400).send({ error: "A quest needs someone in the world." });
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await askModel("quest-write", body, model, questWriteMessages(input), { temperature: 0.9, maxTokens: 700 });
+          const result = await askModel("quest-write", body, model, questWriteMessages(input), {
+            temperature: 0.9,
+            maxTokens: 700,
+          });
           const quest = checkQuestWords(readJson(result?.content, api.runtime.json?.parseJsonish));
           if (!quest?.stages.length) return reply.status(502).send({ error: "The model's answer wasn't readable." });
           return { quest };
@@ -2886,13 +3228,21 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
       // A quest gone wrong with no plan for it: one call for a new stage, or a line that ends it.
       routes.post("/quest-adapt", async (request, reply) => {
         const body = isRecord(request.body) ? request.body : {};
-        const input = { quest: text(body.quest, 1500), happened: text(body.happened, 400), lists: questLists(body.lists) };
+        const input = {
+          quest: text(body.quest, 1500),
+          happened: text(body.happened, 400),
+          lists: questLists(body.lists),
+        };
         if (!input.quest) return reply.status(400).send({ error: "No quest to change." });
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await askModel("quest-adapt", body, model, questAdaptMessages(input), { temperature: 0.7, maxTokens: 300 });
+          const result = await askModel("quest-adapt", body, model, questAdaptMessages(input), {
+            temperature: 0.7,
+            maxTokens: 300,
+          });
           const answer = checkQuestWords(readJson(result?.content, api.runtime.json?.parseJsonish));
-          if (!answer || (!answer.stage && !answer.end)) return reply.status(502).send({ error: "The model's answer wasn't readable." });
+          if (!answer || (!answer.stage && !answer.end))
+            return reply.status(502).send({ error: "The model's answer wasn't readable." });
           return answer.stage ? { stage: answer.stage, line: answer.line ?? "" } : { end: answer.end };
         } catch (error) {
           logger.warn("[wanderworld] changing a quest failed: %s", error?.message ?? error);
@@ -2912,7 +3262,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         if (!input.sheet || !input.told) return reply.status(400).send({ error: "Nothing to read (sheet, text)" });
         try {
           const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
-          const result = await askModel("sheet", body, model, sheetTrackMessages(input), { temperature: 0, maxTokens: 600 });
+          const result = await askModel("sheet", body, model, sheetTrackMessages(input), {
+            temperature: 0,
+            maxTokens: 600,
+          });
           const data = readJson(result?.content, api.runtime.json?.parseJsonish);
           if (!data) return reply.status(502).send({ error: "The model's answer wasn't readable." });
           return checkSheetChanges(data);
@@ -2940,10 +3293,26 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           section(
             "The people in it",
             cast
-              .map((person) => `${person.name}: ${cardWords([person.description, person.personality, person.appearance], MAX.card, person.name, persona.name)}`)
+              .map(
+                (person) =>
+                  `${person.name}: ${cardWords([person.description, person.personality, person.appearance], MAX.card, person.name, persona.name)}`,
+              )
               .join("\n\n"),
           ),
-          section(`The player, ${persona.name}`, [cardWords([persona.description, persona.personality, persona.appearance], MAX.card, persona.name, persona.name), persona.worn].filter(Boolean).join("\n")),
+          section(
+            `The player, ${persona.name}`,
+            [
+              cardWords(
+                [persona.description, persona.personality, persona.appearance],
+                MAX.card,
+                persona.name,
+                persona.name,
+              ),
+              persona.worn,
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          ),
           section("Where, when and what's between them", sceneContext.notes ?? ""),
           section("Just before", sceneContext.transcript.map((line) => `${line.speaker}: ${line.content}`).join("\n")),
           section("How to write it", `${POVS[pov]}, ${TENSES[tense]}.${extra ? ` ${extra}` : ""}`),
@@ -2962,7 +3331,10 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           const model = await languageModels.resolveForRequest({
             connectionId: sceneContext.connectionId || undefined,
           });
-          const result = await askModel("scene-plan", body, model,
+          const result = await askModel(
+            "scene-plan",
+            body,
+            model,
             [
               { role: "system", content: system },
               { role: "user", content: text(body.prompt, 1500) || `${persona.name} meets ${initiator.name}.` },
@@ -3008,7 +3380,8 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
         const presetId = text(body.promptPresetId, 100);
         const promptPresetId = /^[A-Za-z0-9_-]+$/u.test(presetId) ? presetId : null;
         const data = isRecord(body.data) ? body.data : null;
-        if (data && JSON.stringify(data).length > 3500) return reply.status(400).send({ error: "Scene data too large" });
+        if (data && JSON.stringify(data).length > 3500)
+          return reply.status(400).send({ error: "Scene data too large" });
         try {
           const created = await engineFetch("/api/scene/create", {
             method: "POST",
@@ -3022,7 +3395,8 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
               promptPresetId,
             }),
           });
-          if (typeof created?.chatId !== "string") return reply.status(502).send({ error: "The Engine made no scene." });
+          if (typeof created?.chatId !== "string")
+            return reply.status(502).send({ error: "The Engine made no scene." });
           return { chatId: created.chatId, name: text(created.chatName, 120) };
         } catch (error) {
           logger.warn("[wanderworld] scene start failed: %s", error?.message ?? error);

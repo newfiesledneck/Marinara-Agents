@@ -4,6 +4,9 @@ These rules apply to changes under `packages/wanderworld/`. They add to the repo
 `AGENTS.md`, `.github/agents/chai-workflow.md` and `CONTRIBUTING.md`; they do not replace them. What the
 game does and how it's built is in `README.md` and `docs/CONCEPT.md`.
 
+Unlike other packages' `server.mjs`, Wanderworld's is hand-written source, not a generated bundle: edit it
+directly. The build only syntax-checks and copies it, and `npm run check` lints and formats it.
+
 ## Making 3D models in Blender
 
 New creatures, characters and other models are made in Blender by a Python script, run headless from
