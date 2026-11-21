@@ -192,6 +192,11 @@ export const SETTINGS = {
   damageTypes: { value: true },
   // Whether creatures use what the SRD gives them besides a plain attack: Multiattack, venom, a knock-down, Pack Tactics, a breath.
   creatureExtras: { value: true },
+  // Holds and throws (grapple.js), each under creatureExtras: the SRD's grapples (a roper's tendrils, a
+  // shambling mound's engulfing), vines round the legs, and a big creature's grab and throw (those two Wanderworld's own).
+  creatureHolds: { value: true },
+  vineHolds: { value: true },
+  giantThrows: { value: true },
   // Whether creatures fight each by its own sort (tactics.js): some close in, some shoot, some cast; cover; a spell for the moment.
   foeTactics: { value: true },
   // What's said in a fight: taunts, threats, cries. Written lines, or (combatAiTalk) the AI's.

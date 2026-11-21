@@ -688,6 +688,40 @@ every roll, and no AI call is made in a real-time fight.
 
 Every number of days, minutes and cost above is a setting on the same page.
 
+### Holds and throws
+
+Creatures can catch hold of you or a companion, and big ones can throw you (`src/grapple.js`). It works in
+real time, by turns and in a narrated moment. Each part has its own switch in Settings → Inventory → 5e
+rules, under "Creatures use their special attacks", and all three start on. With fights off, or that
+switch off, nothing grabs or throws.
+
+- **Holds (the 5e SRD's).** Where a creature's SRD attack grapples, a hit holds the target: a roper's
+  tendril from up to 15 metres off, which then reels them in 7.5 metres at a time; an otyugh's tentacle
+  (Medium or smaller); a giant frog's bite; a mimic's pseudopod; and a shambling mound that lands both its
+  slams engulfs them (blinded and restrained, a DC 14 Constitution save every round or 2d8 + 4). The
+  escape DCs are the SRD's, built into `src/srd.js` with the rest of each creature's numbers
+  (`scripts/build-wanderworld-srd.mjs`), so the gelatinous cube, the giant octopus and the giant
+  constrictor snake will hold in the same way when they're added. The held can't walk away and stay
+  where they're held. A bar at the top says what holds you and its DC, with a Break free button; pushing
+  hard on the move keys tries too. Each try is the better of Strength (Athletics) and Dexterity
+  (Acrobatics) against the DC; by turns it's the player's action. The hold ends when the creature is
+  beaten, knocked back, stunned, runs, or lets go after a minute. Switch: "Creatures grab and hold".
+  Off, a frog's or a mimic's grab is the plain Grappled condition, shaken off by itself.
+- **Vines (Wanderworld's own rule).** An awakened shrub's blow, and a shambling mound's slam that doesn't
+  engulf, can catch someone's legs: restrained for about eight seconds (a turn by turns), escape DC 10.
+  Switch: "Vines catch your legs".
+- **Throws (Wanderworld's own rule).** Anything Large or bigger with a Strength of 18 or more and no hold
+  of its own (an ogre, a troll, a minotaur, and giants once they're in) sometimes grabs someone Medium or
+  smaller and throws them: 3 metres at Strength 18, further for a stronger or bigger one. A Strength or
+  Dexterity save against 8 + its proficiency + its Strength modifier avoids it. They fly in an arc, land
+  prone, take 1d6 falling damage for every 3 metres and get up. A throw never goes through a wall, a tree
+  or a rock, or into deep water, and doesn't happen where fights are kept out. Switch: "Giants grab and
+  throw".
+
+By turns, "grapple" and "throw" are among the moves the AI can choose for a creature that has them. In a
+narrated moment, who is held or thrown is in the lines the AI tells, so it hears of it only when AI
+narration is on.
+
 ### Factions and regions
 
 Factions come from lore: `ww:faction:Thieves Guild` on an entry makes it the faction's lore,

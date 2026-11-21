@@ -948,9 +948,15 @@ export function createHud(root, handlers) {
     foeTactics:
       "On: creatures of one kind don't all fight alike. About half the bandits close in with a blade, some stand off with a crossbow and some cast spells. Puglins and skeletons are fighters or archers. One that shoots or casts keeps its distance, backs off when you crowd it, and puts a tree or a boulder between you where it can. A caster picks its spell: one that hits an area when you and a companion stand together, a hold now and then, sometimes its strongest. It heals itself when badly hurt, and its greater spells run out for the fight. Off: every creature of a kind fights the same way and comes straight at you.",
     creatureExtras:
-      "On: creatures use what the 5e SRD gives them besides a plain attack. A wolf's bite can knock you prone (a Strength save) and wolves, jackals and rats attack with advantage when one of their own is beside you. A snake's, a spider's, a wasp's and an imp's venom does more damage (a Constitution save for half). A frog's bite holds you. A slime's touch burns with acid and a dragon's bite with fire. A witch strikes twice. A dragon breathes fire (a Dexterity save for half), then needs a while before it can again. Off: one plain attack each.",
+      "On: creatures use what the 5e SRD gives them besides a plain attack. A wolf's bite can knock you prone (a Strength save) and wolves, jackals and rats attack with advantage when one of their own is beside you. A snake's, a spider's, a wasp's and an imp's venom does more damage (a Constitution save for half). A frog's bite holds you. A slime's touch burns with acid and a dragon's bite with fire. A witch strikes twice. A dragon breathes fire (a Dexterity save for half), then needs a while before it can again. Holds, vines and throws have a switch each below. Off: one plain attack each, and nothing grabs, holds or throws, whatever those say.",
+    creatureHolds:
+      "The 5e SRD's grapples. On: a roper's tendril (from 15 metres off), an otyugh's tentacle, a frog's bite and a mimic's pseudopod catch hold of you or a companion, and a shambling mound that lands both its slams engulfs you (blinded, and a Constitution save or more damage every few seconds). Held, you can't walk away; you stay where it holds you, and a roper reels you in. Break free with the button, or by pushing hard on the move keys: each try is Strength (Athletics) or Dexterity (Acrobatics), the better, against the SRD's escape DC. By turns, a try is your action. The hold ends when the creature is beaten, knocked back (a Shove, Thunderwave), stunned, or lets go. Off: a creature's grab is the plain Grappled condition, which you shake off by yourself. Needs \"Creatures use their special attacks\" and \"Conditions can land on you\".",
+    vineHolds:
+      "Wanderworld's own rule, not the SRD's. On: an awakened shrub's blow, and a shambling mound's slam that doesn't engulf you, can catch your legs in vines: restrained for about eight seconds (a turn by turns), so you can't move and attacks on you have advantage. Break free as from any hold, against DC 10. Off: they only strike. Needs \"Creatures use their special attacks\" and \"Conditions can land on you\".",
+    giantThrows:
+      "Wanderworld's own rule, not the SRD's. On: now and then something Large or bigger with a Strength of 18 or more (an ogre, a troll, a minotaur, and giants) grabs you or a companion, if Medium or smaller, and throws you: a few metres, further for a bigger, stronger one. A Strength or Dexterity save (DC 8 + its proficiency + its Strength modifier) avoids the grab. You land prone and take 1d6 falling damage for every 3 metres. Nobody is thrown through a wall or a tree or into deep water, nor at all where fights are kept out (towns, as \"Where people may confront you\" says). By turns it's one of the creature's moves, chosen by the rules or by the AI. Off: they only strike. Needs \"Creatures use their special attacks\".",
     conditions:
-      "On: conditions can land on you, from a creature's attack or a spell cast at you, and show at the top left. Prone, restrained, blinded: your attacks are rolled twice and the worse counts, and attacks on you take the better. Poisoned, frightened: your attacks are rolled twice and the worse counts. Grappled, restrained: you can't move (when grappled, you try to break free by yourself). Paralyzed, stunned, asleep: you can't move or act. Slowed: you move at half pace. Each wears off. Off: only damage lands on you.",
+      "On: conditions can land on you, from a creature's attack or a spell cast at you, and show at the top left. Prone, restrained, blinded: your attacks are rolled twice and the worse counts, and attacks on you take the better. Poisoned, frightened: your attacks are rolled twice and the worse counts. Grappled, restrained: you can't move (held by a creature, you break free with the Break free button, or by yourself with holds switched off). Paralyzed, stunned, asleep: you can't move or act. Slowed: you move at half pace. Each wears off. Off: only damage lands on you, and no creature holds you.",
     deathSaves:
       "On: at 0 HP you fall, dying, and roll a death saving throw every few seconds: 10 or more is a success, less a failure, a 1 two failures, and a 20 gets you up with 1 HP. Three successes and you're stable and come round with 1 HP; three failures and you're beaten, and \"When your HP runs out\" says what happens then. Healing from a companion gets you up at once. Off: you're beaten at 0 HP.",
     concentration:
@@ -1510,6 +1516,9 @@ export function createHud(root, handlers) {
   toggle("combatAiTalk", "The AI writes what's said in fights", "combatTalk");
   toggle("combatAiMoves", "Turn-based: the AI chooses creatures' moves", "sheet");
   toggle("creatureExtras", "Creatures use their special attacks", "srdCreatures");
+  toggle("creatureHolds", "Creatures grab and hold (tendrils, tentacles)", "creatureExtras");
+  toggle("vineHolds", "Vines catch your legs", "creatureExtras");
+  toggle("giantThrows", "Giants grab and throw", "creatureExtras");
   toggle("srdLoot", "Creatures carry pocket treasure", "srdCreatures");
   toggle("moves", "Shove, Grapple, Help, Hide and off-hand attacks", "sheet");
   toggle("reactions", "Shield and Counterspell cast themselves", "sheet");
@@ -4292,6 +4301,17 @@ export function createHud(root, handlers) {
   respawn.style.cssText +=
     "position:absolute;left:50%;top:calc(52px + env(safe-area-inset-top, 0px));transform:translateX(-50%);padding:10px 18px;font-size:14px;background:#96422e;display:none;";
   layer.append(respawn);
+  // Held by a creature (grapple.js): what holds them and its escape DC, and a Break free button (setHeld).
+  const held = document.createElement("div");
+  held.setAttribute("data-wanderworld-ui", "");
+  held.style.cssText =
+    "position:absolute;left:50%;top:calc(150px + env(safe-area-inset-top, 0px));transform:translateX(-50%);display:none;align-items:center;gap:10px;padding:6px 8px 6px 12px;border-radius:10px;background:rgba(120,30,20,0.86);color:#fff;font:600 13px system-ui,sans-serif;pointer-events:auto;max-width:calc(100% - 16px);";
+  const heldText = document.createElement("span");
+  const breakFree = button("Break free", "Strength (Athletics) or Dexterity (Acrobatics) against the escape DC", () =>
+    handlers.onBreakFree?.(),
+  );
+  held.append(heldText, breakFree);
+  layer.append(held);
 
   const hud = {
     /**
@@ -5031,6 +5051,14 @@ export function createHud(root, handlers) {
     /** The Respawn button at the top, while the player lies beaten and has chosen to stay down. */
     setRespawn(shown) {
       respawn.style.display = shown ? "" : "none";
+    },
+    /** Held by something: { text, ready } ("Held by the roper (escape DC 15)"; whether a try can be made now), or null. */
+    setHeld(state) {
+      held.style.display = state ? "flex" : "none";
+      if (!state) return;
+      if (heldText.textContent !== state.text) heldText.textContent = state.text;
+      breakFree.disabled = !state.ready;
+      breakFree.style.opacity = state.ready ? "1" : "0.5";
     },
     /** The Run button shown as on or off (Ctrl turned running on or off). */
     setRun(on) {
