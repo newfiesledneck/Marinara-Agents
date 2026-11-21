@@ -35,6 +35,30 @@ const AFLOAT = 0.8; // how much of the way up to its back an animal sits in deep
 const FOLLOW_LOST = 45; // metres behind its owner at which their animal gives up walking and turns up beside them
 
 /**
+ * How often a monster is bigger than most of its kind (Settings → Creatures → Bigger monsters), and by how
+ * much: `big` and `huge` are the chances, the sizes are times its usual one. Size makes it tougher in a fight
+ * as well (combat.js foeOf: more HP, harder blows, more XP). Only the first of a group may be huge.
+ */
+export const MONSTER_SIZES = {
+  some: { big: 0.12, huge: 0.02 },
+  more: { big: 0.25, huge: 0.065 },
+  bigBy: [1.25, 1.4],
+  hugeBy: [1.6, 1.8],
+};
+/** A monster's size when it's bigger than most (`seed`: its own number), or null: its usual size. */
+export function monsterScale(kind, sizes, leader, seed) {
+  const odds = MONSTER_SIZES[sizes];
+  const facts = ANIMALS[kind];
+  if (!odds || !facts || facts.fly || facts.person) return null;
+  const own = rng(seed >>> 0);
+  const roll = own();
+  const within = ([low, high]) => low + own() * (high - low);
+  if (leader && roll < odds.huge) return within(MONSTER_SIZES.hugeBy);
+  if (roll < odds.huge + odds.big) return within(MONSTER_SIZES.bigBy);
+  return null;
+}
+
+/**
  * Where a world's animals start: [{ kind, coat (a horse's or a dog's colours: animals.js COATS, or null),
  * scale (its size), x, z, range (metres they stray), tied (stands about one spot) }]. `world`: its layout
  * (townHalf, plaza, outposts), doors and size. `counts`: how many of each sort ({ strays, farm, wild,
@@ -49,7 +73,7 @@ export function afloatAt(x, z, back) {
   return water.depth > 0 ? Math.max(ground, water.level - back * AFLOAT) : ground;
 }
 
-export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {} } = {}) {
+export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}, sizes = "some" } = {}) {
   if (quiet.all) return [];
   // Each sort is counted out from numbers of its own, so changing how many there are of one sort leaves
   // the others where they were.
@@ -246,7 +270,9 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
       if (!den) continue;
       for (let n = 0; n < size; n++) {
         const spot = near(den.x, den.z, 5) ?? den;
+        const scale = monsterScale(kind, sizes, n === 0, hashString(`size:${seed}:${out.length}`));
         add(kind, spot.x, spot.z, 20, {
+          ...(scale ? { scale } : {}),
           home: { x: den.x, z: den.z },
           ...(ANIMALS[kind].when ? { when: ANIMALS[kind].when } : {}),
         });

@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.36 — 2026-11-20
+
+- Bigger monsters: now and then a monster is bigger than the rest of its kind, and once in a while the first of a group is huge. The story calls it a big or a huge troll, ogre or goblin. A bigger one has more HP, hits harder and is worth more XP. Settings → Creatures → Bigger monsters sets how often: never, now and then (the default) or often.
+- The goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur each have a switch under Settings → Creatures → Kinds. They count toward the Monsters slider like the rest.
+
 ## 0.7.35 — 2026-11-20
 
 - The kobold, lizardfolk and gnoll stand on their toes, with legs that bend back like a dog's, and still walk with the people's animations.
