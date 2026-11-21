@@ -17,8 +17,21 @@ const meshOf = (body) => {
   return mesh;
 };
 
-// How tall each stands, in metres (a goblin is Small; the rest are Large, the troll stooped).
-const HEIGHT = { goblin: [0.85, 1.2], ogre: [2.4, 3.1], troll: [2.1, 2.8], minotaur: [2.5, 3.1] };
+// How tall each stands, in metres (goblins and kobolds are Small; the ogre, troll and minotaur Large,
+// the troll stooped; the rest about a person's height, the ghoul stooped).
+const HEIGHT = {
+  goblin: [0.85, 1.2],
+  kobold: [0.6, 0.9],
+  hobgoblin: [1.6, 2],
+  orc: [1.7, 2.1],
+  lizardfolk: [1.7, 2.1],
+  ghoul: [1.4, 1.8],
+  gnoll: [1.8, 2.3],
+  bugbear: [1.8, 2.3],
+  ogre: [2.4, 3.1],
+  troll: [2.1, 2.8],
+  minotaur: [2.5, 3.1],
+};
 assert.deepEqual(Object.keys(BESTIARY).sort(), Object.keys(HEIGHT).sort(), "every monster has a height to check");
 
 for (const kind of Object.keys(BESTIARY)) {
@@ -30,13 +43,18 @@ for (const kind of Object.keys(BESTIARY)) {
   assert.ok(Math.abs(min.y) < 0.02, `${kind} stands on the ground (${min.y.toFixed(3)})`);
   const [low, high] = HEIGHT[kind];
   assert.ok(max.y >= low && max.y <= high, `${kind} is ${max.y.toFixed(2)} m tall`);
-  assert.ok(mesh.geometry.attributes.position.count < 30000, `${kind} stays cheap`);
+  assert.ok(mesh.geometry.attributes.position.count < 40000, `${kind} stays cheap`);
 
-  // It walks: a few frames at a walking pace move its legs from where they rest.
+  // It walks: a second at a walking pace swings its legs from where they rest. (The most it swings:
+  // at any one moment the stride may be passing the standing pose.)
   const leg = mesh.skeleton.bones.find((bone) => bone.name === "leftUpperLeg");
   const rest = leg.quaternion.clone();
-  for (let i = 0; i < 20; i++) body.update(1 / 30, 1.4);
-  assert.ok(leg.quaternion.angleTo(rest) > 0.05, `${kind}'s legs move as it walks`);
+  let swing = 0;
+  for (let i = 0; i < 30; i++) {
+    body.update(1 / 30, 1.4);
+    swing = Math.max(swing, leg.quaternion.angleTo(rest));
+  }
+  assert.ok(swing > 0.05, `${kind}'s legs move as it walks`);
 
   // The same kind looks the same every time.
   const again = meshOf(createBuilt(kind)).geometry.attributes.position.array;
@@ -51,15 +69,34 @@ for (const kind of Object.keys(BESTIARY)) {
   assert.ok(SRD_CREATURES[kind]?.hp > 0, `${kind}: the SRD's numbers`);
 }
 
-// The big three are met one at a time, now and then; goblins in bands.
+// The big three are met one at a time, now and then; the rest in bands. Ghouls come out at night.
 for (const kind of ["ogre", "troll", "minotaur"]) assert.ok(ANIMALS[kind].rare, `${kind} is rare`);
-assert.ok(!ANIMALS.goblin.rare);
+for (const kind of ["goblin", "hobgoblin", "orc", "gnoll", "kobold"]) assert.ok(!ANIMALS[kind].rare, `${kind} isn't`);
+assert.equal(ANIMALS.ghoul.when, "night");
+
+// Each carries something: more of its mesh is bound to the right hand than to the left.
+for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", "lizardfolk", "ogre", "minotaur"]) {
+  const mesh = meshOf(createBuilt(kind));
+  const names = mesh.skeleton.bones.map((bone) => bone.name);
+  const right = names.indexOf("rightHand");
+  const left = names.indexOf("leftHand");
+  const skin = mesh.geometry.attributes.skinIndex;
+  let r = 0;
+  let l = 0;
+  for (let i = 0; i < skin.count; i++) {
+    if (skin.getX(i) === right) r++;
+    if (skin.getX(i) === left) l++;
+  }
+  assert.ok(r > l, `the ${kind} has something in its right hand`);
+}
 
 // Lore's words for them.
 assert.equal(animalKind("goblins"), "goblin");
 assert.equal(animalKind("Ogres"), "ogre");
 assert.equal(animalKind("troll"), "troll");
 assert.equal(animalKind("minotaurs"), "minotaur");
-assert.equal(animalKind("orc"), "puglin", "an orc is still the puglin");
+assert.equal(animalKind("orcs"), "orc", "an orc is an orc now, not a puglin");
+assert.equal(animalKind("Lizardmen"), "lizardfolk");
+assert.equal(animalKind("ghouls"), "ghoul");
 
 console.log("ok: monsters built in code");

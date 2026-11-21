@@ -239,6 +239,13 @@ const CREATURE_OF = {
   ogre: "ogre",
   troll: "troll",
   minotaur: "minotaur",
+  hobgoblin: "hobgoblin",
+  bugbear: "bugbear",
+  gnoll: "gnoll",
+  kobold: "kobold",
+  lizardfolk: "lizardfolk",
+  ghoul: "ghoul",
+  orc: "orc",
 };
 /** A dice expression's average, rounded down, as the SRD gives a creature's hit points ("2d8+2" is 11). */
 const average = (dice) => {
