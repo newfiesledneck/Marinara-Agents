@@ -39,6 +39,7 @@ import { SETTINGS } from "./settings.js";
 import { LAND_CHOICES } from "./land.js";
 import { FACTION_EXPLAIN, FACTION_SETTINGS } from "./factions.js";
 import { QUEST_EXPLAIN } from "./quests.js";
+import { REGION_EXPLAIN, REGION_SETTINGS } from "./regions.js";
 import { kindWords, SHEET_KINDS, xpNeeded } from "./sheet.js";
 import {
   INK_BUTTON,
@@ -1188,6 +1189,7 @@ export function createHud(root, handlers) {
   const EXPLAIN = {
     ...FACTION_EXPLAIN,
     ...QUEST_EXPLAIN,
+    ...REGION_EXPLAIN,
     genderMale: (s) => {
       const total = s.genderMale + s.genderFemale + s.genderCustom;
       const of = (value) => (total ? Math.round((value / total) * 100) : 0);
@@ -1723,6 +1725,7 @@ export function createHud(root, handlers) {
     "Time and weather",
     "Places",
     "Factions",
+    "Regions and travel",
     "Vendors",
   ]);
   at("World", "Time and weather");
@@ -1774,6 +1777,16 @@ export function createHud(root, handlers) {
     "How each faction regards you (Journal → Factions), what that changes, and the regions travel makes for a purpose. All of it runs on the game's own rules; only the last setting adds anything to what the AI is told.",
   );
   for (const [name, label] of FACTION_SETTINGS) toggle(name, label);
+  at("World", "Regions and travel");
+  intro(
+    'The regions beyond home: what land each one is, who lives there, and how you get between them. By the game\'s own rules; only "The AI describes a region" calls the AI. Settings → World → Factions decides what a new region is made for, and Time standing still stops journeys taking time.',
+  );
+  for (const [name, label] of REGION_SETTINGS.slice(0, 3)) toggle(name, label);
+  part("Journeys");
+  for (const [name, label] of REGION_SETTINGS.slice(3)) toggle(name, label);
+  choice("coachFare", "Coach fare (each region)", { 0: "Free", 5: "5", 10: "10", 20: "20", 40: "40" }, "travelCoach");
+  choice("journeyHours", "Hours on foot (each region)", { 2: "2", 3: "3", 5: "5", 8: "8" });
+  choice("travelEncounters", "Encounters on the road", { off: "Off", rare: "Rare", often: "Often" });
 
   // People: how they act round the player, how they get on, what they remember. Rules alone.
   heading(
@@ -2910,6 +2923,8 @@ export function createHud(root, handlers) {
     onMap: (canvas, view) => handlers.onMap?.(canvas, view),
     onWaypoint: (at) => handlers.onWaypoint?.(at),
     onRegions: (canvas) => handlers.onRegions?.(canvas),
+    onTravelPlaces: () => handlers.onTravelPlaces?.(),
+    onJourney: (key, how) => handlers.onJourney?.(key, how),
     onStanding: (id, value, locked) => handlers.onStanding?.(id, value, locked),
     onPurposeAhead: (side, kind, faction) => handlers.onPurposeAhead?.(side, kind, faction),
     onQuestTrack: (id) => handlers.onQuestTrack?.(id),

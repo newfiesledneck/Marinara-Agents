@@ -60,9 +60,10 @@ whole: don't play one world in two browsers at the same moment.
   hamlet or farm. Each world chooses its own in New world, or leaves it to the seed (`src/land.js`,
   `src/caves.js`).
 - **Regions:** at the edge of the world, "Travel to <region>" takes you and your party into the next
-  region, with its own land and settlement made from the world's seed. Each region keeps its own place
-  names, lore and groups; characters who didn't come along wait at home. Each trip saves a travel scene
-  request with the world.
+  region, with its own land, settlement and people made from the world's seed. Each region keeps its own
+  place names, lore, groups, homes and shops; characters who didn't come along wait at home. Each trip
+  saves a travel scene request with the world. Journal → Map also takes you by road or by coach to a
+  region you know (see Regions and travel).
 - **Built to its lore:** with places linked by their keywords, a world is built with at least every numbered place
   its lorebooks mention (smithy3 makes three smithies; town2 brings a hamlet; farm2 two farms; a cave
   brings mountains for it). Past that, random.
@@ -831,8 +832,8 @@ and that can be switched off.
   shows the regions round you that you've been to, plus any your lore or a quest told of (paler). Each
   faction's land is in its colour, and a letter marks the other purposes.
 
-A faction's town has no townsfolk of its own yet: only its guards and any of its people your lore puts
-there. The guards wear the bandits' clothes until there's a guard model, and with bandits switched off
+A faction's town has the region's own people (see Regions and travel), its guards, and any of its
+people your lore puts there; the region's own people aren't members of the faction. The guards wear the bandits' clothes until there's a guard model, and with bandits switched off
 in Settings → Creatures there are none.
 
 ### Quests
@@ -873,6 +874,58 @@ no AI; the AI can write them too, one call a quest (Settings → Quests, off to 
 The game sets the rewards, not the AI: coins by the quest's length and your level, put in your inventory
 when Quartermaster keeps it. Whoever gave you the work thinks better of you for it, and work for one of
 a faction's people raises your standing with that faction.
+
+### Regions and travel
+
+Every region beyond home is made the first time you go there, from the world's seed and where it lies
+on the map of regions, so the same world always makes the same regions. All of it runs on the game's
+own rules. The AI is only called to describe a region when you arrive, and only if you switch that on.
+
+- **Lands.** Each region is farmland, forest, hills, marsh, snowy highlands, rocky badlands or a
+  lakeside. The far north is cold, and two slow patterns (how wet, how high) decide the rest, so
+  neighbouring regions tend to be alike. A land has its own:
+  - hills, mountain ranges, river and places out in the country (farms and a mill in farmland,
+    cottages in the forest, ponds in a marsh, a lake about 50 m across at a lakeside, caves in the hills
+    and badlands);
+  - trees, rocks and ground (pines under snow in the highlands, dead trees and mud in a marsh, bare
+    dirt and boulders in the badlands);
+  - weather: a marsh is often misty, the badlands seldom see rain, and the highlands are always in
+    winter;
+  - monsters, with Settings → Creatures → Only where they'd be found on: forest, marsh, snow and
+    badlands kinds turn up three times as often in their own land.
+
+  Home keeps its own land, as it always had. A region's name and its settlement's name come from its
+  land: the Reed Fens and Reedwick, Frostmark and Rimestead.
+
+- **People.** Each region's settlement has an inn and a shop, and people of its own: someone at each
+  inn, shop, smithy, temple, hall and farm (a few of each at most), and the rest in its houses with the
+  land's work (woodcutters, eel-catchers, trappers, miners). Each has a name, a job, a home, a temper
+  and a usual day (`schedules.js usualDay`). A hamlet has six people, a village nine, a town twelve, a
+  city fourteen. They're made the first time the region is built and kept with it, so they're the
+  same people when you come back, and what they think of you and remember is kept with the world.
+  Only the people of the region you're in are about. Someone who joins your party comes with you to
+  other regions and is about wherever you are.
+- **Travel.** Walking off the edge works as before. Journal → Map lists every region you know (the
+  ones you've been to, and the ones your lore or a quest told you of), nearest first, with its land,
+  its purpose and whether a quest has something there. The map of regions above the list shows each
+  land in its colour, the roads between neighbouring regions you know, and a ! where a quest has
+  something for you.
+  - **Walk there** goes by road through regions you know. Each region takes five hours on foot
+    (Settings: two to eight), and a journey takes 20 hours at most. You arrive at the edge you came in
+    by.
+  - **Coach**, at an inn or a tavern, goes to any region you've been to in half the time, for a fare
+    for each region on the way (Settings: free to 40 coins), taken from your coins. You arrive at the
+    inn there.
+  - The hours pass on the way (not with Settings → World → Time standing still), and everyone is
+    where that hour has them. Your party and their animals come along.
+  - Sometimes two or three hostile creatures of the land you arrive in are waiting on the road ahead
+    (Settings: off, rare or often; half as often by coach; only kinds that are on in Settings →
+    Creatures).
+- **Settings → World → Regions and travel** has a switch for each part: lands, the regions' own people,
+  the AI describing a region you arrive in (off at first; it needs AI moments), travel by road and
+  coaches. It also sets the coach fare, the hours a region takes on foot and how often something meets
+  you on the road. With lands off, a new region is plain countryside as before; regions already made
+  keep their land, and a region's purpose (Factions) is given either way.
 
 ### Lorebook keywords
 
@@ -981,8 +1034,14 @@ still count, and come first.
   The built-in styles' words are a copy of the Engine's, and a profile of your own is read from this
   browser's saved Engine settings, so on a device that has never opened the Engine's settings a custom
   default adds nothing.
-- Another region has no townsfolk until you ask the assistant for some there (or add them one by one);
-  they count toward the world's thirty people. Engine characters all live in the home region.
+- A region's own people are made by rules, with a name, a job, a home, a usual day and a line of
+  description; they have no lore of their own until you give them some. People you or the assistant add
+  in a region still count toward the world's thirty people. Engine characters all live in the home region.
+- A journey of more than one region is told in a line and takes its hours at once; nothing happens in
+  the regions on the way, and it takes 20 hours at most. A coach needs the Quartermaster inventory for
+  its fare, and it goes only to regions you've been to.
+- A deep place's entrance asked for by a quest is only added to a region that isn't made yet; a region's
+  land is made once and kept.
 - Walk-in rooms are unfinished and off by default (Settings → Walk into buildings). Furnishing your home
   needs them on. The room's own furniture can't be moved or taken away, only what you add; a piece is
   put down in front of you, not dragged about.
@@ -1214,6 +1273,57 @@ connects them to the running game, and main.js calls it from a few places marked
   for. `tests/wanderworld-quests.regression.mjs` plays every built-in kind through, fails each stage
   in turn, feeds in AI-shaped quests with names the world hasn't got, round-trips the save, and checks
   that a quest's region keeps its purpose and its creatures stay through a respawn.
+
+### Regions beyond home and the quest hook
+
+`src/regions.js` holds the rules for regions beyond home, and `src/travel.js` the rules for journeys
+between them. Both take plain data and give plain data back. `main.js` ("Regions and travel") builds the
+region, moves the party, passes the time and takes the fare.
+
+- `landAt(worldSeed, key)` gives a region's land from the seed and its place on the map: smooth value
+  noise for wetness and height, plus coldness that grows to the north. `landOf(save, key)` gives the land
+  a region was made with, else one a quest planned, else the seed's. `LANDS` describes each land's
+  landscape, weather, monster habitat word and work. `world.js LAND_LOOK` sets its trees, rocks, plants
+  and ground, and `landscape.land` carries the land into `createWorld` and onto `world.layout.land`.
+- `makeRegion(worldSeed, key, { land, purpose, arrive, deep, number, name })` gives a new region's
+  record. It starts from the seed's landscape (`landscapeWith`), then applies `landscapeForLand` and
+  `factions.js landscapeForPurpose`, and adds the cave a quest asked for. It also sets `needs: { tavern:
+1, shop: 1 }`, which `world.js` builds as extras, so every settlement has an inn and a shop. A lake is
+  a pond outpost with `lake: true` (`land.js LAKE_RADIUS`, 24 m).
+- `regionFolk(worldSeed, key, zones, { land, settlement, town })` makes the people from the region's
+  zones. It returns `{ folk, housing }`. Their ids are `local:folk.<x>.<z>.<n>`: "local:" so the server
+  takes their card from the client, with no comma, so the server's id check passes. `main.js settleRegion`
+  runs once, the first time the region is built, and keeps them in `save.regions[key].folk`. Their homes
+  and work go into the region's setup (`housing`), and from then on they're `peopleOf`'s like any local.
+  `folkHere(save)` gives the people of the region you're in and any party members from other regions.
+  They're added to the cast while you're in their region and left out of `save.cast`.
+- `routeTo(save, from, to)` finds the shortest way through known regions (`knownKeys`: home, the regions
+  made, purposes lore or a quest gave, and `travel.heard`). `journeyTo(save, to, how, settings, atInn)`
+  gives `{ path, hours, fare }` or `{ problem }`. `chargeFare(items, currency, fare)` says what to do to
+  the purse. `encounterFor(land, odds, steps, how, allowed, seed)` gives what waits on the road, if
+  anything. `regionSpawns()` puts it in the herd as lore spawns until you leave the region.
+
+**The quest hook** (`main.js`, at the end of "Regions and travel"). The functions are also on
+`core.travelHook` for the console, with "wanderworld-debug" on.
+
+- `questRegion({ side, distance, land, purpose, faction, quest, from })`: Finds or plans a region `distance` regions (1–6, default 1) `side` of `from` (default: where the player is; no side: one the quest's id picks) that fits `land` (a `LAND_KINDS` name) and `purpose` (a `factions.js PURPOSES` kind; `faction` for a faction's land). A region already made fits only if it already is what's asked; one not made yet is planned (its land in `save.travel.planned`, its purpose in `save.purposes` with `from: "quest"`) and goes on the map as heard of. It walks on up to five regions further to find one that fits. Returns `{ key, name, made }` or null.
+- `questTarget({ id, quest, region, kind, name, what, near })`: Puts a target in a region. `kind` is "person" (made one of the region's people, with `what` as their description), "item" (a gold marker to pick up into the inventory), "creature" (`what` is the kind: one hostile spawn) or "deep" (a cave mouth leading to `what`: cave, cavern, dungeon or stronghold; only in a region not made yet). `near` is a kind of place to put it by ("inn", "ruins", "cave"…). The target gets its spot when its region is built, is marked ★ on the region map and ! on the map of regions, and is kept in `save.travel.targets`. Returns the target or null.
+- `questTargets(quest)`: Lists the targets with `here` (it's in the player's region), `at` (its spot), `person` (the region person's id) and `beaten` (a creature target beaten: `save.beaten["<region>|lore:quest|<id>:0"]`).
+- `finishTarget(id)`: Marks a target done: it leaves the map and the world. Picking up an item does this by itself.
+- `journey(key, how)`: Sets off by road (`"walk"`) or coach (`"coach"`), as Journal → Map does. Returns "" or a reason it can't.
+
+**What a save keeps** (`saves.js`, each part checked; older saves load with the defaults):
+
+- `regions[key].landscape.land`: the land (none in regions made before lands).
+- `regions[key].needs`: `{ tavern, shop }`.
+- `regions[key].folk`: the people, as `[{ id, name, body, job, temper, of, about?, quest? }]`, about 100
+  bytes each. Regions made before have none until their next visit.
+- `regions[key].vendors` and `homeSetup.vendors`: each region's shops, swapped in and out with the rest of
+  its setup. A region made before this kept home's, and home gets its own back.
+- `travel`: `{ planned: { [key]: { land?, quest?, deep? } }, heard: [keys], targets: [...] }`.
+
+A region person's relationships and memories are kept by id in `relationships` and `memories`, as
+everyone's are.
 
 ## Building and testing
 

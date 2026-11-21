@@ -309,6 +309,15 @@ export const HELP = [
     ],
   },
   {
+    title: "Regions, travel and coaches",
+    lines: [
+      "Every region beyond home has a land of its own: farmland, forest, hills, marsh, snowy highlands, rocky badlands or a lakeside. It comes from the world's seed and where the region lies, so the same world always has the same lands, neighbours tend to be alike and the far north is cold. Each land has its own trees, rocks and ground, its own weather (a marsh is often misty, the badlands seldom see rain, the highlands are always under snow), its own places out in the country, and its own monsters, with Settings → Creatures → Only where they'd be found on.",
+      "Each region's settlement has an inn and a shop, and its own people: someone at the inn, the shops, the smithy, the temple, the hall and the farms, and the rest in the houses, each with a name, a job, a home and a usual day. They're made the first time you arrive and kept with the world, so you meet the same people when you come back, and what they think of you and remember is kept too. Only the people of the region you're in are about. Someone from another region who joins your party comes along wherever you go.",
+      "Walk off the edge of the map to go to the next region, as before. Journal → Map also lists every region you know (the ones you've been to, and those your lore or a quest told you of), nearest first, with what each one is. Walk there goes by road through regions you know: the hours pass on the way, and something may be waiting where you arrive. At an inn or tavern, a coach goes to any region you've been to, quicker, for a fare taken from your coins (the inventory needs the Quartermaster package). The map of regions shows each land in its colour, the roads between them, and a ! where a quest has something for you.",
+      "Settings → World → Regions and travel switches each part: lands, the regions' own people, the AI describing a region when you arrive (one call, off at first), travel by road, coaches, the coach fare, the hours a region takes on foot, and how often something meets you on the road. Settings → World → Time standing still keeps journeys from taking time, and regions already made keep their land with lands switched off.",
+    ],
+  },
+  {
     title: "The chat window and places",
     lines: [
       "\"Clear chat\", at the bottom of the chat window, empties it (it asks twice). What's cleared is no longer sent to the AI or to Illustrate as what was said and told. It doesn't touch what people remember, a conversation you're in, or the AI assistant's own chat.",

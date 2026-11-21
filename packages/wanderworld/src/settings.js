@@ -151,7 +151,7 @@ export const SETTINGS = {
   // Whether the inventory's tracker is told how item stats are written, so a new item it adds may have some (and ones that have them are left alone).
   trackItemStats: { value: true },
   // How much of Help the AI assistant reads for a how-to question, in tokens (about four characters each).
-  assistantHelp: { value: 10000, min: 1000, max: 20000 },
+  assistantHelp: { value: 10000, min: 1000, max: 25000 },
   inventoryTrack: { value: "moments", options: ["off", "moments", "all"] },
   // A scene's chat uses the world's sheet; and Quartermaster's window in Wanderworld's parchment colours.
   inventoryScenes: { value: true },
@@ -412,6 +412,19 @@ export const SETTINGS = {
   questFailures: { value: true },
   questTimeLimits: { value: false },
   questLine: { value: true },
+  /**
+   * Regions and travel (regions.js, travel.js): new regions with a land of their own and their own people,
+   * the AI describing a region on arrival, journeys by road and coach from Journal → Map, what a coach costs
+   * a region, how long a region takes on foot, and how often something meets you on the road.
+   */
+  regionLands: { value: true },
+  regionFolk: { value: true },
+  regionFlavourAi: { value: false },
+  travelRoads: { value: true },
+  travelCoach: { value: true },
+  coachFare: { value: 10, options: [0, 5, 10, 20, 40] },
+  journeyHours: { value: 5, options: [2, 3, 5, 8] },
+  travelEncounters: { value: "rare", options: ["off", "rare", "often"] },
   /** Each person remembers what they themselves saw and heard (memory.js), and the model is told theirs alone. */
   memories: { value: true },
   /** People in sight remember what the player does (getting on a horse, going into a house), not only what's said. */
