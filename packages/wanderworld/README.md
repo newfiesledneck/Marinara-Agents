@@ -753,7 +753,7 @@ and that can be switched off.
 
   `ww:region:east` on a faction's entry makes the region east of home its land. On any entry,
   `ww:region:north-east:stronghold` or `ww:region:far north:ruin` give a region a purpose.
-  Journal → Factions can give the next region one way a purpose by hand, and quests will do the same.
+  Journal → Factions can give the next region one way a purpose by hand, and quests do the same.
   Otherwise the world's seed decides, the same for the same world, giving a faction's land only to a
   faction that has none yet. Once a region has a purpose it keeps it. Off (Settings → World → Factions
   → New regions can have a purpose), every new region is countryside and hamlets.
@@ -768,6 +768,45 @@ and that can be switched off.
 A faction's town has no townsfolk of its own yet: only its guards and any of its people your lore puts
 there. The guards wear the bandits' clothes until there's a guard model, and with bandits switched off
 in Settings → Creatures there are none.
+
+### Quests
+
+Work to take on, from the noticeboard, from asking someone "Any work going?" in a conversation, or from
+a lorebook entry keyed `ww:quest:<title>`. The game makes its own quests from what your world has, with
+no AI; the AI can write them too, one call a quest (Settings → Quests, off to begin with).
+
+- **Offered.** A card shows who's asking, what they want, the first step and the reward, with Accept and
+  Decline. The noticeboard posts one note at a time, and a new one only a while after you take one
+  (Settings → Quests → How often work is offered). Errands from the noticeboard are one-stage quests.
+- **Stages.** Each stage is one thing the game can see happen: talk to someone, go somewhere, find so many
+  of something, bring it to someone, beat so many creatures near a place, go down into a cave, free a
+  captive held there, travel to another region, or choose an answer. Every stage is checked against the
+  world before a quest is offered, so a quest you can see can always be finished.
+- **The game's own.** Hunts near a place out in the country, things to find and bring, someone to ask and
+  somewhere to look, a theft to get to the bottom of, a cave to go down into, a captive to free and a
+  region to scout. The quests you've had lately are remembered, so the next one is a different kind.
+- **The AI's.** One call writes a quest, all its stages at once, from short lists of the people, places,
+  creatures, items, caves and regions here, and the lore entry's text for a `ww:quest`. Anything it names
+  that the world hasn't got is matched to something close (the mill by its kind), and if that can't be
+  done the quest is turned down and the game's own is offered. A conversation waits 20 seconds at most.
+- **Other regions.** A stage in another region puts your waypoint at the edge that way, and the map of
+  regions marks it with "!". A region a quest sends you to is given its purpose (a bandit stronghold,
+  outposts, a ruin, a hillside of caves) when you accept, and keeps it.
+- **What a quest owns.** A hunt's creatures are put in the world at its spot and stay through the
+  monsters' respawns until it's done. A captive sits on the first level below the quest's cave (in a
+  gaol's cell when there is one), and that cave always leads down while the quest needs it.
+- **When things go wrong.** If someone a quest needs is gone from the world, a place has changed, or
+  time ran out, the quest repairs itself where it can (another place of the kind), takes a turn when it
+  has one (someone else saw it too, their kin hears the news, you make it right with the one you wrongly
+  named), or ends, and the Journal says why. With the AI's quests on, one more call can write a new stage
+  for a quest with no plan for what happened. Failure branches and time limits each have a switch.
+- **Journal → Quests** lists open quests first, with their stages so far, then the finished ones. Track
+  puts one on the line at the top of the screen and on the map; Give up keeps it, given up. Settings →
+  Debug has "Finish this stage", "Fail this stage" and "Show this quest's state".
+
+The game sets the rewards, not the AI: coins by the quest's length and your level, put in your inventory
+when Quartermaster keeps it. Whoever gave you the work thinks better of you for it, and work for one of
+a faction's people raises your standing with that faction.
 
 ### Lorebook keywords
 
@@ -844,6 +883,13 @@ lists any it didn't understand, and why.
 | `ww:region:east, ww:region:far north, ww:region:north-east:stronghold`            | a faction's entry | That region is the faction's land (or, with a purpose after it, its stronghold or its outposts). `east` is the region east of home; `far north` or `north 2` is two away.                     |
 | `ww:region:west:ruin (faction, stronghold, outposts, town, hamlets, ruin, caves)` | any entry         | What that region is made for, when you first travel there: a bandit stronghold, a few outposts, a smaller town, several hamlets, a ruin over a dungeon, a hillside of caves. Kept once given. |
 | `ww:enemy of:The Crown`                                                           | a faction's entry | The two factions are enemies: helping one lowers your standing with the other a little.                                                                                                       |
+
+**Quests**
+
+| Keyword                                                                          | On                | What it does                                                                                                                                                                                                                                   |
+| -------------------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ww:quest:The miller's missing son`                                              | any entry         | The entry is a quest, and its text is what it's about. With AI quests on, one AI call turns it into stages; without, it's a short quest from the keys below. Asking the giver "Any work going?" offers it, or the noticeboard when it has no giver. |
+| `ww:quest giver:Mira, ww:quest place:the mill, ww:quest reward:a sack of flour` | a quest's entry   | Who gives it (someone in this world, by name), where it takes you (a place, by name or kind), and what's said of the reward when it's done.                                                                                                    |
 
 **Creatures**
 
@@ -1066,6 +1112,39 @@ The same seed, depth and kind always give the same level.
   so far), so a phone can draw it. `tests/wanderworld-dungeon.regression.mjs` checks this, and also that
   every room, spawn and the way down can be walked to at the player's size, that doorways meet their
   corridors and nothing stands in them, and that no two pieces stand in each other.
+
+### Quests
+
+`src/quests.js` is the rules, as plain data in and out (docs/QUESTS.md sections 1 to 4); `src/questplay.js`
+connects them to the running game, and main.js calls it from a few places marked "Quests".
+
+- A quest is saved in `save.quests`: its stages, the one it's at, its state (offered, active, done,
+  failed, given up), what it owns (a captive), its reward and its log. Each stage has one goal, a verb
+  naming what it needs by id: `talk` (a person), `go` (a place), `bring` and `gather` (an item and how
+  many), `defeat` (a kind of creature, how many and the spot), `deep` and `rescue` (a cave), `region` (a
+  region's key) and `choose` (options, each with its own next stage). A stage's `fails` say which branch
+  a failure goes to: someone `gone`, or `late`.
+- `builtInQuest(key, world, { giver, recent })` makes one from the world's facts (`questplay.js facts`:
+  who's here and where, named places, country places, the creatures that can be met, what can be
+  gathered, caves, the regions ahead), the same for the same key. `checkQuest` checks every stage
+  against the world and that every stage leads to an end; `questCheck` does it again on load, on each
+  change of region and every ten seconds, repairing a stage or failing it to its branch.
+- `questEvent(quest, event)` is the only way a stage moves on. The events come from the game: a
+  conversation begun (`talk`), the zone check once a second (`at`, `have`), a creature beaten (`beat`),
+  a level entered (`deep`), a captive freed (`free`), a choice in the Journal (`choose`).
+- `questFromWords` checks what the AI wrote (server.mjs `/quest-write`, one call, 700 tokens at most),
+  matching each name to an id by whole words or by a place's kind. `adaptQuest` puts in the stage the
+  `/quest-adapt` call wrote. Both calls show in Settings → Debug like any other.
+- What a quest puts in the world: `questSpawns` gives a hunt's creatures to `herd.js setSpawns` (as the
+  lore's are), and `spawnKeep` their ids for `respawn`'s `keep`. `captivesAt` and `captiveSpot` put a
+  captive on a cave's first level, and `needsCave` makes that cave lead down.
+- Regions: `questplay.js questRegion` gives the region a quest targets its purpose on Accept, through
+  the same rule as `factions.js purposeAhead`, and the regions it can target come from `aheadOf`. Those
+  two are where richer travel between regions connects.
+- `simulateQuest` plays a quest to its end by the events that finish each stage, failing the ones asked
+  for. `tests/wanderworld-quests.regression.mjs` plays every built-in kind through, fails each stage
+  in turn, feeds in AI-shaped quests with names the world hasn't got, round-trips the save, and checks
+  that a quest's region keeps its purpose and its creatures stay through a respawn.
 
 ## Building and testing
 
