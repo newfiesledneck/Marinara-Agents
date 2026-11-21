@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.45 — 2026-11-20
+
+- The built-in body gets MakeHuman's CC0 skins: young, middle-aged and old, each Caucasian, African or Asian, with an Age choice that also ages the face and body (adults only). Or keep a skin colour of your own.
+- Nine eye pictures besides the eye colour tint, and twelve eyebrow and four eyelash styles in the Look card. Townsfolk get varied ages, skins, brows and lashes, and lore words like "old" or "middle-aged" shape them.
+
 ## 0.7.44 — 2026-11-20
 
 - Settings → People → Default skins with underwear (on to begin with): anyone with no underwear chosen wears the usual; off, the base skin shows unless underwear is chosen in the Look card.
