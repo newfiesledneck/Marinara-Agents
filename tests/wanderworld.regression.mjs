@@ -976,6 +976,37 @@ console.log("wanderworld regression: OK");
     await mine.flush();
     assert.equal(shared.keys.get(SHARED_SETTINGS), '{"b":2}');
     assert.equal(two.name, "Laptop world");
+
+    // Review H-03: once the Engine has refused a save as older than its own, the world in play is stale and
+    // nothing of it is written (main.js marks it in savesChanged and loads it again from the Engine).
+    let staleId = null;
+    const desk = createStore(shared, {
+      delay: 0,
+      onChange: (keys) => {
+        if (keys.includes(`wanderworld.world.${one.id}`)) staleId = one.id;
+      },
+    });
+    await desk.connect();
+    const deskSaves = createSaves(desk, { stale: (id) => id === staleId });
+    const played = deskSaves.read(one.id); // (the copy in play)
+    phoneSaves.write({ ...phoneSaves.read(one.id), name: "Phone again" });
+    await phone.flush();
+    deskSaves.write({ ...played, name: "Desk's turn" });
+    await desk.flush();
+    assert.equal(staleId, one.id, "the refused save marks the world stale");
+    const putsBefore = shared.puts;
+    assert.equal(deskSaves.write({ ...played, name: "Desk, later" }), null, "a save after it writes nothing");
+    assert.equal(deskSaves.write({ ...played, name: "Desk, with a thumbnail" }, "data:image/jpeg;x"), null);
+    await desk.flush();
+    assert.equal(deskSaves.read(one.id).name, "Phone again", "this browser holds the Engine's copy");
+    assert.equal(JSON.parse(shared.keys.get(`wanderworld.world.${one.id}`)).name, "Phone again");
+    assert.equal(shared.puts, putsBefore, "nothing reached the Engine");
+    assert.ok(deskSaves.write({ ...deskSaves.read(two.id), name: "Laptop world" }), "other worlds still save");
+    // Loaded again from the Engine's copy (the mark taken off), it saves as before.
+    staleId = null;
+    assert.ok(deskSaves.write({ ...deskSaves.read(one.id), name: "Desk, reloaded" }));
+    await desk.flush();
+    assert.equal(JSON.parse(shared.keys.get(`wanderworld.world.${one.id}`)).name, "Desk, reloaded");
   }
   // Saves from before: the list of worlds was a document of its own, with the thumbnails. A world left
   // out of it (written over by another browser) is listed again, and the thumbnails are still shown.

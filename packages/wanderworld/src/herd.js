@@ -1087,7 +1087,8 @@ export function createHerd() {
     /**
      * Those within `reach` of `at` that a blow can land on: any animal but someone's own, one being ridden,
      * or one already beaten. [{ id, kind, scale, x, z, hp, max, hostile, room }] (`hp` and `max` once it has
-     * been struck; `hostile`: it would fight; `room`: about how far its body reaches from its middle).
+     * been struck; `hostile`: it would fight; `room`: about how far its body reaches from its middle; `held`:
+     * what stuns it, "" when nothing does).
      */
     foes(at, reach) {
       return beasts
@@ -1106,6 +1107,7 @@ export function createHerd() {
           fled: !beast.angry && (fleeing(beast) || beast.temper === "timid"),
           den: !!beast.home && Math.hypot(beast.x - beast.home.x, beast.z - beast.home.z) < DEN_REACH,
           stunned: (beast.stunUntil ?? 0) > clock,
+          held: (beast.stunUntil ?? 0) > clock ? (beast.stunHow ?? "stunned") : "",
           // (For the fight display: it's after someone or fighting back, and what holds or calms it.)
           engaged: !!(beast.angry || beast.chasing),
           slowed: (beast.slowUntil ?? 0) > clock,
@@ -1243,10 +1245,13 @@ export function createHerd() {
       }
       place(beast);
     },
-    /** `id` can do nothing for `seconds`. */
-    stun(id, seconds) {
+    /** `id` can do nothing for `seconds`; `how`: what holds it (a spell effect: "paralyzed", "asleep"), as foes `held` gives it. */
+    stun(id, seconds, how = "stunned") {
       const beast = beasts.find((entry) => entry.id === id);
-      if (beast && beast.down === undefined) beast.stunUntil = clock + seconds;
+      if (beast && beast.down === undefined) {
+        beast.stunUntil = clock + seconds;
+        beast.stunHow = how;
+      }
     },
     /** The beaten lying within `reach` of `at`: [{ id, kind, x, z, searched }]. */
     bodies(at, reach) {

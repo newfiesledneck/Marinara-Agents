@@ -2,9 +2,10 @@
 // what each does, after the 5e SRD's conditions (SRD 5.1, CC BY 4.0; the credit is srd.js's). A fight here
 // is simpler than a tabletop's, so each condition keeps the part of its rule that a fight here can play:
 // whether the player's own attacks are rolled twice with the worse counting, whether attacks on them are
-// rolled twice with the better counting, whether they can move, and whether they can act at all. Left out
-// on purpose (Help says so): paralyzed, stunned and asleep don't fail Strength and Dexterity saves by
-// themselves, and a blow on someone paralyzed or asleep isn't a critical hit by itself.
+// rolled twice with the better counting, whether they can move, whether they can act at all, whether they
+// fail Strength and Dexterity saves by themselves (paralyzed, stunned, asleep), and whether a hit from
+// within 1.5 m is a critical hit (paralyzed, asleep: the SRD's unconscious). The same names on a creature
+// or a companion work the same way.
 //
 // The state is plain data, { [condition]: seconds left }, kept by main.js for as long as the world is open
 // (it isn't saved: nothing here outlasts a fight by much). This module only works things out.
@@ -14,7 +15,8 @@
  * (in a fight by turns, six seconds are a round). `attackDis`: their attacks are at a disadvantage.
  * `defendAdv`: attacks on them have advantage. `still`: they can't move. `helpless`: they can't act.
  * `slow`: half their pace. `wakes`: it ends when they're hurt. `escape`: they strain against it (a check,
- * now and then) and it ends when they win.
+ * now and then) and it ends when they win. `failsSaves`: their Strength and Dexterity saves fail without a
+ * roll. `critClose`: an attack that hits them from within CRIT_REACH is a critical hit.
  */
 export const CONDITIONS = {
   prone: {
@@ -63,28 +65,35 @@ export const CONDITIONS = {
   },
   paralyzed: {
     label: "Paralyzed",
-    about: "You can't move or act, and attacks on you have advantage.",
+    about:
+      "You can't move or act, your Strength and Dexterity saves fail, attacks on you have advantage, and a hit from within 1.5 m is a critical hit.",
     seconds: 6,
     defendAdv: true,
     still: true,
     helpless: true,
+    failsSaves: true,
+    critClose: true,
   },
   stunned: {
     label: "Stunned",
-    about: "You can't move or act, and attacks on you have advantage.",
+    about: "You can't move or act, your Strength and Dexterity saves fail, and attacks on you have advantage.",
     seconds: 6,
     defendAdv: true,
     still: true,
     helpless: true,
+    failsSaves: true,
   },
   asleep: {
     label: "Asleep",
-    about: "You can't move or act until you're hurt or it wears off.",
+    about:
+      "You can't move or act until you're hurt or it wears off. Your Strength and Dexterity saves fail, attacks on you have advantage, and a hit from within 1.5 m is a critical hit.",
     seconds: 12,
     defendAdv: true,
     still: true,
     helpless: true,
     wakes: true,
+    failsSaves: true,
+    critClose: true,
   },
   slowed: { label: "Slowed", about: "You move at half your pace.", seconds: 6, slow: true },
   hindered: { label: "Hindered", about: "Your attacks are at a disadvantage.", seconds: 6, attackDis: true },
@@ -133,10 +142,12 @@ const NONE = {
   still: false,
   helpless: false,
   slow: false,
+  failsSaves: false,
+  critClose: false,
   names: [],
 };
 
-/** What `state` adds up to: { attackDis, checkDis, defendAdv, still, helpless, slow, names }. */
+/** What `state` adds up to: { attackDis, checkDis, defendAdv, still, helpless, slow, failsSaves, critClose, names }. */
 export function conditionMods(state) {
   const names = Object.keys(state ?? {}).filter((name) => CONDITIONS[name]);
   if (!names.length) return NONE;
@@ -148,9 +159,19 @@ export function conditionMods(state) {
     still: any("still"),
     helpless: any("helpless"),
     slow: any("slow"),
+    failsSaves: any("failsSaves"),
+    critClose: any("critClose"),
     names,
   };
 }
+
+/** How near an attacker must be for a hit on someone paralyzed or unconscious to be critical (metres: 5 ft). */
+export const CRIT_REACH = 1.5;
+/** Whether `mods` (conditionMods) fail a saving throw in `attribute` without a roll: Strength and Dexterity. */
+export const failsSave = (mods, attribute) =>
+  !!mods?.failsSaves && /^(strength|dexterity)$/iu.test(String(attribute ?? ""));
+/** Whether a hit on someone with `mods` is a critical hit, from an attacker `gap` metres from them. */
+export const critsClose = (mods, gap) => !!mods?.critClose && gap <= CRIT_REACH;
 
 /** `state` for showing: [{ id, label, about, seconds }], the longest-lasting last. */
 export function conditionChips(state) {
