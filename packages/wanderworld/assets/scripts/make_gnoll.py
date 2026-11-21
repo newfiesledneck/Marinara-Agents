@@ -41,18 +41,21 @@ p = {
     "hips": 0.21,
     "arm": 0.8,
     "thick": 1.15,
-    "chest": (0.23, 0.175),
-    "waist": (0.13, 0.105),
+    "chest": (0.26, 0.195),
+    "waist": (0.175, 0.14),
+    "belly": 0.12,
     "hunch": 0.3,
     "hand": 1.2,
     "foot": 1.35,
     "toes": 1.5,
     "fingers": 1.3,
     "claws": True,
+    "digitigrade": 1.0,
 }
 m = Model("gnoll", resolution=0.013, faces=4600)
 m.group("head", resolution=0.0065, faces=3400, bone="Head")
-m.rig(humanoid_joints(p))
+JOINTS = humanoid_joints(p)
+m.rig(JOINTS)
 b = humanoid_body(m, p, {"skin": FUR, "nails": 0x2A2018})
 s, t, arm_y, sx, hx, chest_y, knee = b["s"], b["t"], b["arm_y"], b["sx"], b["hx"], b["chest_y"], b["knee"]
 hips = p["leg"]
@@ -65,6 +68,20 @@ K = 1.25  # the head's measures below are for a head this much smaller
 PITCH = math.radians(-4)  # the muzzle lifted a little
 rng = random.Random(7)
 SIDES = (("l", 1), ("r", -1))
+
+
+def joint(name):
+    """A joint of the rig in the game's (x, up, forward)."""
+    v = JOINTS[name]
+    return (v.x, v.z, -v.y)
+
+
+def lerp(a, c, u, fwd=0.0):
+    """A point `u` of the way from a to c (game coordinates), moved `fwd` forward."""
+    return (a[0] + (c[0] - a[0]) * u, a[1] + (c[1] - a[1]) * u, a[2] + (c[2] - a[2]) * u + fwd)
+
+
+LEG = {side: tuple(joint(f"{n}_{side}") for n in ("thigh", "calf", "foot", "ball")) for side, _ in SIDES}
 
 
 def ell(c, across, up, depth, colour=FUR, negative=False, group="body"):
@@ -353,15 +370,23 @@ for sign in (1, -1):
         toward = hd(sign * 0.2, -0.03 - k * 0.03, -0.02 + k * 0.02)
         fur(centre, toward, (sign * 0.3, 0.6, -1), 0.06, 0.011, (FUR, shade(FUR, 0.9)), "Head", n=3, group="head")
 
-# ── The body: a long neck thick at its root, heavy shoulders and chest over a thin waist and narrow hips,
-# a hunched back sloping down from the shoulders; long, lean, sinewy arms; thin legs, the heel lifted. ──
+# ── The body: a long neck thick at its root, heavy shoulders, chest and back (a hyena's forequarters)
+# over a solid belly and narrower hips, a hunched back sloping down from the shoulders; long, sinewy arms;
+# digitigrade legs: a lean thigh, the knee forward, a short shin back to a raised hock, a long foot. ──
 ell((0, arm_y + 0.02, hunch * 0.45), 0.11, 0.11, 0.11)
 cap((0, arm_y + 0.04, hunch * 0.4), (0, b["head_y"] - 0.02, hunch * 0.92), 0.088)
 ell((0, arm_y - 0.04, -0.06 + hunch * 0.2), 0.18, 0.13, 0.1)
 ell((0, chest_y + 0.02, waist_z * 0.5), waist_x * 0.9, 0.12, waist_z * 0.8, BELLY)
-ell((0, chest_y + 0.17, hunch * 0.2 + chest_z * 0.55), 0.06, 0.1, 0.05, BELLY)
+ell((0, chest_y + 0.17, hunch * 0.2 + chest_z * 0.55), 0.07, 0.1, 0.06, BELLY)
+# A deep chest and a heavy back above a solid belly.
+ell((0, chest_y + 0.12, hunch * 0.2 + 0.02), chest_x * 0.95, 0.16, chest_z * 1.02)
+ell((0, hips + 0.2, waist_z * 0.3), waist_x * 1.0, 0.14, waist_z * 1.05)
+ell((0, hips + 0.2, waist_z * 0.6), waist_x * 0.6, 0.13, waist_z * 0.85, BELLY)
 for sign in (1, -1):
     ell((sign * 0.09, arm_y + 0.035, hunch * 0.22 - 0.02), 0.1, 0.07, 0.09)
+    # Lats flaring under the arms and tapering into the waist; obliques over the hips.
+    ell((sign * 0.13, chest_y + 0.08, hunch * 0.15 - 0.04), 0.085, 0.15, 0.1)
+    ell((sign * waist_x * 0.72, hips + 0.12, 0.0), 0.075, 0.1, 0.1)
     # Sinewy arms: a round deltoid, the biceps and triceps, a knotty elbow, a forearm thick below the
     # elbow and tapering to a bony wrist.
     ell((sign * (sx + 0.025), arm_y + 0.015, 0.0), 0.08, 0.072, 0.074)
@@ -370,19 +395,20 @@ for sign in (1, -1):
     ball((sign * (sx + elbow), arm_y + 0.005, -0.03), 0.028)
     ell((sign * (sx + elbow + 0.07), arm_y + 0.012, 0.0), 0.08, 0.044, 0.042)
     ell((sign * (sx + elbow + 0.1), arm_y - 0.012, 0.012), 0.08, 0.03, 0.034)
-    # Lean, corded legs: the long front thigh muscle, the hamstrings behind, a bony knee, a high calf.
-    ell((sign * (hx + 0.008), (hips + knee) / 2 + 0.04, 0.03), 0.06, 0.15, 0.06)
-    ell((sign * (hx + 0.012), (hips + knee) / 2 + 0.06, -0.025), 0.058, 0.14, 0.055)
-    ball((sign * hx, knee + 0.01, 0.045), 0.033)
-    ell((sign * hx, knee - 0.08, -0.04), 0.048, 0.1, 0.052)
+    # Lean, corded legs: the long front thigh muscle, the hamstrings behind, a bony knee, the calf muscle
+    # behind the shin, a sinew down the back of the hock.
+    hip, kn, ank, toe = LEG["l" if sign > 0 else "r"]
+    cap(lerp(hip, kn, 0.15, 0.035), lerp(hip, kn, 0.8, 0.03), 0.056)
+    cap(lerp(hip, kn, 0.1, -0.03), lerp(hip, kn, 0.75, -0.035), 0.054)
+    ball(lerp(hip, kn, 1.0, 0.03), 0.034)
+    cap(lerp(kn, ank, 0.15, -0.025), lerp(kn, ank, 0.6, -0.03), 0.04)
+    cap(lerp(ank, toe, 0.05, -0.022), lerp(ank, toe, 0.55, -0.018), 0.022)
+    # The pad under the toes, on the ground.
+    ball((toe[0], 0.03, toe[2] + 0.025), 0.03)
     # Ribs showing under the skin along the flanks of the lean chest.
     for r in range(3):
         y = chest_y + 0.1 - r * 0.05
         cap((sign * 0.1, y, chest_z * 0.75 + hunch * 0.15), (sign * chest_x * 0.72, y - 0.025, chest_z * 0.35 + hunch * 0.15), 0.014)
-    # The heel lifted off the ground behind the ankle (a digitigrade foot).
-    ball((sign * hx, 0.13, -0.035), 0.035)
-    ball((sign * hx, -0.01, -0.055), 0.045, negative=True)
-    cap((sign * hx, 0.13, -0.035), (sign * hx, 0.24, -0.025), 0.03)
     for row in range(2):
         ball((sign * 0.025, hips + 0.08 + row * 0.07, waist_z * 0.9), 0.022, BELLY)
 
@@ -418,12 +444,17 @@ for side, sign in SIDES:
     for x in (sx + 0.1, sx + 0.22):
         for a in (-2.0, 2.2):
             fur((sign * x, arm_y, 0), (sign * x, arm_y + math.sin(a), math.cos(a)), (sign, 0, -0.4), 0.08, 0.011, FURS, f"upperarm_{side}")
-    for y in (hips - 0.18, hips - 0.3):
+    hip, kn, ank, toe = LEG[side]
+    for u in (0.35, 0.65):
+        c = lerp(hip, kn, u)
         for a in (1.3, 2.3):
-            fur((sign * hx, y, 0), (sign * hx + sign * math.sin(a), y, math.cos(a)), (0, 0, -1), 0.08, 0.012, FURS, f"thigh_{side}")
+            fur(c, (c[0] + sign * math.sin(a), c[1], c[2] + math.cos(a)), (0, 0, -1), 0.08, 0.012, FURS, f"thigh_{side}")
+    # Rough fur behind the shin and down the back of the hock.
+    c = lerp(kn, ank, 0.35)
     for a in (2.6, -2.8):
-        y = knee - 0.03
-        fur((sign * hx, y, 0), (sign * hx + math.sin(a), y, math.cos(a)), (0, 0, -1), 0.08, 0.011, FURS, f"calf_{side}")
+        fur(c, (c[0] + math.sin(a), c[1], c[2] + math.cos(a)), (0, -0.3, -1), 0.08, 0.011, FURS, f"calf_{side}")
+    c = lerp(ank, toe, 0.15)
+    fur(c, (c[0], c[1] + 0.3, c[2] - 1), (0, -0.4, -1), 0.06, 0.01, FURS, f"foot_{side}")
 
 # ── Spots: dark blotches scattered over the shoulders, back, flanks, arms and thighs. ──
 for i in range(36):
@@ -436,14 +467,15 @@ for side, sign in SIDES:
         x = sx + rng.uniform(0.04, elbow + 0.1)
         a = rng.uniform(-0.6, 3.6)
         spot((sign * x, arm_y, 0), (sign * x, arm_y + math.sin(a), math.cos(a)), rng.uniform(0.017, 0.025), SPOT, f"upperarm_{side}" if x < sx + elbow else f"lowerarm_{side}")
+    hip, kn, ank, toe = LEG[side]
     for i in range(7):
-        up = rng.uniform(knee + 0.04, hips - 0.12)
+        c = lerp(hip, kn, rng.uniform(0.25, 0.85))
         a = rng.uniform(-0.6, 3.8)
-        spot((sign * hx, up, 0), (sign * hx + sign * math.sin(a), up, math.cos(a)), rng.uniform(0.02, 0.028), SPOT, f"thigh_{side}")
+        spot(c, (c[0] + sign * math.sin(a), c[1], c[2] + math.cos(a)), rng.uniform(0.02, 0.028), SPOT, f"thigh_{side}")
     for i in range(3):
-        up = rng.uniform(0.3, knee - 0.05)
+        c = lerp(kn, ank, rng.uniform(0.2, 0.75))
         a = rng.uniform(-0.5, 3.5)
-        spot((sign * hx, up, 0), (sign * hx + sign * math.sin(a), up, math.cos(a)), rng.uniform(0.015, 0.021), SPOT, f"calf_{side}")
+        spot(c, (c[0] + sign * math.sin(a), c[1], c[2] + math.cos(a)), rng.uniform(0.015, 0.021), SPOT, f"calf_{side}")
 
 # ── Gear: a crude leather harness, two straps crossing on the chest and back with an iron ring where they
 # meet; a cord of bones and teeth round the neck; a rope belt with a ragged loincloth and hanging strips;

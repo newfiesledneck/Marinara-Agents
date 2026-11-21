@@ -42,8 +42,8 @@ p = {
     "hips": 0.46,
     "arm": 1.08,
     "thick": 1.95,
-    "chest": (0.42, 0.3),
-    "waist": (0.37, 0.31),
+    "chest": (0.48, 0.37),
+    "waist": (0.45, 0.37),
     "belly": 0.36,
     "hunch": 0.2,
     "hand": 2.3,
@@ -119,8 +119,6 @@ hcap((0, 0.014, 0.097), (0, -0.018, 0.114), 0.016, shade(SKIN, 0.95))
 hell((0, -0.03, 0.121), 0.034, 0.022, 0.024, shade(SKIN, 0.95))
 hcap((-0.056, -0.064, 0.098), (0.056, -0.064, 0.098), 0.008, 0x24120E, negative=True)
 hell((0, -0.077, 0.108), 0.056, 0.011, 0.02, LIPS)
-for c, r in (((0.052, 0.062, 0.05), 0.007), ((-0.07, -0.036, 0.062), 0.006), ((0.03, -0.094, 0.085), 0.005), ((-0.04, 0.09, 0.01), 0.007)):
-    hball(c, r, WART)
 
 for sign in (1, -1):
     # Small dull yellow eyes in the shadow of the brow.
@@ -158,15 +156,20 @@ for sign in (1, -1):
     ell((sign * (hx + 0.035 * s), (hips + knee) / 2 + 0.03 * s, 0.01), 0.17 * s, 0.24 * s, 0.165 * s)
     ell((sign * hx, knee - 0.13 * s, -0.04 * s), 0.105 * s, 0.14 * s, 0.1 * s)
     ell((sign * hx, b["f"] * 0.12, 0.0), 0.075 * s, 0.07 * s, 0.075 * s)
-ell((0, chest_y + 0.18 * s, -0.14 * s), 0.3 * s, 0.22 * s, 0.14 * s)
-ell((0, hips + 0.15 * s, 0.17 * s), 0.31 * s, 0.25 * s, 0.27 * s)
-ball((0, hips + 0.17 * s, 0.17 * s + 0.27 * s * 0.98), 0.018 * s, DARK, negative=True)
-for c in ((0.2, chest_y + 0.3, 0.2), (-0.32, chest_y - 0.1, 0.25), (0.12, hips + 0.25, 0.45)):
-    ball((c[0] * s, c[1], c[2] * s), 0.016 * s, WART)
+ell((0, chest_y + 0.18 * s, -0.14 * s), 0.34 * s, 0.24 * s, 0.17 * s)
+ell((0, chest_y + 0.1 * s, 0.04 * s), 0.4 * s, 0.3 * s, 0.31 * s)
+ell((0, hips + 0.15 * s, 0.17 * s), 0.34 * s, 0.26 * s, 0.29 * s)
+ball((0, hips + 0.17 * s, 0.17 * s + 0.29 * s * 0.98), 0.018 * s, DARK, negative=True)
+# A heavy trunk all the way round: broad lats under the arms, thick flanks and a fat lower back, so the
+# chest runs into the belly with no waist.
+for sign in (1, -1):
+    ell((sign * 0.28 * s, chest_y + 0.08 * s, -0.05 * s), 0.15 * s, 0.26 * s, 0.2 * s)
+    ell((sign * 0.3 * s, hips + 0.3 * s, 0.02 * s), 0.15 * s, 0.22 * s, 0.24 * s)
+    ell((sign * 0.14 * s, hips + 0.25 * s, -0.17 * s), 0.17 * s, 0.2 * s, 0.13 * s)
 # A pelt over the left shoulder, lying on it like skin over muscle (so it moves with it).
-ell((0.6 * sx, arm_y + 0.12 * s, hunch * 0.3), 0.19 * s, 0.1 * s, 0.2 * s, FUR)
-ell((0.55 * sx, chest_y + 0.2 * s, hunch * 0.2 + chest_z * 0.85), 0.18 * s, 0.15 * s, 0.07 * s, FUR_LIGHT)
-ell((0.6 * sx, chest_y + 0.2 * s, -0.2 * s), 0.2 * s, 0.16 * s, 0.08 * s, FUR)
+ell((0.6 * sx, arm_y + 0.13 * s, hunch * 0.3), 0.2 * s, 0.11 * s, 0.22 * s, FUR)
+ell((0.55 * sx, chest_y + 0.2 * s, hunch * 0.2 + chest_z * 0.95), 0.19 * s, 0.16 * s, 0.08 * s, FUR_LIGHT)
+ell((0.6 * sx, chest_y + 0.2 * s, -0.25 * s), 0.21 * s, 0.17 * s, 0.09 * s, FUR)
 ell((sx + 0.05 * s, arm_y + 0.08 * s, 0.0), 0.15 * s, 0.07 * s, 0.17 * s, FUR_LIGHT)
 
 
@@ -174,8 +177,22 @@ ell((sx + 0.05 * s, arm_y + 0.08 * s, 0.0), 0.15 * s, 0.07 * s, 0.17 * s, FUR_LI
 BODY = [e for e in m.elements if e[4] == "body"]
 
 
-def field(q):
-    return sum((-1 if e[3] else 1) * STIFF * m._field(q, e) for e in BODY)
+HEAD = [e for e in m.elements if e[4] == "head"]
+
+
+def field(q, elements=BODY):
+    return sum((-1 if e[3] else 1) * STIFF * m._field(q, e) for e in elements)
+
+
+def seat(centre, towards, r, colour, group="body"):
+    """A small lump (a wart) of radius r sat on the skin where a ray from `centre` towards `towards`
+    (game coordinates) leaves it, sunk a little so it joins the skin rather than floating."""
+    c, d = at(*centre), at(*towards) - at(*centre)
+    d.normalize()
+    q, step, elements = c, 0.004, BODY if group == "body" else HEAD
+    while field(q + d * step, elements) >= THRESHOLD:
+        q = q + d * step
+    m.ball(q - d * r * 0.35, r, colour, group=group)
 
 
 def surface(q, d, lift):
@@ -203,6 +220,13 @@ def normal(q):
         )
     )
     return -g.normalized() if g.length > 0 else Vector((0, 0, 1))
+
+
+# Warts, sat on the skin (the gear below doesn't need to know of them).
+for towards in ((0.2 * s, chest_y + 0.3, 0.3), (-0.34 * s, chest_y - 0.1, 0.3), (0.12 * s, hips + 0.25, 0.6), (-0.2 * s, arm_y + 0.05, -0.3)):
+    seat((0, towards[1], 0), towards, 0.018 * s, WART)
+for towards in (hp(0.052, 0.062, 0.05), hp(-0.07, -0.036, 0.062), hp(0.06, 0.0, 0.03), hp(-0.04, 0.09, 0.01)):
+    seat(hp(0, 0.0, 0.0), towards, 0.006 * K, WART, "head")
 
 
 def radial(q, centre_fwd=0.0):
@@ -322,15 +346,17 @@ for side, sign in (("l", 1), ("r", -1)):
     m.tube(centre + Vector((-sign * 0.06 * s, 0, 0)), centre + Vector((sign * 0.06 * s, 0, 0)), r + 0.012 * s, r + 0.012 * s, IRON, f"lowerarm_{side}", segments=12)
     for k in range(6):
         a = 2 * math.pi * k / 6
-        m.sphere(centre + Vector((0, math.cos(a), math.sin(a))) * (r + 0.026 * s), (0.012 * s,) * 3, RIVET, f"lowerarm_{side}", segments=6, rings=4)
+        # (Half sunk in the band's face, which lies at r + 0.012 s.)
+        m.sphere(centre + Vector((0, math.cos(a), math.sin(a))) * (r + 0.014 * s), (0.011 * s,) * 3, RIVET, f"lowerarm_{side}", segments=6, rings=4)
 
 # ── The greatclub: a gnarled trunk thickening to a knotted head, a leather-wrapped grip, iron bands and
 # spikes driven through. ──
-k = s * 1.5
-length = 0.85 * k
+# (Short enough, and held forward enough, that its head stays off the ground as the arm hangs and swings.)
+k = s * 1.3
+length = 0.64 * k
 GRIP = 0x3E2C1E
 club = [
-    (m.strand, ([Vector((0, 0.1 * k, 0)), Vector((0.004 * k, -0.25 * k, 0)), Vector((-0.006 * k, -0.55 * k, 0.004 * k)), Vector((0, -length, 0))], 0.026 * k, 0.062 * k, WOOD, "hand_r", 10)),
+    (m.strand, ([Vector((0, 0.1 * k, 0)), Vector((0.004 * k, -0.22 * k, 0)), Vector((-0.006 * k, -0.44 * k, 0.004 * k)), Vector((0, -length, 0))], 0.026 * k, 0.062 * k, WOOD, "hand_r", 10)),
     (m.sphere, (Vector((0, -length, 0)), (0.07 * k, 0.085 * k, 0.07 * k), WOOD, "hand_r", 12, 8)),
     (m.sphere, (Vector((0, 0.1 * k, 0)), (0.032 * k,) * 3, GRIP, "hand_r", 8, 6)),
     (m.tube, (Vector((0, 0.08 * k, 0)), Vector((0, -0.12 * k, 0)), 0.03 * k, 0.031 * k, GRIP, "hand_r", 10)),
@@ -347,7 +373,7 @@ for i in range(9):
     d = Vector((math.cos(a), 0, math.sin(a)))
     club.append((m.cone, (Vector((0, yy, 0)) + d * rr, Vector((0, yy, 0)) + d * rr * 2.3, 0.014 * k, IRON, "hand_r", 5)))
 club.append((m.cone, (Vector((0, -length - 0.07 * k, 0)), Vector((0, -length - 0.14 * k, 0)), 0.014 * k, IRON, "hand_r", 5)))
-m.weapon(club, at(-(sx + p["arm"] + 0.06 * b["h"]), arm_y - 0.014 * b["h"], 0), tilt=-0.9)
+m.weapon(club, at(-(sx + p["arm"] + 0.06 * b["h"]), arm_y - 0.014 * b["h"], 0), tilt=-0.42)
 
 m.finish(humanoid_actions(arm_down=74), bake={"size": 512, "ao": 0.2, "mottle": 0.12, "mottle_scale": 28, "dirt": 0.5})
 mesh = bpy.data.objects["ogre"]

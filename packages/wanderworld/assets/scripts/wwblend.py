@@ -755,6 +755,19 @@ def humanoid_joints(p):
                 f"ball_{side}.tail": at(sign * hx, 0.025 * s, 0.18 * f),
             }
         )
+        # Digitigrade legs (`digitigrade`: 0-1, how far): standing on the toes like a dog or a lizard. The knee
+        # comes forward and the ankle rises and goes back, so the long foot bone reads as the backward-
+        # bending lower leg. The bones are the people's still, so the people's animations play on it.
+        d = p.get("digitigrade", 0.0)
+        if d:
+            joints.update(
+                {
+                    f"calf_{side}": at(sign * hx, hips * (0.52 + 0.06 * d), 0.07 * hips * d),
+                    f"foot_{side}": at(sign * hx, 0.085 * s + 0.2 * hips * d, -0.07 * hips * d),
+                    f"ball_{side}": at(sign * hx, 0.03 * s, 0.11 * f * (1 - d) + 0.07 * hips * d),
+                    f"ball_{side}.tail": at(sign * hx, 0.025 * s, 0.18 * f * (1 - d) + 0.07 * hips * d + 0.07 * f),
+                }
+            )
     return joints
 
 
@@ -817,11 +830,28 @@ def humanoid_body(m, p, c):
         m.tube(at(x(wrist + 0.03 * h), arm_y, 0.03 * h), at(x(wrist + 0.07 * h), arm_y - 0.012 * h, 0.075 * h), 0.013 * h, 0.01 * h, skin, bone, segments=6)
         # Legs: a full thigh, a calf with its muscle behind; a foot with three toes.
         legs, shins = c.get("legs", skin), c.get("shins", c.get("legs", skin))
-        m.ball(at(sign * hx, hips - 0.05 * s, 0), 0.085 * t, legs)
-        m.capsule(at(sign * hx, hips - 0.03 * s, 0), at(sign * hx, knee, 0), 0.068 * t, legs)
-        m.capsule(at(sign * hx, knee, 0), at(sign * hx, ankle + 0.03 * s, 0), 0.044 * t, shins)
-        m.ball(at(sign * hx, knee - 0.12 * s, -0.02 * t), 0.052 * t, shins)
         feet = c.get("feet", skin)
+        J = humanoid_joints(p)
+        hip_j, knee_j, ankle_j, ball_j = (J[f"{n}_{side}"] for n in ("thigh", "calf", "foot", "ball"))
+        m.ball(at(sign * hx, hips - 0.05 * s, 0), 0.085 * t, legs)
+        m.capsule(at(sign * hx, hips - 0.03 * s, 0), knee_j, 0.068 * t, legs)
+        if p.get("digitigrade"):
+            # Thigh, a short shin back to the raised ankle (a hock), then the long foot down to the toes.
+            m.capsule(knee_j, ankle_j, 0.046 * t, shins)
+            m.ball(knee_j.lerp(ankle_j, 0.35) + Vector((0, 0.02 * t, 0)), 0.05 * t, shins)
+            m.ball(ankle_j, 0.038 * t, shins)
+            m.capsule(ankle_j, ball_j + Vector((0, 0, 0.012 * f)), 0.032 * t, feet)
+            length = p.get("toes", 1.0)
+            for toe in range(3):
+                tx = (toe - 1) * 0.028 * f
+                root = ball_j + Vector((tx, 0, 0.012 * f))
+                tip = root + Vector((tx * 0.4, -0.05 * length * f, -0.008 * f))
+                m.capsule(root, tip, 0.016 * f, feet)
+                if p.get("claws"):
+                    m.cone(tip, tip + Vector((0, -0.03 * f, -0.012 * f)), 0.009 * f, c.get("nails", 0x2A2420), f"ball_{side}", segments=5)
+            continue
+        m.capsule(knee_j, at(sign * hx, ankle + 0.03 * s, 0), 0.044 * t, shins)
+        m.ball(at(sign * hx, knee - 0.12 * s, -0.02 * t), 0.052 * t, shins)
         if p.get("hooves"):
             m.tube(at(sign * hx, 0, 0.01 * f), at(sign * hx, 0.1 * f, 0.01 * f), 0.075 * f, 0.06 * f, p["hooves"], f"foot_{side}", segments=10, smooth=False)
         else:

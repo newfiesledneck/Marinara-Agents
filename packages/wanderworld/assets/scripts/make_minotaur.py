@@ -46,8 +46,8 @@ p = {
     "hips": 0.38,
     "arm": 1.0,
     "thick": 1.8,
-    "chest": (0.42, 0.28),
-    "waist": (0.27, 0.21),
+    "chest": (0.47, 0.33),
+    "waist": (0.34, 0.26),
     "hunch": 0.16,
     "hand": 1.75,
     "foot": 1.5,
@@ -185,8 +185,10 @@ m.ring(hv(0, -0.096, 0.226), 0.026 * K, 0.0045 * K, BRASS, "Head", axis=(0, 1, 0
 for sign in (1, -1):
     ell((sign * 0.15 * s, arm_y + 0.08 * s, hunch * 0.2), 0.16 * s, 0.11 * s, 0.13 * s)
     ell((sign * (sx + 0.02 * s), arm_y + 0.02 * s, 0.0), 0.13 * s, 0.12 * s, 0.12 * s)
-    ell((sign * 0.14 * s, chest_y + 0.14 * s, hunch * 0.2 + chest_z * 0.82), 0.15 * s, 0.11 * s, 0.08 * s, shade(FUR, 1.08))
-    ell((sign * 0.24 * s, chest_y + 0.02 * s, -0.05 * s), 0.1 * s, 0.2 * s, 0.13 * s)
+    ell((sign * 0.15 * s, chest_y + 0.14 * s, hunch * 0.2 + chest_z * 0.84), 0.17 * s, 0.12 * s, 0.09 * s, shade(FUR, 1.08))
+    # Broad lats flaring under the arms, thick obliques over the hips: a heavy trunk, not a column.
+    ell((sign * 0.28 * s, chest_y + 0.04 * s, -0.05 * s), 0.14 * s, 0.25 * s, 0.17 * s)
+    ell((sign * 0.24 * s, hips + 0.24 * s, 0.02 * s), 0.12 * s, 0.19 * s, 0.17 * s)
     ell((sign * (sx + elbow * 0.5), arm_y + 0.025 * s, 0.01), elbow * 0.34, 0.085 * s, 0.082 * s)
     ell((sign * (sx + elbow + 0.12 * s), arm_y + 0.005 * s, 0.0), 0.14 * s, 0.082 * s, 0.078 * s)
     ell((sign * (hx + 0.02 * s), (hips + knee) / 2 + 0.03 * s, 0.01), 0.13 * s, 0.22 * s, 0.13 * s)
@@ -197,6 +199,7 @@ for sign in (1, -1):
 # The mane: shaggy and darker, down the back of the neck and over the hump of the shoulders.
 ell((0, b["head_y"] - 0.02, hunch * 0.6 - 0.1 * s), 0.16 * s, 0.22 * s, 0.11 * s, MANE)
 ell((0, arm_y + 0.12 * s, -0.08 * s), 0.22 * s, 0.13 * s, 0.15 * s, MANE)
+ell((0, chest_y + 0.12 * s, -0.12 * s), 0.3 * s, 0.24 * s, 0.14 * s)
 ell((0, b["head_y"] - 0.1 * s, hunch * 0.6 + 0.08 * s), 0.13 * s, 0.15 * s, 0.09 * s, MANE_LIGHT)
 
 
@@ -322,27 +325,66 @@ front = belt[0]
 m.tube(front, front + Vector((0, -0.02 * s, 0)), 0.065 * s, 0.06 * s, BRASS, "pelvis", segments=14)
 m.sphere(front + Vector((0, -0.02 * s, 0)), (0.025 * s, 0.012 * s, 0.025 * s), shade(BRASS, 0.8), "pelvis", segments=8, rings=5)
 
-# The red kilt: broad strips hanging from the belt and flaring over the thighs, hemmed darker.
-for i in range(14):
-    a = 2 * math.pi * (i + 0.5) / 14
-    d = Vector((math.sin(a), -math.cos(a), 0))
-    centre = at(0, 0, 0)
-    top = outer(centre + Vector((0, 0, belt_y - 0.03 * s)), d, 0.006 * s)
-    length = (0.4 + 0.03 * math.sin(i * 1.7)) * s
-    # (Out past the thighs, or straight down where the ray finds only the gap between them.)
-    low_z = belt_y - 0.03 * s - length
-    reach = max((outer(Vector((0, 0, low_z)), d, 0.03 * s) - Vector((0, 0, low_z))).length, (top - Vector((0, 0, top.z))).length + 0.02 * s)
-    low = Vector((0, 0, low_z)) + d * reach
-    bottom = top + (low - top).normalized() * length
+# The red kilt: a wrap skirt, one continuous piece flaring evenly from under the belt to above the
+# knees with a darker hem, and a straight panel hanging over it front and back.
+def skirt(top_z, length, angles=32, rows=(0.0, 0.3, 0.6, 0.86, 1.0), thick=0.012 * s):
+    radii = []
+    for share in rows:
+        z = top_z - length * share
+        ring = []
+        for i in range(angles):
+            a = 2 * math.pi * i / angles
+            d = Vector((math.sin(a), -math.cos(a), 0))
+            need = (outer(Vector((0, 0, z)), d, 0.0) - Vector((0, 0, z))).length + (0.012 if share == 0 else 0.035) * s
+            if radii:
+                need = max(need, radii[-1][i] + 0.07 * s * (share - prev))
+            ring.append(need)
+        # Even it out round the body (a cloth doesn't follow every bulge), never pulling it inside one.
+        for _ in range(3):
+            ring = [max(ring[i], (ring[i - 1] + 2 * ring[i] + ring[(i + 1) % angles]) / 4) for i in range(angles)]
+        smooth_ring = [(ring[i - 1] + 2 * ring[i] + ring[(i + 1) % angles]) / 4 for i in range(angles)]
+        radii.append([max(a, c) for a, c in zip(ring, smooth_ring)])
+        prev = share
+    bm = bmesh.new()
+    shells = []
+    for offset in (0.0, -thick):
+        shell = []
+        for share, ring in zip(rows, radii):
+            z = top_z - length * share
+            shell.append([bm.verts.new((math.sin(2 * math.pi * i / angles) * (r + offset), -math.cos(2 * math.pi * i / angles) * (r + offset), z)) for i, r in enumerate(ring)])
+        shells.append(shell)
+    outside, inside = shells
+    colours = []
+    for row in range(len(rows) - 1):
+        hem = row == len(rows) - 2
+        for i in range(angles):
+            j = (i + 1) % angles
+            bm.faces.new((outside[row][i], outside[row + 1][i], outside[row + 1][j], outside[row][j]))
+            bm.faces.new((inside[row][j], inside[row + 1][j], inside[row + 1][i], inside[row][i]))
+            colours += [CLOTH_DARK if hem else CLOTH] * 2
+    for i in range(angles):
+        j = (i + 1) % angles
+        bm.faces.new((outside[-1][i], inside[-1][i], inside[-1][j], outside[-1][j]))
+        bm.faces.new((outside[0][j], inside[0][j], inside[0][i], outside[0][i]))
+        colours += [CLOTH_DARK, CLOTH]
+    m._add_bm(bm, colours, "pelvis")
+    return radii
+
+
+kilt_top, kilt_length = belt_y - 0.01 * s, 0.42 * s
+radii = skirt(kilt_top, kilt_length)
+for i, sign in ((0, 1), (16, -1)):
+    # (Front at angle 0, back at the half turn: from the skirt's own radius there, a little outside it.)
+    top = Vector((0, -sign * (radii[0][i] + 0.012 * s), kilt_top - 0.02 * s))
+    bottom = Vector((0, -sign * (radii[-1][i] + 0.016 * s), kilt_top - kilt_length - 0.03 * s))
     y = (bottom - top).normalized()
-    z = d - y * d.dot(y)
-    z.normalize()
+    z = Vector((0, -sign, 0))
+    z = (z - y * z.dot(y)).normalized()
     x = y.cross(z)
     rot = Matrix((x, y, z)).transposed().to_quaternion()
-    width = 2 * math.pi * (top - centre - Vector((0, 0, top.z))).length / 14 * 1.15
-    colour = CLOTH if i % 2 else shade(CLOTH, 0.94)
-    m.box((top + bottom) / 2, (width, length, 0.016 * s), colour, "pelvis", rot)
-    m.box(bottom - y * 0.03 * s + z * 0.004 * s, (width * 1.01, 0.05 * s, 0.018 * s), CLOTH_DARK, "pelvis", rot)
+    span = (bottom - top).length
+    m.box((top + bottom) / 2, (0.3 * s, span, 0.014 * s), shade(CLOTH, 0.78), "pelvis", rot)
+    m.box(bottom - y * 0.025 * s + z * 0.002 * s, (0.304 * s, 0.05 * s, 0.018 * s), CLOTH_DARK, "pelvis", rot)
 
 # Leather bracers on the forearms, strapped and studded.
 for side, sign in (("l", 1), ("r", -1)):
@@ -357,7 +399,7 @@ for side, sign in (("l", 1), ("r", -1)):
     for k in range(5):
         ang = math.radians(-60 + 30 * k)
         q = a.lerp(c, 0.5)
-        r = (ra + rc) / 2 + 0.02 * s
+        r = (ra + rc) / 2 + 0.014 * s  # (half sunk in the bracer, whose face is at + 0.012 s)
         m.sphere(q + Vector((0, -math.sin(ang), math.cos(ang))) * r, (0.012 * s,) * 3, BRASS, f"lowerarm_{side}", segments=6, rings=4)
 
 
@@ -399,9 +441,10 @@ def crescent(centre, side, radius, colours, bone):
     m._add_bm(bm, colour, bone, smooth=False)
 
 
-k = s * 1.25
-length = 1.15 * k
-head_at = -length * 0.88
+# (Short enough, and held forward enough, that the blades stay off the ground as the arm hangs and swings.)
+k = s * 1.15
+length = 0.86 * k
+head_at = -length * 0.84
 axe = [
     (m.tube, (Vector((0, 0.07 * k, 0)), Vector((0, -length, 0)), 0.024 * k, 0.022 * k, WOOD, "hand_r", 8)),
     (m.tube, (Vector((0, 0.06 * k, 0)), Vector((0, -0.12 * k, 0)), 0.028 * k, 0.028 * k, LEATHER, "hand_r", 8)),
@@ -412,8 +455,8 @@ axe = [
     (m.cone, (Vector((0, -length, 0)), Vector((0, -length - 0.14 * k, 0)), 0.03 * k, IRON, "hand_r", 4, 0.5, (0, 0, 1), False)),
 ]
 for side in (1, -1):
-    axe.append((crescent, (Vector((side * 0.035 * k, head_at, 0)), side, 0.175 * k, [IRON, STEEL], "hand_r")))
-m.weapon(axe, at(-(sx + p["arm"] + 0.06 * b["h"]), arm_y - 0.014 * b["h"], 0), tilt=-1.0)
+    axe.append((crescent, (Vector((side * 0.035 * k, head_at, 0)), side, 0.165 * k, [IRON, STEEL], "hand_r")))
+m.weapon(axe, at(-(sx + p["arm"] + 0.06 * b["h"]), arm_y - 0.014 * b["h"], 0), tilt=-0.34)
 
 m.finish(humanoid_actions(arm_down=72), bake={"size": 512, "ao": 0.2, "mottle": 0.14, "mottle_scale": 40, "dirt": 0.45})
 mesh = bpy.data.objects["minotaur"]

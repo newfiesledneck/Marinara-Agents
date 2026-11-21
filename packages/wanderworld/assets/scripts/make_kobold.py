@@ -46,14 +46,17 @@ p = {
     "hunch": 0.11,
     "hand": 1.55,
     "foot": 1.35,
-    "toes": 2.0,
+    "toes": 1.6,
     "fingers": 1.15,
     "claws": True,
+    # Standing on its toes: the knee forward, the ankle raised and back (a hock), a long foot.
+    "digitigrade": 1.0,
 }
 m = Model("kobold", resolution=0.0045, faces=6800)
 m.group("head", resolution=0.0038, faces=3800, bone="Head")
 m.group("tail", resolution=0.006, faces=1100, bone="pelvis")
-m.rig(humanoid_joints(p))
+J = humanoid_joints(p)
+m.rig(J)
 b = humanoid_body(m, p, {"skin": SCALES, "nails": 0x2A1A10})
 s, t, arm_y, sx, hx, chest_y = b["s"], b["t"], b["arm_y"], b["sx"], b["hx"], b["chest_y"]
 hips = p["leg"]
@@ -68,6 +71,11 @@ hz = hunch + 0.012
 def hd(x, dy, dz):
     """A point on the head, from its centre, scaled with it."""
     return (x * HS, hy + dy * HS, hz + dz * HS)
+
+
+def game(v):
+    """A Blender point back in the game's (x, up, forward)."""
+    return Vector((v.x, v.z, -v.y))
 
 
 def ell(c, across, up, depth, colour=SCALES, negative=False, group="body"):
@@ -184,11 +192,17 @@ for i in range(4):
     paint((0, up, fwd + 0.043), 0.019, 0.02, 0.02, BELLY)
 for sign in (1, -1):
     ell((sign * (sx * 0.5), arm_y - 0.002, hunch * 0.25), 0.04, 0.02, 0.03)
-for sign in (1, -1):
+for side, sign in (("l", 1), ("r", -1)):
     ell((sign * (sx + 0.005), arm_y + 0.006, 0.0), 0.03, 0.028, 0.03)
     ell((sign * (sx + p["arm"] * 0.66), arm_y + 0.004, 0.004), 0.04, 0.022, 0.022)
-    ell((sign * hx, (hips + b["knee"]) / 2, 0.006), 0.036, 0.048, 0.036)
-    ell((sign * hx, b["knee"] - 0.04, -0.014), 0.026, 0.036, 0.026)
+    # A lizard's leg: a heavy thigh, fullest behind, a lean shin back to the hock, a long foot.
+    hip, knee, ankle, toe = (game(J[f"{n}_{side}"]) for n in ("thigh", "calf", "foot", "ball"))
+    ell(tuple(hip.lerp(knee, 0.45) + Vector((0, 0.0, -0.004))), 0.031, 0.056, 0.044)
+    ell(tuple(hip.lerp(knee, 0.2) + Vector((0, 0.0, -0.018))), 0.028, 0.036, 0.032)
+    ell(tuple(knee.lerp(ankle, 0.3) + Vector((0, 0.0, -0.01))), 0.025, 0.034, 0.028)
+    cap(tuple(knee.lerp(ankle, 0.5)), tuple(ankle), 0.017)
+    cap(tuple(ankle), tuple(ankle.lerp(toe, 0.7)), 0.0155)
+    ball(tuple(ankle + Vector((0, 0.002, -0.008))), 0.016, DARK)
 SPINES = 8
 for i in range(SPINES):
     u = i / (SPINES - 1)

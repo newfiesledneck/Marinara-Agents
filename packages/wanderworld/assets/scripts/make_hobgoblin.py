@@ -40,14 +40,14 @@ p = {
     "leg": 0.86,
     "torso": 0.6,
     "neck": 0.08,
-    "shoulders": 0.42,
-    "hips": 0.2,
-    "arm": 0.6,
-    "thick": 1.2,
-    "chest": (0.18, 0.125),
-    "waist": (0.14, 0.105),
-    "hunch": 0.03,
-    "hand": 1.05,
+    "shoulders": 0.48,
+    "hips": 0.23,
+    "arm": 0.62,
+    "thick": 1.38,
+    "chest": (0.22, 0.15),
+    "waist": (0.18, 0.13),
+    "hunch": 0.04,
+    "hand": 1.15,
     "foot": 1.1,
 }
 m = Model("hobgoblin", resolution=0.007, faces=4600)
@@ -61,6 +61,7 @@ hunch = p["hunch"]
 hy = b["head_y"] + 0.075
 hz = hunch + 0.015
 elbow, wrist = p["arm"] * 0.52, p["arm"]
+bulk = t / 1.147  # how much heavier than the build the armour sizes were first set for
 
 
 def ell(c, across, up, depth, colour=SKIN, negative=False, group="body"):
@@ -249,7 +250,7 @@ def skirt(y_top, y_bottom, rx, rz, spans, lift, thick, colour, bone, nu=10, nv=4
         slab(outer, inner, lambda i, j: rim if rim is not None and j == nv - 1 else colour, bone)
 
 
-HS = 1.14  # the head's scale: its features are laid out for a head about 0.21 m tall
+HS = 1.18  # the head's scale: its features are laid out for a head about 0.21 m tall
 
 
 def hp(x, dy, dz):
@@ -272,37 +273,39 @@ def hcap(a, c, r, colour=SKIN, negative=False):
     cap(hp(*a), hp(*c), r * HS, colour, negative, group="head")
 
 
-# ── The head: a long, hard face; a broad skull, a heavy brow knotted over deep-set amber eyes, high
-# cheekbones, a broad flat nose, a square jaw, a firm mouth with two small tusks standing from the lower
-# lip, and black hair drawn up into a topknot with the sides shaved. ──
-hell((0, 0.025, -0.02), 0.079, 0.098, 0.1)
-hell((0, -0.03, 0.02), 0.076, 0.06, 0.08)
-hell((0, -0.075, 0.03), 0.068, 0.034, 0.07)
-hell((0, -0.1, 0.068), 0.034, 0.02, 0.028)
-hell((0, -0.058, 0.074), 0.048, 0.03, 0.034)
-hell((0, 0.028, 0.078), 0.074, 0.017, 0.026, BROW)
-hball((0, 0.017, 0.097), 0.011, BROW)
+# ── The head: a hard, stern soldier's face; a broad skull, a heavy brow ridge set on it over deep amber
+# eyes, lean cheeks under high cheekbones, a broad flat nose, a defined jaw, a straight, firm mouth with
+# two small tusks standing from the lower lip, and black hair drawn up into a topknot, the sides shaved. ──
+hell((0, 0.025, -0.025), 0.08, 0.098, 0.1)
+hell((0, -0.025, 0.02), 0.07, 0.055, 0.075)
+hell((0, -0.07, 0.035), 0.06, 0.035, 0.065)
+hell((0, -0.1, 0.073), 0.033, 0.02, 0.022)
+hell((0, -0.058, 0.078), 0.05, 0.028, 0.026)
+hell((0, 0.028, 0.068), 0.074, 0.017, 0.022, BROW)
+hball((0, 0.017, 0.088), 0.01, BROW)
 for sign in (1, -1):
-    hball((sign * 0.056, -0.07, -0.005), 0.03)
-    hcap((sign * 0.012, 0.021, 0.098), (sign * 0.056, 0.036, 0.081), 0.0115, BROWS)
-    hball((sign * 0.033, 0.004, 0.092), 0.0145, DARK, negative=True)
-    hell((sign * 0.034, -0.011, 0.088), 0.017, 0.006, 0.01, BROW)
-    hell((sign * 0.05, -0.006, 0.07), 0.024, 0.014, 0.02)
-    hball((sign * 0.02, -0.032, 0.1), 0.0105, BROW)
-    hball((sign * 0.0105, -0.036, 0.112), 0.0048, 0x241410, negative=True)
+    # The jaw's line, from below the ear to the chin.
+    hcap((sign * 0.062, -0.045, -0.025), (sign * 0.03, -0.098, 0.068), 0.016)
+    hcap((sign * 0.012, 0.022, 0.087), (sign * 0.056, 0.034, 0.072), 0.0105, BROWS)
+    hball((sign * 0.033, 0.004, 0.088), 0.0145, DARK, negative=True)
+    hell((sign * 0.034, -0.012, 0.08), 0.016, 0.0045, 0.0055, BROW)
+    hell((sign * 0.058, -0.012, 0.052), 0.02, 0.013, 0.018)
+    hball((sign * 0.02, -0.032, 0.097), 0.0105, BROW)
+    hball((sign * 0.0105, -0.036, 0.109), 0.0048, 0x241410, negative=True)
 # A broad flat nose: a short bridge and a wide, low tip.
-hcap((0, 0.008, 0.097), (0, -0.02, 0.107), 0.0105, BROW)
-hell((0, -0.028, 0.106), 0.027, 0.014, 0.014, BROW)
-# A firm mouth: a thin upper lip, a flattened lower one.
-hcap((-0.031, -0.058, 0.106), (0.031, -0.058, 0.106), 0.0048, 0x24120E, negative=True)
-hell((0, -0.05, 0.104), 0.034, 0.008, 0.011, LIPS)
-hell((0, -0.067, 0.101), 0.03, 0.008, 0.012, LIPS)
+hcap((0, 0.008, 0.092), (0, -0.02, 0.104), 0.0105, BROW)
+hell((0, -0.028, 0.103), 0.027, 0.014, 0.014, BROW)
+# A firm, straight mouth, its corners turned down a little; thin lips.
+for sign in (1, -1):
+    hcap((0, -0.06, 0.104), (sign * 0.042, -0.064, 0.096), 0.0034, 0x24120E, negative=True)
+hell((0, -0.053, 0.101), 0.04, 0.0055, 0.008, LIPS)
+hell((0, -0.067, 0.099), 0.036, 0.006, 0.009, LIPS)
 # Hair: a cap over the crown and the back of the skull, standing a little proud of it; the sides shaved.
 hell((0, 0.055, -0.035), 0.07, 0.086, 0.096, HAIR)
 
 for sign in (1, -1):
     # Amber eyes under the brow.
-    eye = hat(sign * 0.033, 0.004, 0.082)
+    eye = hat(sign * 0.033, 0.004, 0.079)
     m.sphere(eye, (0.0125 * HS, 0.0095 * HS, 0.0088 * HS), EYE, "Head", segments=10, rings=8)
     m.sphere(eye + Vector((0, -0.0093 * HS, 0)), (0.0042 * HS, 0.0018 * HS, 0.0052 * HS), 0x140A06, "Head", segments=8, rings=6)
     m.sphere(eye + Vector((sign * 0.003, -0.0103 * HS, 0.0028)), (0.002, 0.0011, 0.002), 0xFFF0DC, "Head", segments=6, rings=4)
@@ -310,7 +313,7 @@ for sign in (1, -1):
     base, tip = hat(sign * 0.076, 0.0, -0.012), hat(sign * 0.13, 0.055, -0.155)
     m.leaf(base, tip, 0.08 * HS, 0.013, SKIN, "Head", Vector((sign, 0.15, 0.25)), bend=(sign * 0.012, 0, 0.012), steps=8, cup=0.32, inner=shade(SKIN, 0.7))
     # Small tusks standing up from the lower lip.
-    root = hat(sign * 0.022, -0.066, 0.106)
+    root = hat(sign * 0.022, -0.066, 0.102)
     m.cone(root, root + Vector((sign * 0.002, -0.003, 0.023)), 0.0075, TUSK, "Head", segments=6)
 
 # The topknot: a knot bound in a gold band, its tail falling down the back.
@@ -321,13 +324,15 @@ m.strand([hat(*q) for q in tail], 0.02, 0.007, HAIR, "Head", segments=6)
 
 # ── The body under the armour: a deep chest, broad back and shoulders, corded forearms, solid thighs. ──
 for sign in (1, -1):
-    ell((sign * 0.075, arm_y + 0.03, hunch * 0.1 - 0.01), 0.07, 0.04, 0.05, MAIL)
-    ell((sign * 0.06, chest_y + 0.1, chest_z * 0.75), 0.07, 0.05, 0.04, MAIL)
-    ell((sign * 0.105, chest_y + 0.05, -0.02), 0.06, 0.12, 0.07, MAIL)
-    ell((sign * (sx + 0.015), arm_y + 0.005, 0.0), 0.06, 0.055, 0.055, MAIL)
-    ell((sign * (sx + elbow + 0.05), arm_y + 0.004, 0.004), 0.06, 0.04, 0.04)
-    ell((sign * (sx + elbow * 0.55), arm_y + 0.004, 0.012), elbow * 0.36, 0.05, 0.052, MAIL)
-    ell((sign * (hx + 0.005), (hips + knee) / 2, 0.01), 0.07, 0.11, 0.07, TROUSER)
+    ell((sign * 0.09, arm_y + 0.035, hunch * 0.1 - 0.01), 0.095, 0.055, 0.065, MAIL)
+    ell((sign * 0.08, chest_y + 0.11, chest_z * 0.72), 0.1, 0.065, 0.05, MAIL)
+    ell((sign * 0.14, chest_y + 0.05, -0.03), 0.08, 0.15, 0.09, MAIL)
+    ell((sign * 0.13, hips + 0.13, 0.0), 0.07, 0.11, 0.1, MAIL)
+    ell((sign * (sx + 0.02), arm_y + 0.006, 0.0), 0.08, 0.075, 0.075, MAIL)
+    ell((sign * (sx + elbow + 0.06), arm_y + 0.005, 0.004), 0.08, 0.052, 0.052)
+    ell((sign * (sx + elbow * 0.5), arm_y + 0.006, 0.014), elbow * 0.4, 0.06, 0.062, MAIL)
+    ell((sign * (hx + 0.01), (hips + knee) / 2 + 0.02, 0.015), 0.09, 0.15, 0.09, TROUSER)
+    ell((sign * hx, knee - 0.12, -0.03), 0.06, 0.09, 0.065, BOOT)
 
 # ── The armour. ──
 belt_y = hips + 0.1
@@ -336,7 +341,7 @@ top_y = arm_y - 0.03
 for centre in (0, 180):
     patch(around(belt_y - 0.01, top_y, centre - 54, centre + 54), 12, 9, 0.007, 0.006, lambda i, j: GOLD if i in (0, 11) else RED, "spine_03")
 # The hauberk's skirt down to the knees, split front and back for the legs.
-skirt(belt_y, knee + 0.02, 0.23, 0.16, ((22, 158), (-158, -22)), 0.008, 0.01, MAIL, "pelvis", rim=IRON)
+skirt(belt_y, knee + 0.02, 0.27 * bulk, 0.19 * bulk, ((22, 158), (-158, -22)), 0.008, 0.01, MAIL, "pelvis", rim=IRON)
 # The tabard's flaps over the splits, and iron tassets at the hips.
 panel(0, waist_z + 0.035, belt_y, 0.46, 0.24, 0.28, 0.008, RED, "pelvis", flare=0.05, bulge=0.012, trim=GOLD)
 panel(180, waist_z + 0.03, belt_y, 0.44, 0.24, 0.27, 0.008, RED, "pelvis", flare=0.05, bulge=0.012, trim=GOLD)
@@ -367,20 +372,20 @@ for side, sign in (("l", 1), ("r", -1)):
     centre = (sign * (sx + 0.03), arm_y + 0.005, 0.0)
     lean = Quaternion((0, 1, 0), sign * math.radians(28))
     for k, (e0, e1, grow) in enumerate(((8, 86, 1.0), (-18, 16, 1.06), (-42, -12, 1.12))):
-        shell(centre, (0.105 * grow, 0.09 * grow, 0.11 * grow), sign * 90 - 115, sign * 90 + 115, e0, e1, 0.01, lambda i, j, k=k: IRON if j == 0 and k else STEEL, bone, nu=14, nv=4 if k == 0 else 2, tilt=lean, rim=IRON, xf=lowered(sign))
+        shell(centre, (0.105 * grow * bulk, 0.09 * grow * bulk, 0.11 * grow * bulk), sign * 90 - 115, sign * 90 + 115, e0, e1, 0.01, lambda i, j, k=k: IRON if j == 0 and k else STEEL, bone, nu=14, nv=4 if k == 0 else 2, tilt=lean, rim=IRON, xf=lowered(sign))
     # Vambraces over the forearms from the elbow, strapped on.
-    a, c = at(sign * (sx + elbow + 0.015), arm_y, 0), at(sign * (sx + wrist - 0.015), arm_y, 0)
-    m.tube(a, c, 0.058, 0.045, STEEL, f"lowerarm_{side}", segments=12)
+    a, c = at(sign * (sx + elbow - 0.01), arm_y, 0), at(sign * (sx + wrist - 0.015), arm_y, 0)
+    m.tube(a, c, 0.066 * bulk, 0.047 * bulk, STEEL, f"lowerarm_{side}", segments=12)
     for f in (0.3, 0.75):
-        m.ring(a + (c - a) * f, 0.055 - 0.011 * f, 0.005, LEATHER, f"lowerarm_{side}", axis=(1, 0, 0), segments=12)
+        m.ring(a + (c - a) * f, (0.063 - 0.016 * f) * bulk, 0.005, LEATHER, f"lowerarm_{side}", axis=(1, 0, 0), segments=12)
     # Knee-high boots with a turned-down cuff, steel greaves strapped over their fronts, knee cops.
     calf = f"calf_{side}"
     patch(around(knee - 0.075, knee - 0.03, -180, 180, cx=sign * hx), 16, 1, 0.012, 0.012, shade(BOOT, 1.2), calf, reach=0.15)
-    patch(around(0.15, knee - 0.035, -52, 52, cx=sign * hx), 6, 4, 0.022, 0.007, STEEL, calf, rim=IRON, reach=0.15)
+    patch(around(0.15, knee - 0.035, -60, 60, cx=sign * hx), 6, 4, 0.022, 0.007, STEEL, calf, rim=IRON, reach=0.15)
     f = b["f"]
     m.sphere(at(sign * hx, 0.052, 0.03 * f), (0.066 * f, 0.105 * f, 0.056), BOOT, f"foot_{side}", segments=12, rings=7)
     m.sphere(at(sign * hx, 0.04, 0.125 * f), (0.062 * f, 0.072 * f, 0.042), BOOT, f"ball_{side}", segments=12, rings=6)
-    shell((sign * hx, knee + 0.005, 0.035), (0.085, 0.07, 0.07), -75, 75, -40, 70, 0.008, STEEL, calf, nu=8, nv=4, rim=IRON)
+    shell((sign * hx, knee + 0.005, 0.035 * bulk), (0.085 * bulk, 0.07, 0.07 * bulk), -75, 75, -40, 70, 0.008, STEEL, calf, nu=8, nv=4, rim=IRON)
 
 # ── The longsword: a wrapped grip, a brass pommel and cross, and a long straight blade with a fuller. ──
 k = s
