@@ -192,6 +192,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.32",
+          "date": "2026-11-20",
+          "notes": "- The goblin is remade from a second set of references: stockier and muscled, with a bigger head, wide ears, a scowl over red eyes, a broad nose and an underbite with fangs. It wears straps crossed on its chest, leather shoulder pads, bracers, a tattered red loincloth and wrapped shins. It's lighter too, about 12,500 vertices instead of 16,000.",
+          "highlight": false
+        },
+        {
           "version": "0.7.31",
           "date": "2026-11-20",
           "notes": "- The goblin is reworked from reference pictures, so it looks less like a cartoon. It has a smaller, longer head with deep-set amber eyes, a bony hooked nose, a crooked grin and big ears swept back, and a wiry, stooped body with ribs and collarbones showing. Its fingers and toes are long and clawed. The tunic is gone: it wears a leather loincloth, a strap across its chest, bracers, wrapped feet and a necklace of teeth.",
@@ -303,12 +309,6 @@
           "version": "0.7.13",
           "date": "2026-11-17",
           "notes": "- Animals and monsters have real attack animations now (a bite, a butt of the head, a slime's lunge, a dragon's breath) in place of the little hop forward.\n- Wild Shape for druids from level 2: take a beast's shape (chosen in Inventory → Sheet), with its HP, AC and bite, until its HP run out or you change back. You're seen as the beast.\n- You can swing, shoot and cast from the saddle. By turns, a horse carries you 18 metres a turn and a donkey 12.\n- Ready: hold your attack, and it goes off at the first creature to come within reach.\n- Great Weapon Fighting rerolls 1s and 2s on the weapon's dice, as the SRD has it.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.12",
-          "date": "2026-11-17",
-          "notes": "- Your companions fight by more of the rules. Their attack bonus and HP grow with their level (their card's, or yours). A rogue lands a Sneak Attack with someone beside the creature, a paladin a Divine Smite once a fight, a barbarian rages, a fighter takes a Second Wind below half HP, a monk strikes with bare hands, and those with Extra Attack strike twice from level 5.\n- Kinds of damage count for their weapons too.\n- Creatures' special attacks land on them: venom, and conditions such as prone, poisoned or grappled, with their effects.\n- With death saving throws on, a companion at 0 HP falls, dying, and rolls as you do. A healer among them, or your own healing spell aimed at them, gets them up. Nobody dies.\n- Their spells look like the spells they are.",
           "highlight": false
         }
       ]
