@@ -439,12 +439,103 @@ export const BLENDER_MODELS = {
     "fire_elemental",
     "water_elemental",
   ],
+  // The built-in body's hair styles (kit/generic/avatar/avatar-hair-index.json) and clothing
+  // (kit/fantasy/avatar/avatar-outfits-index.json): those made in Blender by ThatOneCan, and those fitted
+  // from MakeHuman's system assets (MAKEHUMAN_FITTED_CREDIT).
+  hair: ["parted", "buns", "shaved", "mohawk"],
+  clothing: [
+    "shirt",
+    "t_shirt",
+    "tank_top",
+    "crop_top",
+    "blouse",
+    "bikini_top",
+    "tunic",
+    "vest",
+    "corset",
+    "gambeson",
+    "dress",
+    "gown",
+    "robe",
+    "one_piece_swimsuit",
+    "cloak",
+    "long_coat",
+    "trousers",
+    "leggings",
+    "shorts",
+    "skirt",
+    "short_skirt",
+    "pleated_skirt",
+    "loincloth",
+    "swim_trunks",
+    "bikini_bottom",
+    "boots",
+    "tall_boots",
+    "shoes",
+    "sandals",
+    "gloves",
+    "hood",
+    "scarf",
+    "circlet",
+    "apron",
+    "belt_pouches",
+    "chainmail",
+    "scale_mail",
+    "brigandine",
+    "leather_armour",
+    "bikini_armour",
+    "barbarian_harness",
+    "plate_cuirass",
+    "pauldrons",
+    "bracers",
+    "gauntlets",
+    "tassets",
+    "greaves",
+    "sabatons",
+    "helm",
+    "full_helm",
+  ],
+  makehumanHair: ["short", "slicked", "crop", "fringe", "curly", "bob", "bob_angled", "long", "ponytail", "braid"],
+  makehumanClothing: [
+    "mh_tee",
+    "mh_long_tee",
+    "mh_longsleeve_tee",
+    "mh_denim_shirt",
+    "mh_plaid_shirt",
+    "mh_jacket",
+    "mh_suit_jacket",
+    "mh_suit_trousers",
+    "mh_jeans",
+    "mh_jeans_dark",
+    "mh_overalls",
+    "mh_workwear",
+    "mh_female_tee",
+    "mh_female_loose_tee",
+    "mh_female_sport_top",
+    "mh_female_blazer",
+    "mh_female_jeans",
+    "mh_female_leggings",
+    "mh_female_shorts",
+    "mh_female_skirt",
+    "mh_fedora",
+    "mh_fedora_cocked",
+    "mh_shoes_black",
+    "mh_shoes_brown",
+    "mh_boots_black",
+    "mh_trainers_white",
+    "mh_trainers_blue",
+    "mh_trainers_worn",
+  ],
 };
 /** The built-in body's credit, word for word wherever it's given. */
 export const MAKEHUMAN_CREDIT = "Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan";
-/** Model names as a list in words: "the goblin, the hill giant and the troll" without the repeated "the". */
+/** The credit for the hair and clothing fitted from MakeHuman's assets, word for word wherever it's given. */
+export const MAKEHUMAN_FITTED_CREDIT =
+  "Hair styles and clothing from MakeHuman's system assets (CC0), fitted in Blender by ThatOneCan";
+/** Model names as a list in words: "the goblin, the hill giant and the troll" without the repeated "the"
+ *  (MakeHuman's pieces without their "mh_"). */
 export const namesOf = (names) => {
-  const words = names.map((name) => name.replace(/_/gu, " "));
+  const words = names.map((name) => name.replace(/^mh_/u, "").replace(/_/gu, " "));
   return words.length > 1 ? `the ${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : `the ${words[0] ?? ""}`;
 };
 
@@ -493,6 +584,8 @@ export const CREDITS = [
     lines: [
       `${MAKEHUMAN_CREDIT}: the built-in body, and the giants' base body made from it.`,
       "MakeHuman system assets (skins, eyes, eyebrows, eyelashes): CC0.",
+      `${MAKEHUMAN_FITTED_CREDIT}: ${namesOf(BLENDER_MODELS.makehumanHair)} hair styles, and the modern clothes: ${namesOf(BLENDER_MODELS.makehumanClothing)}.`,
+      `Made in Blender by ThatOneCan for the built-in body: ${namesOf(BLENDER_MODELS.hair)} hair styles, and the clothing and armour: ${namesOf(BLENDER_MODELS.clothing)}.`,
     ],
   },
   {

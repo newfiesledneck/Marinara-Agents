@@ -16,11 +16,19 @@ import {
   BODIES,
   BUILT_IN_PRESETS,
   checkPresets,
+  CLOTH_PARTS,
+  CLOTH_SLOTS,
+  CLOTH_VARIANTS,
+  CLOTHES,
   COLOUR_FIELD,
+  DYES,
+  OUTFIT_PRESETS,
+  outfitLook,
   EXTRAS,
   EYE_PICTURES,
   FACE,
   SKINS,
+  SLOT_OF,
   TINT,
   HAIR_COLOURS,
   HAIRSTYLES,
@@ -551,7 +559,7 @@ export function createHud(root, handlers) {
         });
         row(label, select);
         rows.at(-1).append(square(key, colour, `Your own colour for the ${label.toLowerCase()}`));
-        says(what);
+        if (what) says(what);
         picker(key, colour, (picked) => onSet(picked, -1));
       };
       if (shape) {
@@ -799,14 +807,15 @@ export function createHud(root, handlers) {
           const style = document.createElement("select");
           style.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
           style.setAttribute("aria-label", "Hair style");
-          for (const [value, text] of HAIRSTYLES) style.append(new Option(text, value));
+          // (The styles the kit has for this body, shortest first.)
+          const have = avatar.choices?.hair ?? [];
+          for (const [value, text] of HAIRSTYLES)
+            if (have.includes(value) || value === shape.hair) style.append(new Option(text, value));
           style.value = shape.hair;
           style.addEventListener("change", () => set({ hair: style.value }));
           row("Style", style);
           says(
-            (avatar.choices?.hair ?? []).length > 1
-              ? "The hair style. None is bald."
-              : "The hair style. None is bald. (The new bodies' hair is still being made: they're bald until it comes.)",
+            "The hair style, shortest first. Unless chosen, it comes from their name. A hood or helm that covers the head hides it.",
           );
           colourRow(
             "Colour",
@@ -817,27 +826,112 @@ export function createHud(root, handlers) {
             (colour, at) => (at >= 0 ? set({ hairColour: at, hairTint: undefined }) : set({ hairTint: colour })),
           );
         });
-        // Clothes: the outfit pieces the kit has for this body, each on or off.
-        if (avatar.choices?.clothes?.length)
-          section("Clothes", () => {
-            says("Outfit pieces, each on or off. A piece hides the skin and underwear it covers.");
-            for (const piece of avatar.choices.clothes) {
-              const box = document.createElement("input");
-              box.type = "checkbox";
-              box.checked = shape.clothes.includes(piece);
-              box.style.cssText = "width:22px;height:22px;flex:0 0 auto;";
-              box.addEventListener("change", () => {
-                const clothes = box.checked
-                  ? [...shape.clothes, piece]
-                  : shape.clothes.filter((worn) => worn !== piece);
-                set({ clothes: clothes.length ? clothes : [] });
-              });
-              row(
-                piece.replace(/_/gu, " ").replace(/^./u, (first) => first.toUpperCase()),
-                box,
-              );
-            }
+        // Clothes and armour: a piece a slot (or none) of those the kit has for this body, each of its parts'
+        // colours, and the way it's worn (a cloak's hood). Unless chosen, the everyday clothes of their work.
+        const offered = avatar.choices?.clothes ?? [];
+        const ARMOUR = new Set(["armour", "plate", "shoulders", "arms", "thighs", "shins"]);
+        const pieceLabel = Object.fromEntries(CLOTHES.map(([piece, text]) => [piece, text]));
+        const order = CLOTHES.map(([piece]) => piece);
+        const partLabel = Object.fromEntries(CLOTH_PARTS);
+        // (Changing one slot keeps the rest as shown, their colours too, though they came from the name.)
+        const wearIn = (slot, piece) =>
+          set({
+            clothes: [...shape.clothes.filter((worn) => SLOT_OF[worn] !== slot), ...(piece === BARE ? [] : [piece])],
+            clothColours: chosen.clothes ? chosen.clothColours : shape.clothColours,
           });
+        const dye = (piece, part, colour) => {
+          const own = { ...chosen.clothColours?.[piece] };
+          if (colour === undefined) delete own[part];
+          else own[part] = colour;
+          const all = { ...chosen.clothColours, [piece]: own };
+          if (!Object.keys(own).length) delete all[piece];
+          set({ clothColours: Object.keys(all).length ? all : undefined });
+        };
+        const slotRows = (armour) => {
+          for (const [slot, name, what] of CLOTH_SLOTS) {
+            const here = offered
+              .filter((each) => each.slot === slot)
+              .sort((a, b) => order.indexOf(a.piece) - order.indexOf(b.piece)); // (as looks.js lists them)
+            if (ARMOUR.has(slot) !== armour || !here.length) continue;
+            const worn = here.find((each) => shape.clothes.includes(each.piece));
+            const select = document.createElement("select");
+            select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+            select.setAttribute("aria-label", name);
+            select.title = what;
+            select.append(new Option("None", BARE));
+            // (MakeHuman's modern clothes apart from the rest, when a slot has both.)
+            const groups = [
+              ["Fantasy", here.filter((each) => !each.piece.startsWith("mh_"))],
+              ["Modern", here.filter((each) => each.piece.startsWith("mh_"))],
+            ].filter(([, list]) => list.length);
+            for (const [title, list] of groups) {
+              const into = groups.length > 1 ? document.createElement("optgroup") : select;
+              into.label = title;
+              for (const each of list) into.append(new Option(pieceLabel[each.piece] ?? each.piece, each.piece));
+              if (into !== select) select.append(into);
+            }
+            select.value = worn?.piece ?? BARE;
+            select.addEventListener("change", () => wearIn(slot, select.value));
+            row(name, select);
+            says(what);
+            if (!worn) continue;
+            const ways = CLOTH_VARIANTS[worn.piece];
+            if (ways && worn.variants.length) {
+              pick(
+                ways.label,
+                "variants",
+                ways.ways.filter(([way]) => !way || worn.variants.includes(way)),
+                shape.variants[worn.piece] ?? "",
+                (way) => {
+                  const variants = { ...chosen.variants, [worn.piece]: way };
+                  if (!way) delete variants[worn.piece];
+                  return Object.keys(variants).length ? variants : undefined;
+                },
+              );
+              says(ways.says);
+            }
+            if (worn.parts.length)
+              says(`Colours for the ${pieceLabel[worn.piece]?.toLowerCase() ?? "piece"}: as made, a dye, or your own.`);
+            for (const [part, made] of worn.parts)
+              colourRow(
+                partLabel[part] ?? part,
+                "",
+                [[made, "As made"], ...DYES],
+                shape.clothColours[worn.piece]?.[part] ?? made,
+                `cloth:${worn.piece}:${part}`,
+                (colour, at) => dye(worn.piece, part, at === 0 ? undefined : colour),
+              );
+          }
+        };
+        if (offered.length) {
+          section("Clothes", () => {
+            const job = shape.job ? `${/^[aeiou]/u.test(shape.job) ? "an" : "a"} ${shape.job}'s` : null;
+            says(
+              `One piece a slot; each hides the skin and underwear it covers. Unless you choose, they wear everyday clothes for their work, from their name${job ? ` (now ${job})` : ""}.`,
+            );
+            const start = document.createElement("select");
+            start.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+            start.setAttribute("aria-label", "Start from an outfit");
+            start.append(new Option("Choose one…", ""));
+            start.append(new Option("Everyday clothes for their work", "everyday"));
+            for (const [i, preset] of OUTFIT_PRESETS.entries()) start.append(new Option(preset.name, `outfit:${i}`));
+            start.append(new Option("Nothing (underwear only)", BARE));
+            start.addEventListener("change", () => {
+              const none = { clothes: undefined, clothColours: undefined, variants: undefined };
+              if (start.value === "everyday") set(none);
+              else if (start.value === BARE) set({ ...none, clothes: [] });
+              else if (start.value)
+                set({ ...none, ...outfitLook(OUTFIT_PRESETS[Number(start.value.slice(7))], shape.body) });
+            });
+            row("Outfit", start);
+            says("Puts on a ready-made outfit for this body; change any slot below after.");
+            slotRows(false);
+          });
+          section("Armour", () => {
+            says("Armour goes over the clothes: mail over a gambeson, plate over mail.");
+            slotRows(true);
+          });
+        }
       }
       // The older kit's people (Quaternius): what they wear, for townsfolk with Settings → People →
       // "Townsfolk use the new bodies" off, or when the new bodies can't be loaded.

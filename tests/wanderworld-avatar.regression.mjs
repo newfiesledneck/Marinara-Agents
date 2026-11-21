@@ -7,16 +7,16 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { unpack } from "../packages/wanderworld/src/packed.js";
+import { arrayOf, unpack } from "../packages/wanderworld/src/packed.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Box3, Vector3 } from "three";
 
 const kitRoot = join(dirname(fileURLToPath(import.meta.url)), "../packages/wanderworld/kit");
-const extra = new Map(); // kit files made up here (an outfit piece), by their path under kit/
+const fetched = []; // every kit file asked for, by its path under kit/
 globalThis.fetch = async (url) => {
   const name = String(url).split("/kit/")[1];
-  if (extra.has(name)) return new Response(JSON.stringify(extra.get(name)), { status: 200 });
+  fetched.push(name);
   try {
     return new Response(await readFile(join(kitRoot, name)), { status: 200 });
   } catch {
@@ -84,26 +84,155 @@ for (const sex of ["male", "female"]) {
     );
 }
 
-// An outfit piece, made up here from the body's nails (the kit has none yet), to wear below. It's a plain
-// JSON file with base64 arrays, as the kit's files were before they were packed: both still load.
-{
-  const base64 = (value) =>
-    value instanceof Uint8Array
-      ? Buffer.from(value).toString("base64")
-      : Array.isArray(value)
-        ? value.map(base64)
-        : value && typeof value === "object"
-          ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, base64(item)]))
-          : value;
-  const nails = base64(files.male.meshes.find((mesh) => mesh.part === "nails"));
-  extra.set("fantasy/avatar/avatar-outfits.pack.png", {
-    pieces: {
-      vest: {
-        hides: ["torso", "underwear"],
-        male: { joints: files.male.joints, inverseBind: files.male.inverseBind, meshes: [nails] },
-      },
-    },
+// ── Hair and clothing: the bundles and their indexes cover every style and piece ──
+const readKit = async (path) => unpack(await readFile(join(kitRoot, path)));
+const hairIndex = JSON.parse(await readFile(join(kitRoot, "generic/avatar/avatar-hair-index.json"), "utf8"));
+const outfitIndex = JSON.parse(await readFile(join(kitRoot, "fantasy/avatar/avatar-outfits-index.json"), "utf8"));
+const bundles = {}; // a bundle's name → its document
+for (const entry of Object.values(hairIndex))
+  bundles[entry.bundle] ??= await readKit(`generic/avatar/${entry.bundle}.pack.png`);
+for (const entry of Object.values(outfitIndex))
+  bundles[entry.bundle] ??= await readKit(`fantasy/avatar/${entry.bundle}.pack.png`);
+const FACE_KEYS = ["jaw", "cheeks", "nose", "eyes", "ears_pointed"];
+/** Every mesh of a hair style or piece, each body and variant: [{ where, mesh, sex, part }]. */
+const meshesOf = (item, name) =>
+  [item, ...Object.values(item.variants ?? {})].flatMap((way) =>
+    ["male", "female"].flatMap((sex) =>
+      (way[sex]?.meshes ?? []).map((mesh) => ({ where: `${name} (${sex})`, mesh, sex, part: way[sex] })),
+    ),
+  );
+/** Each vertex's bone (the one with the most weight), and each key's moves (metres), of a packed mesh. */
+const bonesOf = (mesh, joints) => {
+  const index = arrayOf(Uint8Array, mesh.joints);
+  const weights = arrayOf(Uint8Array, mesh.weights);
+  return Array.from({ length: mesh.count }, (_, v) => {
+    let best = 0;
+    for (let c = 1; c < 4; c++) if (weights[v * 4 + c] > weights[v * 4 + best]) best = c;
+    return joints[index[v * 4 + best]];
   });
+};
+const movesOf = (mesh, morph) => {
+  const ids = arrayOf(mesh.count > 65535 ? Uint32Array : Uint16Array, morph.ids);
+  const delta = arrayOf(Int16Array, morph.delta);
+  return Array.from(ids, (id, i) => [
+    id,
+    Math.hypot(...[0, 1, 2].map((c) => (delta[i * 3 + c] / morph.q) * morph.d[c])),
+  ]);
+};
+/** For each body, which keys move its skin on each bone: bone → Set of keys. */
+const bodyReach = {};
+for (const sex of ["male", "female"]) {
+  const reach = (bodyReach[sex] = new Map());
+  for (const mesh of files[sex].meshes) {
+    const bones = bonesOf(mesh, files[sex].joints);
+    for (const [key, morph] of Object.entries(mesh.morphs ?? {}))
+      for (const [id, size] of movesOf(mesh, morph))
+        if (size > 0.0004) {
+          if (!reach.has(bones[id])) reach.set(bones[id], new Set());
+          reach.get(bones[id]).add(key);
+        }
+  }
+}
+/** Whether a hair or clothing mesh moves with each key only where the body does (more than a millimetre). */
+const followsBody = ({ mesh, sex, part }) => {
+  const bones = bonesOf(mesh, part.joints);
+  for (const [key, morph] of Object.entries(mesh.morphs ?? {}))
+    for (const [id, size] of movesOf(mesh, morph))
+      if (size > 0.001 && bodyReach[sex].has(bones[id]) && !bodyReach[sex].get(bones[id]).has(key))
+        return `${key} moves it ${(size * 1000).toFixed(1)} mm on ${bones[id]}`;
+  return "";
+};
+{
+  const styles = looks.HAIRSTYLES.map(([style]) => style).filter((style) => !["none", "afro"].includes(style));
+  assert.deepEqual(
+    Object.keys(hairIndex).sort(),
+    [...styles].sort(),
+    "every hair style the Look card names is in the kit",
+  );
+  assert.ok(
+    new Set(Object.values(hairIndex).map((entry) => entry.bundle)).size <= 2,
+    "the hair is in one or two bundles",
+  );
+  assert.deepEqual(
+    Object.keys(outfitIndex).sort(),
+    looks.CLOTHES.map(([piece]) => piece).sort(),
+    "every piece the Look card names is in the kit, and no other",
+  );
+  const outfitBundles = new Set(Object.values(outfitIndex).map((entry) => entry.bundle));
+  assert.ok(outfitBundles.size >= 6 && outfitBundles.size <= 10, `clothing in a few bundles (${outfitBundles.size})`);
+  for (const [style, entry] of Object.entries(hairIndex)) {
+    const item = bundles[entry.bundle].styles[style];
+    assert.deepEqual(Object.keys(item).sort(), [...entry.bodies].sort(), `${style}: the index says its bodies`);
+    for (const each of meshesOf(item, style)) {
+      const { where, mesh } = each;
+      assert.ok(
+        bundles[entry.bundle].pictures.some((picture) => picture.name === mesh.texture),
+        `${where}'s picture is in its bundle`,
+      );
+      // Hair moves with a key only where the body does: the head's keys on the head, the shoulders' where
+      // it lies on them. Short hair, all on the head, keeps only the head's.
+      assert.equal(followsBody(each), "", `${where} follows only the body`);
+      if (["short", "crop", "slicked", "fringe"].includes(style))
+        for (const key of ["bust", "chest", "hips", "waist", "belly", "shoulders"])
+          assert.ok(!mesh.morphs?.[key], `${where} doesn't move with ${key}`);
+    }
+  }
+  for (const [piece, entry] of Object.entries(outfitIndex)) {
+    const item = bundles[entry.bundle].pieces[piece];
+    assert.ok(item, `${piece} is in ${entry.bundle}`);
+    assert.equal(item.slot, looks.SLOT_OF[piece], `${piece}'s slot is the Look card's`);
+    assert.equal(entry.slot, looks.SLOT_OF[piece]);
+    const group = looks.CLOTH_SLOTS.find(([slot]) => slot === entry.slot)[3];
+    assert.equal(entry.bundle, `avatar-outfits-${group}`, `${piece} is bundled with its slot's group`);
+    for (const sex of entry.bodies) assert.ok(item[sex], `${piece} has the ${sex} body's mesh`);
+    for (const each of meshesOf(item, piece)) {
+      const { where, mesh } = each;
+      assert.ok(
+        bundles[entry.bundle].pictures.some((picture) => picture.name === mesh.texture),
+        `${where}'s picture is in its bundle`,
+      );
+      assert.equal(followsBody(each), "", `${where} follows only the body`);
+      assert.ok(mesh.partOf && mesh.parts.length, `${where} is one mesh, each vertex saying its part`);
+      for (const { part } of mesh.parts)
+        assert.ok(
+          looks.CLOTH_PARTS.some(([name]) => name === part),
+          `${where}: ${part} is named`,
+        );
+      // No face keys on what isn't worn on the head.
+      if (!["head", "brow", "neck"].includes(entry.slot))
+        for (const key of FACE_KEYS) assert.ok(!mesh.morphs?.[key], `${where} doesn't move with the face's ${key}`);
+    }
+  }
+  // Some pieces are made for one body only, and the Look card offers each body its own.
+  assert.deepEqual(outfitIndex.bikini_top.bodies, ["female"]);
+  assert.deepEqual(outfitIndex.mh_jeans.bodies, ["male"]);
+  // Key normals: each key's normal, as the game works it in at full strength, is about unit length and
+  // on the same side as the normal at rest (packing turned round those that flipped).
+  let worst = 0;
+  for (const bundle of Object.values(bundles))
+    for (const [name, item] of Object.entries(bundle.pieces ?? bundle.styles))
+      for (const { where, mesh } of meshesOf(item, name)) {
+        const normal = arrayOf(Int8Array, mesh.normal);
+        for (const [key, morph] of Object.entries(mesh.morphs ?? {})) {
+          const ids = arrayOf(mesh.count > 65535 ? Uint32Array : Uint16Array, morph.ids);
+          const turn = arrayOf(Int8Array, morph.normal);
+          for (let i = 0; i < ids.length; i++) {
+            const n = [0, 1, 2].map((c) => normal[ids[i] * 3 + c] / 127);
+            const m = [0, 1, 2].map((c) => n[c] + (turn[i * 3 + c] / 127) * morph.n[c]);
+            const length = Math.hypot(...m);
+            const facing = (m[0] * n[0] + m[1] * n[1] + m[2] * n[2]) / (length || 1);
+            worst = Math.max(worst, Math.abs(length - 1));
+            // (Never turned round: at most a right angle, give or take the int8 rounding.)
+            assert.ok(facing > -0.05, `${where}'s ${key} keeps its normals facing out (${facing.toFixed(3)})`);
+          }
+        }
+      }
+  assert.ok(worst < 0.15, `key normals stay about unit length (at most ${worst.toFixed(3)} off)`);
+  // The cloak's hood up is a variant of its own, hiding the hair; down is the usual.
+  const cloak = bundles[outfitIndex.cloak.bundle].pieces.cloak;
+  assert.deepEqual(outfitIndex.cloak.variants, ["hood_up"]);
+  assert.ok(cloak.variants.hood_up.male && cloak.variants.hood_up.female, "hood up for both bodies");
+  assert.ok(cloak.variants.hood_up.hides.includes("hair") && !cloak.hides.includes("hair"));
 }
 
 // ── Built in Node, standing like a person ───────────────────────────────────
@@ -117,15 +246,45 @@ const bone = (character, wanted) => {
 const bodyMesh = (character) => {
   let found = null;
   character.object.traverse((object) => {
-    if (object.isSkinnedMesh && object.geometry.attributes.color) found = object;
+    if (object.isSkinnedMesh && object.name === "body") found = object;
   });
   return found;
 };
+/** The hair and outfit meshes a person wears. */
+const piecesOn = (character) => {
+  const found = [];
+  character.object.traverse((object) => object.isSkinnedMesh && object.name === "piece" && found.push(object));
+  return found;
+};
+// (Bare, so the body is measured on its own: the clothes are tested below.)
 const EVERYDAY = {
   shape: Object.fromEntries([...looks.SHAPES, ...looks.FACE].map(([key]) => [key, 0])),
   limbs: { arms: 1, legs: 1, head: 1 },
   height: 1,
+  clothes: [],
 };
+
+// ── A piece loads only its own bundle, and a style only its own ─────────────
+{
+  fetched.length = 0;
+  const person = await createAvatar({ ...EVERYDAY, body: "male", hair: "short", clothes: ["t_shirt"] }, "Rowan");
+  const bundlesFetched = fetched.filter(
+    (name) => /\.pack\.png$/u.test(name) && !/avatar-(?:male|female)\./u.test(name),
+  );
+  assert.deepEqual(
+    bundlesFetched.sort(),
+    ["fantasy/avatar/avatar-outfits-tops.pack.png", "generic/avatar/avatar-hair-short.pack.png"],
+    "wearing a shirt and short hair fetches the tops and the short hair, nothing else",
+  );
+  assert.equal(piecesOn(person).length, 2, "the hair and the shirt, a mesh each");
+  fetched.length = 0;
+  await avatarChoices("female");
+  assert.ok(
+    !fetched.some((name) => /avatar-(?:outfits|hair)-.*\.pack\.png$/u.test(name)),
+    "the Look card reads only the indexes",
+  );
+  person.dispose();
+}
 for (const sex of ["male", "female"]) {
   const person = await createAvatar({ ...EVERYDAY, body: sex }, "Rowan");
   person.update(1 / 60, 0);
@@ -237,15 +396,154 @@ for (const sex of ["male", "female"]) {
   const male = await createAvatar({ ...EVERYDAY, body: "male" }, "Rowan");
   assert.deepEqual(male.avatar.underwear, { top: "none", bottom: "briefs" }, "he wears briefs unless said");
 
-  // The outfit piece made up above hides the torso's skin and the underwear.
-  assert.deepEqual((await avatarChoices("male")).clothes, ["vest"], "the kit's pieces are offered");
-  const dressed = await createAvatar({ ...EVERYDAY, body: "male", clothes: ["vest", "cloak"] }, "Rowan");
-  let meshes = 0;
-  dressed.object.traverse((object) => object.isSkinnedMesh && meshes++);
-  assert.equal(meshes, 2, "the body and the one piece the kit has");
+  // The Look card is offered each body's own pieces, with their slots, parts and colours, and variants.
+  const offered = { male: (await avatarChoices("male")).clothes, female: (await avatarChoices("female")).clothes };
+  for (const sex of ["male", "female"])
+    assert.deepEqual(
+      offered[sex].map(({ piece }) => piece).sort(),
+      Object.keys(outfitIndex)
+        .filter((piece) => outfitIndex[piece].bodies.includes(sex))
+        .sort(),
+      `the ${sex} body is offered the pieces made for it`,
+    );
+  assert.ok(
+    !offered.male.some(({ piece }) => piece === "bikini_top") &&
+      offered.female.some(({ piece }) => piece === "bikini_top"),
+  );
+  const cloakChoice = offered.male.find(({ piece }) => piece === "cloak");
+  assert.equal(cloakChoice.slot, "back");
+  assert.deepEqual(cloakChoice.variants, ["hood_up"]);
+  assert.deepEqual(
+    cloakChoice.parts.map(([part]) => part),
+    ["cloth", "lining", "metal"],
+    "the cloak's colour parts",
+  );
+  // A gambeson hides the torso's skin and the underwear; a piece the kit hasn't got for him is left off.
+  const dressed = await createAvatar({ ...EVERYDAY, body: "male", clothes: ["gambeson", "bikini_top"] }, "Rowan");
+  assert.equal(piecesOn(dressed).length, 1 + (dressed.avatar.hair === "none" ? 0 : 1), "the gambeson and the hair");
   const under = files.male.meshes.find((mesh) => mesh.part === "underwear");
   assert.ok(count(male) - count(dressed) > under.count * 3, "the piece hides the underwear and the skin under it");
   for (const person of [female, bare, male, dressed]) person.dispose();
+}
+
+// ── Clothing: the hood, colours, small pieces far off, presets and townsfolk ─
+{
+  // The cloak's hood: down or up, never both; up hides the hair.
+  const cloak = bundles[outfitIndex.cloak.bundle].pieces.cloak;
+  const down = await createAvatar({ ...EVERYDAY, body: "female", hair: "long", clothes: ["cloak"] }, "Rowan");
+  const up = await createAvatar(
+    { ...EVERYDAY, body: "female", hair: "long", clothes: ["cloak"], variants: { cloak: "hood_up" } },
+    "Rowan",
+  );
+  const counts = (person) =>
+    piecesOn(person)
+      .map((mesh) => mesh.geometry.attributes.position.count)
+      .sort();
+  const cloakDown = cloak.female.meshes[0].count;
+  const cloakUp = cloak.variants.hood_up.female.meshes[0].count;
+  assert.ok(counts(down).includes(cloakDown) && !counts(down).includes(cloakUp), "hood down: the cloak alone");
+  assert.deepEqual(counts(up), [cloakUp], "hood up: the hooded cloak alone, and the hair hidden under it");
+  assert.equal(piecesOn(down).length, 2, "hood down: the cloak and the hair");
+
+  // A part's colour: the look's for that part, as made for the rest; the same colours shared by all.
+  const cloth = await createAvatar(
+    { ...EVERYDAY, body: "male", clothes: ["tunic"], clothColours: { tunic: { cloth: 0xff0000 } } },
+    "Rowan",
+  );
+  const twin = await createAvatar(
+    { ...EVERYDAY, body: "male", clothes: ["tunic"], clothColours: { tunic: { cloth: 0xff0000 } } },
+    "Bram",
+  );
+  const plain = await createAvatar({ ...EVERYDAY, body: "male", clothes: ["tunic"] }, "Rowan");
+  const tunicOf = (person) => piecesOn(person).find((mesh) => mesh.geometry.attributes.color);
+  const tunic = bundles[outfitIndex.tunic.bundle].pieces.tunic.male.meshes[0];
+  const partOf = arrayOf(Uint8Array, tunic.partOf);
+  const clothAt = partOf.indexOf(tunic.parts.findIndex(({ part }) => part === "cloth"));
+  const trimAt = partOf.indexOf(tunic.parts.findIndex(({ part }) => part === "trim"));
+  const colours = tunicOf(cloth).geometry.attributes.color;
+  assert.ok(colours.getX(clothAt) > 0.99 && colours.getY(clothAt) < 0.01, "the cloth is the look's red");
+  assert.ok(
+    Math.abs(colours.getX(trimAt) - tunic.parts.find(({ part }) => part === "trim").colour[0]) < 0.01,
+    "the trim as made",
+  );
+  assert.equal(tunicOf(twin).geometry.attributes.color, colours, "the same colours are shared");
+  assert.notEqual(tunicOf(plain).geometry.attributes.color, colours);
+  assert.ok(tunicOf(cloth).material.vertexColors, "drawn by its vertex colours, in one draw");
+
+  // Small pieces aren't drawn far off; the rest are, in their distant version.
+  const { PerspectiveCamera } = await import("three");
+  const belted = await createAvatar({ ...EVERYDAY, body: "male", clothes: ["belt_pouches", "boots"] }, "Rowan");
+  belted.object.updateMatrixWorld(true);
+  const camera = new PerspectiveCamera();
+  camera.position.set(0, 1.5, 200);
+  const drawnFar = (mesh) => {
+    mesh.onBeforeRender(null, null, camera, mesh.geometry, mesh.material, null);
+    return mesh.geometry.drawRange.count;
+  };
+  const [belt, boots] = ["belt_pouches", "boots"].map((piece) =>
+    piecesOn(belted).find(
+      (mesh) =>
+        mesh.geometry.attributes.position.count ===
+        bundles[outfitIndex[piece].bundle].pieces[piece].male.meshes[0].count,
+    ),
+  );
+  assert.equal(drawnFar(belt), 0, "a belt isn't drawn far off");
+  assert.ok(drawnFar(boots) > 0, "boots are");
+
+  // Outfit presets: each one's pieces are made for that body, and putting it on wears them all.
+  const { OUTFIT_PRESETS, outfitLook } = looks;
+  assert.deepEqual(
+    OUTFIT_PRESETS.map((preset) => preset.name),
+    ["Peasant", "Townsperson", "Ranger", "Mage", "Knight", "Barbarian", "Beach", "Modern casual"],
+  );
+  for (const preset of OUTFIT_PRESETS)
+    for (const sex of ["male", "female"]) {
+      const outfit = outfitLook(preset, sex);
+      assert.deepEqual(checkLook(outfit), outfit, `${preset.name} is a checked look`);
+      for (const piece of outfit.clothes)
+        assert.ok(outfitIndex[piece].bodies.includes(sex), `${preset.name}'s ${piece} is made for the ${sex} body`);
+      const person = await createAvatar({ ...EVERYDAY, hair: "none", body: sex, ...outfit }, "Rowan");
+      assert.equal(
+        piecesOn(person).length,
+        outfit.clothes.length,
+        `${preset.name} on the ${sex} body wears every piece`,
+      );
+      person.dispose();
+    }
+  assert.equal(outfitLook(OUTFIT_PRESETS[2], "male").variants.cloak, "hood_up", "the ranger's hood is up");
+  // A preset of one's own keeps the clothes, colours and hood.
+  const [kept] = checkPresets([{ name: "Ranger", look: { body: "male", ...outfitLook(OUTFIT_PRESETS[2], "male") } }]);
+  assert.deepEqual(readPresetFile(presetFile(kept)), kept, "a preset's clothes read back as written");
+  for (const field of ["clothes", "clothColours", "variants"]) assert.ok(looks.PRESET_FIELDS.includes(field));
+
+  // Townsfolk: everyday clothes for their work, from the name, the same every time.
+  const { everydayClothes } = await import("../packages/wanderworld/src/avatar.js");
+  const jobs = new Set();
+  for (let i = 0; i < 200; i++) {
+    const name = `Townsfolk ${i}`;
+    const look = avatarLook(name);
+    assert.deepEqual(avatarLook(name).clothes, look.clothes, `${name} wears the same every time`);
+    assert.deepEqual(everydayClothes(name, look.body), everydayClothes(name, look.body));
+    assert.deepEqual(look.clothes, everydayClothes(name, look.body).clothes, "their work's clothes unless chosen");
+    assert.ok(look.clothes.length >= 2 && look.clothes.length <= 4, "a few pieces, cheap for a phone");
+    for (const piece of look.clothes)
+      assert.ok(outfitIndex[piece].bodies.includes(look.body), `${piece} fits ${look.body}`);
+    assert.deepEqual(checkLook({ clothes: look.clothes }).clothes, look.clothes, "one a slot");
+    jobs.add(look.job);
+  }
+  assert.deepEqual(
+    [...jobs].sort(),
+    ["farmer", "guard", "noble", "priest", "smith", "townsperson"],
+    "every work turns up",
+  );
+  const smith = [...Array(200).keys()].map((i) => `Townsfolk ${i}`).find((name) => avatarLook(name).job === "smith");
+  assert.ok(avatarLook(smith).clothes.includes("apron"), "a smith wears an apron");
+  assert.deepEqual(avatarLook(smith, "auto", { clothes: [] }).clothes, [], "nothing chosen is nothing on");
+  assert.equal(avatarLook(smith, "auto", { clothes: [] }).job, null);
+  assert.deepEqual(avatarLook(smith, "auto", { clothes: ["robe"] }).clothes, ["robe"], "a choice wins");
+  // Their looks otherwise stay as the name had them before clothes came.
+  assert.deepEqual(avatarLook(smith, "auto", { clothes: [] }).shape, avatarLook(smith).shape);
+  for (const person of [down, up, cloth, twin, plain, belted]) person.dispose();
 }
 
 // ── Looks: checked and clamped, older ones carried over ─────────────────────
@@ -270,6 +568,21 @@ for (const sex of ["male", "female"]) {
   });
   assert.equal(checkLook({ body: "female" }).body, "female");
   assert.deepEqual(checkLook({ underwear: { top: "none" } }), { underwear: { top: "none" } });
+  // Clothing: known pieces only, the first one a slot; known parts' colours; known variants of worn-able pieces.
+  assert.deepEqual(
+    checkLook({
+      clothes: ["shirt", "t_shirt", "jetpack", "cloak", "__proto__", "boots"],
+      clothColours: { shirt: { cloth: 0x112233, glitter: 0xffffff, trim: "red" }, jetpack: { cloth: 1 }, boots: 5 },
+      variants: { cloak: "hood_up", shirt: "hood_up", hood: "down" },
+    }),
+    {
+      clothes: ["shirt", "cloak", "boots"],
+      clothColours: { shirt: { cloth: 0x112233 } },
+      variants: { cloak: "hood_up" },
+    },
+  );
+  assert.deepEqual(checkLook({ clothes: [] }), { clothes: [] }, "nothing on is kept, not the name's clothes");
+  assert.deepEqual(checkLook({ clothes: "shirt", variants: { cloak: "" } }), {});
   // A look saved before the base avatar: its height, skin, hair and cloth colour carry over.
   const old = checkLook({ skin: 3, hair: "simpleparted", hairColour: 6, height: 1.05, colour: "clothes-blue" });
   assert.equal(old.hair, "parted");

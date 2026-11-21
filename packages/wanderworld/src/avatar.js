@@ -19,6 +19,8 @@ import {
   BARE,
   CLOTH_COLOURS,
   CLOTH_HEX,
+  DYES,
+  SLOT_OF,
   EYE_COLOURS,
   EYE_PICTURES,
   FACE,
@@ -100,6 +102,85 @@ const USUAL_LASHES = { male: [1, 3], female: [2, 4] };
 /** A name's age: mostly young adults, some middle-aged, a few old. */
 const ageOf = (roll) => (roll < 0.65 ? "young" : roll < 0.9 ? "middle" : "old");
 
+// ── Everyday clothes by work ──
+// Someone whose look doesn't choose their clothes wears what their work would have them in, from their
+// name: [job, how many in a hundred, { body: the outfits it picks from }], each outfit a few pieces (a
+// phone draws one more mesh for each). Their cloth is dyed from `dyes`, the rest stays as made.
+const EVERYDAY_DYES = [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((at) => DYES[at][0]);
+const RICH_DYES = [6, 7, 10, 12, 13, 2].map((at) => DYES[at][0]);
+const PLAIN_DYES = [0, 3, 4, 5].map((at) => DYES[at][0]);
+export const JOBS = [
+  {
+    job: "townsperson",
+    share: 40,
+    male: [
+      ["shirt", "vest", "trousers", "shoes"],
+      ["shirt", "tunic", "trousers", "boots"],
+    ],
+    female: [
+      ["dress", "shoes"],
+      ["blouse", "skirt", "shoes"],
+      ["blouse", "corset", "skirt", "shoes"],
+    ],
+  },
+  {
+    job: "farmer",
+    share: 22,
+    male: [["tunic", "trousers", "boots"]],
+    female: [
+      ["tunic", "skirt", "boots"],
+      ["blouse", "skirt", "boots"],
+    ],
+  },
+  {
+    job: "smith",
+    share: 8,
+    male: [["shirt", "trousers", "boots", "apron"]],
+    female: [["shirt", "trousers", "boots", "apron"]],
+  },
+  {
+    job: "guard",
+    share: 14,
+    male: [
+      ["gambeson", "trousers", "boots"],
+      ["shirt", "brigandine", "trousers", "boots"],
+    ],
+    female: [
+      ["gambeson", "trousers", "boots"],
+      ["shirt", "brigandine", "trousers", "boots"],
+    ],
+  },
+  {
+    job: "noble",
+    share: 8,
+    dyes: RICH_DYES,
+    male: [["shirt", "long_coat", "trousers", "tall_boots"]],
+    female: [
+      ["gown", "shoes"],
+      ["blouse", "long_coat", "skirt", "tall_boots"],
+    ],
+  },
+  { job: "priest", share: 8, dyes: PLAIN_DYES, male: [["robe", "sandals"]], female: [["robe", "sandals"]] },
+];
+
+/** The everyday clothes a name gives on `sex`'s body: { job, clothes, clothColours } (looks.js fields). */
+export function everydayClothes(name, sex) {
+  const random = rng(hashString(`${name || "wanderer"}:clothes`));
+  let roll = random() * JOBS.reduce((sum, job) => sum + job.share, 0);
+  const job = JOBS.find((each) => (roll -= each.share) < 0) ?? JOBS[0];
+  const outfits = job[sex] ?? job.male;
+  const clothes = outfits[Math.floor(random() * outfits.length)];
+  const dyes = job.dyes ?? EVERYDAY_DYES;
+  const clothColours = {};
+  for (const piece of clothes) {
+    const dye = dyes[Math.floor(random() * dyes.length)];
+    // (Leather, metal and the like stay as made; the cloth, or a gown's bodice, takes the dye.)
+    if (!["apron", "boots", "shoes", "tall_boots", "sandals"].includes(piece))
+      clothColours[piece] = piece === "gown" ? { bodice: dye, cloth: dye } : { cloth: dye };
+  }
+  return { job: job.job, clothes, clothColours };
+}
+
 const clamp = (value, least, most) => Math.max(least, Math.min(most, value));
 const mixHex = (a, b, t) => {
   const channel = (shift) => Math.round(((a >> shift) & 255) * (1 - t) + ((b >> shift) & 255) * t);
@@ -161,6 +242,14 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
   const usualBrows = USUAL_BROWS[sex][Math.floor(more() * USUAL_BROWS[sex].length)];
   const usualLashes = USUAL_LASHES[sex][Math.floor(more() * USUAL_LASHES[sex].length)];
   const hairColour = chosen.hairTint ?? HAIR_COLOURS[chosen.hairColour ?? usualHairColour][0];
+  // Clothes: the look's (an empty list is nothing on), else the everyday clothes of the name's work.
+  const everyday = everydayClothes(name, sex);
+  const clothes = chosen.clothes ?? everyday.clothes;
+  const clothColours = {};
+  for (const piece of clothes) {
+    const dyed = { ...(chosen.clothes ? {} : everyday.clothColours[piece]), ...chosen.clothColours?.[piece] };
+    if (Object.keys(dyed).length) clothColours[piece] = dyed;
+  }
   const colours = {
     skin,
     eyes: chosen.colours?.eyes ?? usualEyes,
@@ -188,7 +277,10 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
       top: chosen.underwear?.top ?? (underwearByDefault && sex === "female" ? "bra" : BARE),
       bottom: chosen.underwear?.bottom ?? (underwearByDefault ? "briefs" : BARE),
     },
-    clothes: chosen.clothes ?? [],
+    clothes,
+    clothColours,
+    variants: chosen.variants ?? {},
+    job: chosen.clothes ? null : everyday.job, // (whose everyday clothes they wear, if the look doesn't say)
     age: chosen.age ?? usualAge,
     skin: kind,
     brows: chosen.brows ?? usualBrows,
@@ -458,39 +550,96 @@ function eyeUvsOf(kit, picture) {
   return kit.eyeUvs.get(picture);
 }
 
-const parts = new Map(); // a hair style's or outfit piece's meshes, made once: "hair:long:male" → [{ mesh, geometry, morphs }]
-/** A hair style's or outfit piece's meshes, decoded once and shared. */
-function partMeshes(key, part) {
+// ── Hair styles and outfit pieces: bundles, loaded when someone wears one ──
+// The kit keeps them in a few bundles (scripts/build-wanderworld-people.mjs --avatar: the short and long
+// hair; outfit pieces by their slots' group, looks.js CLOTH_SLOTS), each with its pictures inside, and an
+// index of which bundle has which. Only a bundle someone wears from is fetched, once, and shared.
+const HAIR_INDEX = "avatar-hair-index.json";
+const OUTFIT_INDEX = "avatar-outfits-index.json";
+/** A kit index ({} if the kit hasn't got it). */
+const indexOf = (file) => load(file).catch(() => ({}));
+
+/** Hair style `style` for `sex` from its bundle: { part, pictures }, or null if the kit hasn't got it. */
+async function hairOf(style, sex) {
+  const entry = (await indexOf(HAIR_INDEX))[style];
+  if (!entry?.bodies.includes(sex)) return null;
+  const bundle = await load(`${entry.bundle}.pack.png`).catch(() => null);
+  const part = bundle?.styles?.[style]?.[sex];
+  return part ? { key: `hair:${style}:${sex}`, part, pictures: bundle.pictures } : null;
+}
+
+/**
+ * Outfit piece `piece` for `sex` from its bundle, worn the usual way or as `variant` (a cloak's hood up),
+ * never both: { key, piece, slot, layer, hides, part, pictures }, or null if the kit hasn't got it.
+ */
+async function pieceOf(piece, sex, variant = "") {
+  const entry = (await indexOf(OUTFIT_INDEX))[piece];
+  if (!entry?.bodies.includes(sex)) return null;
+  const bundle = await load(`${entry.bundle}.pack.png`).catch(() => null);
+  const data = bundle?.pieces?.[piece];
+  const way = data?.variants?.[variant]?.[sex] ? data.variants[variant] : data;
+  if (!way?.[sex]) return null;
+  const shown = way === data ? "" : variant;
+  return {
+    key: `outfit:${piece}:${sex}:${shown}`,
+    piece,
+    slot: data.slot,
+    layer: data.layer ?? 0,
+    hides: way.hides ?? [],
+    part: way[sex],
+    pictures: bundle.pictures,
+  };
+}
+
+/** Pieces in these slots are small enough to leave out far from the camera (kit.js drawDistant). */
+const SMALL_SLOTS = new Set(["brow", "neck", "waist", "arms"]);
+
+const parts = new Map(); // a hair style's or outfit piece's meshes, made once: "hair:long:male" → [{ mesh, geometry, morphs, colours }]
+/** A hair style's or outfit piece's meshes, decoded once and shared; `small` ones aren't drawn far off. */
+function partMeshes(key, part, small = false) {
   if (!parts.has(key))
     parts.set(
       key,
       part.meshes.map((mesh) => {
         const geometry = geometryOf(mesh);
         geometry.userData.shared = true;
+        if (small) {
+          const full = geometry.userData.distant?.full ?? { start: 0, count: geometry.index.count };
+          geometry.userData.distant = { full, far: { start: full.start, count: 0 } };
+        }
         return {
           mesh,
           geometry,
           morphs: Object.fromEntries(Object.entries(morphsOf(mesh)).map(([k, morph]) => [k, [morph]])),
+          colours: new Map(), // a piece's part colours (by vertex), shared by everyone wearing it in them
         };
       }),
     );
   return parts.get(key);
 }
 
-/** Which hair styles, underwear and outfit pieces the kit has for `sex`: what the Look card offers. */
+/**
+ * Which hair styles, underwear and outfit pieces the kit has for `sex`: what the Look card offers. Each
+ * piece as { piece, slot, parts: [[part, its colour as made (0xRRGGBB)]], variants }. Only the indexes
+ * are read, not the bundles.
+ */
 export async function avatarChoices(sex) {
   const kit = await bodyKit(sex);
-  const hair = await load("avatar-hair.pack.png").catch(() => null);
-  const outfits = await load("avatar-outfits.pack.png").catch(() => null);
+  const [hair, outfits] = await Promise.all([indexOf(HAIR_INDEX), indexOf(OUTFIT_INDEX)]);
   return {
     tops: kit.tops,
     bottoms: kit.bottoms,
     brows: kit.brows,
     lashes: kit.lashes,
-    hair: HAIRSTYLES.map(([style]) => style).filter((style) => style === BARE || hair?.styles?.[style]?.[sex]),
-    clothes: Object.entries(outfits?.pieces ?? {})
-      .filter(([, piece]) => piece[sex])
-      .map(([piece]) => piece),
+    hair: HAIRSTYLES.map(([style]) => style).filter((style) => style === BARE || hair[style]?.bodies.includes(sex)),
+    clothes: Object.entries(outfits)
+      .filter(([piece, entry]) => entry.bodies.includes(sex) && SLOT_OF[piece])
+      .map(([piece, entry]) => ({
+        piece,
+        slot: entry.slot,
+        parts: entry.parts[sex] ?? [],
+        variants: entry.variants ?? [],
+      })),
   };
 }
 
@@ -505,10 +654,10 @@ export async function avatarChoices(sex) {
 export async function createAvatar(look = {}, name = "", gender = "auto") {
   const filled = avatarLook(name, gender, look);
   const sex = filled.body;
-  const [kit, hairFile, outfitFile] = await Promise.all([
+  const [kit, hair, worn] = await Promise.all([
     bodyKit(sex),
-    filled.hair === BARE ? null : load("avatar-hair.pack.png").catch(() => null),
-    filled.clothes.length ? load("avatar-outfits.pack.png").catch(() => null) : null,
+    filled.hair === BARE ? null : hairOf(filled.hair, sex),
+    Promise.all(filled.clothes.map((piece) => pieceOf(piece, sex, filled.variants[piece]))),
   ]);
   const { root, bones } = rigOf(kit.file);
   const weights = keyWeights(filled, sex);
@@ -564,10 +713,11 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     return mesh;
   };
 
-  // Outfit pieces first: what they cover is hidden on the body.
+  // Outfit pieces first (innermost first, by their layer): what they cover is hidden on the body, and a
+  // hood or helm that hides the hair hides it.
   const hides = new Set();
-  const pieces = filled.clothes.map((piece) => outfitFile?.pieces?.[piece]).filter((piece) => piece?.[sex]);
-  for (const piece of pieces) for (const word of piece.hides ?? []) hides.add(word);
+  const pieces = worn.filter(Boolean).sort((a, b) => a.layer - b.layer);
+  for (const piece of pieces) for (const word of piece.hides) hides.add(word);
 
   // The body: its shape keys worked in, each vertex coloured by its part. A skin picture (of their age) or
   // an eye picture is drawn white, in place of the model's own tinted texture, loaded the first time
@@ -642,41 +792,73 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     for (const material of materials) material.dispose();
   });
 
-  // Hair and outfit pieces: shared meshes, or each person's own when they have shape keys to follow.
-  const wearPart = (key, part, colourFor) => {
-    for (const { mesh, geometry: shared, morphs } of partMeshes(key, part)) {
+  // Hair and outfit pieces: shared meshes, or each person's own when they have shape keys to follow. An
+  // outfit piece is one mesh coloured by vertex, each of its parts (cloth, trim, metal…) the look's colour
+  // or as made, those colours shared by everyone wearing the same.
+  const wearPart = ({ key, part, pictures, slot, piece }, colourFor) => {
+    for (const { mesh, geometry: shared, morphs, colours } of partMeshes(key, part, SMALL_SLOTS.has(slot))) {
       let geometry = shared;
-      if (Object.keys(morphs).length) {
-        const moved = shaped(shared.attributes.position.array, shared.attributes.normal.array, morphs, weights);
+      let colour = null;
+      if (mesh.partOf) {
+        const hexes = mesh.parts.map(({ part: name }) => filled.clothColours[piece]?.[name] ?? null);
+        const said = hexes.join();
+        if (!colours.has(said)) {
+          const tints = mesh.parts.map(({ colour: made }, i) =>
+            hexes[i] === null ? new Color().setRGB(...made) : new Color().setHex(hexes[i]),
+          );
+          const partOf = view(Uint8Array, mesh.partOf);
+          const values = new Uint16Array(partOf.length * 3);
+          partOf.forEach((at, v) => {
+            values[v * 3] = Math.round(tints[at].r * 65535);
+            values[v * 3 + 1] = Math.round(tints[at].g * 65535);
+            values[v * 3 + 2] = Math.round(tints[at].b * 65535);
+          });
+          colours.set(said, new BufferAttribute(values, 3, true));
+        }
+        colour = colours.get(said);
+      }
+      const keyed = Object.keys(morphs).length > 0;
+      if (keyed || colour) {
+        // (Its own geometry over the shared data: its positions and normals shaped, its colours.)
+        const moved = keyed
+          ? shaped(shared.attributes.position.array, shared.attributes.normal.array, morphs, weights)
+          : null;
+        const borrowed = ["uv", "skinIndex", "skinWeight", ...(keyed ? [] : ["position", "normal"])];
         geometry = new BufferGeometry();
-        geometry.setAttribute("position", new BufferAttribute(moved.position, 3));
-        geometry.setAttribute("normal", new BufferAttribute(moved.normal, 3));
-        for (const attribute of ["uv", "skinIndex", "skinWeight"])
+        if (moved) {
+          geometry.setAttribute("position", new BufferAttribute(moved.position, 3));
+          geometry.setAttribute("normal", new BufferAttribute(moved.normal, 3));
+        }
+        for (const attribute of borrowed)
           if (shared.attributes[attribute]) geometry.setAttribute(attribute, shared.attributes[attribute]);
+        if (colour) {
+          geometry.setAttribute("color", colour);
+          borrowed.push("color");
+        }
         geometry.setIndex(shared.index);
         geometry.userData.distant = shared.userData.distant;
         geometry.boundingBox = shared.boundingBox;
         geometry.boundingSphere = shared.boundingSphere;
         const own = geometry;
         owned.push(() => {
-          for (const attribute of ["uv", "skinIndex", "skinWeight"]) own.deleteAttribute(attribute);
+          for (const attribute of borrowed) own.deleteAttribute(attribute);
           own.setIndex(null);
           own.dispose();
         });
       }
       const material = new MeshLambertMaterial({
-        map: mesh.texture ? texture(mesh.texture) : null,
+        map: mesh.texture ? texture(mesh.texture, pictures) : null,
         color: colourFor(mesh),
+        vertexColors: !!colour,
         ...(mesh.alpha ? { alphaTest: 0.5, side: DoubleSide } : {}),
       });
       owned.push(() => material.dispose());
       bind(geometry, material, part, kit.file);
     }
   };
-  const hair = hairFile?.styles?.[filled.hair]?.[sex];
-  if (hair) wearPart(`hair:${filled.hair}:${sex}`, hair, () => new Color(filled.hairColour));
-  for (const [i, piece] of pieces.entries())
-    wearPart(`outfit:${filled.clothes[i]}:${sex}`, piece[sex], (mesh) => new Color().setRGB(...mesh.colour));
+  // (A hood or helm that hides the hair leaves it off.)
+  if (hair && !hides.has("hair")) wearPart(hair, () => new Color(filled.hairColour));
+  for (const piece of pieces) wearPart(piece, (mesh) => (mesh.partOf ? 0xffffff : new Color().setRGB(...mesh.colour)));
 
   const character = humanoidFromSkeleton(root, humanoidNodes(bones), () => filled.height, filled.seed);
   const disposeRest = character.dispose;
