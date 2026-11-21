@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.48 — 2026-11-20
+
+- With the Engine on HTTPS, the server part calls it by the name on its certificate, so its AI and save calls work there too (certificate checks stay on, and calls never leave this machine).
+- The SRD's paralyzed and unconscious rules are played in full: they fail Strength and Dexterity saves, and a hit from within 1.5 m is a critical hit.
+- Nothing is saved over a world another browser has saved since: it's loaded again from the Engine's copy, with a line saying why.
+
 ## 0.7.47 — 2026-11-20
 
 - Your party moves about a fight by how they fight (melee closes in, archers keep their distance, casters stay back), follows more loosely day to day (Settings → People → Your party: close, normal or loose), and wanders a little when you stand still.

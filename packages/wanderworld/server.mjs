@@ -28,6 +28,9 @@
 // capability runtime has no image or connection-list method.
 
 import { createHash } from "node:crypto";
+import { request as httpsRequest } from "node:https";
+import { isIP } from "node:net";
+import { checkServerIdentity } from "node:tls";
 
 const PACKAGE_ID = "wanderworld";
 const ORIGIN_KIND = "scene-origin";
@@ -1731,6 +1734,23 @@ export function checkSceneContext(raw) {
 }
 
 // ── The Engine's own REST API, over loopback (as Quartermaster's engineApiFetch) ─────────────────
+// Every call goes to 127.0.0.1 and nowhere else. Over HTTPS (SSL_CERT and SSL_KEY set) the Engine's
+// certificate is for the name the browser reaches it by, not for 127.0.0.1, so the call gives that name
+// (the Host of the last request to these routes) as the TLS server name and the Host header, and checks
+// the certificate against it. Node's certificate checks stay on: a certificate Node doesn't trust (a
+// self-signed one) still needs NODE_EXTRA_CA_CERTS, as for any Node program.
+
+/** The name the Engine was last reached by over these routes (`hostNameOf` a request's Host). */
+let engineName = null;
+
+/** The host name or IP address in a Host header, without its port; null for anything else. */
+export function hostNameOf(host) {
+  const match = /^(?:\[([0-9a-f:.]+)\]|([a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?))(?::\d{1,5})?$/iu.exec(
+    typeof host === "string" ? host : "",
+  );
+  if (!match) return null;
+  return match[2] ? match[2].toLowerCase() : isIP(match[1]) === 6 ? match[1].toLowerCase() : null;
+}
 
 function engineBaseUrl(env) {
   const port = Number.parseInt(env.PORT, 10);
@@ -1738,9 +1758,39 @@ function engineBaseUrl(env) {
   return `${scheme}://127.0.0.1:${Number.isFinite(port) ? port : 7860}`;
 }
 
-async function engineFetch(path, options = {}) {
+/** An HTTPS call to 127.0.0.1 that names the Engine `name`: its certificate must be valid for that name. */
+function fetchByName(url, name, { method = "GET", headers = {}, body } = {}) {
+  const { port, pathname, search } = new URL(url);
+  return new Promise((resolve, reject) => {
+    const request = httpsRequest(
+      {
+        host: "127.0.0.1",
+        port,
+        path: `${pathname}${search}`,
+        method,
+        headers: { ...headers, host: `${isIP(name) === 6 ? `[${name}]` : name}:${port}` },
+        ...(isIP(name) ? {} : { servername: name }), // (SNI takes names only)
+        checkServerIdentity: (_host, cert) => checkServerIdentity(name, cert),
+      },
+      (response) => {
+        const chunks = [];
+        response.on("data", (chunk) => chunks.push(chunk));
+        response.on("error", reject);
+        response.on("end", () => {
+          const status = response.statusCode ?? 502;
+          resolve(new Response([204, 304].includes(status) ? null : Buffer.concat(chunks), { status }));
+        });
+      },
+    );
+    request.on("error", reject);
+    request.end(body);
+  });
+}
+
+export async function engineFetch(path, options = {}, { env = process.env, name = engineName } = {}) {
   if (typeof fetch !== "function") throw new Error("No fetch available on this Engine's Node");
-  const response = await fetch(`${engineBaseUrl(process.env)}${path}`, options);
+  const url = `${engineBaseUrl(env)}${path}`;
+  const response = url.startsWith("https:") && name ? await fetchByName(url, name, options) : await fetch(url, options);
   if (!response.ok) {
     let detail = "";
     try {
@@ -2177,7 +2227,16 @@ export async function activate(context) {
   };
 
   const releaseRoutes = await api.registerPrivilegedRoutes(
-    async (routes) => {
+    async (engineRoutes) => {
+      // Each request notes the name the Engine was reached by, for engineFetch over HTTPS.
+      const routes = { ...engineRoutes };
+      for (const method of ["get", "post", "delete"]) {
+        routes[method] = (path, handler) =>
+          engineRoutes[method](path, (request, reply) => {
+            engineName = hostNameOf(request?.headers?.host) ?? engineName;
+            return handler(request, reply);
+          });
+      }
       routes.get("/status", async () => ({
         server: true,
         scenes: scenesOn,

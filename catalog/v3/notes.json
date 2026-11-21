@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.48",
+          "date": "2026-11-20",
+          "notes": "- With the Engine on HTTPS, the server part calls it by the name on its certificate, so its AI and save calls work there too (certificate checks stay on, and calls never leave this machine).\n- The SRD's paralyzed and unconscious rules are played in full: they fail Strength and Dexterity saves, and a hit from within 1.5 m is a critical hit.\n- Nothing is saved over a world another browser has saved since: it's loaded again from the Engine's copy, with a line saying why.",
+          "highlight": false
+        },
+        {
           "version": "0.7.47",
           "date": "2026-11-20",
           "notes": "- Your party moves about a fight by how they fight (melee closes in, archers keep their distance, casters stay back), follows more loosely day to day (Settings → People → Your party: close, normal or loose), and wanders a little when you stand still.\n- When you sit or lie down, companions take a seat nearby, sit on the ground, or ask to squeeze in beside you, up to four on a log, bench or bed. Tents and beds have Lie down as well as Sleep.\n- Abilities of your own in the sheet: uses that come back by rest or day, dice, a save; used from the fight bar or /use. Companions can have them too.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.29",
           "date": "2026-11-20",
           "notes": "- The goblin is now a model made in Blender: one smooth body instead of shapes stuck together, a face with its eyes set in sockets, a hooked nose and fangs, a ragged tunic and its scimitar, rigged to the people's skeleton so it still moves with their animations. The other monsters follow; until then they're built in code as before.\n- For contributors: models are made by Blender scripts in packages/wanderworld/assets/scripts, run from the command line, and packed into the kit. AGENTS.md in the package says how.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.28",
-          "date": "2026-11-20",
-          "notes": "- Seven more monsters of Wanderworld's own: hobgoblins in mail with sword and shield, bugbears with morningstars, orcs with greataxes, gnolls with spears, kobolds with daggers, lizardfolk with clubs and spiked shields, and ghouls, who come out at night. Each has its own switch in Menu → Settings → Creatures and the SRD's numbers in a fight.\n- The goblin, ogre and minotaur now carry their weapons: a scimitar, a spiked club and a double axe. A monster's weapon swings with its arm.\n- An orc in your lore is now an orc rather than a puglin, and lizardmen are lizardfolk.",
           "highlight": false
         }
       ]

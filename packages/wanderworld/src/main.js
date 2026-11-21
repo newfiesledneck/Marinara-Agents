@@ -264,7 +264,9 @@ import {
   conditionChips,
   conditionFor,
   conditionMods,
+  critsClose,
   deathSave,
+  failsSave,
   hurtConditions,
   lift,
   tickConditions,
@@ -967,20 +969,31 @@ async function syncSaves() {
   }
 }
 
-/** Saves another browser wrote (store.js `onChange`): the world being played, when it's one of them, is stale. */
+/**
+ * Saves another browser wrote (store.js `onChange`, or a save of this one the Engine refused as older than
+ * its own): the world being played, when it's one of them, is stale. Nothing saves it (saves.js `stale`)
+ * and it's loaded again from the Engine's copy at once, or when the menu closes if it's open (`resume`).
+ */
 function savesChanged(keys) {
   const kept = core.save && keys.includes(WORLD_KEY(core.save.id)) ? core.saves.read(core.save.id) : null;
   if (!core.world || !kept) return;
   core.staleWorld = kept.id;
-  if (!core.paused) {
-    playWorld(kept.id);
-    core.hud?.setNotice("This world was played in another browser since, so it was loaded from there.");
-  }
+  if (!core.paused) reloadStale();
 }
+/** The world being played loaded again from the Engine's newer copy (savesChanged). */
+function reloadStale() {
+  if (core.mode === "talk") endTalk();
+  playWorld(core.save.id);
+}
+const STALE_NOTICE = "This world was saved from another browser since, so it was loaded again from there.";
 
 /** The Menu's Save world: saved now, and sent to the Engine now. */
 async function saveWorldNow() {
   if (!core.save || !core.world) return;
+  if (core.staleWorld === core.save.id)
+    return void core.hud?.setNotice(
+      "Not saved: this world was saved from another browser since. It's loaded from there when you carry on.",
+    );
   savePlace(true, captureThumbnail());
   await core.store.flush();
   core.hud?.setNotice(
@@ -1022,6 +1035,7 @@ function playWorld(id) {
     return;
   }
   savePlace(true);
+  if (stale && core.save?.id === id) core.hud?.setNotice(STALE_NOTICE);
   core.staleWorld = null;
   // What was still to happen in the world being left (replies read out one by one, a fade) doesn't
   // happen in this one.
@@ -1092,6 +1106,8 @@ function playWorld(id) {
 }
 
 function resume() {
+  // (Play doesn't carry on in a world the Engine has a newer copy of: it's loaded again first.)
+  if (core.world && core.save && core.staleWorld === core.save.id) return void reloadStale();
   core.menu?.hide();
   core.hud?.setMenuOpen(false);
   if (core.input) core.input.stickElement.style.visibility = "";
@@ -9413,6 +9429,20 @@ const byTurns = () => fightMode() === "turns";
 
 /** What the conditions on the player add up to now (nothing, with conditions switched off). */
 const afflicted = () => conditionMods(core.settings.conditions ? core.afflicted : null);
+/** What holds a creature (herd.js foes `held`: the spell effect that stunned it) adds up to, as a condition. */
+const foeMods = (foe) => conditionMods(foe?.held ? { [conditionFor(foe.held) || foe.held]: 1 } : null);
+/** How far a creature's body reaches from its middle, as herd.js has it. */
+const roomOf = (body) => body?.room ?? (ANIMALS[body?.kind]?.back > 0 ? 0.75 : 0.45) * (body?.scale ?? 1);
+// The SRD's critical hit on someone paralyzed or unconscious, from within 1.5 m (conditions.js critsClose):
+// for the player, a companion (`id`) or a creature (`foe`), struck from `from` ({ x, z }) by a body that
+// reaches `room` from its middle (a creature's; 0 for a person).
+const gapBetween = (from, to, room = 0) => Math.hypot(from.x - to.x, from.z - to.z) - room;
+const critOnPlayer = (from, room = 0) => critsClose(afflicted(), gapBetween(from, core.player.position, room));
+const critOnAlly = (id, from, room = 0) => {
+  const person = fightingAllies().find((entry) => entry.id === id);
+  return !!person && critsClose(allyMods(id), gapBetween(from, person.position, room));
+};
+const critOnFoe = (foe, from) => critsClose(foeMods(foe), gapBetween(from, foe, roomOf(foe)));
 /** Whether creatures use what the SRD gives them besides a plain attack. */
 const extrasOn = () => !!core.settings.creatureExtras && !!core.settings.srdCreatures;
 
@@ -9442,9 +9472,12 @@ function playerSave(attribute, dc) {
   const worn = wornNow(sheet);
   const die = () => 1 + Math.floor(Math.random() * 20);
   // (A barbarian's Danger Sense: the better of two on a Dexterity save.)
+  const name = `${attribute[0].toUpperCase()}${attribute.slice(1)}`;
+  // (Paralyzed, stunned or asleep: a Strength or Dexterity save fails without a roll, as the SRD has it.)
+  if (failsSave(afflicted(), attribute))
+    return { roll: 0, total: 0, saved: false, fails: true, words: `${name} save: failed without a roll` };
   const roll = attribute === "dexterity" && kitNow().danger ? Math.max(die(), die()) : die();
   const total = roll + modifier(valueOf(sheet, attribute) + (worn[attribute] ?? 0)) + saveBonus(attribute);
-  const name = `${attribute[0].toUpperCase()}${attribute.slice(1)}`;
   return { roll, total, saved: total >= dc, words: `${name} save: ${sumWords(roll, total)} against DC ${dc}` };
 }
 /**
@@ -9775,7 +9808,8 @@ function nerveOf(foe, stats, damage) {
 function shapeStrike(foe) {
   const mine = SRD_CREATURES[core.shape.kind];
   const stats = statsOf(foe);
-  const roll = () => attackRoll({ bonus: mine.attack, ac: stats.ac, damage: mine.damage });
+  const critHit = critOnFoe(foe, core.player.position);
+  const roll = () => attackRoll({ bonus: mine.attack, ac: stats.ac, damage: mine.damage, critHit });
   const pack =
     !!mine.pack && fightingAllies().some((ally) => Math.hypot(ally.position.x - foe.x, ally.position.z - foe.z) < 2.5);
   const better = marked(foe.id) || pack;
@@ -9960,7 +9994,7 @@ function useAbility(id) {
     const at = core.player.position;
     if (id === "shove") {
       core.herd.push(target.id, at.x, at.z, 1.5);
-      core.herd.stun(target.id, 3);
+      core.herd.stun(target.id, 3, "prone");
       foeFx(target.id).mark = core.clock + 6;
       spellFx().wave(core.space.scene, chest(target.x, target.z, 0.15), 0xd8c8a0, 2.5);
       return void narrate(null, `${who} shoves the ${what} (${told}): it's knocked back and down.`);
@@ -10550,6 +10584,7 @@ function bodyOf(id) {
 }
 /** A companion's saving throw: a d20, 2, and their proficiency where their class is trained in it. */
 function allySave(id, attribute, dc) {
+  if (failsSave(allyMods(id), attribute)) return { saved: false, words: `${attribute} save: failed without a roll` };
   const trained = allyKit(id).saves.includes(attribute) ? proficiency(allyLevel(id)) : 0;
   const total = 1 + Math.floor(Math.random() * 20) + 2 + trained;
   return { saved: total >= dc, words: `${attribute} save: ${total} against DC ${dc}` };
@@ -10822,13 +10857,14 @@ function foeGrabs(event, what, hold, stats) {
       const bonus = hold.main ? stats.attack : hold.attack;
       const sheet = sheetNow();
       const result = id
-        ? attackRoll({ bonus, ac: foeTable().ally.ac, damage })
+        ? attackRoll({ bonus, ac: foeTable().ally.ac, damage, critHit: critOnAlly(id, event, roomOf(event)) })
         : foeStrike({
             foe: { attack: bonus, damage, damageBonus: 0 },
             sheet,
             worn: wornNow(sheet),
             guarded: core.clock < (core.blockUntil ?? 0) || !!core.battle?.dodging,
             keen: afflicted().defendAdv,
+            critHit: critOnPlayer(event, roomOf(event)),
           });
       if (id) result.ac = foeTable().ally.ac;
       landed = result.hit;
@@ -11303,6 +11339,8 @@ function spellOnFoe(foe, who, name, spell, wit, from = null) {
     spell,
     foe: cover ? { ...stats, ac: stats.ac + cover } : stats,
     prof: spellProf(),
+    fails: failsSave(foeMods(foe), spell.save?.attribute),
+    critHit: !!from && critOnFoe(foe, from),
   });
   const now = core.herd.foes({ x: foe.x, z: foe.z }, 40).find((entry) => entry.id === foe.id) ?? foe;
   const kind = result.effect?.kind;
@@ -11319,7 +11357,7 @@ function spellOnFoe(foe, who, name, spell, wit, from = null) {
     }
     if (kind && kind !== "flee")
       spellFx().swirl(core.space.scene, chest(now.x, now.z, 0), colourOf(spell), seconds, 0.8 + foe.room);
-    if (kind === "hold") core.herd.stun(foe.id, seconds);
+    if (kind === "hold") core.herd.stun(foe.id, seconds, result.effect.name);
     if (kind === "slow") core.herd.slow(foe.id, seconds);
     if (kind === "calm") core.herd.soothe(foe.id, seconds);
     if (kind === "hinder") foeFx(foe.id).hinder = core.clock + seconds;
@@ -12178,6 +12216,8 @@ function foeShoots(event, what) {
         sheet,
         worn: wornNow(sheet),
         saveBonus: chosen.spell.save ? saveBonus(chosen.spell.save.attribute.toLowerCase()) : 0,
+        fails: failsSave(afflicted(), chosen.spell.save?.attribute),
+        critHit: critOnPlayer(event, roomOf(event)),
       });
       // (Evasion: a Dexterity save made takes nothing, and one failed only half.)
       if (kitNow().evasion && chosen.spell.save?.attribute.toLowerCase() === "dexterity")
@@ -12643,7 +12683,9 @@ function allyAttacked(event, what, with_ = null) {
   const stats = { ...statsOf(event), ...with_ };
   if (extrasOn() && !with_ && gripFirst(event, what, stats)) return;
   const ac = foeTable().ally.ac;
-  const roll = () => attackRoll({ bonus: stats.attack, ac, damage: stats.damage, damageBonus: stats.damageBonus ?? 0 });
+  const critHit = critOnAlly(person.id, event, roomOf(event));
+  const roll = () =>
+    attackRoll({ bonus: stats.attack, ac, damage: stats.damage, damageBonus: stats.damageBonus ?? 0, critHit });
   // (Down, held or blinded, they're easier to hit: the better of two. A hindered creature: the worse.)
   const keen = allyMods(person.id).defendAdv;
   const worse = hindered(event.id);
@@ -12953,6 +12995,7 @@ function allyStrikes(person, foe, weapon, again = false) {
       damageBonus: 2 + (melee && used.raging ? kit.rage : 0),
       critFrom: kit.critFrom,
       more,
+      critHit: critOnFoe(foe, person.position),
     });
   // (Helped by the player: the better of two, once. Poisoned, frightened, blinded or down: the worse.)
   const better = buffed("helping");
@@ -13205,6 +13248,8 @@ function personActs(person, far, spells) {
           spell: chosen.spell,
           sheet,
           worn: wornNow(sheet),
+          fails: failsSave(afflicted(), chosen.spell.save?.attribute),
+          critHit: critOnPlayer(from),
         });
         const hp = playerStruck(result, from);
         narrate(null, castAtWords({ name, spell: chosen.name, who, result, left: hp?.value ?? 0, max: hp?.max ?? 0 }));
@@ -13228,6 +13273,7 @@ function personActs(person, far, spells) {
       sheet,
       worn: wornNow(sheet),
       guarded: core.clock < (core.blockUntil ?? 0),
+      critHit: critOnPlayer(from),
     });
     const hp = playerStruck(result, from);
     narrate(
@@ -13290,7 +13336,7 @@ function landOn(foe, weapon, cover = 0) {
   const sheet = sheetNow();
   const stats = statsOf(foe);
   const behind = cover ? { ...stats, ac: stats.ac + cover } : stats;
-  const mods = strikeMods(weapon, foe, marked(foe.id));
+  const mods = { ...strikeMods(weapon, foe, marked(foe.id)), critHit: critOnFoe(foe, core.player.position) };
   const swung = () => ({
     ...playerStrike({ sheet, worn: wornNow(sheet), weapon, foe: behind, prof: profNow(), mods }),
     ...(cover ? { cover } : {}),
@@ -13562,6 +13608,7 @@ function foeAttacks(event, what, with_ = null) {
     guarded: core.clock < (core.blockUntil ?? 0) || !!core.battle?.dodging,
     hindered: hindered(event.id),
     keen: pack || afflicted().defendAdv || buffed("reckless"),
+    critHit: critOnPlayer(event, roomOf(event)),
   });
   if (stats.cover) result.cover = stats.cover;
   // (Shield, where they have it: cast in answer to a blow that +5 AC turns.)
@@ -15443,7 +15490,8 @@ function attach(element) {
       // settings and the last world played are this browser's to write over.
       onConflict: (key) => key.startsWith(WORLD_KEY("")),
     });
-    core.saves = createSaves(core.store);
+    // (Nothing writes over a world the Engine has a newer copy of: every save goes through `write`.)
+    core.saves = createSaves(core.store, { stale: (id) => !!id && id === core.staleWorld });
     globalThis.addEventListener?.("pagehide", () => void core.store.flush());
     // Hidden (another tab, the phone locked): saved and sent now. Shown again: another browser may
     // have played meanwhile, so the Engine's saves are read again before anything is saved over them.
