@@ -538,6 +538,17 @@ const FOES = {
   roper: { hp: 93, ac: 20, attack: 7, damage: "4d8+4", xp: 300, verb: "lashes" },
   gelatinous_cube: { hp: 84, ac: 6, attack: 4, damage: "3d6", xp: 110, verb: "surges" },
   basilisk: { hp: 52, ac: 15, attack: 5, damage: "2d6+3", xp: 150, verb: "bites" },
+  zombie: { hp: 22, ac: 8, attack: 3, damage: "1d6+1", xp: 12, verb: "claws" },
+  ghost: { hp: 45, ac: 11, attack: 5, damage: "4d6+3", xp: 220, verb: "reaches through" },
+  specter: { hp: 22, ac: 12, attack: 4, damage: "3d6", xp: 40, verb: "drains" },
+  earth_elemental: { hp: 126, ac: 17, attack: 8, damage: "2d8+5", xp: 300, verb: "slams" },
+  fire_elemental: { hp: 102, ac: 13, attack: 6, damage: "2d6+3", xp: 300, verb: "lashes" },
+  water_elemental: { hp: 114, ac: 14, attack: 7, damage: "2d8+4", xp: 300, verb: "slams" },
+  air_elemental: { hp: 90, ac: 15, attack: 8, damage: "2d8+5", xp: 300, verb: "buffets" },
+  hill_giant: { hp: 105, ac: 13, attack: 8, damage: "3d8+5", xp: 300, verb: "swings" },
+  stone_giant: { hp: 126, ac: 17, attack: 9, damage: "3d8+6", xp: 450, verb: "swings" },
+  frost_giant: { hp: 138, ac: 15, attack: 9, damage: "3d12+6", xp: 520, verb: "swings" },
+  fire_giant: { hp: 162, ac: 18, attack: 11, damage: "6d6+7", xp: 600, verb: "swings" },
 };
 /**
  * What's had from each creature once it's beaten (combat.js spoilsOf): an animal is harvested, a person
@@ -615,6 +626,36 @@ const SPOILS = {
   },
   ghoul: { items: [{ name: "Grave dust", description: "A pinch of grey dust.", chance: 0.5 }], coins: [0, 6] },
   orc: { items: [{ name: "Orc tusk", description: "A heavy, chipped tusk.", chance: 0.7 }], coins: [2, 12] },
+  zombie: { items: [{ name: "Grave rag", description: "A strip of rotten linen.", chance: 0.5 }] },
+  ghost: { items: [{ name: "Ectoplasm", description: "A cold, faintly glowing smear in a vial.", chance: 0.4 }] },
+  specter: {
+    items: [{ name: "Shroud scrap", description: "A scrap of black cloth, cold to the touch.", chance: 0.4 }],
+  },
+  earth_elemental: {
+    items: [{ name: "Geode", description: "A rough stone, crystals inside.", chance: 0.6 }],
+    coins: [0, 20],
+  },
+  fire_elemental: { items: [{ name: "Ember core", description: "A stone that stays warm.", chance: 0.5 }] },
+  water_elemental: {
+    items: [{ name: "Living water", description: "A flask of water that won't sit still.", chance: 0.5 }],
+  },
+  air_elemental: { items: [{ name: "Storm feather", description: "A feather that drifts upward.", chance: 0.5 }] },
+  hill_giant: {
+    items: [{ name: "Giant's tooth", description: "A tooth the size of a fist.", chance: 0.7 }],
+    coins: [10, 50],
+  },
+  stone_giant: {
+    items: [{ name: "Carved stone disc", description: "A heavy disc carved with lines.", chance: 0.6 }],
+    coins: [10, 60],
+  },
+  frost_giant: {
+    items: [{ name: "Rime-iron ring", description: "An iron arm ring, cold as ice.", chance: 0.6 }],
+    coins: [20, 80],
+  },
+  fire_giant: {
+    items: [{ name: "Blackened rivet", description: "A rivet as big as a thumb, still warm.", chance: 0.6 }],
+    coins: [20, 100],
+  },
   mimic: {
     items: [{ name: "Mimic tooth", description: "A yellowed fang, sticky still.", chance: 0.7 }],
     coins: [0, 20],
@@ -782,6 +823,17 @@ const ANIMALS = {
   roper: "the roper",
   gelatinous_cube: "the gelatinous cube",
   basilisk: "the basilisk",
+  zombie: "the zombie",
+  ghost: "the ghost",
+  specter: "the specter",
+  earth_elemental: "the earth elemental",
+  fire_elemental: "the fire elemental",
+  water_elemental: "the water elemental",
+  air_elemental: "the air elemental",
+  hill_giant: "the hill giant",
+  stone_giant: "the stone giant",
+  frost_giant: "the frost giant",
+  fire_giant: "the fire giant",
 };
 
 /**

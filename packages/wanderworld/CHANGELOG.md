@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.41 — 2026-11-20
+
+- Twelve new monsters made in Blender: a skeleton of Wanderworld's own (in place of the old one), a zombie, a see-through ghost and a specter with glowing eyes (both at night), earth, fire, water and air elementals, and hill, stone, frost and fire giants. The elementals and giants are rare; the giants can grab and throw. Each has its own switch under Settings → Creatures → Kinds, lives where it would be found, and fights by its SRD stat block.
+- The fire elemental and the fire giant's hair glow, and the water and air elementals are see-through.
+- Creature files with skeletons of their own are about a third smaller.
+
 ## 0.7.40 — 2026-11-20
 
 - Caves lead down: a cave's way in can open into caverns, dungeons and strongholds, one level at a time, dark but for your light, each with creatures that belong there (Settings → World → Places).

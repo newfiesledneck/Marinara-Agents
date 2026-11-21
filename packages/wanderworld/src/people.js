@@ -431,14 +431,23 @@ export async function createOutlaw(kind) {
  * kit/fantasy/folk), as a walking character moved by the people's clips, `scale` times the size it's
  * made. Rejects if the kit hasn't got it.
  */
-export async function createFolk(kind, scale = 1) {
+export async function createFolk(kind, scale = 1, style = null) {
   // (The Bestiary's in folk.json; those made in Blender, packages/wanderworld/assets, a file each.)
   const body =
     (await load("folk.json")).folk[kind] ??
     (await load(`folk-built-${kind}.json`).catch(() => ({ folk: {} }))).folk[kind];
   if (!body) throw new Error(`The kit has no ${kind}`);
   const { root, bones } = rigOf(body);
-  const material = new MeshLambertMaterial({ map: texture(`folk-${kind}`) });
+  const map = texture(`folk-${kind}`);
+  const material = new MeshLambertMaterial({ map });
+  // (`style`: see-through, { opacity }, a ghost; or glowing, { glow, strength }, a fire giant's hair.)
+  if (style?.opacity !== undefined)
+    Object.assign(material, { transparent: true, opacity: style.opacity, depthWrite: false });
+  if (style?.glow !== undefined) {
+    material.emissive = new Color(style.glow);
+    material.emissiveMap = map;
+    material.emissiveIntensity = style.strength ?? 1;
+  }
   skinOnto(root, bones, body, () => material);
   return humanoidFromSkeleton(root, humanoidNodes(bones), () => scale);
 }
