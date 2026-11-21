@@ -1272,7 +1272,8 @@ world would choose its pack when it's made; one pack is built in today.
   off by default.
 - The camera doesn't avoid trees, so foliage can fill the view.
 - The inventory needs the Quartermaster package, and only the persona played has a sheet (see Later).
-- Two browsers playing one world at the same moment write over each other (the newer save wins whole).
+- Two browsers playing one world at the same moment take turns (the save that reaches the Engine first
+  wins whole, and the other browser loads it).
 - The AI assistant's Undo lasts the session and takes back only what the assistant changed (something it
   added goes even if edited since; a scene it started isn't undone). A world holds 60 lore entries of its own, each as long as it needs.
 - An existing world on a crossroads, one-street or ring layout gains the pond, houses and gardens on its

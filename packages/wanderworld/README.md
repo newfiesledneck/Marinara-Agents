@@ -32,10 +32,12 @@ the server part isn't running, the menu says so: restart the Engine. Delete a wo
 on the main menu.
 
 While you play, **Menu → Save world** saves at once and sends it to the Engine at once (the game also
-saves by itself), and **Menu → Load world** opens another of your worlds; the one you're in is saved first.
-A browser left open reads the Engine's saves again when you come back to it, and a world that was played
-somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
-whole: don't play one world in two browsers at the same moment.
+saves by itself, and what changed reaches the Engine within about 15 seconds), and **Menu → Load world**
+opens another of your worlds; the one you're in is saved first. A browser left open reads the Engine's
+saves again when you come back to it, and a world that was played somewhere else since is loaded from
+there, so a phone and a computer stay in step. Each browser writes only the worlds it plays, so a world
+made on one never drops out of another's list. If one world is played in two browsers at the same moment,
+the browser that saved it first keeps it and the other one loads that save, so don't do that.
 
 ## What it does now (0.7.43)
 
@@ -1096,8 +1098,8 @@ still count, and come first.
   provider charged. Only Wanderworld's own calls are in it.
   Anything shaped like a key in a provider's error message is hidden before it is shown.
 - The scattered, pond and quarters layouts are only built when chosen; "Surprise me" picks from the first four.
-- Two browsers playing the same world at the same moment still write over each other: the newer save
-  wins whole, and nothing is merged.
+- Two browsers playing the same world at the same moment take turns: the save that reaches the Engine
+  first wins whole, the other browser loads it, and nothing is merged.
 - Prompt caching is the provider's to do; Wanderworld only orders its prompts so that it can. The AI
   assistant, scene plans and Illustrate aren't reordered.
 - A bridge is built only where a road crosses the river; a place with no road to it (a cave) has none.

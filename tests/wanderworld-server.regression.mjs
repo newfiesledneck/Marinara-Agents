@@ -663,8 +663,40 @@ assert.equal(
     (await call("get", "/picture/:id", { params: { id: gallery[0].id } })).body.image,
     "data:image/png;base64,AAAA",
   );
+  const listed = docs.get(gallery[0].id).data;
+  assert.equal(listed.image, undefined, "the picture's image is kept apart from what's listed");
   await call("delete", "/picture/:id", { params: { id: gallery[0].id } });
   assert.equal((await call("get", "/pictures/:world", { params: { world: "w1" } })).body.pictures.length, 0);
+  assert.equal([...docs.values()].filter((doc) => doc.kind === "picture-image").length, 0, "its image went with it");
+  // A picture kept from before, with its image in it, is split when it's listed, and still shown.
+  docs.set("picture-old", {
+    id: "picture-old",
+    packageId: "wanderworld",
+    kind: "picture",
+    name: "Old",
+    revision: 1,
+    data: { worldId: "w1", prompt: "p", caption: "Old", image: "data:image/png;base64,OLD", at: "2026-01-01" },
+  });
+  assert.equal((await call("get", "/pictures/:world", { params: { world: "w1" } })).body.pictures[0].id, "picture-old");
+  assert.equal(docs.get("picture-old").data.image, undefined);
+  assert.equal(
+    (await call("get", "/picture/:id", { params: { id: "picture-old" } })).body.image,
+    "data:image/png;base64,OLD",
+  );
+  // A world deleted: its pictures, its scenes' recaps and its waiting scene contexts go; another world's stay.
+  for (const [id, kind, data] of [
+    ["result-w1", "scene-result", { worldId: "w1" }],
+    ["result-w2", "scene-result", { worldId: "w2" }],
+    ["origin-w1", "scene-origin", { originId: "world:w1/door:3" }],
+  ])
+    docs.set(id, { id, packageId: "wanderworld", kind, name: id, revision: 1, data });
+  assert.equal((await call("delete", "/world/:id", { params: { id: "w1" } })).body.removed, 3);
+  assert.deepEqual(
+    ["picture-old", "result-w1", "result-w2", "origin-w1"].filter((id) => docs.has(id)),
+    ["result-w2"],
+  );
+  assert.equal([...docs.values()].filter((doc) => doc.kind === "picture-image").length, 0);
+  docs.delete("result-w2");
 
   // The prompt can be rewritten by the model first (to the player's instruction, or the usual one), looked
   // over before anything is painted, and then painted as approved without another rewrite.
@@ -950,6 +982,29 @@ assert.equal(
     assert.equal((await call("delete", "/save/:key", { params: { key: "wanderworld.world.w9" } })).body.removed, true);
     assert.deepEqual(Object.keys((await call("get", "/saves")).body.keys), ["wanderworld.lastWorld"]);
     await call("delete", "/save/:key", { params: { key: "wanderworld.lastWorld" } });
+    // With revisions: a write names the revision it was made from, and is refused (with what's there now)
+    // when another browser has written since. A list sends only what isn't at the revision held.
+    const key = "wanderworld.world.w10";
+    const made = await call("post", "/save", { body: { key, value: "one", revision: null } });
+    assert.equal(made.body.ok, true);
+    assert.equal((await call("post", "/save", { body: { key, value: "again", revision: null } })).code, 409, "not new");
+    const second = await call("post", "/save", { body: { key, value: "two", revision: made.body.revision } });
+    assert.equal(second.body.revision, made.body.revision + 1);
+    const stale = await call("post", "/save", { body: { key, value: "three", revision: made.body.revision } });
+    assert.equal(stale.code, 409);
+    assert.deepEqual(stale.body.conflict, { value: "two", revision: second.body.revision });
+    assert.deepEqual((await call("post", "/saves", { body: { have: { [key]: second.body.revision } } })).body.saves, {
+      [key]: { revision: second.body.revision },
+    });
+    assert.deepEqual((await call("post", "/saves", { body: { have: { [key]: made.body.revision } } })).body.saves, {
+      [key]: { revision: second.body.revision, value: "two" },
+    });
+    assert.equal(
+      (await call("post", "/save", { body: { key, value: "old tab" } })).body.ok,
+      true,
+      "no revision: as before",
+    );
+    await call("delete", "/save/:key", { params: { key } });
   }
   // Genders: the shares as a sentence for the model, and the third gender by the name the player gave it.
   assert.equal(server.genderRule(null), "");

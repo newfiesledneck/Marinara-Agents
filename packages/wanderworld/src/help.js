@@ -112,7 +112,7 @@ export const HELP = [
       "This world lists the world's name, its id, its Quartermaster sheet, the map seed, the land, the region you're in, who lives there, who's travelling with you, your animals, its lorebooks and its setting. The ids have a Copy button.",
       "Save world saves and sends the world to the Engine at once, and says if the Engine didn't take it. The game also saves by itself as you play, and when you leave the tab or lock your phone.",
       "Load world lists your worlds as the Engine has them at that moment and opens the one you pick. The world you're in is saved first, under its own name; nothing of it goes into the one you open.",
-      "Playing on a phone and a computer: worlds are kept by the Engine, so both see the same ones. A browser left open reads them again when you come back to it, and a world played somewhere else since is loaded from there. The newer save wins whole, so don't play one world in two browsers at the same time.",
+      "Playing on a phone and a computer: worlds are kept by the Engine, so both see the same ones. A browser left open reads them again when you come back to it, and a world played somewhere else since is loaded from there. If one world is played in two browsers at once, the browser that saved it first keeps it and the other loads that save, so don't play one world in two browsers at the same time.",
     ],
   },
   {

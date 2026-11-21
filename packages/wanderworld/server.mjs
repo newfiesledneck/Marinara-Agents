@@ -83,6 +83,9 @@ const TALK_STYLES = {
 };
 const LENGTHS = { short: [1, 2, 160], medium: [1, 3, 320], long: [2, 5, 600] }; // sentences and max tokens
 const PICTURE_KIND = "picture";
+const PICTURE_IMAGE_KIND = "picture-image";
+/** The document a picture's image is kept in, beside the picture's own. */
+const imageDocId = (pictureId) => docId("image", pictureId);
 /** What the model is told when it rewrites a picture's prompt, unless the player has written their own. */
 export const IMPROVE_INSTRUCTION =
   "You write the prompt for an image generation model that reads natural-language prose. Turn the facts that follow into one vividly detailed image prompt for the current moment: the single most interesting instant of it.\n\nRules:\n1. The image model draws only what the prompt states. Write only what is meant to be seen, and describe every visible character from the facts given, in enough detail that an artist could paint them recognisably: face, hair, eyes, race or kind, skin, fur or scale tone, build and height, and everything they wear. Never generalise a look the facts spell out.\n2. Flowing prose, never a list of tags: one substantial paragraph of about 200 to 300 words that covers the whole picture. One or two short sentences is a failure.\n3. Ground the place so it could be painted: surfaces, props, the time of day, the light, the weather when outdoors, the background. Describe what it looks like, not what it is called, and nothing that is out of sight.\n4. For each character give their action, expression, pose and where they are in the frame.\n5. Set the composition: one camera angle, the shot distance, a lens (focal length and aperture, like 35mm f/2.8), the lighting and the mood. Choose the angle that shows the action best, and prefer a lively one to a flat one.\n6. Give each character's name once, right before their description (an image model that knows the name can use it), and after that refer to them by how they look. A name never stands in for the description.\n7. Describe only what the chosen angle shows. Of someone facing away or partly out of frame, describe the back of the head, the hair and the posture, not the hidden face.\n8. Never an over-the-shoulder view.\n9. Keep it focused: one moment, one angle, one main character unless the moment needs more (a wide view, a conversation). Don't crowd it.\n10. Finish with the art style the facts ask for, if they name one. No names of real artists, and no words, captions or speech bubbles in the picture.\n\nAnswer with the prompt only: no title, no notes, no quotation marks.";
@@ -1683,9 +1686,10 @@ const slug = (value) =>
 
 // ── Storage ──────────────────────────────────────────────────────────────────
 
-async function putDocument(documents, id, kind, name, data) {
+/** Writes a document. `existing`, when given, is the one read before (null: none), whose revision it must still be at. */
+async function putDocument(documents, id, kind, name, data, existing) {
   const now = new Date().toISOString();
-  const existing = await documents.getById(PACKAGE_ID, id);
+  if (existing === undefined) existing = await documents.getById(PACKAGE_ID, id);
   if (!existing) {
     return documents.create({ id, packageId: PACKAGE_ID, kind, name, description: `Wanderworld ${kind}`, data, createdAt: now, updatedAt: now });
   }
@@ -1882,6 +1886,25 @@ export async function activate(context) {
   const { api } = context;
   const { persistence, resources, languageModels, logger } = api.runtime;
   const { documents } = persistence;
+  // A picture is two documents: what a gallery lists (the world, caption, prompt and when) and the image,
+  // so listing never reads the images. One kept from before has its image in it; it's split when listed.
+  const pictureDocs = async () => {
+    const all = await documents.list(PACKAGE_ID, PICTURE_KIND);
+    for (const doc of all.filter((each) => typeof each.data?.image === "string")) {
+      const { image, ...listed } = doc.data;
+      try {
+        await putDocument(documents, imageDocId(doc.id), PICTURE_IMAGE_KIND, doc.name ?? "", { image });
+        if (await putDocument(documents, doc.id, PICTURE_KIND, doc.name ?? "", listed, doc)) doc.data = listed;
+      } catch (error) {
+        logger.warn("[wanderworld] a picture couldn't be split from its image: %s", error?.message ?? error);
+      }
+    }
+    return all;
+  };
+  const removePicture = async (doc) => {
+    await removeDocument(documents, imageDocId(doc.id));
+    return removeDocument(documents, doc.id);
+  };
   const scenesOn = typeof api.registerSceneOrigin === "function";
   const callLog = createCallLog();
   // A model's prices, from its connection's model list as the Engine serves it to its own model picker.
@@ -2611,11 +2634,12 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
           const at = new Date().toISOString();
           const id = docId("picture", `${worldId}|${at}|${Math.random()}`);
           const caption = text(body.caption, 200) || values.place;
-          await putDocument(documents, id, PICTURE_KIND, caption, { worldId, prompt, caption, image: result.image, at });
+          await putDocument(documents, imageDocId(id), PICTURE_IMAGE_KIND, caption, { image: result.image });
+          await putDocument(documents, id, PICTURE_KIND, caption, { worldId, prompt, caption, at });
           // Only the newest pictures of a world are kept.
-          const all = (await documents.list(PACKAGE_ID, PICTURE_KIND)).filter((doc) => doc.data?.worldId === worldId);
+          const all = (await pictureDocs()).filter((doc) => doc.data?.worldId === worldId);
           all.sort((a, b) => String(b.data?.at).localeCompare(String(a.data?.at)));
-          for (const old of all.slice(MAX_PICTURES)) await removeDocument(documents, old.id).catch(() => false);
+          for (const old of all.slice(MAX_PICTURES)) await removePicture(old).catch(() => false);
           return { id, image: result.image, prompt, caption, at, improved };
         } catch (error) {
           logger.warn("[wanderworld] illustrate failed: %s", error?.message ?? error);
@@ -2625,7 +2649,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
 
       routes.get("/pictures/:world", async (request) => {
         const world = idOf(request.params.world);
-        const all = (await documents.list(PACKAGE_ID, PICTURE_KIND)).filter((doc) => doc.data?.worldId === world);
+        const all = (await pictureDocs()).filter((doc) => doc.data?.worldId === world);
         return {
           pictures: all
             .map((doc) => ({ id: doc.id, caption: doc.data.caption ?? "", prompt: doc.data.prompt ?? "", at: doc.data.at }))
@@ -2636,30 +2660,76 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
       routes.get("/picture/:id", async (request, reply) => {
         const doc = await documents.getById(PACKAGE_ID, idOf(request.params.id));
         if (!doc || doc.kind !== PICTURE_KIND) return reply.status(404).send({ error: "No such picture" });
-        return { id: doc.id, image: doc.data.image, caption: doc.data.caption, prompt: doc.data.prompt, at: doc.data.at };
+        const image = doc.data.image ?? (await documents.getById(PACKAGE_ID, imageDocId(doc.id)))?.data?.image ?? null;
+        return { id: doc.id, image, caption: doc.data.caption, prompt: doc.data.prompt, at: doc.data.at };
+      });
+
+      // A world deleted: its pictures, its scenes' recaps and the contexts of scenes not yet played go too.
+      routes.delete("/world/:id", async (request) => {
+        const world = idOf(request.params.id);
+        if (!world) return { removed: 0 };
+        const gone = [
+          ...(await pictureDocs()).filter((doc) => doc.data?.worldId === world).map(removePicture),
+          ...(await documents.list(PACKAGE_ID, RESULT_KIND))
+            .filter((doc) => doc.data?.worldId === world)
+            .map((doc) => removeDocument(documents, doc.id)),
+          ...(await documents.list(PACKAGE_ID, ORIGIN_KIND))
+            .filter((doc) => worldOf(String(doc.data?.originId ?? "")) === world)
+            .map((doc) => removeDocument(documents, doc.id)),
+        ];
+        return { removed: (await Promise.all(gone.map((removal) => removal.catch(() => false)))).filter(Boolean).length };
       });
 
       // Saved worlds: text the client wrote and will check when it reads it back (saves.js checkWorld), kept
       // by key. Only the client's own save keys are taken, and only so many, each within a size.
+      const saveDocs = async () =>
+        (await documents.list(PACKAGE_ID, SAVE_KIND)).filter((doc) => SAVE_KEY.test(doc.data?.key ?? "") && typeof doc.data.value === "string");
       routes.get("/saves", async () => ({
-        keys: Object.fromEntries(
-          (await documents.list(PACKAGE_ID, SAVE_KIND))
-            .filter((doc) => SAVE_KEY.test(doc.data?.key ?? "") && typeof doc.data.value === "string")
-            .map((doc) => [doc.data.key, doc.data.value]),
-        ),
+        keys: Object.fromEntries((await saveDocs()).map((doc) => [doc.data.key, doc.data.value])),
       }));
+      // Each save's revision, with its text only when it isn't the revision the browser says it has.
+      // ponytail: the Engine's document list reads every save whole, so this spares the network, not the
+      // Engine's reading; leaving the data out of that read needs the Engine to offer such a list.
+      routes.post("/saves", async (request) => {
+        const have = isRecord(request.body?.have) ? request.body.have : {};
+        return {
+          saves: Object.fromEntries(
+            (await saveDocs()).map((doc) => [
+              doc.data.key,
+              have[doc.data.key] === doc.revision ? { revision: doc.revision } : { revision: doc.revision, value: doc.data.value },
+            ]),
+          ),
+        };
+      });
       routes.post("/save", async (request, reply) => {
         const body = isRecord(request.body) ? request.body : {};
         const key = typeof body.key === "string" ? body.key : "";
         if (!SAVE_KEY.test(key) || typeof body.value !== "string" || body.value.length > MAX_SAVE_CHARS)
           return reply.status(400).send({ error: "That isn't a Wanderworld save." });
         const id = docId("save", key);
-        if (!(await documents.getById(PACKAGE_ID, id)) && (await documents.list(PACKAGE_ID, SAVE_KIND)).length >= MAX_SAVES)
+        const existing = await documents.getById(PACKAGE_ID, id);
+        if (!existing && (await documents.list(PACKAGE_ID, SAVE_KIND)).length >= MAX_SAVES)
           return reply.status(400).send({ error: "There are too many saved worlds: delete one first." });
-        // (Two writes of one save can cross: the later one is tried once more against what's there now.)
-        const kept = (await putDocument(documents, id, SAVE_KIND, key, { key, value: body.value })) ?? (await putDocument(documents, id, SAVE_KIND, key, { key, value: body.value }));
+        const data = { key, value: body.value };
+        // A write that names the revision it was made from (null: none yet) is refused when another
+        // browser has written this save since, and is told what's there now.
+        if (body.revision !== undefined) {
+          const conflict = async () => {
+            const now = await documents.getById(PACKAGE_ID, id);
+            return reply.status(409).send({
+              error: "This save was written from another browser meanwhile.",
+              conflict: { value: now?.data?.value ?? null, revision: now?.revision ?? null },
+            });
+          };
+          if ((existing?.revision ?? null) !== body.revision) return conflict();
+          const kept = await putDocument(documents, id, SAVE_KIND, key, data, existing).catch(() => null);
+          return kept ? { ok: true, revision: kept.revision } : conflict();
+        }
+        // (A write from before revisions: two of one save can cross, so the later one is tried once more
+        // against what's there now.)
+        const kept = (await putDocument(documents, id, SAVE_KIND, key, data, existing)) ?? (await putDocument(documents, id, SAVE_KIND, key, data));
         if (!kept) return reply.status(409).send({ error: "The save was being written already: it will be tried again." });
-        return { ok: true };
+        return { ok: true, revision: kept.revision };
       });
       routes.delete("/save/:key", async (request) => {
         const key = String(request.params?.key ?? "");
@@ -2669,7 +2739,7 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
 
       routes.delete("/picture/:id", async (request) => {
         const doc = await documents.getById(PACKAGE_ID, idOf(request.params.id));
-        return { removed: doc?.kind === PICTURE_KIND ? await removeDocument(documents, doc.id) : false };
+        return { removed: doc?.kind === PICTURE_KIND ? await removePicture(doc) : false };
       });
 
       // A scene's plan, written here so a Wanderworld scene starts without the Engine's dialog (whose

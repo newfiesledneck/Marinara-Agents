@@ -1,0 +1,25 @@
+// Wanderworld's main.js needs a page and a graphics card, so it can't be run here. These check, in its
+// source, the few rules that broke before without a test noticing.
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const main = readFileSync(new URL("../packages/wanderworld/src/main.js", import.meta.url), "utf8");
+const body = (name) => {
+  const start = main.search(new RegExp(`^(async )?function ${name}\\(`, "mu"));
+  assert.ok(start >= 0, `${name} is there`);
+  const end = main.indexOf("\n}\n", start);
+  return main.slice(start, end);
+};
+
+// `core.looks` is the outfits chosen by hand (saved with the world); what the AI says people look like is
+// `core.appearances`. One of them once reset the other on every load, and the next Look change wiped the
+// world's saved outfits.
+assert.ok(!/core\.looks\s*=\s*new Map/u.test(main), "the chosen looks are never replaced by a Map");
+assert.ok(!/core\.looks\.(get|set|has|delete)\(/u.test(main), "nor used as one");
+assert.match(body("looksOf"), /core\.appearances/u);
+assert.match(body("playWorld"), /core\.looks = \{ \.\.\.\(save\.looks \?\? \{\}\) \}/u);
+
+// A world opened doesn't run what was still to happen in the one left (a reply read out, a fade).
+assert.match(body("playWorld"), /core\.timers = \[\];/u);
+
+console.log("wanderworld main regression: OK");
