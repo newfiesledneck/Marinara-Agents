@@ -514,7 +514,8 @@ only walk about.
   conversation. Touch screen: the stick walks (all the way out runs), dragging elsewhere looks around,
   pinching zooms, Use or a tap uses, and Jump and Sit are by your thumb.
 - **Settings:** resolution, draw distance (Tiny to Max; what costs the most is measured in
-  [docs/PERFORMANCE.md](docs/PERFORMANCE.md)), trees and rocks, shadows, a frame rate limit (and slower drawing while a picture is painted), detail on or off, walk and run speed,
+  [docs/PERFORMANCE.md](docs/PERFORMANCE.md)), the creature detail distance (past it monsters and people
+  are drawn in a lighter distant version: Near 20 m, Normal 35 m, Far 60 m, or always full detail), trees and rocks, shadows, a frame rate limit (and slower drawing while a picture is painted), detail on or off, walk and run speed,
   camera speed and direction, time of day and time speed, how often places are told (the wait between
   them and the visits before a place is told again), sound, confrontations, people coming up to you,
   what the HUD shows, an (i) before every option that explains it, and Regenerate this world.

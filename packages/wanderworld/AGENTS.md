@@ -42,9 +42,13 @@ older code-made monsters; it stays as the fallback for any kind without a Blende
    (`bpy.ops.object.transform_apply`). In Blender the model faces −Y with +Z up; the glTF export turns
    that into the game's +Z forward and +Y up. `wwblend.at(x, up, forward)` takes positions as the game's
    code gives them.
-5. Keep it cheap enough for a crowd of them on a phone: a creature stays under about 15,000 vertices
-   (the script prints its count), one texture of 512 pixels and 64 palette colours. If phones struggle,
-   trim with fewer faces (`Model(faces=…)`, `group(faces=…)`) before cutting detail people see.
+5. Keep it cheap enough for a crowd of them on a phone: the detailed model stays under about 35,000
+   glTF vertices (the count the game draws, which UV seams make higher than Blender's), with one texture
+   of 512 pixels and 64 palette colours. `--bestiary` gives it a distant version automatically: about
+   7,000 vertices' worth of triangles over the same vertices, drawn past Settings → Display → Creature
+   detail distance. A later review may trim the detailed models; if phones struggle, trim with fewer faces
+   (`Model(faces=…)`, `group(faces=…)`) before cutting detail people see.
+   `tests/wanderworld-bestiary.regression.mjs` holds the ceiling.
 6. Export `assets/models/<name>.glb` with animations, materials and normals, and save
    `assets/build/<name>.blend` (`Model.finish()` does both).
 7. Credit every model made this way to ThatOneCan, in Help's credits (`src/help.js`), the README's

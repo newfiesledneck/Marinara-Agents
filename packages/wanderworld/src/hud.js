@@ -1249,6 +1249,8 @@ export function createHud(root, handlers) {
       "How sharp the picture is. Full uses every pixel of your screen. The others draw a smaller picture and stretch it to fit, never more than your screen has. On a 4K screen, 1080p is a quarter of the work.",
     ground: "Simple: plainer ground that is quicker to draw. Helps most on a big screen without a graphics card.",
     drawDistance: "How far away things are drawn. Further looks grander but is slower.",
+    creatureDetail:
+      "Monsters and people further from the camera than this are drawn with fewer triangles, which you hardly see at that distance and which keeps a crowd of them quick on a phone. Near is the fastest. Always full detail draws every one of them in full, wherever it is.",
     smooth:
       "Softens jagged edges, which show most at low resolutions. Auto: on when a graphics card draws the picture and it's no sharper than the page. Without a graphics card it slows things down. A change shows after you reload the page.",
     density: "How many trees and plants grow round the town. Sparse is half of Normal, and the fastest.",
@@ -1662,6 +1664,12 @@ export function createHud(root, handlers) {
   choice("resolution", "Resolution", RESOLUTION_LABELS);
   choice("smooth", "Smooth edges", { auto: "Auto", on: "On", off: "Off" });
   choice("drawDistance", "Draw distance", DISTANCE_LABELS);
+  choice("creatureDetail", "Creature detail distance", {
+    near: "Near (20 m)",
+    normal: "Normal (35 m)",
+    far: "Far (60 m)",
+    full: "Always full detail",
+  });
   choice("density", "Trees and plants", { 0.25: "Sparse", 0.5: "Normal", 1: "2×", 4: "8×", 10: "20×" });
   choice("rockDensity", "Rocks and boulders", { 0.25: "Sparse", 0.5: "Normal", 1: "2×", 4: "8×", 10: "20×" });
   toggle("shadows", "Shadows under people");

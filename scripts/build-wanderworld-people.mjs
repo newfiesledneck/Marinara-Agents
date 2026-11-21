@@ -41,7 +41,12 @@ const DISTANT_VERTICES = 7000;
 function distantIndex(index, positions, share, Type = Uint32Array) {
   if (!(share < 0.9) || index.length < 300) return null;
   const target = Math.max(3, Math.floor((index.length * share) / 3) * 3);
-  const [far] = MeshoptSimplifier.simplify(Uint32Array.from(index), Float32Array.from(positions), 3, target, 1, []);
+  const simplify = (flags) =>
+    MeshoptSimplifier.simplify(Uint32Array.from(index), Float32Array.from(positions), 3, target, 1, flags)[0];
+  // (A model shaded flat, or cut into many texture islands, is all seams, which the simplifier keeps;
+  // past them it can still go, as only far-off copies are drawn this way.)
+  let far = simplify([]);
+  if (far.length > target * 1.5) far = simplify(["Permissive"]);
   return far.length && far.length < index.length * 0.9 ? Type.from(far) : null;
 }
 /** The share of its triangles a model of `vertices` keeps far off. */
@@ -651,7 +656,9 @@ function rigged(name, path, out) {
     const view = json.bufferViews[accessor.bufferView];
     const start = bin.byteOffset + (view.byteOffset ?? 0) + (accessor.byteOffset ?? 0);
     const size = { SCALAR: 1, VEC3: 3 }[accessor.type];
-    return view.byteStride ? null : new Type(bin.buffer.slice(start, start + accessor.count * size * Type.BYTES_PER_ELEMENT));
+    return view.byteStride
+      ? null
+      : new Type(bin.buffer.slice(start, start + accessor.count * size * Type.BYTES_PER_ELEMENT));
   };
   const primitives = json.meshes.flatMap((mesh) => mesh.primitives);
   const vertices = primitives.reduce((sum, primitive) => sum + json.accessors[primitive.attributes.POSITION].count, 0);
@@ -664,7 +671,12 @@ function rigged(name, path, out) {
     if (!far) continue;
     json.bufferViews.push({ buffer: 0, byteLength: far.byteLength, target: 34963 });
     replaced.set(json.bufferViews.length - 1, Buffer.from(far.buffer, far.byteOffset, far.byteLength));
-    json.accessors.push({ bufferView: json.bufferViews.length - 1, componentType: type, count: far.length, type: "SCALAR" });
+    json.accessors.push({
+      bufferView: json.bufferViews.length - 1,
+      componentType: type,
+      count: far.length,
+      type: "SCALAR",
+    });
     primitive.extras = { ...primitive.extras, far: json.accessors.length - 1 };
   }
   // The model without its images: their buffer views dropped and the rest packed up again.

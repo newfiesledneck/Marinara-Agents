@@ -47,7 +47,7 @@ for (const kind of Object.keys(BESTIARY)) {
   assert.ok(Math.abs(min.y) < 0.02, `${kind} stands on the ground (${min.y.toFixed(3)})`);
   const [low, high] = HEIGHT[kind];
   assert.ok(max.y >= low && max.y <= high, `${kind} is ${max.y.toFixed(2)} m tall`);
-  assert.ok(mesh.geometry.attributes.position.count < 40000, `${kind} stays cheap`);
+  assert.ok(mesh.geometry.attributes.position.count <= 35000, `${kind} stays cheap`); // (AGENTS.md rule 5)
 
   // It walks: a second at a walking pace swings its legs from where they rest. (The most it swings:
   // at any one moment the stride may be passing the standing pose.)
@@ -145,6 +145,23 @@ for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", 
     const [low, high] = HEIGHT[kind] ?? MADE_HEIGHT[kind];
     assert.ok(body.height >= low && body.height <= high, `the ${kind} model is ${body.height} m tall`);
     assert.ok(existsSync(join(folk, `folk-${kind}.webp`)), `the ${kind}'s palette texture`);
+    // Cheap enough for a crowd (AGENTS.md rule 5): up to about 35,000 vertices close up, and a distant
+    // version of about 7,000 vertices' worth of triangles (no more than 10,000) over the same vertices.
+    const vertices = body.meshes.reduce((sum, mesh) => sum + mesh.count, 0);
+    assert.ok(vertices <= 35000, `the ${kind} has ${vertices} vertices`);
+    const farIndex = (mesh) => {
+      const bytes = Buffer.from(mesh.far ?? mesh.index, "base64");
+      return mesh.wide
+        ? new Uint32Array(bytes.buffer, bytes.byteOffset, bytes.length / 4)
+        : new Uint16Array(bytes.buffer, bytes.byteOffset, bytes.length / 2);
+    };
+    const farTriangles = body.meshes.reduce((sum, mesh) => sum + farIndex(mesh).length / 3, 0);
+    assert.ok(
+      body.meshes.some((mesh) => mesh.far),
+      `the ${kind} has a distant version`,
+    );
+    assert.ok(farTriangles <= 10000, `the ${kind}'s distant version has ${farTriangles} triangles`);
+    for (const mesh of body.meshes) assert.ok(Math.max(...farIndex(mesh)) < mesh.count, "of its own vertices");
     const glb = readFileSync(join(pkg, `assets/models/${kind}.glb`));
     const gltf = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8"));
     assert.deepEqual(

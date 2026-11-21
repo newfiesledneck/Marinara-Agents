@@ -97,7 +97,7 @@ import { createSound } from "./sound.js";
 import { createTalk } from "./talk.js";
 import { HOUSE_PIECES, porchPosts } from "./houses.js";
 import { PORCH_HEIGHT, PORCH_OUT } from "./buildings.js";
-import { kitModels, kitTexture, kitUrl } from "./kit.js";
+import { DETAIL_DISTANCES, kitModels, kitTexture, kitUrl, setDetailDistance } from "./kit.js";
 import { createMenu } from "./menu.js";
 import { checkGenders, createSaves, LOG_KEPT, WORLD_KEY } from "./saves.js";
 import { createStore, SHARED_SETTINGS } from "./store.js";
@@ -646,6 +646,7 @@ function applySettings() {
   core.world?.setDensity(settings.density, settings.rockDensity);
   core.world?.setDrawDistance(settings.drawDistance);
   core.world?.setTreeReach?.(settings.treeDetail);
+  setDetailDistance(DETAIL_DISTANCES[settings.creatureDetail]);
   core.world?.setGroundSimple?.(settings.ground === "simple");
   if (core.camera) {
     core.camera.far = settings.drawDistance + 20;

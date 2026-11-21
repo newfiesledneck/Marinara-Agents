@@ -309,7 +309,10 @@ function bodyKit(sex) {
         // (Its triangles, and those of its distant version: the full ones again where it has none.)
         const { full, far } = geometry.userData.distant ?? { full: { count: geometry.index.count } };
         const at = (range) =>
-          Uint32Array.from(geometry.index.array.subarray(range.start ?? 0, (range.start ?? 0) + range.count), (vertex) => vertex + offset);
+          Uint32Array.from(
+            geometry.index.array.subarray(range.start ?? 0, (range.start ?? 0) + range.count),
+            (vertex) => vertex + offset,
+          );
         const index = at(full);
         for (const [key, morph] of Object.entries(morphsOf(mesh, offset))) (morphs[key] ??= []).push(morph);
         meshes.push({
