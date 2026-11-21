@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.36",
+          "date": "2026-11-20",
+          "notes": "- Bigger monsters: now and then a monster is bigger than the rest of its kind, and once in a while the first of a group is huge. The story calls it a big or a huge troll, ogre or goblin. A bigger one has more HP, hits harder and is worth more XP. Settings → Creatures → Bigger monsters sets how often: never, now and then (the default) or often.\n- The goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur each have a switch under Settings → Creatures → Kinds. They count toward the Monsters slider like the rest.",
+          "highlight": false
+        },
+        {
           "version": "0.7.35",
           "date": "2026-11-20",
           "notes": "- The kobold, lizardfolk and gnoll stand on their toes, with legs that bend back like a dog's, and still walk with the people's animations.\n- Fuller bodies: the hobgoblin, orc, bugbear, gnoll, ogre and minotaur have deeper chests, broader backs and thicker waists. The hobgoblin is burlier, with a calmer face and its brow set back.\n- The ghoul and troll stand hunched, with a bent back and a short neck instead of a pushed-out head. The troll's arms are shorter so its claws stay off the ground.\n- The ogre's and minotaur's weapons no longer reach the ground, the ogre's warts and cuff rivets sit on it instead of floating, and the minotaur wears one smooth kilt in place of loose panels.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.17",
           "date": "2026-11-17",
           "notes": "- Fixed: Settings showed a column of (i) buttons with nothing beside them. They belonged to the other sections' notes, which were hidden while their buttons were not. An (i) now goes and comes with what it explains.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.16",
-          "date": "2026-11-17",
-          "notes": "- Fixed: witches and wizards carried their staffs pointing up and back, as if held backwards. A staff now stands upright in the hand, its foot by the ground and its knob by the head.",
           "highlight": false
         }
       ]

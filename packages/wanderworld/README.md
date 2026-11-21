@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.35)
+## What it does now (0.7.36)
 
 ### The world
 
@@ -437,6 +437,12 @@ only walk about.
   up to you, or comes for you (you're sent back a step; nothing is hurt yet). Journal → World has one
   world's own numbers. A dog has five sizes, small to massive (as tall as a horse); a huge or a massive
   one can be ridden.
+- **Bigger monsters:** now and then a monster is big (a quarter to two-fifths bigger), and once in a while
+  the first of a group is huge (three-fifths to four-fifths bigger), named so in the story ("a huge
+  troll"). Size makes it tougher (`combat.js foeOf`: more HP, harder blows, more XP). Settings → Creatures
+  → Bigger monsters: never, now and then (the default) or often (`herd.js MONSTER_SIZES`). Bats, wasps,
+  dragons and people keep their size. The goblins, hobgoblins, bugbears, orcs, gnolls, kobolds,
+  lizardfolk, ghouls, ogres, trolls and minotaurs each have their own switch under Kinds.
 - **Tools in hand at work:** a sickle, a seed basket and a watering can on the farm, each for its
   part of the work; a trowel in the garden; the smith's hammer and a drinker's mug as before.
 - **A saddle** on any horse that's someone's own (yours, or a character's). Farm and tavern horses

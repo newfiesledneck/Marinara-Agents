@@ -317,6 +317,19 @@ export const SETTINGS = {
   animalWitch: { value: true },
   animalWizard: { value: true },
   animalPuglin: { value: true },
+  animalGoblin: { value: true },
+  animalHobgoblin: { value: true },
+  animalBugbear: { value: true },
+  animalOrc: { value: true },
+  animalGnoll: { value: true },
+  animalKobold: { value: true },
+  animalLizardfolk: { value: true },
+  animalGhoul: { value: true },
+  animalOgre: { value: true },
+  animalTroll: { value: true },
+  animalMinotaur: { value: true },
+  /** How often a monster is bigger than most of its kind (and tougher: herd.js MONSTER_SIZES). */
+  animalSizes: { value: "some", options: ["off", "some", "more"] },
   // The living world, by rules alone (no model is called): relationships that move with time spent
   // together, the record of what's happened, and being told what you missed on coming back somewhere.
   relationsMove: { value: true },

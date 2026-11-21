@@ -751,4 +751,34 @@ for (const [text, dog, horse] of [
   assert.equal(PACK.horseLore.test(text), horse, `a horse of their own: "${text}"`);
 }
 
+// Bigger monsters: the new kinds count among the monsters, some are big and a few huge (tougher in a
+// fight), the first of a group only may be huge, and "off" keeps every one its usual size.
+{
+  const { MONSTER_SIZES, monsterScale } = await import("../packages/wanderworld/src/herd.js");
+  const { foeOf } = await import("../packages/wanderworld/src/combat.js");
+  const world = createWorld(4242);
+  const counts = { strays: 0, farm: 0, wild: 0, hostile: 0, monsters: 100, town: 0 };
+  const kinds = new Set(herdFor(world, 4242, { counts }).map((beast) => beast.kind));
+  for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", "lizardfolk", "ghoul"])
+    assert.ok(kinds.has(kind), `${kind}s spawn as monsters`);
+  const sized = (sizes) => herdFor(world, 4242, { counts, sizes }).filter((beast) => (beast.scale ?? 1) >= 1.25);
+  assert.equal(sized("off").length, 0, "off: no bigger monsters");
+  assert.ok(sized("some").length > 0, "now and then: some bigger ones");
+  assert.ok(sized("more").length > sized("some").length, "often: more of them");
+  for (const beast of sized("more")) {
+    assert.ok(!ANIMALS[beast.kind].fly && !ANIMALS[beast.kind].person, `${beast.kind} keeps its size`);
+    assert.ok(beast.scale <= MONSTER_SIZES.hugeBy[1], "no bigger than huge");
+  }
+  let huge = 0;
+  for (let seed = 0; seed < 4000; seed++) {
+    const leader = monsterScale("troll", "more", true, seed);
+    if (leader >= MONSTER_SIZES.hugeBy[0]) huge++;
+    assert.ok((monsterScale("troll", "more", false, seed) ?? 1) < MONSTER_SIZES.hugeBy[0], "only a leader is huge");
+  }
+  assert.ok(huge > 150 && huge < 400, `often: about one leader in fifteen is huge (${huge} in 4000)`);
+  assert.equal(monsterScale("bat", "more", true, 1), null, "bats keep their size");
+  assert.equal(monsterScale("bandit", "more", true, 1), null, "people keep their size");
+  assert.ok(foeOf("troll", { troll: { hp: 84 } }, 1.7).hp > 84, "a huge one has more HP");
+}
+
 console.log("wanderworld animals regression: OK");

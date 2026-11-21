@@ -1020,6 +1020,8 @@ export function createHud(root, handlers) {
     animalsHostile: "Wolves, alone and in packs of two to five. A pack of three counts as three.",
     animalsMonsters:
       "Slimes, skeletons, giant spiders and rats, snakes, bats, wasps, frogs, imps, puglins, goblins, hobgoblins, bugbears, orcs, gnolls, kobolds, lizardfolk, ghouls, bandits, witches and wizards out in the country, and rarely an ogre, a troll, a minotaur or a dragon overhead. Skeletons, ghouls and bats only at night.",
+    animalSizes:
+      "Now and then: about one monster in eight is big (a quarter to two-fifths bigger) and one in fifty is huge (three-fifths to four-fifths bigger), always the first of its group. Often: about one in four big and one in fifteen huge. Never: every monster is about its kind's usual size.",
     animalsTown: "The most stray dogs and horses inside the settlement itself. Any more are put just outside it.",
     loreAnimals:
       "On: animals a lorebook places, and anyone's own dog or horse, appear even when their sort is at 0. Off: 0 means none at all.",
@@ -1571,6 +1573,11 @@ export function createHud(root, handlers) {
   slider("animalsMonsters", "Monsters", 1, whole);
   slider("animalsTown", "Most in the settlement", 1, whole);
   group(
+    "Bigger monsters",
+    "Now and then a monster is bigger than the rest of its kind, and once in a while one is huge. Size counts in a fight: a bigger one has more HP, hits harder and is worth more XP. Bats, wasps, dragons and people (bandits, witches, wizards) keep their usual size. A world's monsters are counted out again when this changes.",
+  );
+  choice("animalSizes", "How often", { off: "Never (all the usual size)", some: "Now and then", more: "Often" });
+  group(
     "Lore and owned animals",
     "Animals a lorebook places (ww:monster:wolf:pack5), and anyone's own dog or horse, are extra to the numbers above.",
   );
@@ -1630,6 +1637,17 @@ export function createHud(root, handlers) {
     ["animalWitch", "Witches"],
     ["animalWizard", "Wizards"],
     ["animalPuglin", "Puglins (pig-goblins)"],
+    ["animalGoblin", "Goblins"],
+    ["animalHobgoblin", "Hobgoblins"],
+    ["animalBugbear", "Bugbears"],
+    ["animalOrc", "Orcs"],
+    ["animalGnoll", "Gnolls"],
+    ["animalKobold", "Kobolds"],
+    ["animalLizardfolk", "Lizardfolk"],
+    ["animalGhoul", "Ghouls (night)"],
+    ["animalOgre", "Ogres (rare)"],
+    ["animalTroll", "Trolls (rare)"],
+    ["animalMinotaur", "Minotaurs (rare)"],
   ]);
   // AI: the server part's connections and styles. The connection lists come from the Engine when the
   // panel opens (they're the user's own, so they can change while playing).

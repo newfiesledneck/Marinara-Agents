@@ -61,7 +61,7 @@ import {
 import { createPerson, lookChoices, setGenderShares } from "./people.js";
 import { checkLook } from "./looks.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
-import { afloatAt, createHerd } from "./herd.js";
+import { afloatAt, createHerd, MONSTER_SIZES } from "./herd.js";
 import { createSocial } from "./social.js";
 import { ago, createMemories, heardBy, heardLines, linesHere, MEMORY, toldShares } from "./memory.js";
 import { eventOn, eventOpen, goesTo, standAt } from "./events.js";
@@ -3207,7 +3207,7 @@ function stepPlaces(dt) {
         .slice(0, 1)
         .map((body) => ({
           kind: `carry:${body.id}`,
-          label: `Carry the ${(PACK.animals[body.kind] ?? "the creature").replace(/^the /u, "")}`,
+          label: `Carry the ${creatureWord(body)}`,
         })),
     ]);
     core.journalAt = 0.5;
@@ -3717,6 +3717,7 @@ function herdOptions() {
     off: Object.entries(SWITCHES).flatMap(([name, kinds]) =>
       s[`animal${name[0].toUpperCase()}${name.slice(1)}`] === false ? kinds : [],
     ),
+    sizes: s.animalSizes,
   };
 }
 
@@ -7569,7 +7570,7 @@ function usable() {
   for (const body of core.interior ? [] : core.herd.bodies(core.player.position, 2.6)) {
     const person = !!ANIMALS[body.kind]?.person;
     if (person && body.searched) continue;
-    const what = (PACK.animals[body.kind] ?? "the creature").replace(/^the /u, "");
+    const what = creatureWord(body);
     list.push({
       kind: "thing",
       label: `${person ? "Search" : "Harvest"} the ${what}`,
@@ -7871,7 +7872,7 @@ function aimed() {
   if (aim.kind === "foe") {
     const foe = core.interior ? null : core.herd.foes(at, 60).find((entry) => entry.id === aim.id);
     if (!foe) return null;
-    const name = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+    const name = creatureWord(foe);
     return {
       kind: "foe",
       id: foe.id,
@@ -8554,7 +8555,7 @@ function shapeStrike(foe) {
       : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
   if (!struck) return false;
-  const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const what = creatureWord(foe);
   const told = strikeWords({
     who: `${personaName()}, as a ${mine.name.toLowerCase()},`,
     what,
@@ -8718,7 +8719,7 @@ function useAbility(id) {
     if (!target || target.person) return notice("There's nothing in reach.");
     if ((target.scale ?? 1) > 2) return void narrate(null, `${who} can't get a hold on something that size.`);
     core.gesture = "punch";
-    const what = (PACK.animals[target.kind] ?? "the creature").replace(/^the /u, "");
+    const what = creatureWord(target);
     const rolled = contest(target);
     const told = `Athletics ${rolled.mine} against its ${rolled.theirs}`;
     if (!rolled.won) return void narrate(null, `${who} tries to ${id} the ${what} (${told}): it holds its ground.`);
@@ -9396,7 +9397,7 @@ function swing() {
     if (!foe) return;
     if (foe.person) return void landOnPerson(foe, weapon);
     if (mode === "realtime" || mode === "turns") return void landOn(foe, weapon);
-    const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+    const what = creatureWord(foe);
     encounter(foe, what, "player");
   });
 }
@@ -9703,7 +9704,7 @@ function spellOnFoe(foe, who, name, spell, wit, from = null) {
       spellFx().ring(core.space.scene, chest(at.x, at.z, 0.15), colourOf(spell), seconds, 0.8 + foe.room);
     }
   }
-  const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const what = creatureWord(foe);
   const told = spellWords({ who, name, what, spell, result, left: struck.hp, max: struck.max });
   narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
   if (struck.down) foeBeaten(foe, stats);
@@ -9901,7 +9902,7 @@ function battleStart(id, surprised = false) {
   const foes = battleFoes(id);
   if (!foes.length) return;
   const sheet = sheetNow();
-  const what = (foe) => (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const what = (foe) => creatureWord(foe);
   const sides = [
     { id: "player", kind: "player", name: personaName(), bonus: modifier(valueOf(sheet, "dexterity")) },
     ...fightingAllies().map((person) => ({
@@ -9952,7 +9953,7 @@ function spotted(event) {
   if (core.downed || core.interior || core.mode === "talk") return;
   if (core.battle) return void battleJoin(event.id);
   const who = personaName();
-  const what = (PACK.animals[event.kind] ?? "the creature").replace(/^the /u, "");
+  const what = creatureWord(event);
   const a = /^[aeiou]/iu.test(what) ? "An" : "A";
   const passive = 10 + skillAdd("perception");
   const stealth = 1 + Math.floor(Math.random() * 20) + (foeTable()[event.kind]?.dex ?? 0);
@@ -9975,7 +9976,7 @@ function battleJoin(id) {
   if (core.battle.order.some((entry) => entry.id === id)) return;
   const foe = core.herd.foes(core.player.position, 30).find((entry) => entry.id === id);
   if (!foe) return;
-  const name = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const name = creatureWord(foe);
   core.battle.order.push({ id, kind: "foe", name, total: 0 });
   core.herd.hold(core.battle.order.filter((entry) => entry.kind === "foe").map((entry) => entry.id));
   narrate(null, `A ${name} joins the fight.`);
@@ -10025,7 +10026,7 @@ function battleTick(dt, moved) {
     core.herd.hold(battle.order.filter((entry) => entry.kind === "foe").map((entry) => entry.id));
   if (!battle.order.some((entry) => entry.kind === "foe")) return void battleEnd("The fight is over.");
   const allies = new Map(fightingAllies().map((person) => [person.id, person]));
-  const what = (foe) => (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const what = (foe) => creatureWord(foe);
   if (battleMine()) {
     // Opportunity attacks: a creature whose reach they walk out of gets one strike as they go (once a
     // round each), unless they took the Disengage action.
@@ -10532,7 +10533,7 @@ const recentWords = (count = 6) =>
 
 /** What a creature is, for a prompt: "a bandit (it fights with a light crossbow)". */
 function foeDescribed(foe) {
-  const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const what = creatureWord(foe);
   const stats = statsOf(foe);
   const role = tacticsOn() ? roleOf(foe.kind, foe.id, foeOf(foe.kind, foeTable())) : "";
   const how =
@@ -10603,7 +10604,7 @@ function combatSay(moment, speaker) {
 function sayInFight(speaker, line) {
   if (!line || !core.save) return;
   if (speaker.person) return void narrate(nameFor(speaker.person.id, speaker.person.name), line);
-  const what = (PACK.animals[speaker.foe.kind] ?? "the creature").replace(/^the /u, "");
+  const what = creatureWord(speaker.foe);
   if (!talks(speaker.foe.kind)) {
     // (An animal's is what it does: "bares its teeth", or a whole sentence of the game's own.)
     return void narrate(null, /^the /iu.test(line) ? line : `The ${what} ${line.replace(/[.!]*$/u, "")}.`);
@@ -10674,6 +10675,21 @@ async function askMove(foe, stats, target, far, reach, range) {
 
 /** Whether creatures fight each by its own sort (tactics.js): roles, cover, a spell for the moment. */
 const tacticsOn = () => !!core.settings.foeTactics && !!core.settings.srdCreatures;
+
+/**
+ * What a creature is called in the story: its setting pack's word without "the", and for a monster bigger
+ * than most of its kind (herd.js MONSTER_SIZES), "big" or "huge" before it.
+ */
+function creatureWord(body) {
+  const word = (PACK.animals[body?.kind] ?? "the creature").replace(/^the /u, "");
+  const scale = body?.scale ?? 1;
+  if (ANIMALS[body?.kind]?.group !== "monsters") return word;
+  return scale >= MONSTER_SIZES.hugeBy[0] - 0.05
+    ? `huge ${word}`
+    : scale >= MONSTER_SIZES.bigBy[0] - 0.05
+      ? `big ${word}`
+      : word;
+}
 
 /**
  * One creature's numbers in a fight (`foe`: anything with its kind, and its id and scale where it has them):
@@ -11263,7 +11279,7 @@ function allyStrikes(person, foe, weapon, again = false) {
   if (!struck) return false;
   const held = weaponIn({ name: weapon.name, description: `${weapon.damage} damage` })?.held ?? "sword";
   if (melee) core.crowd.gesture(person.id, "strike", held, foe.x, foe.z);
-  const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const what = creatureWord(foe);
   const told = strikeWords({
     who: name,
     what,
@@ -11361,7 +11377,7 @@ function shoot(bow, mode) {
         if (core.save?.id !== saveId) return;
         if (foe.person) return void landOnPerson(foe, bow);
         if (mode === "realtime" || mode === "turns") return void landOn(foe, bow, coverBetween(at, foe));
-        encounter(foe, (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, ""), "player");
+        encounter(foe, creatureWord(foe), "player");
       },
     });
   });
@@ -11598,7 +11614,7 @@ function landOn(foe, weapon, cover = 0) {
       : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
   if (!struck) return false;
-  const what = (PACK.animals[foe.kind] ?? "the creature").replace(/^the /u, "");
+  const what = creatureWord(foe);
   const told = strikeWords({ who: personaName(), what, weapon, result, left: struck.hp, max: struck.max });
   narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
   if (!struck.down && foe.hostile) combatSay(nerve === "flee" ? "flee" : result.hit ? "hurt" : "hit", { foe });
@@ -11725,7 +11741,7 @@ function carryBody(id) {
   if (core.carrying || core.downed || core.mode !== "walk" || core.interior) return;
   const body = core.herd.bodies(core.player.position, 3).find((entry) => entry.id === id);
   if (!body || !core.herd.liftBody(id)) return;
-  const what = (PACK.animals[body.kind] ?? "the creature").replace(/^the /u, "");
+  const what = creatureWord(body);
   core.carrying = { id, what };
   core.gesture = "pickUp";
   core.drawn = false;
