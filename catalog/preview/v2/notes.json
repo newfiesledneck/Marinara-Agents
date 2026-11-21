@@ -192,6 +192,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.50",
+          "date": "2026-11-20",
+          "notes": "- Hair and clothes for the built-in body: 14 hair styles (MakeHuman's and our own), and 78 pieces, from swimwear, crop tops, skirts and shorts to robes, gowns, chain, scale and plate, plus MakeHuman's modern clothes. Each follows the body's sliders.\n- The Look card's Clothes: ready-made outfits (peasant, townsperson, ranger, mage, knight, barbarian, beach, modern casual), one piece per slot, a dye or colour of your own per part, and the cloak's hood up or down. Townsfolk dress for their work.",
+          "highlight": false
+        },
+        {
           "version": "0.7.49",
           "date": "2026-11-20",
           "notes": "- The package is less than half the size (86 MB to under 38 MB) with nothing lost: the kit's models are stored compressed and unpacked quickly in the browser, creatures are bundled by family, and the built-in bodies' shapes are stored more compactly. Kit files load several times faster on phones.",
@@ -303,12 +309,6 @@
           "version": "0.7.31",
           "date": "2026-11-20",
           "notes": "- The goblin is reworked from reference pictures, so it looks less like a cartoon. It has a smaller, longer head with deep-set amber eyes, a bony hooked nose, a crooked grin and big ears swept back, and a wiry, stooped body with ribs and collarbones showing. Its fingers and toes are long and clawed. The tunic is gone: it wears a leather loincloth, a strap across its chest, bracers, wrapped feet and a necklace of teeth.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.30",
-          "date": "2026-11-20",
-          "notes": "- The goblin is more detailed. Blender now bakes it a texture of its own, with shading in its creases, mottled skin and dirt towards its feet. Its face is finer (heavy eyelids, lips, nostrils, crooked teeth, a wrinkled brow), its ears are leaf-shaped, one nicked and one with a brass ring, and its tunic is patched and tattered. It has a knotted rope belt, a necklace of teeth, wrapped shins and a chipped, rusty scimitar.\n- Credits name ThatOneCan as the maker of the goblin model, in Help, the README and the kit's credits.",
           "highlight": false
         }
       ]

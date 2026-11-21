@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.50 — 2026-11-20
+
+- Hair and clothes for the built-in body: 14 hair styles (MakeHuman's and our own), and 78 pieces, from swimwear, crop tops, skirts and shorts to robes, gowns, chain, scale and plate, plus MakeHuman's modern clothes. Each follows the body's sliders.
+- The Look card's Clothes: ready-made outfits (peasant, townsperson, ranger, mage, knight, barbarian, beach, modern casual), one piece per slot, a dye or colour of your own per part, and the cloak's hood up or down. Townsfolk dress for their work.
+
 ## 0.7.49 — 2026-11-20
 
 - The package is less than half the size (86 MB to under 38 MB) with nothing lost: the kit's models are stored compressed and unpacked quickly in the browser, creatures are bundled by family, and the built-in bodies' shapes are stored more compactly. Kit files load several times faster on phones.
