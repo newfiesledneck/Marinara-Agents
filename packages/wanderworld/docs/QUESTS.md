@@ -16,6 +16,8 @@ What we want:
 - Places to go into for them: small caves, large caverns, dungeons and strongholds, which can lead
   deeper into each other.
 - Regions with a purpose: a faction's land, a bandit stronghold, a cluster of hamlets.
+- A planner for everyday life: plans made in conversation ("we should hang out later", "come and
+  train with me in the morning") and a to-do list, beside errands and quests (section 17).
 
 ---
 
@@ -372,6 +374,64 @@ so few suit Wanderworld as they are. Possible SRD fits:
 
 ---
 
+## 17. Plans and to-dos: a planner for everyday life
+
+Not everything worth keeping track of is a quest. A friend says "we should hang out later", a brother
+suggests training together in the morning, you mean to buy bread. Four things, from smallest to largest,
+kept in one place:
+
+| Kind   | What it is                                                     | Ends                              |
+| ------ | -------------------------------------------------------------- | --------------------------------- |
+| To-do  | A note of the player's own, or one the game adds ("buy bread") | ticked off, or deleted            |
+| Plan   | Meeting someone: who, what, when and where                     | kept, missed, or called off       |
+| Errand | A small task for someone (what errands are now)                | done, a one-stage quest (phase 1) |
+| Quest  | Stages, branches, rewards (sections 1 to 16)                   | done, failed or given up          |
+
+**A plan** is `{ with: <person id>, activity, at: { day, hour }, place: <zone id>, from: "talk" | "lore"
+| "player" | "them" }`. Activities are things the world can already show: hang out (sit and talk), eat or
+drink together (the tavern, or someone's home), train or work out, go for a walk, help at their work,
+go fishing, visit their home or yours.
+
+**How plans are made:**
+
+- **In conversation, with AI.** When a character suggests something or agrees to one, the conversation's
+  answer can carry a plan in a fixed shape, as moments already carry schedule plans (`/moment`'s
+  `plans`). The code checks it: the person exists, the time is ahead, the place is real (or their home
+  or the tavern when none was said). A card shows it: "Mira: train together at the yard, tomorrow at
+  7:00. Accept, or Not now."
+- **Without AI.** People suggest plans by their relationship and their day: friends an evening at the
+  tavern, family a meal at home, a training partner the morning at the yard. How often is a setting.
+- **By the player.** "Make plans" in conversation, or on someone's Journal page: pick what, when and
+  where; they say yes if they like you enough and are free.
+- **From lore.** Standing arrangements, such as `ww:plan:tavern:evening` on a character's entry.
+
+**What happens:**
+
+- The person's schedule gets the plan as an entry for its hours (`schedules.js putEntry`), so they go
+  there and wait, as a visit to your home already works.
+- A reminder before it ("In an hour: meet Mira at the Golden Goose"), and the waypoint if asked.
+- Kept: you're both there, so they do the activity with you (sitting, eating, training), and an
+  optional moment or scene plays it out. Time spent together moves the relationship on, as it already
+  does (`social.js`), and both remember it.
+- Missed: they waited, then went. They remember that you didn't come, and the relationship takes a
+  small step back, unless you called it off first or send word.
+- Called off: either side can, in conversation or from the Journal. Someone who can't make it (away,
+  deleted in the Engine, out cold) sends word, so a plan always ends one of the three ways.
+
+**Where it's kept:** Journal → Plans: today, tomorrow and later, the to-do list under them, and errands
+and quests on their own tab. Plans and to-dos work with no AI at all.
+
+**Plans and quests share parts:** "meet at a place and time" is also a quest stage (meet the informant
+at midnight), and both use the waypoint, reminders and the Journal.
+
+**Settings:** Plans on or off; people suggest plans (how often); the AI turns conversation into plans;
+reminders. Each explained where it's set.
+
+**Build order:** plans and to-dos are simpler than quests and use what exists (schedules, visits,
+moments, memory, relationships), so they can come with phase 1 or just after it.
+
+---
+
 ## Open questions
 
 - How long a quest should usually be: two or three stages, or up to six?
@@ -380,3 +440,4 @@ so few suit Wanderworld as they are. Possible SRD fits:
 - Is `ww:quest` the right shape for lore quests, or should a quest be a whole lorebook entry of its own?
 - Should there be fast travel between regions a quest sends the player to?
 - Creatures with models but no SRD stat block (the Yeti): leave them out, or let the user write stats?
+- Plans: should a missed plan cost anything with family, or only with friends and partners?
