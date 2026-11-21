@@ -24,6 +24,8 @@ const BODY_SECONDS = 180; // how long one that's been beaten lies where it fell
 const LUNGE_SECONDS = 0.4; // how long a lunge takes, there and back
 const HUNT_FROM = 22; // and from which, let attack, it comes for them
 const THREAT_EVERY = 45; // seconds between the game being told of one squaring up
+const RALLY_SECONDS = 60; // how long one that has had enough runs from them (as long as the SRD's Turn Undead)
+const DEN_REACH = 6; // metres from its den within which one stands its ground
 /**
  * The saddle (the props kit's, from a Poly by Google model, CC-BY): how much smaller than it's made it
  * goes on a horse, and how far up its own height its underside is (the stirrups hang below that). It's
@@ -372,13 +374,17 @@ export function createHerd() {
   const heightAt = (x, z) => (world?.heightAt ?? landHeight)(x, z);
   const waterAt = (x, z) => (world?.waterAt ?? landWater)(x, z);
 
+  /** Whether `beast` has had enough of a fight, and runs from it for now (strike's "flee"). */
+  const fleeing = (beast) => (beast.fleeing ?? 0) > clock;
   /** What `beast` is like: "tame", "hostile", "timid" or "calm" (its own, the lore's for its kind, or its kind's). */
   const temperOf = (beast) =>
     beast.owned
       ? "tame"
-      : (beast.temper ??
-        tempers[beast.kind] ??
-        (ANIMALS[beast.kind].hostile ? "hostile" : ANIMALS[beast.kind].timid ? "timid" : "calm"));
+      : fleeing(beast)
+        ? "timid"
+        : (beast.temper ??
+          tempers[beast.kind] ??
+          (ANIMALS[beast.kind].hostile ? "hostile" : ANIMALS[beast.kind].timid ? "timid" : "calm"));
 
   function clear() {
     token++;
@@ -1096,7 +1102,9 @@ export function createHerd() {
           hp: beast.hp,
           max: beast.max,
           hostile: beast.angry || (ANIMALS[beast.kind].hostile && temperOf(beast) !== "tame"),
-          fled: beast.temper === "timid", // (it has had enough, and runs)
+          // (It has had enough, and runs: never while it's fighting back. `den`: it's by its den.)
+          fled: !beast.angry && (fleeing(beast) || beast.temper === "timid"),
+          den: !!beast.home && Math.hypot(beast.x - beast.home.x, beast.z - beast.home.z) < DEN_REACH,
           stunned: (beast.stunUntil ?? 0) > clock,
           // (For the fight display: it's after someone or fighting back, and what holds or calms it.)
           engaged: !!(beast.angry || beast.chasing),
@@ -1108,7 +1116,8 @@ export function createHerd() {
     },
     /**
      * `id` is struck for `damage` (0: a miss, which still rouses it); `max` is its HP whole, for one not
-     * struck before; `nerve` "flee" has it turn and run, else it fights back. { hp, max, down }, or null.
+     * struck before; `nerve` "flee" has it turn and run for RALLY_SECONDS, else it fights back. One already
+     * running runs on, struck or not. { hp, max, down }, or null.
      */
     strike(id, damage, max, nerve = "fight") {
       const beast = beasts.find((entry) => entry.id === id);
@@ -1125,9 +1134,10 @@ export function createHerd() {
         // (On its side, where it stood.)
         beast.group.rotation.z = Math.PI / 2;
         beast.group.position.y += 0.25 * (beast.scale ?? 1);
-      } else if (nerve === "flee") {
+      } else if (nerve === "flee" || fleeing(beast)) {
         beast.angry = false;
-        beast.temper = "timid"; // it has had enough: it runs from them from now on
+        beast.chasing = false; // (should it come back, that's a new chase, told as one)
+        beast.fleeing = clock + RALLY_SECONDS; // it has had enough: it runs from them, for now
         beast.state = "idle";
         beast.wait = 0;
       } else {
@@ -1153,7 +1163,7 @@ export function createHerd() {
           beast.searched = false;
           beast.angry = false;
           beast.counted = false;
-          beast.temper = undefined;
+          beast.fleeing = 0;
           beast.x = beast.home.x;
           beast.z = beast.home.z;
           if (beast.group) beast.group.rotation.z = 0;

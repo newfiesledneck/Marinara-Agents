@@ -216,6 +216,7 @@ import {
   spellWords,
   spoilsOf,
   spoilsWords,
+  stillInFight,
   strikeWords,
   sumWords,
   turnBudget,
@@ -9478,6 +9479,13 @@ function unshape(words) {
   if (words) narrate(null, words);
 }
 
+/** (ww-flee) How `foe` takes a hurt of `damage` (combat.js foeNerve); its temperament counts with creature extras on. */
+function nerveOf(foe, stats, damage) {
+  const before = foe.hp ?? stats.hp;
+  const make = { ...stats, temperament: extrasOn() ? stats.temperament : "", den: !!foe.den };
+  return foeNerve(Math.max(0, before - damage), stats.hp, Math.random, make, before);
+}
+
 /** A blow in a beast's shape: the beast's own attack and damage, with its Pack Tactics where it has them. */
 function shapeStrike(foe) {
   const mine = SRD_CREATURES[core.shape.kind];
@@ -9491,12 +9499,7 @@ function shapeStrike(foe) {
   const typed = typedDamage(rolled.damage, mine.type, stats);
   const result = { ...rolled, damage: typed.damage, how: typed.how, type: mine.type, ac: stats.ac };
   core.shape.animal?.act?.("strike");
-  const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
-  const nerve = !foe.hostile
-    ? "flee"
-    : result.hit
-      ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
-      : "fight";
+  const nerve = !foe.hostile ? "flee" : result.hit ? nerveOf(foe, stats, result.damage) : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
   knowFrom(foe.kind, result); // (fight display)
   if (!struck) return false;
@@ -10972,7 +10975,7 @@ function faceEnemy(reach) {
     best = { x, z };
   };
   for (const foe of inHouse() ? [] : core.herd.foes(at, reach + 2.5))
-    if (!foe.fled && (foe.hostile || foe.hp !== undefined || inFight.has(foe.id))) consider(foe.x, foe.z, foe.room);
+    if (foe.hostile || foe.hp !== undefined || inFight.has(foe.id)) consider(foe.x, foe.z, foe.room); // (ww-flee: running too)
   if (core.angry?.size)
     for (const person of core.crowd.present(core.space))
       if (core.angry.has(person.id) && !core.crowd.isOut(person.id))
@@ -11013,14 +11016,9 @@ function spellOnFoe(foe, who, name, spell, wit, from = null) {
     prof: spellProf(),
   });
   const now = core.herd.foes({ x: foe.x, z: foe.z }, 40).find((entry) => entry.id === foe.id) ?? foe;
-  const after = Math.max(0, (now.hp ?? stats.hp) - result.damage);
   const kind = result.effect?.kind;
   const nerve =
-    !foe.hostile || kind === "flee"
-      ? "flee"
-      : result.damage > 0
-        ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
-        : "fight";
+    !foe.hostile || kind === "flee" ? "flee" : result.damage > 0 ? nerveOf(now, stats, result.damage) : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
   knowFrom(foe.kind, result, result.type ?? spell.type); // (fight display)
   if (!struck) return 0;
@@ -11050,6 +11048,7 @@ function spellOnFoe(foe, who, name, spell, wit, from = null) {
   const what = creatureWord(foe);
   const told = spellWords({ who, name, what, spell, result, left: struck.hp, max: struck.max });
   narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
+  if (core.battle && !struck.down) battleJoin(foe.id); // (ww-flee) struck by turns, it's in the fight
   if (struck.down) foeBeaten(foe, stats);
   return result.damage;
 }
@@ -11239,12 +11238,12 @@ function battleAct(id) {
   useAbility(id);
 }
 
-/** The creatures that would be in a fight begun at the creature `id`: it, and every hostile one near the player. */
+/** The creatures that would be in a fight begun at the creature `id`: it (even running), and every hostile one near the player. */
 function battleFoes(id) {
   const at = core.player.position;
   return core.herd
     .foes(at, 26)
-    .filter((foe) => !foe.fled && (foe.id === id || (foe.hostile && Math.hypot(foe.x - at.x, foe.z - at.z) < 16)));
+    .filter((foe) => foe.id === id || (!foe.fled && foe.hostile && Math.hypot(foe.x - at.x, foe.z - at.z) < 16));
 }
 
 /**
@@ -11330,11 +11329,11 @@ function battleJoin(id) {
   if (!core.battle) return void battleStart(id);
   if (core.battle.order.some((entry) => entry.id === id)) return;
   const foe = core.herd.foes(core.player.position, 30).find((entry) => entry.id === id);
-  if (!foe) return;
+  if (!stillInFight(foe, core.player.position)) return; // (ww-flee: not one that has got away)
   const name = creatureWord(foe);
   core.battle.order.push({ id, kind: "foe", name, total: 0 });
   core.herd.hold(core.battle.order.filter((entry) => entry.kind === "foe").map((entry) => entry.id));
-  narrate(null, `A ${name} joins the fight.`);
+  narrate(null, `${/^[aeiou]/iu.test(name) ? "An" : "A"} ${name} joins the fight.`);
 }
 
 /** The fight is over: what waited is let go, and `words` say how it ended. */
@@ -11369,11 +11368,13 @@ function battleTick(dt, moved) {
   if (!byTurns() || inHouse() || !core.save) return void battleEnd("");
   if (core.downed) return void battleEnd("");
   const at = core.player.position;
-  // Who of the creatures is still in it: on its feet, not run off, not left far behind.
+  // Who of the creatures is still in it: on its feet, not left far behind, and one running till it gets away
+  // (ww-flee: it can be chased and struck till then, and it takes its turns to run).
   const about = new Map(core.herd.foes(at, 45).map((foe) => [foe.id, foe]));
   const before = battle.order.length;
   battle.order = battle.order.filter((entry, i) => {
-    const stays = entry.kind !== "foe" || (about.has(entry.id) && !about.get(entry.id).fled);
+    const stays = entry.kind !== "foe" || stillInFight(about.get(entry.id), at);
+    if (!stays && about.has(entry.id)) narrate(null, `The ${entry.name} gets away.`);
     if (!stays && i <= battle.at) battle.at -= 1;
     return stays;
   });
@@ -11388,7 +11389,8 @@ function battleTick(dt, moved) {
     const close = new Set();
     for (const entry of battle.order) {
       const foe = entry.kind === "foe" ? about.get(entry.id) : null;
-      if (foe && !foe.stunned && Math.hypot(foe.x - at.x, foe.z - at.z) <= 1.7 + foe.room) close.add(foe.id);
+      if (foe && !foe.stunned && !foe.fled && Math.hypot(foe.x - at.x, foe.z - at.z) <= 1.7 + foe.room)
+        close.add(foe.id);
     }
     if (core.settings.opportunity && battle.near && moved > 0.001 && !battle.disengaged)
       for (const id of battle.near) {
@@ -11482,7 +11484,13 @@ function battleTick(dt, moved) {
     // few seconds for it, and goes on without it after that.
     if (battle.step === "asking") {
       battle.step = "move"; // (no answer in time: it does what its sort does)
-    } else if (battle.step === "move" && core.settings.combatAiMoves && !foe.stunned && battle.plan?.id !== foe.id) {
+    } else if (
+      battle.step === "move" &&
+      core.settings.combatAiMoves &&
+      !foe.stunned &&
+      !foe.fled &&
+      battle.plan?.id !== foe.id
+    ) {
       const asked = battle;
       asked.plan = { id: foe.id, move: "" };
       asked.step = "asking";
@@ -11499,12 +11507,18 @@ function battleTick(dt, moved) {
     const plan = battle.plan?.id === foe.id ? battle.plan.move : "";
     if (plan === "close" || plan === "throw") shoots = false;
     if (plan === "shoot" || plan.startsWith("cast:") || plan === "mend") shoots = true;
-    if (battle.step === "move" && plan === "flee" && !foe.stunned) {
-      core.herd.strike(foe.id, 0, stats.hp, "flee");
-      sayInFight({ foe }, ""); // (nothing said; the run is told)
-      narrate(null, `The ${what(foe)} turns and runs.`);
+    if (battle.step === "move" && (plan === "flee" || foe.fled) && !foe.stunned) {
+      // (ww-flee) One that has had enough takes the Dash action away from them, and is in the fight till it gets away.
+      if (plan === "flee") {
+        core.herd.strike(foe.id, 0, stats.hp, "flee");
+        sayInFight({ foe }, ""); // (nothing said; the run is told)
+      }
+      const way = far > 0.01 ? { x: (foe.x - target.x) / far, z: (foe.z - target.z) / far } : { x: 1, z: 0 };
+      const run = TURN_MOVE * 2;
+      core.herd.march(foe.id, foe.x + way.x * run, foe.z + way.z * run, foe.x + way.x * 99, foe.z + way.z * 99);
+      narrate(null, `The ${what(foe)} runs from the fight: the Dash action.`);
       battle.step = "next";
-      battle.wait = 0.8;
+      battle.wait = 2.4;
     } else if (battle.step === "move" && plan === "back" && !foe.stunned) {
       const way = far > 0.01 ? { x: (foe.x - target.x) / far, z: (foe.z - target.z) / far } : { x: 1, z: 0 };
       core.herd.march(foe.id, foe.x + way.x * TURN_MOVE, foe.z + way.z * TURN_MOVE, target.x, target.z);
@@ -12652,12 +12666,11 @@ function allyStrikes(person, foe, weapon, again = false) {
     ...(worse && !better ? { hampered: true } : {}),
   };
   if (smites && result.hit) used.smite = true;
-  const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
   const struck = core.herd.strike(
     foe.id,
     result.damage,
     stats.hp,
-    result.hit ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "") : "fight",
+    result.hit ? nerveOf(foe, stats, result.damage) : "fight",
   );
   if (!struck) return false;
   const held = weaponIn({ name: weapon.name, description: `${weapon.damage} damage` })?.held ?? "sword";
@@ -12989,12 +13002,7 @@ function landOn(foe, weapon, cover = 0) {
   const result = better === worse ? swung() : rolledTwice(swung, better);
   if (worse && !better) result.hampered = true;
   strikeSpent(mods, result, foe);
-  const after = Math.max(0, (foe.hp ?? stats.hp) - result.damage);
-  const nerve = !foe.hostile
-    ? "flee"
-    : result.hit
-      ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
-      : "fight";
+  const nerve = !foe.hostile ? "flee" : result.hit ? nerveOf(foe, stats, result.damage) : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
   knowFrom(foe.kind, result); // (fight display)
   if (!struck) return false;
@@ -13002,6 +13010,7 @@ function landOn(foe, weapon, cover = 0) {
   const told = strikeWords({ who: personaName(), what, weapon, result, left: struck.hp, max: struck.max });
   narrate(null, struck.down ? `${told} (+${stats.xp} XP)` : told);
   if (!struck.down && foe.hostile) combatSay(nerve === "flee" ? "flee" : result.hit ? "hurt" : "hit", { foe });
+  if (core.battle && !struck.down) battleJoin(foe.id); // (ww-flee) struck by turns, it's in the fight
   if (struck.down) foeBeaten(foe, stats);
   return struck.down;
 }
@@ -13487,7 +13496,8 @@ function fightersNow() {
   const standing = new Set(core.over && !core.over.gone ? core.over.victors.map((victor) => victor.id) : []);
   const near = (foe) => Math.hypot(foe.x - at.x, foe.z - at.z);
   const against = foes
-    .filter((foe) => standing.has(foe.id) || (!foe.fled && (foe.engaged || (foe.hp !== undefined && near(foe) < 20))))
+    // (ww-flee: one running is shown while it's near, to be chased down.)
+    .filter((foe) => standing.has(foe.id) || foe.engaged || (foe.hp !== undefined && near(foe) < 20))
     .map((foe) => ({ ...foeFighter(foe), aimed: foe.id === aim }));
   const people = core.angry?.size
     ? core.crowd

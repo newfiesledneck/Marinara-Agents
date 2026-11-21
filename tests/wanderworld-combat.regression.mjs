@@ -112,17 +112,17 @@ assert.deepEqual(savingThrow({ score: 14, dc: 13, damage: "2d6" }, dice([10, 20]
 assert.equal(savingThrow({ score: 14, dc: 12, damage: "2d6" }, dice([10, 20], [4, 6], [5, 6])).damage, 4);
 assert.equal(savingThrow({ score: 14, dc: 12, damage: 9, onSave: "none" }, dice([10, 20])).damage, 0);
 
-// A hurt creature may run when it has a third of its HP or less; never before.
+// A hurt creature may run when it has a quarter of its HP or less; never before (tests/wanderworld-flee has the rest).
 assert.equal(
-  foeNerve(6, 11, () => 0),
+  foeNerve(4, 11, () => 0),
   "fight",
 );
 assert.equal(
-  foeNerve(3, 11, () => 0),
+  foeNerve(2, 11, () => 0),
   "flee",
 );
 assert.equal(
-  foeNerve(3, 11, () => 0.99),
+  foeNerve(2, 11, () => 0.99),
   "fight",
 );
 assert.equal(

@@ -626,6 +626,15 @@ every roll, and no AI call is made in a real-time fight.
   companions), which gives them a weapon and spells. They strike what comes within reach, cast at
   what doesn't, and a healer mends you below half your HP. They move with the fight, creatures
   go for them as well as for you, and one at 0 HP is out of the fight for a while.
+- **Running from a fight.** A creature runs only when badly hurt. The blow that first leaves it a
+  quarter of its HP or less (half, for a coward) has it make a Wisdom saving throw against DC 10, and
+  it runs if it fails. Undead, oozes, constructs, the mindless and anything that can't be frightened
+  never run; elementals, plants and a creature by its den roll twice and keep the better. You can
+  chase one that runs and strike it, and it keeps running when hit. By turns it stays in the order
+  and spends its turns on the Dash action until it is 24 metres from you. After a minute it has its
+  nerve back and may come for you again, and then it joins the fight once. The saving throw and the
+  condition immunities are the SRD's; the quarter of its HP, DC 10, the den and the minute are
+  Wanderworld's own.
 - **What spells leave**: a spell's rule says what it does besides damage, taken from the SRD:
   held (paralyzed, restrained, incapacitated, asleep, prone), frightened, slowed, blinded or
   hindered (its attacks rolled twice, the worse counting), marked (your blows on it rolled twice,
