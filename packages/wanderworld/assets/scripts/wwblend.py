@@ -53,6 +53,13 @@ for _s in ("l", "r"):
     ]
 
 
+_START = __import__("time").time()
+
+
+def _log(what):
+    print(f"[{__import__('time').time() - _START:6.1f}s] {what}", flush=True)
+
+
 def at(x, up, fwd):
     """A point from the game's (x, up, forward) to Blender's (x, -forward, up)."""
     return Vector((x, -fwd, up))
@@ -130,30 +137,37 @@ class Model:
         reset()
         self.name = name
         self.palette = Palette()
-        self.resolution = resolution
-        self.target_faces = faces
-        self.elements = []  # the body: (kind, data, colour, negative)
+        # Groups of metaballs, each made a mesh of its own: "body" is skinned to the rig by bone heat;
+        # another (`group()`: a head, meshed finer for its features) is held wholly by one bone.
+        self.groups = {"body": {"resolution": resolution, "faces": faces, "bone": None}}
+        self.elements = []  # (kind, data, colour, negative, group)
         self.parts = []  # hard parts: (verts, faces, colour, bone, smooth)
         self.joints = {}
 
+    def group(self, name, resolution, faces, bone):
+        """A group of metaballs meshed on their own, finer (`resolution`, at most `faces`), and held
+        wholly by `bone`: a head, whose eyelids, lips and nostrils are too fine for the body's mesh."""
+        self.groups[name] = {"resolution": resolution, "faces": faces, "bone": bone}
+
     # ── The body: metaballs, each with the colour its part of the skin takes ──
 
-    def ball(self, centre, r, colour, negative=False):
-        self.elements.append(("BALL", (Vector(centre), r), colour, negative))
+    def ball(self, centre, r, colour, negative=False, group="body"):
+        self.elements.append(("BALL", (Vector(centre), r), colour, negative, group))
 
-    def capsule(self, a, b, r, colour, negative=False):
-        self.elements.append(("CAPSULE", (Vector(a), Vector(b), r), colour, negative))
+    def capsule(self, a, b, r, colour, negative=False, group="body"):
+        self.elements.append(("CAPSULE", (Vector(a), Vector(b), r), colour, negative, group))
 
-    def ellipsoid(self, centre, radii, colour, negative=False):
-        self.elements.append(("ELLIPSOID", (Vector(centre), Vector(radii)), colour, negative))
+    def ellipsoid(self, centre, radii, colour, negative=False, group="body"):
+        self.elements.append(("ELLIPSOID", (Vector(centre), Vector(radii)), colour, negative, group))
 
-    def _body_mesh(self):
-        meta = bpy.data.metaballs.new(f"{self.name}-body")
-        meta.resolution = self.resolution
+    def _meta_mesh(self, group):
+        settings = self.groups[group]
+        meta = bpy.data.metaballs.new(f"{self.name}-{group}")
+        meta.resolution = settings["resolution"]
         meta.threshold = THRESHOLD
         holder = bpy.data.objects.new(f"{self.name}-meta", meta)
         bpy.context.scene.collection.objects.link(holder)
-        for kind, data, _colour, negative in self.elements:
+        for kind, data, _colour, negative, _group in (e for e in self.elements if e[4] == group):
             e = meta.elements.new(type=kind)
             e.stiffness = STIFF
             e.use_negative = negative
@@ -174,12 +188,12 @@ class Model:
         depsgraph = bpy.context.evaluated_depsgraph_get()
         mesh = bpy.data.meshes.new_from_object(holder.evaluated_get(depsgraph))
         bpy.data.objects.remove(holder)
-        body = bpy.data.objects.new(f"{self.name}-skin", mesh)
+        body = bpy.data.objects.new(f"{self.name}-{group}-skin", mesh)
         bpy.context.scene.collection.objects.link(body)
         # Fewer faces: a model has to stay cheap for a crowd of them on a phone.
-        if len(mesh.polygons) > self.target_faces:
+        if len(mesh.polygons) > settings["faces"]:
             decimate = body.modifiers.new("Decimate", "DECIMATE")
-            decimate.ratio = self.target_faces / len(mesh.polygons)
+            decimate.ratio = settings["faces"] / len(mesh.polygons)
             depsgraph = bpy.context.evaluated_depsgraph_get()
             reduced = bpy.data.meshes.new_from_object(body.evaluated_get(depsgraph))
             body.modifiers.clear()
@@ -189,7 +203,7 @@ class Model:
 
     def _field(self, p, element):
         """How strongly a metaball element holds the point p (0 outside its reach)."""
-        kind, data, _colour, _negative = element
+        kind, data = element[0], element[1]
         if kind == "BALL":
             centre, r = data
             x = (p - centre).length / (r / SURFACE)
@@ -202,11 +216,11 @@ class Model:
             x = math.sqrt(sum((d[i] / (radii[i] / SURFACE)) ** 2 for i in range(3)))
         return 0.0 if x >= 1 else (1 - x * x) ** 3
 
-    def _face_colour(self, p):
+    def _face_colour(self, p, group):
         """The colour of the skin at p: what a carving (negative) element gives inside it, else the
         element that holds it most."""
         best, colour = 0.0, None
-        for element in self.elements:
+        for element in (e for e in self.elements if e[4] == group):
             f = self._field(p, element)
             if element[3]:
                 if f > 0.35:
@@ -219,6 +233,8 @@ class Model:
     # ── Hard parts ──
 
     def _add_bm(self, bm, colour, bone, smooth=True):
+        # (Vertices made one by one have no index until it's updated; faces would point at nothing.)
+        bm.verts.index_update()
         bm.verts.ensure_lookup_table()
         verts = [v.co.copy() for v in bm.verts]
         faces = [[v.index for v in f.verts] for f in bm.faces]
@@ -295,6 +311,54 @@ class Model:
         rotation = Vector((0, 0, 1)).rotation_difference(Vector(axis).normalized())
         self._add_bm(self._placed(bm, scale, rotation, centre), colour, bone)
 
+    def leaf(self, base, tip, width, thickness, colour, bone, facing, bend=(0, 0, 0), notch=None, steps=10):
+        """A flat, pointed leaf shape from `base` to `tip` (an ear): widest a quarter of the way along,
+        `width` across at most, rounded at its rim, its broad side facing `facing`, its tip bent by
+        `bend` (growing towards the tip), and a nick cut in its upper edge at `notch` (0-1) if asked."""
+        base, tip, bend = Vector(base), Vector(tip), Vector(bend)
+        along_ = (tip - base).normalized()
+        length = (tip - base).length
+        normal = Vector(facing) - along_ * Vector(facing).dot(along_)
+        normal.normalize()
+        side = normal.cross(along_)
+        bm = bmesh.new()
+        rings = []
+        for i in range(steps):
+            u = i / steps
+            centre = base + along_ * length * u + bend * u * u
+            half = width / 1.3 * (0.6 + 1.2 * u) * (1 - u) ** 1.1
+            if notch is not None and abs(u - notch) < 0.05:
+                half *= 0.62
+            depth = thickness * (1 - 0.6 * u) / 2
+            ring = [
+                centre + side * half,
+                centre + side * half * 0.55 + normal * depth,
+                centre - side * half * 0.55 + normal * depth,
+                centre - side * half,
+                centre - side * half * 0.55 - normal * depth,
+                centre + side * half * 0.55 - normal * depth,
+            ]
+            rings.append([bm.verts.new(v) for v in ring])
+        point = bm.verts.new(tip + bend)
+        bm.faces.new(list(reversed(rings[0])))
+        for a, b in zip(rings, rings[1:]):
+            for j in range(6):
+                bm.faces.new((a[j], a[(j + 1) % 6], b[(j + 1) % 6], b[j]))
+        for j in range(6):
+            bm.faces.new((rings[-1][j], rings[-1][(j + 1) % 6], point))
+        self._add_bm(bm, colour, bone)
+
+    def strand(self, points, r0, r1, colour, bone, segments=5):
+        """A tube along `points`, from radius r0 to r1 (a lock of hair, the end of a rope)."""
+        points = [Vector(p) for p in points]
+        n = len(points) - 1
+        for i in range(n):
+            ra = r0 + (r1 - r0) * i / n
+            rb = r0 + (r1 - r0) * (i + 1) / n
+            self.tube(points[i], points[i + 1], ra, rb, colour, bone, segments=segments)
+            if i < n - 1:
+                self.sphere(points[i + 1], (rb,) * 3, colour, bone, segments=segments, rings=4)
+
     def weapon(self, parts, grip, tilt):
         """A weapon in the right hand: `parts` ([(maker, args)]) are made with the grip at the origin and
         the weapon running forward (-Y); it's turned by `tilt` about the up axis (below 0: towards where
@@ -341,37 +405,50 @@ class Model:
 
     # ── Putting it together ──
 
-    def finish(self, actions):
+    def finish(self, actions, bake=None):
         """Builds the mesh, skins it, keys `actions` ({name: frames}, see `Animator`), and writes the
-        .glb and the .blend."""
-        body = self._body_mesh()
+        .glb and the .blend. `bake` ({} for the defaults, see `_bake`) paints a texture of the model's
+        own in place of the palette."""
         rig = self.armature
-        # Blender's automatic weights for the body (bone heat).
-        bpy.ops.object.select_all(action="DESELECT")
-        body.select_set(True)
-        rig.select_set(True)
-        bpy.context.view_layer.objects.active = rig
-        bpy.ops.object.parent_set(type="ARMATURE_AUTO")
         names = [b.name for b in rig.data.bones]
-        group_bone = {g.index: g.name for g in body.vertex_groups}
-        body_weights = []
-        for v in body.data.vertices:
-            weights = {group_bone[g.group]: g.weight for g in v.groups if g.weight > 0.001}
-            if not weights:
-                # (Bone heat can miss a vertex: it follows the nearest bone instead.)
-                nearest = min(
-                    names,
-                    key=lambda n: _segment_distance(v.co, rig.data.bones[n].head_local, rig.data.bones[n].tail_local),
-                )
-                weights = {nearest: 1.0}
-            body_weights.append(weights)
-        body_verts = [v.co.copy() for v in body.data.vertices]
-        body_faces = [list(p.vertices) for p in body.data.polygons]
-        body_colours = [self._face_colour(Vector(p.center)) for p in body.data.polygons]
-        bpy.data.objects.remove(body)
+        verts, faces, colours, smooth, weights, kinds = [], [], [], [], [], []
+        for group, settings in self.groups.items():
+            if not any(e[4] == group for e in self.elements):
+                continue
+            _log(f"meshing {group}")
+            body = self._meta_mesh(group)
+            _log(f"{group}: {len(body.data.vertices)} vertices")
+            if settings["bone"] is None:
+                # Blender's automatic weights for the body (bone heat).
+                bpy.ops.object.select_all(action="DESELECT")
+                body.select_set(True)
+                rig.select_set(True)
+                bpy.context.view_layer.objects.active = rig
+                bpy.ops.object.parent_set(type="ARMATURE_AUTO")
+            _log(f"{group}: weighted")
+            group_bone = {g.index: g.name for g in body.vertex_groups}
+            offset = len(verts)
+            for v in body.data.vertices:
+                here = {group_bone[g.group]: g.weight for g in v.groups if g.weight > 0.001}
+                if settings["bone"] is not None:
+                    here = {settings["bone"]: 1.0}
+                elif not here:
+                    # (Bone heat can miss a vertex: it follows the nearest bone instead.)
+                    nearest = min(
+                        names,
+                        key=lambda n: _segment_distance(v.co, rig.data.bones[n].head_local, rig.data.bones[n].tail_local),
+                    )
+                    here = {nearest: 1.0}
+                weights.append(here)
+                verts.append(v.co.copy())
+            for poly in body.data.polygons:
+                faces.append([i + offset for i in poly.vertices])
+                colours.append(self._face_colour(Vector(poly.center), group))
+                kinds.append(0 if settings["bone"] is None else 1)
+                smooth.append(True)
+            bpy.data.objects.remove(body)
 
-        # One mesh: the body, then the hard parts.
-        verts, faces, colours, smooth, weights = list(body_verts), list(body_faces), list(body_colours), [True] * len(body_faces), list(body_weights)
+        # Then the hard parts, all in one mesh.
         for part_verts, part_faces, colour, bone, part_smooth in self.parts:
             offset = len(verts)
             verts += part_verts
@@ -380,17 +457,30 @@ class Model:
                 faces.append([i + offset for i in f])
                 colours.append(colour)
                 smooth.append(part_smooth)
+                kinds.append(1 if bone == "Head" else 2)
         mesh = bpy.data.meshes.new(self.name)
         mesh.from_pydata([tuple(v) for v in verts], [], faces)
+        # What each face is (its colour's cell, what it's part of, smooth or not) goes on the face itself
+        # before `validate()` drops any broken faces, so nothing shifts onto the wrong one.
         mesh.polygons.foreach_set("use_smooth", smooth)
+        mesh.attributes.new("part", "INT", "FACE").data.foreach_set("value", kinds)
+        cells = [self.palette.index(colour) for colour in colours]
+        mesh.attributes.new("cell", "INT", "FACE").data.foreach_set("value", cells)
+        mesh.validate()
+        mesh.update()
         uv = mesh.uv_layers.new(name="UVMap")
-        for poly, colour in zip(mesh.polygons, colours):
-            u, v = self.palette.uv(self.palette.index(colour))
+        for poly, cell in zip(mesh.polygons, mesh.attributes["cell"].data):
+            u, v = self.palette.uv(cell.value)
             for loop in poly.loop_indices:
                 uv.data[loop].uv = (u, v)
         mesh.materials.append(self.palette.material(self.name))
         obj = bpy.data.objects.new(self.name, mesh)
         bpy.context.scene.collection.objects.link(obj)
+        _log("one mesh")
+        # (WW_NO_BAKE=1 skips the bake: a quicker look while shaping a model.)
+        if bake is not None and not os.environ.get("WW_NO_BAKE"):
+            self._bake(obj, **bake)
+            _log("baked")
         groups = {n: obj.vertex_groups.new(name=n) for n in names}
         for i, w in enumerate(weights):
             for bone, value in w.items():
@@ -421,6 +511,109 @@ class Model:
         )
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(BUILD, f"{self.name}.blend"), compress=True)
         print(f"{self.name}: {len(verts)} vertices, {len(faces)} faces, {len(self.palette.colours)} colours")
+
+    def _bake(self, obj, size=512, ao=0.12, mottle=0.1, mottle_scale=55.0, dirt=0.22, head_scale=2.0):
+        """Paints a texture of the model's own: its palette colours, mottled a little (`mottle`, spots
+        about 1/`mottle_scale` metres across), darker towards the ground up to `dirt` metres, and shaded
+        where it's tucked in (ambient occlusion reaching `ao` metres). Baked by Cycles onto new texture
+        coordinates; the palette's are dropped, so the model still has one texture."""
+        scene = bpy.context.scene
+        scene.render.engine = "CYCLES"
+        scene.cycles.device = "CPU"
+        scene.cycles.samples = 48
+        if scene.world is None:
+            scene.world = bpy.data.worlds.new("World")
+        scene.world.light_settings.distance = ao
+        mesh = obj.data
+        # (By name: adding a layer leaves Python's handles on the others pointing at nothing.)
+        mesh.uv_layers.new(name="Bake")
+        mesh.uv_layers.active = mesh.uv_layers["Bake"]
+        bpy.ops.object.select_all(action="DESELECT")
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        # Few, large islands (a bumpy mesh unwrapped at a low angle falls into thousands of crumbs), the
+        # head and what's on it twice as wide as the rest, since a face is what's looked at; then packed
+        # apart by more than the bake spreads each island past its edge.
+        bpy.ops.uv.smart_project(angle_limit=math.radians(85), island_margin=0.0)
+        bm = bmesh.from_edit_mesh(mesh)
+        uv = bm.loops.layers.uv.active
+        part = bm.faces.layers.int.get("part")
+        for face in bm.faces:
+            if face[part] == 1:
+                for loop in face.loops:
+                    loop[uv].uv *= head_scale
+        bmesh.update_edit_mesh(mesh)
+        bpy.ops.uv.pack_islands(rotate=True, margin=0.008)
+        _log("unwrapped")
+        bpy.ops.object.mode_set(mode="OBJECT")
+
+        # The colour to bake: the palette (by its own coordinates), times a mottle, times the dirt.
+        material = mesh.materials[0]
+        nodes, links = material.node_tree.nodes, material.node_tree.links
+        bsdf = nodes.get("Principled BSDF")
+        palette = next(n for n in nodes if n.type == "TEX_IMAGE")
+        by_palette = nodes.new("ShaderNodeUVMap")
+        by_palette.uv_map = "UVMap"
+        links.new(by_palette.outputs["UV"], palette.inputs["Vector"])
+        coords = nodes.new("ShaderNodeTexCoord")
+        noise = nodes.new("ShaderNodeTexNoise")
+        noise.inputs["Scale"].default_value = mottle_scale
+        noise.inputs["Detail"].default_value = 3.0
+        links.new(coords.outputs["Object"], noise.inputs["Vector"])
+        spots = nodes.new("ShaderNodeMapRange")
+        spots.inputs["To Min"].default_value = 1 - mottle
+        spots.inputs["To Max"].default_value = 1 + mottle
+        links.new(noise.outputs["Fac"], spots.inputs["Value"])
+        height = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(coords.outputs["Object"], height.inputs["Vector"])
+        grime = nodes.new("ShaderNodeMapRange")
+        grime.inputs["From Max"].default_value = dirt
+        grime.inputs["To Min"].default_value = 0.72
+        grime.inputs["To Max"].default_value = 1.0
+        links.new(height.outputs["Z"], grime.inputs["Value"])
+        mottled = nodes.new("ShaderNodeVectorMath")
+        mottled.operation = "SCALE"
+        links.new(palette.outputs["Color"], mottled.inputs[0])
+        links.new(spots.outputs["Result"], mottled.inputs["Scale"])
+        dirty = nodes.new("ShaderNodeVectorMath")
+        dirty.operation = "SCALE"
+        links.new(mottled.outputs["Vector"], dirty.inputs[0])
+        links.new(grime.outputs["Result"], dirty.inputs["Scale"])
+        links.new(dirty.outputs["Vector"], bsdf.inputs["Base Color"])
+
+        def target(label, colour_space):
+            image = bpy.data.images.new(f"{self.name}-{label}", size, size, alpha=False)
+            image.colorspace_settings.name = colour_space
+            node = nodes.new("ShaderNodeTexImage")
+            node.image = image
+            nodes.active = node
+            return image
+
+        colour_image = target("colour", "sRGB")
+        bpy.ops.object.bake(type="DIFFUSE", pass_filter={"COLOR"}, margin=2, use_clear=True)
+        _log("colour baked")
+        ao_image = target("ao", "Non-Color")
+        bpy.ops.object.bake(type="AO", margin=2, use_clear=True)
+        colour = np.array(colour_image.pixels[:], dtype=np.float32).reshape(size, size, 4)
+        occlusion = np.array(ao_image.pixels[:], dtype=np.float32).reshape(size, size, 4)[..., :1]
+        colour[..., :3] *= 0.42 + 0.58 * occlusion**0.9
+        final = bpy.data.images.new(f"{self.name}-texture", size, size, alpha=False)
+        final.pixels.foreach_set(colour.ravel())
+        final.file_format = "PNG"
+        final.pack()
+
+        # The model's material is now that texture alone, on the new coordinates.
+        for node in list(nodes):
+            if node.type not in ("BSDF_PRINCIPLED", "OUTPUT_MATERIAL"):
+                nodes.remove(node)
+        texture = nodes.new("ShaderNodeTexImage")
+        texture.image = final
+        links.new(texture.outputs["Color"], bsdf.inputs["Base Color"])
+        mesh.uv_layers.remove(mesh.uv_layers["UVMap"])
+        for image in (colour_image, ao_image):
+            bpy.data.images.remove(image)
 
 
 class Animator:

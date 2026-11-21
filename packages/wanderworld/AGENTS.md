@@ -19,7 +19,7 @@ older code-made monsters; it stays as the fallback for any kind without a Blende
 | `assets/models/<name>.glb`          | The model: mesh, materials, normals, rig, weights and its actions | yes    |
 | `assets/build/<name>.blend`         | A debug copy to open in Blender                                   | no     |
 | `kit/fantasy/folk/folk-built.json`  | The models as the game loads them (generated)                     | yes    |
-| `kit/fantasy/folk/folk-<name>.webp` | Each model's palette texture (generated)                          | yes    |
+| `kit/fantasy/folk/folk-<name>.webp` | Each model's texture (generated)                                  | yes    |
 
 ### Rules for a script
 
@@ -30,18 +30,22 @@ older code-made monsters; it stays as the fallback for any kind without a Blende
    it with the people's recorded animations; its own `Idle`, `Walk` and `Attack` actions, each on an NLA
    track of its own, are for the model on its own. A creature with another shape needs its own skeleton
    and actions, and the animals pipeline (`scripts/build-wanderworld-animals.mjs`) to play them.
-3. Colours go in one small palette texture (`wwblend.Palette`: a flat colour per cell, each face's
-   texture coordinates on its cell), so the game draws a model in one go.
+3. A model has one texture, so the game draws it in one go. Colours start in a palette
+   (`wwblend.Palette`: a flat colour per cell); `Model.finish(bake={...})` then bakes them with Cycles
+   into a texture of the model's own, with a little mottling, darker towards the ground, and shading
+   where it's tucked in (ambient occlusion).
 4. 1 unit is 1 metre. The feet stand at the origin `(0, 0, 0)`; transforms are applied
    (`bpy.ops.object.transform_apply`). In Blender the model faces −Y with +Z up; the glTF export turns
    that into the game's +Z forward and +Y up. `wwblend.at(x, up, forward)` takes positions as the game's
    code gives them.
-5. Keep it cheap: a creature stays under about 8,000 vertices (the script prints its count) and 64
-   colours.
+5. Keep it cheap enough for a crowd of them on a phone: a creature stays under about 15,000 vertices
+   (the script prints its count), one texture of 512 pixels and 64 palette colours. If phones struggle,
+   trim with fewer faces (`Model(faces=…)`, `group(faces=…)`) before cutting detail people see.
 6. Export `assets/models/<name>.glb` with animations, materials and normals, and save
    `assets/build/<name>.blend` (`Model.finish()` does both).
-7. A model made this way is Wanderworld's own and needs no credit. A script that reads another pack's
-   files follows that pack's licence and the credit rules in `docs/CONCEPT.md`.
+7. Credit every model made this way to ThatOneCan, in Help's credits (`src/help.js`), the README's
+   credits and `kit/CREDITS.md`, naming what it is. A script that reads another pack's files also
+   follows that pack's licence and the credit rules in `docs/CONCEPT.md`.
 
 ### Running one
 

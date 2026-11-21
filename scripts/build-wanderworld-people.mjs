@@ -394,9 +394,8 @@ function folk(dir) {
 
 /**
  * The monsters made in Blender (packages/wanderworld/assets/scripts/make_*.py, each a .glb in
- * assets/models/ on the people's skeleton, its colours in one palette texture), into
- * kit/fantasy/folk/folk-built.json with a texture each (folk-<name>.webp, kept lossless so the colours
- * stay flat). The game moves them with the people's animations, as it does the imp and the puglin; their
+ * assets/models/ on the people's skeleton, with one texture of its own), into
+ * kit/fantasy/folk/folk-built.json with a texture each (folk-<name>.webp). The game moves them with the people's animations, as it does the imp and the puglin; their
  * own actions stay in the .glb for anyone using the model elsewhere.
  */
 function bestiary() {
@@ -412,7 +411,7 @@ function bestiary() {
     const primitives = skinnedPrimitives(gltf);
     const png = join(out, `${name}.png`);
     writeFileSync(png, gltf.imageOf(primitives[0].texture));
-    execFileSync(FFMPEG, ["-v", "error", "-y", "-i", png, "-lossless", "1", join(out, `folk-${name}.webp`)]);
+    execFileSync(FFMPEG, ["-v", "error", "-y", "-i", png, "-quality", "90", join(out, `folk-${name}.webp`)]);
     rmSync(png);
     let top = 0;
     for (const primitive of primitives)

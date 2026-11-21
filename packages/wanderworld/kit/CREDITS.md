@@ -20,9 +20,16 @@ licence file says so). No credit is required; this note is a courtesy.
 | `fantasy/tools/`                      | Fantasy Props MegaKit (Pro), its `Exports/glTF` folder (tools and weapons; CC0 by that download's licence file)                                                                                              | `scripts/build-wanderworld-kit.mjs tools`   |
 | `fantasy/market/`                     | Fantasy Props MegaKit (Pro), its `Exports/glTF` folder (dressed stalls and painted shop signs; CC0 by that download's licence file)                                                                          | `scripts/build-wanderworld-kit.mjs market`  |
 
+## Made in Blender by ThatOneCan
+
+`fantasy/folk/folk-built.json` and its textures (`folk-goblin.webp` and the like): the goblin, modelled
+in Blender by ThatOneCan with the scripts in `packages/wanderworld/assets/scripts/` and packed by
+`scripts/build-wanderworld-people.mjs --bestiary`. The models themselves are in
+`packages/wanderworld/assets/models/`.
+
 ## Under the Quaternius Asset License
 
-`fantasy/folk/` (the imp and the puglin) is converted from Quaternius's Bestiary - Dungeon Monsters Kit
+`fantasy/folk/folk.json` and its textures (the imp and the puglin) are converted from Quaternius's Bestiary - Dungeon Monsters Kit
 (Standard), its `Exports/GLB` folder, by `scripts/build-wanderworld-people.mjs --folk`. That pack is not
 public domain: it's under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html),
 which allows using it in a game with no credit, and does not allow passing the models on as assets. So

@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.30 — 2026-11-20
+
+- The goblin is more detailed. Blender now bakes it a texture of its own, with shading in its creases, mottled skin and dirt towards its feet. Its face is finer (heavy eyelids, lips, nostrils, crooked teeth, a wrinkled brow), its ears are leaf-shaped, one nicked and one with a brass ring, and its tunic is patched and tattered. It has a knotted rope belt, a necklace of teeth, wrapped shins and a chipped, rusty scimitar.
+- Credits name ThatOneCan as the maker of the goblin model, in Help, the README and the kit's credits.
+
 ## 0.7.29 — 2026-11-20
 
 - The goblin is now a model made in Blender: one smooth body instead of shapes stuck together, a face with its eyes set in sockets, a hooked nose and fangs, a ragged tunic and its scimitar, rigged to the people's skeleton so it still moves with their animations. The other monsters follow; until then they're built in code as before.

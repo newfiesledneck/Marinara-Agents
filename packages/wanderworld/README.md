@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.29)
+## What it does now (0.7.30)
 
 ### The world
 
@@ -923,7 +923,7 @@ and Crystal Pack on Poly Pizza), also CC0 1.0. Thank you, iPoly3D.
 
 The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, which is under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html) and not CC0: free to use in a game, not to pass on as assets.
 
-The goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur are Wanderworld's own: the goblin modelled in Blender (`assets/scripts/make_goblin.py`), the rest built in code (`src/bestiary.js`).
+Made in Blender by ThatOneCan: the goblin (`assets/scripts/make_goblin.py`). The hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur are Wanderworld's own, built in code (`src/bestiary.js`).
 
 Credit required (CC-BY 3.0): Saddle by Poly by Google (https://poly.pizza/m/dSMm_V4sKNr), CC-BY 3.0
 (https://creativecommons.org/licenses/by/3.0/), modified: converted, resized and its texture shrunk. Its
