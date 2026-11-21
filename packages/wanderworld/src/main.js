@@ -16,6 +16,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
+  OctahedronGeometry,
   PerspectiveCamera,
   Plane,
   PointLight,
@@ -126,6 +127,7 @@ import {
   isCreature,
   creaturesFromLore,
   placeTargets,
+  placesOfKind,
   plainWord,
   zoneAt,
   HOME_REGION,
@@ -144,6 +146,9 @@ import {
 } from "./interactions.js";
 import { drawMap, drawRegions } from "./map.js";
 import * as factionRules from "./factions.js";
+// Regions and travel: lands, each region's people, journeys and the quest hook (main.js "Regions and travel").
+import * as regionRules from "./regions.js";
+import { chargeFare, encounterFor, journeyTo } from "./travel.js";
 import { createAi, savesRemote, styleWords } from "./ai.js";
 import { createInventory, sheetFor } from "./inventory.js";
 import {
@@ -302,8 +307,10 @@ import {
   createWorld,
   hashString,
   heightAt,
+  LAND_LOOK,
   NATURE_MODELS,
   previewMap,
+  rng,
   SPAWN,
   waterAt,
   WORLD_SIZE,
@@ -384,7 +391,7 @@ const core = {
   momentLog: [],
   momentBusy: false,
   /** The server part (ai.js): conversations, pictures, scenes. */
-  ai: createAi(() => core.save?.locals ?? []),
+  ai: createAi(() => [...folkHere(core.save), ...(core.save?.locals ?? [])]),
   /** What the persona wears and carries, kept by Quartermaster when it's installed (inventory.js). */
   inventory: createInventory({
     ai: () => core.ai,
@@ -640,6 +647,11 @@ function changeSetting(name, value) {
     syncSpawns(); // (guards keep the peace or don't)
     core.factionsChanged = true;
   }
+  if (name === "regionFolk" && core.world && core.save) {
+    settleRegion(); // (made now, if this region has none yet)
+    core.characters = peopleOf(core.save);
+    updateCast();
+  }
   saveSettings(core.settings);
   // The game's and the AI's settings are the same in every browser: the Engine keeps them.
   if (!DEVICE_SETTINGS.has(name)) core.store.setItem(SHARED_SETTINGS, JSON.stringify(sharedSettings(core.settings)));
@@ -668,12 +680,13 @@ function buildWorld(seed, place = null) {
   core.world = createWorld(
     hashString(seed),
     own ? core.save.landscape : (region?.landscape ?? null),
-    own ? core.save.needs : {},
+    own ? core.save.needs : (region?.needs ?? {}), // (a region of a land has its inn and shop: regions.js)
     own || region ? core.save.worldSize : "normal",
   );
   // A world keeps the land it was first built with, even if the seed's own choices change later.
   if (core.save?.seed === seed && !core.save.landscape) core.save = { ...core.save, landscape: core.world.landscape };
   core.zones = buildZones(core.world.layout, hashString(seed));
+  settleRegion(); // (a region's own people, made the first time, and a quest's targets there)
   useHousing();
   // A new world's lore links up first (it may give the player a home to start at); the loading screen waits.
   core.linking = core.save?.lorePending ? linkLore() : null;
@@ -835,7 +848,7 @@ function savePlace(now = false, thumbnail = null) {
     playedAt: Date.now(),
     hour: core.hour,
     persona: core.personaId,
-    cast: [...(core.cast ?? [])],
+    cast: [...(core.cast ?? [])].filter((id) => !regionRules.isFolkId(id)), // (a region's people aren't cast: they're its own)
     party: core.crowd.party().map((member) => member.id),
     // (What's moved by itself since: how people stand with each other, and the record of it.)
     relationships: core.relations.all,
@@ -1091,7 +1104,7 @@ const LORE_ENTRIES = 200;
 
 /** Everyone a world can cast: the Engine's characters, and the people it made for itself. */
 function peopleOf(save) {
-  return [...(core.engineCharacters ?? []), ...(save?.locals ?? [])];
+  return [...(core.engineCharacters ?? []), ...(save?.locals ?? []), ...folkHere(save)];
 }
 
 /** The lore written for a world (`save.book`), as a lorebook of its own, under the id "world". */
@@ -1608,6 +1621,9 @@ function drawJournalMap(canvas, view = null) {
       z: zone.shape?.circle?.z ?? 0,
       text: names[zone.id] ?? zone.name,
     }));
+  // A quest's targets here, marked (regions.js).
+  for (const target of regionRules.targetsIn(core.save.travel, core.save.region))
+    if (target.at) labels.push({ x: target.at.x, z: target.at.z, text: `★ ${target.name}` });
   const edges = Object.fromEntries(
     ["north", "east", "south", "west"].map((side) => [side, regionNameAt(regionNext(core.save.region, side))]),
   );
@@ -3510,18 +3526,25 @@ async function choosePersona(id, redress = false) {
 
 function updateCast() {
   // Whoever lives in this region, and the party that came along (isHere).
+  // (A region's own people always live there: they're in the cast while the player is.)
+  for (const id of core.cast) if (regionRules.isFolkId(id)) core.cast.delete(id);
+  for (const person of folkHere(core.save)) core.cast.add(person.id);
   const chosen = (core.characters ?? [])
     .filter((character) => core.cast.has(character.id) && isHere(character))
     .map((character) => ({
       ...character,
-      body: core.bodies[character.id] ?? "auto",
+      body: core.bodies[character.id] ?? character.body ?? "auto",
       look: core.looks[character.id] ?? {},
     }));
   core.crowd.setCast(chosen);
   useSchedules();
   core.crowd.setShadows(core.settings.shadows);
   refreshNames();
-  core.hud?.setCharacters(core.characters ?? [], core.cast, core.bodies);
+  core.hud?.setCharacters(
+    (core.characters ?? []).filter((character) => !character.folk),
+    core.cast,
+    core.bodies,
+  );
   savePlace(true);
 }
 
@@ -4014,6 +4037,7 @@ function syncSpawns() {
         creature.when === "night" || creature.when === "day" ? creature.when : "",
       ),
     );
+  list.push(...regionSpawns()); // (a quest's creatures in this region, and what met you on the road)
   outdoorHerd().setSpawns(list);
 }
 
@@ -5352,6 +5376,7 @@ function isHere(person) {
   const save = core.save;
   if (!save) return true;
   if ((save.party ?? []).includes(person.id)) return true;
+  if (person.folk) return person.region === save.region; // (a region's own people: regions.js)
   const lives = save.locals.find((entry) => entry.id === person.id)?.region ?? HOME_REGION;
   return lives === save.region;
 }
@@ -7728,6 +7753,19 @@ function usable() {
       act: () => travel(edge),
     });
   }
+  // A quest's item lying here (regions.js targets), to pick up.
+  if (!core.interior)
+    for (const target of regionRules.targetsIn(core.save?.travel, core.save?.region))
+      if (target.kind === "item" && target.at)
+        list.push({
+          kind: "thing",
+          label: `Pick up ${target.name}`,
+          x: target.at.x,
+          z: target.at.z,
+          y: heightAt(target.at.x, target.at.z) + 0.5,
+          reach: 2.6,
+          act: () => void pickUpTarget(target),
+        });
   const deep = core.interior?.deep;
   if (deep) {
     // Below ground: out (or back up a level) where they came in, and further down where it goes on.
@@ -7786,6 +7824,9 @@ function usable() {
 }
 
 // ── Regions and travel ───────────────────────────────────────────────────────
+// Regions beyond home are regions.js's (their land, their people, what a quest asks of one) and journeys
+// are travel.js's; these are the game's hooks into them. Only the region the player is in is built, and
+// only its own people (and the party) are about.
 
 /** The seed of the region a save is in: the world's own at home. */
 function regionSeed(save) {
@@ -7796,10 +7837,205 @@ function homeRegionName() {
   return regionName(core.save.seed, HOME_REGION);
 }
 
-/** The name of the region at `key` (made or not yet). */
+/** The name of the region at `key` (made or not yet): its own once made; before that, its land's (regions.js). */
 function regionNameAt(key) {
   if (key === HOME_REGION) return homeRegionName();
-  return core.save.regions?.[key]?.name ?? regionName(core.save.seed, key);
+  const made = core.save.regions?.[key];
+  if (made) return made.name;
+  const land = core.settings.regionLands ? regionRules.landOf(core.save, key) : "";
+  return (land && regionRules.landName(core.save.seed, key, land)) || regionName(core.save.seed, key);
+}
+
+/** The land of the region the player is in (regions.js LANDS), "" at home and in regions made without one. */
+const landHereKind = () => (core.save ? regionRules.landOf(core.save, core.save.region) : "");
+
+/**
+ * The people of the region a save is in (Settings → Regions have their own people), and any from another
+ * region who are in the party: as the crowd and the AI take people (regions.js folkPerson).
+ */
+function folkHere(save) {
+  if (!save || !core.settings?.regionFolk) return [];
+  const party = new Set(save.party ?? []);
+  return Object.entries(save.regions ?? {}).flatMap(([key, region]) =>
+    (region.folk ?? [])
+      .filter((entry) => key === save.region || party.has(entry.id))
+      .map((entry) => regionRules.folkPerson(entry, key)),
+  );
+}
+
+/**
+ * Once a region is built (buildWorld): the first time, its people are made from its houses and workplaces
+ * and kept with it (regions.js regionFolk), their homes and work in its setup; and a quest's targets there
+ * are given their spots (and a person, theirs among its people). Home has neither.
+ */
+function settleRegion() {
+  const save = core.save;
+  const key = save?.region;
+  const region = save?.regions?.[key];
+  if (!region || key === HOME_REGION || !core.zones) return;
+  let folk = region.folk;
+  let housing = save.housing ?? {};
+  // A region of a land names its settlement for it (kept with its other names, so it can be renamed).
+  const land = region.landscape?.land ?? "";
+  const names =
+    land && !save.names?.town ? { ...save.names, town: regionRules.townName(save.seed, key, land) } : save.names;
+  const town = names?.town || core.zones.town;
+  if (!folk && core.settings.regionFolk) {
+    const made = regionRules.regionFolk(save.seed, key, core.zones.zones, {
+      land,
+      settlement: core.world.layout.settlement?.kind,
+      town,
+    });
+    folk = made.folk;
+    housing = { ...made.housing, ...housing };
+  }
+  // A quest's targets here, each given a spot the first time (a person also joins the region's people).
+  const homes = core.zones.zones.filter((zone) => zone.kind === "building" && zone.buildingKind === "home");
+  const targets = (save.travel?.targets ?? []).map((target, n) => {
+    if (target.region !== key || target.done || target.at) return target;
+    const at = targetSpot(target);
+    if (target.kind !== "person") return { ...target, at };
+    const id = regionRules.folkId(key, 100 + n);
+    const home = homes[hashString(target.id) % Math.max(1, homes.length)];
+    folk = [
+      ...(folk ?? []),
+      {
+        id,
+        name: target.name,
+        body: hashString(target.id) % 2 ? "female" : "male",
+        job: "stranger",
+        temper: "",
+        of: town,
+        about: target.what ? `${target.name}: ${target.what}` : "",
+        quest: target.quest,
+      },
+    ];
+    if (home) housing = { ...housing, [id]: { home: home.id, work: null, owner: false } };
+    return { ...target, at, person: id };
+  });
+  const changed =
+    folk !== region.folk ||
+    housing !== save.housing ||
+    names !== save.names ||
+    targets.some((t, i) => t !== save.travel.targets[i]);
+  if (changed) {
+    core.save = {
+      ...save,
+      regions: { ...save.regions, [key]: { ...region, ...(folk ? { folk } : {}) } },
+      names,
+      housing,
+      travel: { ...save.travel, targets },
+    };
+    core.saves.write(core.save);
+    core.characters = peopleOf(core.save);
+  }
+  markTargets();
+}
+
+/** Open ground near (x, z), dry and clear of buildings, searched outward in rings. */
+function openNear(x, z, from = 0) {
+  for (let ring = from; ring < 40; ring += 2)
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2 + ring;
+      const px = x + Math.cos(angle) * ring;
+      const pz = z + Math.sin(angle) * ring;
+      const half = (core.world.size ?? WORLD_SIZE) / 2 - 8;
+      if (Math.abs(px) > half || Math.abs(pz) > half) continue;
+      if (!core.world.blocked(px, pz, 0.8) && waterAt(px, pz).depth <= 0) return { x: px, z: pz };
+    }
+  return { x, z };
+}
+
+/**
+ * Where a quest's target goes in the region the player is in: by a place of the kind it names (`near`:
+ * "inn", "ruins", "cave"…), a deep place at a cave mouth leading to its kind, a creature out in the country,
+ * and anything else by the market.
+ */
+function targetSpot(target) {
+  const middle = (id) => {
+    const shape = core.zones.byId.get(id)?.shape;
+    if (shape?.circle) return { x: shape.circle.x, z: shape.circle.z };
+    if (shape?.box) return { x: (shape.box.minX + shape.box.maxX) / 2, z: (shape.box.minZ + shape.box.maxZ) / 2 };
+    return null;
+  };
+  if (target.kind === "deep") {
+    const cave = (core.world.caves ?? []).find((entry) => entry.deep === target.what) ?? core.world.caves?.[0];
+    if (cave) return { x: cave.x, z: cave.z };
+  }
+  const near = target.near ? placesOfKind(core.zones, target.near).map(middle).find(Boolean) : null;
+  const plaza = core.world.layout.plaza;
+  if (near) return openNear(near.x, near.z, 3);
+  if (target.kind === "creature") {
+    const random = rng(hashString(`target:${target.id}`));
+    const half = core.world.size / 2 - 30;
+    const angle = random() * Math.PI * 2;
+    const far = core.world.layout.townHalf + 30 + random() * Math.max(10, half - core.world.layout.townHalf - 30);
+    return openNear(Math.cos(angle) * far, Math.sin(angle) * far);
+  }
+  return openNear(plaza.x + 3, plaza.z + 5, 2);
+}
+
+/** A small gold marker over each open item a quest left in this region, so it can be found (gone once taken). */
+function markTargets() {
+  for (const mark of core.targetMarks ?? []) {
+    mark.removeFromParent();
+    mark.geometry.dispose();
+    mark.material.dispose();
+  }
+  core.targetMarks = [];
+  for (const target of regionRules.targetsIn(core.save?.travel, core.save?.region))
+    if (target.kind === "item" && target.at) {
+      const mark = new Mesh(
+        new OctahedronGeometry(0.16),
+        new MeshLambertMaterial({ color: 0xf2c14e, emissive: 0x5a3c00 }),
+      );
+      mark.position.set(target.at.x, heightAt(target.at.x, target.at.z) + 0.45, target.at.z);
+      core.world.scene.add(mark);
+      core.targetMarks.push(mark);
+    }
+}
+
+/** Picks up a quest's item where it lies: into the inventory (or, without one, it's just found), and done. */
+async function pickUpTarget(target) {
+  if (core.inventory.ready()) await addItem({ name: target.name, description: target.what, quantity: 1 });
+  finishTarget(target.id);
+  narrate(null, `${personaName()} picks up ${target.name}.`);
+  await readItems().catch(() => []);
+}
+
+/**
+ * What a region adds to the herd's spawns (syncSpawns): a quest's creatures in this region, and whatever met
+ * the party on the road (`core.roadEncounter`, until they leave the region).
+ */
+function regionSpawns() {
+  const list = [];
+  for (const target of regionRules.targetsIn(core.save?.travel, core.save?.region)) {
+    const kind = target.kind === "creature" ? animalKind(target.what || target.name) : null;
+    if (kind && target.at && animalAllowed(kind))
+      list.push({
+        id: `quest|${target.id}`,
+        kind,
+        scale: 1,
+        sized: false,
+        count: 1,
+        at: target.at,
+        temper: "hostile",
+        when: "",
+      });
+  }
+  const met = core.roadEncounter;
+  if (met?.region === core.save?.region && animalAllowed(met.kind))
+    list.push({
+      id: `road|${met.id}`,
+      kind: met.kind,
+      scale: 1,
+      sized: false,
+      count: met.count,
+      at: met.at,
+      temper: "hostile",
+      when: "",
+    });
+  return list;
 }
 
 /** Which edge of the world the player is near enough to travel across, or null. */
@@ -7815,17 +8051,24 @@ function edgeSide() {
   return sides.sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
-/**
- * Travels across the world's `side` edge into the next region (made the first time, from the world's seed),
- * with the party that's following. This region's setup is kept for coming back; a travel scene request is
- * saved for the AI part (encounters on the way, later). The player arrives at the facing edge.
- */
+/** Travels across the world's `side` edge into the next region, arriving at the facing edge where they left. */
 function travel(side) {
+  const { x, z } = core.player.position;
+  goToRegion(regionNext(core.save.region, side), { side, lateral: side === "east" || side === "west" ? z : x });
+}
+
+/**
+ * Takes the player and the party that's following into the region at `to` (made the first time, from the
+ * world's seed: regions.js makeRegion), keeping this region's setup for coming back; a travel scene request
+ * is saved for the AI part. `side`: the edge of the last region they left by (they arrive at the facing
+ * one, at `lateral` along it); `how`: "edge" (walked off the map), "walk" (a road from the map, `hours`
+ * long) or "coach" (they arrive at the inn). `encounter`: what meets them there (travel.js encounterFor).
+ */
+function goToRegion(to, { side, lateral = 0, how = "edge", hours = 0, encounter = null } = {}) {
   const save = core.save;
-  if (!save || core.interior || core.mode !== "walk") return;
+  if (!save || core.interior || core.mode !== "walk" || to === save.region) return;
   savePlace(true);
   const from = save.region;
-  const to = regionNext(from, side);
   const party = core.crowd
     .party()
     .filter((member) => !member.waiting)
@@ -7840,25 +8083,30 @@ function travel(side) {
     housing: save.housing,
     furnished: save.furnished,
     place: save.place,
+    vendors: save.vendors, // (each region's shops are its own: zone ids are the same in every region)
   };
   let homeSetup = save.homeSetup;
   if (from === HOME_REGION) homeSetup = setup;
   else regions[from] = { ...regions[from], ...setup };
   const purposes = { ...save.purposes };
   if (to !== HOME_REGION && !regions[to]) {
-    const seed = `${save.seed}|${to}`;
-    let landscape = landscapeWith(hashString(seed), {});
-    // Arriving across the facing edge: no mountain range in the way there.
-    landscape.mountains = landscape.mountains.filter((edge) => edge !== OPPOSITE[side]);
     // What it's made for (factions.js): lore's or a quest's, else the seed's; none with the setting off.
     if (core.settings.regionPurposes)
       purposes[to] ??= factionRules.seededPurpose(save.seed, to, save.factions, purposes);
     if (!core.settings.regionPurposes || !purposes[to]) delete purposes[to];
-    landscape = factionRules.landscapeForPurpose(landscape, purposes[to], hashString(seed), OPPOSITE[side]);
-    regions[to] = { name: regionName(save.seed, to), number: Object.keys(regions).length + 2, seed, landscape };
+    const planned = save.travel?.planned?.[to] ?? {};
+    regions[to] = regionRules.makeRegion(save.seed, to, {
+      land: core.settings.regionLands ? regionRules.landOf(save, to) : "",
+      purpose: purposes[to] ?? null,
+      arrive: OPPOSITE[side],
+      deep: planned.deep ?? null,
+      number: Object.keys(regions).length + 2,
+      name: regionNameAt(to),
+    });
   }
   const target = (to === HOME_REGION ? homeSetup : regions[to]) ?? {};
-  const name = regionNameAt(to);
+  const name = to === HOME_REGION ? homeRegionName() : regions[to].name;
+  const first = !save.regions?.[to] && to !== HOME_REGION;
   const request = sceneRequest({
     thing: { kind: "travel", name: `the road to ${name}`, chain: [regionNameAt(from)] },
     action: "go",
@@ -7868,7 +8116,6 @@ function travel(side) {
     persona: { id: "player", name: personaName() },
     hour: core.hour,
   });
-  const lateral = side === "east" || side === "west" ? core.player.position.z : core.player.position.x;
   core.save = {
     ...save,
     regions,
@@ -7880,27 +8127,80 @@ function travel(side) {
     groups: target.groups ?? null,
     housing: target.housing ?? {},
     furnished: target.furnished ?? {},
+    // (A region made before regions kept their shops shares home's, as it did; home gets its own back.)
+    vendors: target.vendors ?? (first ? {} : save.vendors),
     party: party.map((member) => member.id),
     place: null,
     scenes: [...(save.scenes ?? []), request].filter(Boolean).slice(-30),
   };
   core.saves.write(core.save);
+  core.characters = peopleOf(core.save); // (that region's people, and the party)
   core.hud?.closePanels();
-  core.hud?.setLoading(`Travelling to ${name}…`);
+  core.hud?.setLoading(how === "edge" ? `Travelling to ${name}…` : `On the road to ${name}…`);
   const load = ++core.worldLoad;
   setTimeout(() => {
     if (load !== core.worldLoad) return;
     const detail = buildWorld(regionSeed(core.save), null);
-    arriveFrom(side, lateral);
+    if (how === "coach") arriveAtInn();
+    else arriveFrom(side, lateral);
+    // The hours on the road (Settings → World → Time standing still keeps the clock where it is).
+    const fixed = core.settings.time === "day" || core.settings.time === "night";
+    if (hours > 0 && !fixed) {
+      core.hour = (core.hour + hours) % 24;
+      core.dark = core.world.setTime(core.hour);
+    }
     updateCast();
     core.crowd.restoreParty(core.save.party, core.player.position);
+    if (hours > 0) core.crowd.resettle(core.hour, core.player.position, SLEEP_NEAR);
+    syncPets(); // (the party's animals come along, by the player now)
+    core.roadEncounter = null;
+    if (encounter) {
+      const { x, z } = core.player.position;
+      const ahead = openNear(x + Math.sin(core.player.rotation.y) * 18, z + Math.cos(core.player.rotation.y) * 18);
+      core.roadEncounter = { ...encounter, id: `${core.clock}`, region: to, at: ahead };
+    }
+    syncSpawns();
     core.journalAt = 0;
     Promise.race([detail, new Promise((done) => setTimeout(done, BUILD_WAIT * 1000))]).then(() => {
       if (load !== core.worldLoad) return;
       core.hud?.setLoading(null);
       resume();
+      arrivalWords(to, first, how, hours, encounter);
     });
   }, 60);
+}
+
+/** What's said on arriving in a region: the road behind, what's met there, and (the first time) what the place is like. */
+function arrivalWords(key, first, how, hours, encounter) {
+  const name = regionNameAt(key);
+  // (One line, so the road and what waits on it are told in order.)
+  const whole = Math.floor(hours);
+  const long = hours < 1.5 ? "an hour" : `${whole}${hours - whole >= 0.5 ? "½" : ""} hours`;
+  const road =
+    how === "coach"
+      ? `After ${long} in the coach, it sets you down at the inn in ${name}.`
+      : how === "walk"
+        ? `After ${long} on the road, you come into ${name}.`
+        : "";
+  const met = encounter
+    ? `Something waits on the road ahead: ${encounter.count} ${encounter.kind}s, and they've seen you.`
+    : "";
+  if (road || met) narrate(null, [road, met].filter(Boolean).join(" "));
+  if (!first || key === HOME_REGION) return;
+  const region = core.save.regions[key];
+  const words = regionRules.regionFlavour(
+    core.save.seed,
+    key,
+    region.landscape?.land ?? "",
+    core.save.names?.town ?? core.zones?.town ?? "",
+    core.world.layout.settlement?.kind,
+  );
+  const said = () => words && narrate(null, words, [], true);
+  if (core.settings.regionFlavourAi && core.settings.aiMoments)
+    void runMoment({ action: `arrives in ${name} for the first time and looks about. ${words}`, source: "thing" }).then(
+      (done) => !done && said(),
+    );
+  else said();
 }
 
 /** Puts the player just inside the edge they came in by (having left across `side`), on open dry ground. */
@@ -7922,6 +8222,183 @@ function arriveFrom(side, lateral) {
   core.freshStart = false;
   savePlace(true);
 }
+
+/** Puts the player in front of the inn (or the tavern; else by the market) of the region they've come to. */
+function arriveAtInn() {
+  const door = innDoors()[0];
+  const spot = door
+    ? openNear(door.x + Math.sin(door.angle) * 2.5, door.z + Math.cos(door.angle) * 2.5)
+    : openNear(core.world.spawn.x, core.world.spawn.z);
+  core.player.position.set(spot.x, heightAt(spot.x, spot.z), spot.z);
+  core.player.rotation.y = door ? door.angle : 0;
+  core.cameraYaw = core.player.rotation.y + Math.PI;
+  core.freshStart = false;
+  savePlace(true);
+}
+
+/** The doors of the inns and taverns of the region the player is in, from the zones. */
+function innDoors() {
+  return (core.zones?.zones ?? [])
+    .filter((zone) => zone.kind === "building" && (zone.buildingKind === "inn" || zone.buildingKind === "tavern"))
+    .map((zone) => core.world.doors[zone.door])
+    .filter(Boolean);
+}
+
+/** Whether the player is at an inn or a tavern (inside, or within a few steps of its door): where coaches leave. */
+function atInn() {
+  if (core.interior)
+    return ["inn", "tavern"].includes(core.zones?.byId.get(`building:${core.interior.door.index}`)?.buildingKind);
+  const at = core.player.position;
+  return innDoors().some((door) => Math.hypot(door.x - at.x, door.z - at.z) < 12);
+}
+
+/**
+ * Journal → Map's list of the regions the player knows (regions.js knownKeys), nearest first, each with what
+ * it is and the ways to go there now: { rows: [{ key, name, words, here, walk, coach }], note }. `walk` and
+ * `coach` are { hours, fare } or { problem }.
+ */
+function travelPlaces() {
+  if (!core.save) return { rows: [], note: "" };
+  const inn = atInn();
+  const rows = regionRules.knownKeys(core.save).map((key) => {
+    const [x, z] = key.split(",").map(Number);
+    const [hx, hz] = core.save.region.split(",").map(Number);
+    const made = core.save.regions?.[key];
+    const land = regionRules.landOf(core.save, key);
+    const purpose = core.save.purposes?.[key];
+    const faction = factionById(purpose?.faction)?.name ?? "";
+    const open = regionRules.targetsIn(core.save.travel, key).length;
+    const words = [
+      key === HOME_REGION ? "where you began" : regionRules.LANDS[land]?.label.toLowerCase() || "countryside",
+      purpose ? factionRules.purposeWords(purpose, faction) : "",
+      made || key === HOME_REGION ? "" : "heard of",
+      open ? `${open} thing${open === 1 ? "" : "s"} for a quest` : "",
+    ].filter(Boolean);
+    const plan = (how) => {
+      if (key === core.save.region) return null;
+      const journey = journeyTo(core.save, key, how, core.settings, inn);
+      return journey.problem ? { problem: journey.problem } : { hours: journey.hours, fare: journey.fare };
+    };
+    return {
+      key,
+      name: regionNameAt(key),
+      words: words.join(", "),
+      here: key === core.save.region,
+      far: Math.abs(x - hx) + Math.abs(z - hz),
+      walk: plan("walk"),
+      coach: plan("coach"),
+    };
+  });
+  rows.sort((a, b) => a.far - b.far || a.name.localeCompare(b.name));
+  const note =
+    !core.settings.travelRoads && !core.settings.travelCoach
+      ? "Travel from the map is off (Settings → World → Regions and travel): walk off the map's edge."
+      : inn
+        ? "You're at an inn: a coach can take you anywhere you've been."
+        : "Coaches leave from inns and taverns.";
+  return { rows, note, currency: purse().name };
+}
+
+/**
+ * Sets off for the region at `key` from Journal → Map: on foot along the road, or by coach for its fare
+ * (taken from the purse first). The hours pass on the way; something may meet you (Encounters on the road).
+ * Returns words for the Journal when it can't go.
+ */
+async function journey(key, how) {
+  const plan = journeyTo(core.save, key, how, core.settings, atInn());
+  if (plan.problem) return plan.problem;
+  if (core.mode !== "walk") return "Finish what you're doing first.";
+  if (core.interior && how !== "coach") return "Go outside first.";
+  if (plan.fare > 0) {
+    if (!core.inventory.ready())
+      return "A coach needs coins, and coins need the inventory (the Quartermaster package).";
+    const money = purse();
+    const paid = chargeFare(await readItems(), money.name, plan.fare);
+    if (paid.problem) return paid.problem;
+    await core.inventory.change(paid.change.id, paid.change.gone ? null : { quantity: paid.change.quantity });
+    await readItems();
+    narrate(null, `${personaName()} pays ${plan.fare} ${money.name} for the coach to ${regionNameAt(key)}.`);
+  }
+  if (core.interior) leaveInterior(true);
+  const last = plan.path.at(-1);
+  const land = core.settings.regionLands ? regionRules.landOf(core.save, key) : "";
+  const met = encounterFor(
+    land,
+    core.settings.travelEncounters,
+    plan.path.length,
+    how,
+    animalAllowed,
+    `${core.save.id}:${core.clock}`,
+  );
+  goToRegion(key, { side: last.side, lateral: 0, how, hours: plan.hours, encounter: met });
+  return "";
+}
+
+// ── For quests: a region of a kind, and things to find there ─────────────────
+// (QUEST HOOK, for the quests' code. Plain data in and out; what's asked is kept in the save.)
+
+/**
+ * Finds or plans a region for a quest (regions.js regionForQuest): `ask` { side, distance, land, purpose,
+ * faction, quest, from }. A region not made yet is planned to fit (its land and purpose kept, on the map
+ * as heard of) and made so when the player first arrives. Returns { key, name, made } or null.
+ */
+function questRegion(ask = {}) {
+  if (!core.save) return null;
+  const found = regionRules.regionForQuest(core.save, ask);
+  if (!found) return null;
+  core.save = { ...core.save, travel: found.travel, purposes: found.purposes };
+  core.saves.write(core.save);
+  core.journalAt = 0;
+  return { key: found.key, name: regionNameAt(found.key), made: found.made };
+}
+
+/**
+ * Puts a quest's target in a region (regions.js placeTarget): `target` { id, quest, region, kind ("person",
+ * "item", "creature" or "deep"), name, what, near }. It's marked on the map and given its spot when the
+ * region is next built (now, if the player is there). Returns the target as kept, or null.
+ */
+function questTarget(target) {
+  if (!core.save) return null;
+  const travel = regionRules.placeTarget(core.save.travel, target, !!core.save.regions?.[target.region]);
+  if (!travel) return null;
+  core.save = { ...core.save, travel };
+  core.saves.write(core.save);
+  if (target.region === core.save.region) {
+    settleRegion();
+    updateCast();
+    syncSpawns();
+  }
+  core.journalAt = 0;
+  return core.save.travel.targets.find((entry) => entry.id === target.id) ?? null;
+}
+
+/**
+ * A quest's targets with what's become of them: [{ …target, here (in the region the player is in), beaten
+ * (a creature target beaten: save.beaten) }]. `quest`: its id ("" for all).
+ */
+function questTargets(quest = "") {
+  return (core.save?.travel?.targets ?? [])
+    .filter((target) => !quest || target.quest === quest)
+    .map((target) => ({
+      ...target,
+      here: target.region === core.save.region,
+      beaten: !!core.save.beaten?.[`${target.region}|lore:quest|${target.id}:0`],
+    }));
+}
+
+/** Marks a target done (found, met, beaten or given up): it leaves the map and the world. */
+function finishTarget(id) {
+  if (!core.save) return;
+  const targets = core.save.travel.targets.map((target) => (target.id === id ? { ...target, done: true } : target));
+  core.save = { ...core.save, travel: { ...core.save.travel, targets } };
+  core.saves.write(core.save);
+  markTargets();
+  syncSpawns();
+  core.journalAt = 0;
+}
+
+/** The quest hook in one place (and, with "wanderworld-debug" on, at the console: __wanderworld.travelHook). */
+core.travelHook = { questRegion, questTarget, questTargets, finishTarget, journey };
 
 // ── Factions and regions with a purpose (factions.js) ────────────────────────
 
@@ -8065,8 +8542,25 @@ const factionsData = () =>
 
 /** Journal → Map's map of regions: each one known, a faction's land in its colour. False when there's only home. */
 function drawRegionMap(canvas) {
-  if (!core.save || !Object.keys(core.save.regions ?? {}).length) return false;
-  drawRegions(canvas, factionRules.regionCells(core.save), core.save.region);
+  if (!core.save || regionRules.knownKeys(core.save).length < 2) return false;
+  // Each known region in its faction's colour, else its land's; a ! where a quest has something; the roads between.
+  const known = new Set(regionRules.knownKeys(core.save));
+  const marks = factionRules.regionCells(core.save);
+  const cells = [...known].map((key) => {
+    const [x, z] = key.split(",").map(Number);
+    const cell = marks.find((entry) => entry.key === key);
+    const open = regionRules.targetsIn(core.save.travel, key).length > 0;
+    return {
+      key,
+      x,
+      z,
+      visited: key === HOME_REGION || key === core.save.region || !!core.save.regions?.[key],
+      colour: cell?.colour ?? regionRules.LAND_COLOUR[regionRules.landOf(core.save, key)] ?? null,
+      mark: open ? `${cell?.mark ?? ""}!` : (cell?.mark ?? ""),
+      roads: ["east", "south"].map((side) => regionNext(key, side)).filter((next) => known.has(next)),
+    };
+  });
+  drawRegions(canvas, cells, core.save.region);
   return true;
 }
 
@@ -8458,7 +8952,9 @@ function toggleFullscreen() {
  */
 function seasonNow() {
   const picked = core.settings.season ?? "world";
-  return picked === "world" ? (core.save?.season ?? "") : picked === "none" ? "" : picked;
+  // (A region of snowy highlands is always in winter: world.js LAND_LOOK.)
+  const own = LAND_LOOK[landHereKind()]?.season;
+  return picked === "world" ? (own ?? core.save?.season ?? "") : picked === "none" ? "" : picked;
 }
 
 /** Experience earned (sheet.js gainXp): kept, and a level gained is said in the chat with what it gave. */
@@ -13431,6 +13927,9 @@ function stepClock(dt) {
     // A clear morning may start in mist (Settings → World).
     if (kind === "clear" && core.settings.morningMist && mistyMorning(seed, core.social?.day ?? 0, core.hour))
       kind = "mist";
+    // A region's land leans its own way: a marsh misty, the badlands dry (regions.js regionWeather).
+    const period = Math.floor(core.weatherTime / WEATHER_PERIOD);
+    kind = regionRules.regionWeather(kind, landHereKind(), (hashString(`${seed}:${period}`) % 1000) / 1000);
   }
   core.world.setWeather(kind);
   core.world.setLightning(core.settings.lightning);
@@ -14277,6 +14776,8 @@ function attach(element) {
     },
     onMap: drawJournalMap,
     onRegions: drawRegionMap,
+    onTravelPlaces: travelPlaces,
+    onJourney: journey,
     onStanding: setStandingByHand,
     onPurposeAhead: (side, kind, faction) => purposeAhead(side, kind, faction, "hand"),
     onWaypoint: setWaypoint,

@@ -68,6 +68,8 @@ export const WORLD_SIZE = 320; // metres along each side of a Normal world
 export const WORLD_SIZES = { small: 240, normal: 320, large: 480, huge: 640, massive: 960 };
 // ponytail: the size of the world built last, module-wide like `land` below (same ceiling and upgrade).
 let worldSize = WORLD_SIZE;
+// ponytail: the land look of the world built last (LAND_LOOK), module-wide like `worldSize` (same ceiling).
+let landLook = null;
 const BASE_TREES = 900;
 const BASE_ROCKS = 260;
 /** Prop multipliers the fps label cycles through, to stress-test a phone. */
@@ -220,6 +222,56 @@ function crownTint(color, season, tint) {
   if (season === "spring") return color.setHSL(0.27 + tint * 0.08, 0.52, 0.33 + tint * 0.08);
   return color.setHSL(0.3 + tint * 0.08, 0.45, 0.26 + tint * 0.08);
 }
+/**
+ * How each land of a region looks (regions.js LANDS names them): trees and rocks as a multiple of the usual; `mix`, how much more or less
+ * often each kind of tree grows (by the start of its kit name); the ground's shares that give way from
+ * grass to dirt and rock, how much sooner slopes show rock, how far sand reaches from the water, where
+ * snow starts (metres up); and `season`, a season it always wears.
+ */
+export const LAND_LOOK = {
+  farmland: {
+    trees: 0.4,
+    rocks: 0.6,
+    plants: 1.2,
+    mix: { commontree: 1.6, birch: 1.4, cherryblossom: 1.6, pine: 0.4, giantpine: 0.2, deadtree: 0.3 },
+    dirt: 0.06,
+  },
+  forest: {
+    trees: 1.9,
+    rocks: 0.8,
+    plants: 1.3,
+    mix: { pine: 1.5, giantpine: 2.2, tallthick: 1.6, commontree: 1.2, cherryblossom: 0.3 },
+    floor: 1.25,
+  },
+  hills: { trees: 0.6, rocks: 1.8, plants: 0.9, mix: { pine: 1.6, giantpine: 1.4, commontree: 0.6 }, rocky: 0.35 },
+  marsh: {
+    trees: 0.55,
+    rocks: 0.4,
+    plants: 1.5,
+    mix: { deadtree: 6, twistedtree: 3, birch: 2, commontree: 0.6, pine: 0.3, giantpine: 0.1, cherryblossom: 0 },
+    dirt: 0.3,
+    shore: 4,
+  },
+  snow: {
+    trees: 0.7,
+    rocks: 1.4,
+    plants: 0.5,
+    mix: { pine: 2.5, giantpine: 2.5, commontree: 0.2, birch: 0.5, cherryblossom: 0, twistedtree: 0 },
+    snowLine: 6,
+    season: "winter",
+  },
+  badlands: {
+    trees: 0.15,
+    rocks: 3,
+    plants: 0.35,
+    mix: { deadtree: 8, twistedtree: 2, commontree: 0.3, birch: 0, cherryblossom: 0, pine: 0.4 },
+    dirt: 0.45,
+    rock: 0.2,
+    rocky: 0.45,
+  },
+  lakes: { trees: 0.8, rocks: 0.8, plants: 1.1, mix: { birch: 1.8, commontree: 1.2 }, shore: 3 },
+};
+
 /** Every kit model the nature uses, for loading. */
 /** How far each kind of detailed nature is drawn (metres, and never past the draw distance). */
 const NATURE_REACH = { plant: 70, rock: 160, tree: 180 };
@@ -3166,12 +3218,18 @@ function groundWeights(y, steep, fromRiver = Infinity) {
     const c = Math.max(0, Math.min(1, t));
     return c * c * (3 - 2 * c);
   };
-  const snow = smooth((y - 27) / 6);
-  const rock = Math.max(smooth((y - 10) / 8), smooth((steep - 1.1) / 0.9)) * (1 - snow);
+  // (A region's land, LAND_LOOK, moves where snow starts, how soon slopes show rock and how far the shore
+  // reaches, and gives some of the grass to dirt and rock. Home has none: its ground is as it always was.)
+  const own = landLook ?? {};
+  const snow = smooth((y - (own.snowLine ?? 27)) / 6);
+  const rock = Math.max(smooth((y - 10) / 8), smooth((steep - 1.1 + (own.rocky ?? 0)) / 0.9)) * (1 - snow);
   // Sand and mud only in the river's bed and on its banks, not in every hollow of the hills.
-  const sand = smooth((3.5 - fromRiver) / 2) * (1 - rock);
+  const sand = smooth((3.5 + (own.shore ?? 0) - fromRiver) / 2) * (1 - rock);
   const grass = Math.max(0, 1 - rock - sand - snow);
-  return [grass, 0, rock, sand, snow];
+  if (!landLook) return [grass, 0, rock, sand, snow];
+  const dirt = grass * (own.dirt ?? 0);
+  const bare = grass * (own.rock ?? 0);
+  return [grass - dirt - bare, dirt, rock + bare, sand, snow];
 }
 
 /** The trees near each 6 m cell, for forest floor (the usual density's trees, so it's the same at any). */
@@ -3248,7 +3306,7 @@ function groundChunk(x0, z0, cell, material, forest) {
     positions.push(point.x, point.y - drop, point.z);
     colours.push(shade, shade, shade);
     const [grass, dirt, rock, sand, snow] = groundWeights(point.y, steep, land.toRiverBank(point.x, point.z));
-    const floor = grass * forestCover(forest, point.x, point.z);
+    const floor = grass * Math.min(1, forestCover(forest, point.x, point.z) * (landLook?.floor ?? 1));
     splatA.push(grass - floor, dirt, rock, sand);
     splatB.push(snow, 0, 0, 0);
     splatC.push(floor, 0, 0, 0);
@@ -3481,9 +3539,11 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
   worldSize = WORLD_SIZES[size] ?? WORLD_SIZE;
   // Trees and rocks grow with the area: a bigger world is as wooded as a Normal one.
   const areaScale = (worldSize / WORLD_SIZE) ** 2;
-  const baseTrees = Math.round(BASE_TREES * areaScale);
-  const baseRocks = Math.round(BASE_ROCKS * areaScale);
   const checked = checkLandscape(landscape, seed);
+  // A region's land (regions.js): its own share of trees and rocks, its own mix of trees, its ground.
+  landLook = LAND_LOOK[checked.land] ?? null;
+  const baseTrees = Math.round(BASE_TREES * areaScale * (landLook?.trees ?? 1));
+  const baseRocks = Math.round(BASE_ROCKS * areaScale * (landLook?.rocks ?? 1));
   useSettlement(checked.settlement, seed);
   const spawn = { x: plaza.x, z: plaza.z + (look.market === "square" ? FOUNTAIN_RADIUS + 4 : 4) };
   land = createLand(checked, seed, {
@@ -3527,6 +3587,13 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     town.circles.some((circle) => Math.hypot(circle.x - x, circle.z - z) < circle.r + pad);
   // (Scattered first and taken out after, so every other tree and rock stays where its world has it.)
   const trees = scatter(random, baseTrees * MAX_DENSITY, 1.6, 1.6).filter((tree) => !builtOver(tree.x, tree.z, 1.2));
+  // The kit's trees by how often each grows here (a region's land favours its own: pines in the snow).
+  const mix = landLook?.mix ?? {};
+  const kitTrees = KIT_TREES.map(([name, weight, size]) => [
+    name,
+    weight * (mix[name.replace(/-\d+$/u, "")] ?? 1),
+    size,
+  ]);
   const rocks = scatter(random, baseRocks * MAX_DENSITY, 0.8, 1.4).filter((rock) => !builtOver(rock.x, rock.z, 0.9));
   // The ground, in chunks: coarse everywhere, fine near the player (forest floor under the usual trees).
   const terrain = createGround(scene, ground, forestGrid(trees.slice(0, baseTrees)));
@@ -4081,7 +4148,7 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
     const needFor = (i, base) => DENSITIES.find((density) => i < base * density) ?? MAX_DENSITY;
     const growth = rng(seed ^ 0x5bd1e995);
     trees.forEach((tree, i) => {
-      const [name, , size] = pickWeighted(KIT_TREES, tree.tint);
+      const [name, , size] = pickWeighted(kitTrees, tree.tint);
       const need = needFor(i, baseTrees);
       dummy.position.set(tree.x, heightAt(tree.x, tree.z) - 0.1, tree.z);
       dummy.rotation.set(0, tree.turn, 0);
@@ -4115,7 +4182,8 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       );
     });
     // Undergrowth on the grass around town: between the town's edge and the forest.
-    for (let placed = 0, tries = 0; placed < UNDERGROWTH && tries < UNDERGROWTH * 6; tries++) {
+    const undergrowth = Math.round(UNDERGROWTH * (landLook?.plants ?? 1));
+    for (let placed = 0, tries = 0; placed < undergrowth && tries < undergrowth * 6; tries++) {
       const x = (growth() * 2 - 1) * (townHalf + NATURE_RING);
       const z = (growth() * 2 - 1) * (townHalf + NATURE_RING);
       if (inTown(x, z, 1.5) || land.clear(x, z) || inGateLane(x, z)) continue;
@@ -4463,6 +4531,8 @@ export function createWorld(seed, landscape = null, needs = {}, size = "normal")
       fountainRadius: look.market === "square" ? FOUNTAIN_RADIUS : null,
       // The settlement: hamlet, village, town or city; its market (square, stalls, green) and roads.
       settlement: { ...look },
+      // A region's land (regions.js LANDS), "" at home: herd.js habitatsAt reads it.
+      land: checked.land ?? "",
       walls: !!look.walls,
       streets: streetStrips(),
       buildings: town.buildings.map((building) => ({ kind: building.spec.kind, box: building.box })),

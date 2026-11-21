@@ -15,6 +15,7 @@ import { checkLook } from "./looks.js";
 import { checkGroups } from "./zones.js";
 import { checkPurposes, checkStanding } from "./factions.js";
 import { checkRelationship, checkTraitMap } from "./relationships.js";
+import { checkFolk, checkTravel } from "./regions.js";
 
 export const SAVE_VERSION = 1;
 const INDEX_KEY = "wanderworld.worlds";
@@ -103,6 +104,8 @@ function checkSetup(raw) {
     housing: checkHousing(raw.housing),
     furnished: checkFurnished(raw.furnished),
     place: checkPlace(raw.place),
+    // Its vendors' shelves (vendor.js, by zone id: every region has a building:3). Kept from 0.7.42 on.
+    ...(isRecord(raw.vendors) ? { vendors: raw.vendors } : {}),
   };
 }
 
@@ -124,6 +127,18 @@ function checkRegions(raw) {
           seed: region.seed.slice(0, 200),
           landscape: region.landscape,
           ...checkSetup(region),
+          // What its settlement must have (an inn and a shop: regions.js REGION_NEEDS), and its people
+          // (regions.js checkFolk), made the first time it's built. Regions from before have neither.
+          ...(isRecord(region.needs)
+            ? {
+                needs: Object.fromEntries(
+                  Object.entries(region.needs)
+                    .filter(([, count]) => Number.isInteger(count) && count > 0)
+                    .map(([kind, count]) => [kind, Math.min(12, count)]),
+                ),
+              }
+            : {}),
+          ...(Array.isArray(region.folk) ? { folk: checkFolk(region.folk) } : {}),
         },
       ]),
   );
@@ -455,6 +470,9 @@ export function checkWorld(raw) {
     region: typeof raw.region === "string" && REGION_KEY.test(raw.region) ? raw.region : "0,0",
     regions: checkRegions(raw.regions),
     homeSetup: checkSetup(raw.homeSetup),
+    // Travel between regions (regions.js checkTravel): lands planned for regions not made yet, regions
+    // heard of, and quests' targets out in them.
+    travel: checkTravel(raw.travel),
     // Places the lore puts somewhere the world hasn't built them yet ("located in wilds1" for a house in
     // town), waiting for the world builder: [{ place, in, title }].
     waitingPlacements: Array.isArray(raw.waitingPlacements)

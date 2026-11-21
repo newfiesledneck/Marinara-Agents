@@ -1142,6 +1142,8 @@ export function createJournal(panelCss, handlers, shows = () => true) {
   let mapView = { x: 0, z: 0, zoom: 1 }; // what the map shows: its middle, and how close
   let mapHalf = 160; // half the region's side, in metres (from the last drawing)
   let mapNote = null;
+  let travelBox = null; // the Map tab's Travel list, written again when what it shows changes
+  let travelShown = "";
   function redrawMap() {
     if (!map?.isConnected) return;
     mapView = clampView(mapView, mapHalf);
@@ -1235,11 +1237,60 @@ export function createJournal(panelCss, handlers, shows = () => true) {
     if (handlers.onRegions?.(regions))
       body.append(
         explain(
-          "The regions round this one that you've been to (and any your lore or a quest told of, paler). A faction's land is in its colour; the letters mark a stronghold (S), outposts (O), a town (T), hamlets (H), a ruin (R) and caves (C).",
+          "The regions round this one that you've been to (and any your lore or a quest told of, paler), each in its land's colour or its faction's, with the roads between them. The letters mark a stronghold (S), outposts (O), a town (T), hamlets (H), a ruin (R) and caves (C), and ! where a quest has something for you.",
         ),
         regions,
       );
+    travelBox = element("div", "display:flex;flex-direction:column;gap:6px;");
+    travelShown = "";
+    body.append(travelBox);
+    drawTravel();
     redrawMap();
+  }
+
+  /** Travel: each region known, what it is, and the ways to go there now (on foot by road, or by coach from an inn). */
+  function drawTravel() {
+    const places = handlers.onTravelPlaces?.();
+    const shown = JSON.stringify(places ?? null);
+    if (!travelBox?.isConnected || shown === travelShown) return;
+    travelShown = shown;
+    travelBox.replaceChildren();
+    if (!places || places.rows.length < 2) return;
+    const status = element("div", `font-size:12px;color:${INK_SOFT};`, places.note);
+    const list = element("div", "display:flex;flex-direction:column;gap:5px;");
+    const go = (key, how) =>
+      Promise.resolve(handlers.onJourney?.(key, how)).then((problem) => {
+        if (problem) status.textContent = problem;
+      });
+    for (const row of places.rows) {
+      const line = element("div", "display:flex;flex-wrap:wrap;gap:4px;align-items:center;");
+      const name = element("div", "flex:1 1 150px;font-size:13px;min-width:0;");
+      name.append(
+        element("div", "font-weight:600;", `${row.name}${row.here ? " (you're here)" : ""}`),
+        element("div", MUTED, row.words),
+      );
+      line.append(name);
+      if (row.walk?.hours) line.append(button(`Walk there (${row.walk.hours} h)`, SMALL, () => go(row.key, "walk")));
+      if (row.coach?.hours)
+        line.append(
+          button(
+            `Coach (${row.coach.fare ? `${row.coach.fare} ${places.currency}` : "free"}, ${row.coach.hours} h)`,
+            SMALL,
+            () => go(row.key, "coach"),
+          ),
+        );
+      if (!row.here && !row.walk?.hours && !row.coach?.hours && row.walk?.problem)
+        line.append(element("span", MUTED, row.walk.problem));
+      list.append(line);
+    }
+    travelBox.append(
+      element("div", "font-weight:600;margin-top:6px;", "Travel"),
+      explain(
+        "The regions you know, nearest first. Walk there goes by road through regions you know, and the hours pass on the way; a coach from an inn or a tavern is quicker, for a fare. Your party and animals come along. What's allowed is in Settings → World → Regions and travel.",
+      ),
+      list,
+      status,
+    );
   }
 
   function draw() {
@@ -1264,7 +1315,10 @@ export function createJournal(panelCss, handlers, shows = () => true) {
     render(next) {
       data = next;
       if (panel.style.display === "none" || panel.contains(document.activeElement)) return;
-      if (tab === "map" && map?.isConnected) return void redrawMap();
+      if (tab === "map" && map?.isConnected) {
+        drawTravel(); // (only when where you can go has changed)
+        return void redrawMap();
+      }
       // Only "Right now" follows the world; the rest of People stays put until something in it changes.
       const peopleChanged = next.placesChanged || next.relationsChanged || next.partyChanged;
       if (tab === "people" && peopleView !== "doing" && body.childElementCount && !peopleChanged) return;
