@@ -381,6 +381,57 @@ export const HELP = [
 ];
 
 /**
+ * Every model made in Blender by ThatOneCan, by where it is: `folk` on the people's skeleton
+ * (kit/fantasy/folk/folk-built-<name>.json), `rigged` with a skeleton of its own
+ * (kit/creatures/rigged-<name>.json). The one list the credits come from: Help's lines below are made
+ * from it, and wanderworld-help.regression.mjs checks the kit, the README and kit/CREDITS.md against it.
+ */
+export const BLENDER_MODELS = {
+  folk: [
+    "goblin",
+    "hobgoblin",
+    "bugbear",
+    "orc",
+    "gnoll",
+    "kobold",
+    "lizardfolk",
+    "ghoul",
+    "ogre",
+    "troll",
+    "minotaur",
+    "skeleton",
+    "zombie",
+    "ghost",
+    "specter",
+    "earth_elemental",
+    "hill_giant",
+    "stone_giant",
+    "frost_giant",
+    "fire_giant",
+  ],
+  rigged: [
+    "mimic",
+    "awakened_shrub",
+    "shambling_mound",
+    "grick",
+    "otyugh",
+    "roper",
+    "gelatinous_cube",
+    "basilisk",
+    "air_elemental",
+    "fire_elemental",
+    "water_elemental",
+  ],
+};
+/** The built-in body's credit, word for word wherever it's given. */
+export const MAKEHUMAN_CREDIT = "Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan";
+/** Model names as a list in words: "the goblin, the hill giant and the troll" without the repeated "the". */
+export const namesOf = (names) => {
+  const words = names.map((name) => name.replace(/_/gu, " "));
+  return words.length > 1 ? `the ${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : `the ${words[0] ?? ""}`;
+};
+
+/**
  * Credits and thanks (Menu → Settings → Credits, and the main menu): [{ title, lines }]. The models and
  * animations are listed as the kit's own notes have them (kit/CREDITS.md, src/clips/CREDITS.md).
  */
@@ -413,7 +464,8 @@ export const CREDITS = [
       "Credit required (CC-BY 3.0, https://creativecommons.org/licenses/by/3.0/): Saddle by Poly by Google, https://poly.pizza/m/dSMm_V4sKNr, modified (converted, resized, its texture shrunk). Its maker has not endorsed Wanderworld.",
       "Monster Pack Animated and Easy Animated Enemy Pack: the slime, skeleton, giant spider, giant rat, snake, bat, giant wasp, giant frog and dragon.",
       "Bestiary - Dungeon Monsters Kit: the imp and the puglin. (This pack is under the Quaternius Asset License, not CC0: free to use in a game, not to pass on as assets.)",
-      "Made in Blender by ThatOneCan: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, with their gear and weapons (they move with the Universal Animation Library's clips like the people); and the mimic, awakened shrub, shambling mound, grick, otyugh, roper, gelatinous cube, basilisk, skeleton, zombie, ghost, specter, earth, fire, water and air elementals, and the hill, stone, frost and fire giants, each with a skeleton and movements of its own.",
+      `Made in Blender by ThatOneCan, on the people's skeleton (they move with the Universal Animation Library's clips like the people): ${namesOf(BLENDER_MODELS.folk)}, with their gear and weapons. The giants start from one base body, a copy of the built-in body (giant-base.glb).`,
+      `Made in Blender by ThatOneCan, each with a skeleton and movements of its own: ${namesOf(BLENDER_MODELS.rigged)}.`,
       "Ultimate Animated Animals: the horses, donkey, cow, bull, alpaca, deer, stag, wolf, fox and the two dogs, with their standing, grazing, walking and galloping, and the horses' and donkey's jump.",
       "Universal Animation Library: Idle, Walk, Jog, Sprint, Idle Talking, Sitting (enter, idle, talking, exit), Swim (forward, idle), Jump (loop, land), Fixing Kneeling, Interact, Pick Up Table and Dance.",
       "Universal Animation Library 2: Tree Chopping (the smith's hammer), Farm Harvest, Plant Seed and Watering, Idle Fold Arms, Idle Rail, Lay To Idle (lying down and getting up) and Consume.",
@@ -422,7 +474,7 @@ export const CREDITS = [
   {
     title: "The built-in body",
     lines: [
-      "Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan.",
+      `${MAKEHUMAN_CREDIT}: the built-in body, and the giants' base body made from it.`,
       "MakeHuman system assets (skins, eyes, eyebrows, eyelashes): CC0.",
     ],
   },

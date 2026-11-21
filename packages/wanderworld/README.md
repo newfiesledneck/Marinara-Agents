@@ -1372,11 +1372,20 @@ and Crystal Pack on Poly Pizza), also CC0 1.0. Thank you, iPoly3D.
 The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, which is under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html) and not CC0: free to use in a game, not to pass on as assets.
 
 Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan: the built-in body
-(`assets/scripts/make_avatar.py`, read by our own code from MakeHuman's hm08 mesh and morph targets).
+(`assets/scripts/make_avatar.py`, read by our own code from MakeHuman's hm08 mesh and morph targets),
+and the giants' base body made from it (`assets/models/giant-base.glb`).
 
 MakeHuman system assets (skins, eyes, eyebrows, eyelashes): CC0, read as data by `make_avatar.py`.
 
-Made in Blender by ThatOneCan: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, and the mimic, awakened shrub, shambling mound, grick, otyugh, roper, gelatinous cube, basilisk, skeleton, zombie, ghost, specter, earth, fire, water and air elementals, and the hill, stone, frost and fire giants (`assets/scripts/make_*.py`).
+Made in Blender by ThatOneCan (`assets/scripts/make_*.py`), on the people's skeleton
+(`kit/fantasy/folk`): the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre,
+troll, minotaur, skeleton, zombie, ghost, specter, earth elemental, hill giant, stone giant, frost giant
+and fire giant. The giants start from one base body, `assets/models/giant-base.glb`, a copy of the
+built-in body.
+
+Made in Blender by ThatOneCan, each with a skeleton of its own (`kit/creatures`): the mimic, awakened
+shrub, shambling mound, grick, otyugh, roper, gelatinous cube, basilisk, air elemental, fire elemental
+and water elemental.
 
 Credit required (CC-BY 3.0): Saddle by Poly by Google (https://poly.pizza/m/dSMm_V4sKNr), CC-BY 3.0
 (https://creativecommons.org/licenses/by/3.0/), modified: converted, resized and its texture shrunk. Its

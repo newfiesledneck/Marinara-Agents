@@ -23,11 +23,19 @@ licence file says so). No credit is required; this note is a courtesy.
 
 ## Made in Blender by ThatOneCan
 
-`fantasy/folk/folk-built-<name>.json` and their textures (`folk-<name>.webp`): the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur,
-modelled in Blender by ThatOneCan with the scripts in `packages/wanderworld/assets/scripts/` and packed by
-`scripts/build-wanderworld-people.mjs --bestiary`; and `creatures/rigged-<name>.json` with their textures
-(`rigged-<name>.webp`): the mimic, awakened shrub, shambling mound, grick, otyugh, roper, gelatinous cube, basilisk, skeleton, zombie, ghost, specter, earth, fire, water and air elementals, and the hill, stone, frost and fire giants, made the same
-way. The models themselves are in `packages/wanderworld/assets/models/`.
+On the people's skeleton, `fantasy/folk/folk-built-<name>.json` and their textures (`folk-<name>.webp`):
+the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll, minotaur, skeleton,
+zombie, ghost, specter, earth elemental, hill giant, stone giant, frost giant and fire giant, modelled in
+Blender by ThatOneCan with the scripts in `packages/wanderworld/assets/scripts/` and packed by
+`scripts/build-wanderworld-people.mjs --bestiary`. The giants start from one base body,
+`assets/models/giant-base.glb`, a copy of the built-in body (below).
+
+Each with a skeleton of its own, `creatures/rigged-<name>.json` and their textures (`rigged-<name>.webp`):
+the mimic, awakened shrub, shambling mound, grick, otyugh, roper, gelatinous cube, basilisk, air
+elemental, fire elemental and water elemental, made the same way.
+
+The models themselves are in `packages/wanderworld/assets/models/`. Each file also holds the model's
+distant version, made from it when it's packed.
 
 ## The built-in body
 
