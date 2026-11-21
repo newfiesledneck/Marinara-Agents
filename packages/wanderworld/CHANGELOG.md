@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.7.31 — 2026-11-20
+
+- The goblin is reworked from reference pictures, so it looks less like a cartoon. It has a smaller, longer head with deep-set amber eyes, a bony hooked nose, a crooked grin and big ears swept back, and a wiry, stooped body with ribs and collarbones showing. Its fingers and toes are long and clawed. The tunic is gone: it wears a leather loincloth, a strap across its chest, bracers, wrapped feet and a necklace of teeth.
+
 ## 0.7.30 — 2026-11-20
 
 - The goblin is more detailed. Blender now bakes it a texture of its own, with shading in its creases, mottled skin and dirt towards its feet. Its face is finer (heavy eyelids, lips, nostrils, crooked teeth, a wrinkled brow), its ears are leaf-shaped, one nicked and one with a brass ring, and its tunic is patched and tattered. It has a knotted rope belt, a necklace of teeth, wrapped shins and a chipped, rusty scimitar.
