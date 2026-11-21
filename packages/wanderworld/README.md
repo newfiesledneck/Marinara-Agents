@@ -652,6 +652,14 @@ every roll, and no AI call is made in a real-time fight.
   `kit/creatures/rigged-<name>.json`). The mimic, the shrub and the roper lie in wait as what they
   pretend to be until they move or strike. The shambling mound, the otyugh and the roper are rare. Each
   fights by its SRD stat block.
+- **Caves that go down**: "Go in" at a cave's mouth takes you and your party down into the rock, a level
+  at a time: a small cave of winding passages and chambers, then a cavern with rock pillars, a pool,
+  fallen rocks, glowing crystals and sometimes a ruined tower, a camp or a shrine, or a dungeon, a
+  stronghold or another cave, four levels down at most. It's dark: you carry a light, and the rock
+  between the camera and you isn't drawn. Creatures that suit the place live there, picked for your
+  level and tougher the deeper you go, and fights work as they do outside. The same cave always leads to
+  the same places. Settings → World → Places → Caves, dungeons and strongholds turns it off, sets how
+  many of a world's caves lead down, and turns the creatures down there off.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.
@@ -962,6 +970,34 @@ still count, and come first.
 Performance targets: about 30 fps on a mid-range phone and 60 on a desktop. The picture is drawn at
 1080p unless Settings says otherwise, nature and real lights follow the player, and fog hides the far
 edge. Readings by draw distance and tree density are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+
+### Caves and caverns, and the levels below a cave's mouth
+
+`src/deep.js` runs the deep places (docs/QUESTS.md section 8). Its header describes the level plan, the
+plain data every kind of level is made from. One level is loaded at a time, in a scene of its own, as a
+house's room is.
+
+- `deepPlan(seed, depth, kind)` gives a level's plan: a cave or a cavern from `src/deepcave.js`, a
+  dungeon or a stronghold from `src/dungeon.js`. The seed comes from the world's seed, the cave and the
+  depth (`deepSeed`), so the same entrance always leads to the same place. `leadsDown` says which of a
+  world's caves lead down at all.
+- `deepcave.js` lays out a cave (an entry chamber, one or two chambers along winding passages, a side
+  den) or a cavern (one big chamber with pillars, water, rubble, crystals and sometimes a ruined tower,
+  a camp or a shrine from the kit). Passages are never narrower than 3 m. The rock's edge is the rooms
+  and passages worn back by noise, which only ever widens them (`openAt`), and the colliders are the
+  rock beside the floor, half a metre at a time.
+- `createDeep(plan)` builds the level: for a cave or cavern, one merged mesh of floor, walls and roof
+  carved from `openAt` by marching squares (2,000 to 10,000 triangles); for a dungeon or stronghold,
+  `dungeon.js buildDungeon`. A shader change leaves out whatever is between the camera and the player,
+  and the roof just over them. The player carries a light, and only the four of a level's own lights
+  nearest the player are lit.
+- Creatures down there are a herd of their own (`herd.js`, given the level as its world), from
+  `creaturesFor(plan, level)`: kinds by the kind of place, no tougher than the party's level allows,
+  at the plan's spawn spots. While the player is below, `main.js` keeps the world's own herd aside
+  (`core.outdoors`) and the party moves into the level (`npcs.js moveParty`).
+- `tests/wanderworld-deep.regression.mjs` checks every kind's plans: the same each time, every room
+  reachable, passages wide enough, the way in, the way down and every spawn on the floor, and nobody
+  walking about getting into the rock.
 
 ### Dungeons and strongholds
 

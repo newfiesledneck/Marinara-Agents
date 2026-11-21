@@ -38,6 +38,7 @@ import { createFigure } from "./figure.js";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
 import { createInterior } from "./interiors.js";
+import { createDeep, creaturesFor, deepPlan, deepSeed, leadsDown } from "./deep.js";
 import { BUILT_IN, findModel, loadModelCharacter, modelKinds } from "./models.js";
 import { summariseSetup } from "./setup.js";
 import { HELP, helpFor, KEYWORD_PROMPT } from "./help.js";
@@ -3155,7 +3156,8 @@ function stepPlaces(dt) {
   core.zoneCheck = 0.25;
   const position = core.player.position;
   const zone = core.interior
-    ? (core.zones.byId.get(`building:${core.interior.door.index}`) ?? zoneAt(core.zones, position.x, position.z))
+    ? (core.zones.byId.get(`building:${core.interior.door.index}`) ??
+      zoneAt(core.zones, core.interior.door.x, core.interior.door.z))
     : zoneAt(core.zones, position.x, position.z);
   const snapshot = core.crowd.snapshot();
   const residents = residentsOf(snapshot);
@@ -3747,6 +3749,11 @@ function animalAllowed(kind) {
   return !off.includes(kind) && (core.settings.loreAnimals || counts[SORT_OF[kind]] > 0);
 }
 
+/** The world's own animals: `core.herd`, except below ground, where that's the creatures down there (enterDeep). */
+const outdoorHerd = () => core.outdoors ?? core.herd;
+/** Inside a house's room, where there are no creatures and no fights (a deep place has both). */
+const inHouse = () => !!core.interior && !core.interior.deep;
+
 /** Counts the world's animals out again after a change in Settings → Creatures. */
 function restockHerd() {
   if (!core.world) return;
@@ -3758,7 +3765,7 @@ function restockHerd() {
     core.glide = null;
     core.player.rotation.z = 0;
   }
-  core.herd.setWorld(core.world, hashString(core.seed), herdOptions());
+  outdoorHerd().setWorld(core.world, hashString(core.seed), herdOptions());
   core.respawnAt = null;
   syncPets();
   syncSpawns();
@@ -3914,7 +3921,7 @@ function syncPets() {
         home: beside(door, -3.6, 2.6),
       });
   }
-  core.herd.setOwned(list);
+  outdoorHerd().setOwned(list);
 }
 
 /**
@@ -3965,7 +3972,7 @@ function syncSpawns() {
     const kind = animalKind(creature.name);
     if (kind && (creature.tame || creature.hostile)) tempers[kind] = creature.tame ? "tame" : "hostile";
   }
-  core.herd.setTempers(tempers);
+  outdoorHerd().setTempers(tempers);
   // Who keeps a region made for a purpose: a faction's guards (tame till it's Hostile), a stronghold's bandits.
   const purpose = purposeHere();
   if (purpose && animalAllowed("bandit"))
@@ -3988,7 +3995,7 @@ function syncSpawns() {
         creature.when === "night" || creature.when === "day" ? creature.when : "",
       ),
     );
-  core.herd.setSpawns(list);
+  outdoorHerd().setSpawns(list);
 }
 
 /** Chooses `id`'s dog or horse (`role`): { kind, coat, out }, or null for none. */
@@ -6196,6 +6203,7 @@ function aggressionAllowed(x, z) {
   const rule = core.settings.combat;
   if (rule === "anywhere") return true;
   if (rule === "off" || !core.zones) return false;
+  if (core.interior?.deep) return true; // (below ground is out in the wilds)
   if (landUnsafe()) return true; // (a faction's land is no refuge while it's Hostile to you)
   const chain = chainOf(core.zones, zoneAt(core.zones, x, z));
   if (chain.some((zone) => zone.kind === "town")) return false;
@@ -7441,8 +7449,10 @@ function openNoticeboard() {
   show();
 }
 
-/** A cave's mouth: a card like a door's, for starting a scene in there later. */
+/** A cave's mouth: down into what's below it, if it leads down (enterDeep); else a card like a door's. */
 function enterCave(cave) {
+  if (core.settings.deepPlaces && leadsDown(`${core.seed}:${cave.outpost}`, core.settings.deepShare))
+    return void enterDeep(cave, ["cave"]);
   const zone = core.zones?.byId.get(`cave:${cave.outpost}`);
   const title = zone ? zoneName(zone) : "A cave";
   core.sceneDoor = cave;
@@ -7459,6 +7469,13 @@ function leaveInterior(now = false) {
     core.placesChanged = true;
     core.journalAt = 0;
     core.player.removeFromParent();
+    if (inside.deep) {
+      // Out of a deep place: its creatures go, the world's own are back, and so is the party, at the mouth.
+      core.herd.detach();
+      core.herd = core.outdoors;
+      core.outdoors = null;
+      if (core.world) core.crowd.moveParty(core.world, inside.door);
+    }
     inside.room.dispose();
     if (!core.world) return;
     core.space = core.world;
@@ -7468,11 +7485,53 @@ function leaveInterior(now = false) {
     core.player.rotation.y = door.angle;
     // The camera out on the street, a little to one side, looking back at the player and the door.
     core.cameraYaw = door.angle + STREET_VIEW;
-    core.world.setDoor(door.index, true, 2.5);
+    if (!inside.deep) core.world.setDoor(door.index, true, 2.5);
     core.sound.door();
   };
   if (now) out();
   else goThrough(out);
+}
+
+// ── Deep places (deep.js): the levels below a cave's mouth ──────────────────
+
+/**
+ * Into a level below `cave`: `kinds` is the kind of each level from the first one down to this one. One
+ * level is loaded at a time, with creatures of its own (Settings → World → Places), and the party comes
+ * along. `up`: back up from the level below, so they come out at its way down.
+ */
+function enterDeep(cave, kinds, up = false) {
+  goThrough(() => {
+    const before = core.interior?.deep ? core.interior : null;
+    if (core.battle) battleEnd("");
+    const seed = deepSeed(`${core.seed}:${cave.outpost}`, kinds.length);
+    const plan = deepPlan(seed, kinds.length, kinds.at(-1));
+    const level = createDeep(plan);
+    if (core.settings.props) void level.dress();
+    // Its creatures are a herd of their own (any kind switched on in Settings → Creatures); the world's
+    // own wait above.
+    const herd = createHerd();
+    herd.setWorld(level, seed, { quiet: { all: true } });
+    const { off } = herdOptions();
+    if (core.settings.deepCreatures)
+      herd.setSpawns(creaturesFor(plan, valueOf(sheetNow(), "level"), (kind) => !off.includes(kind)));
+    if (before) core.herd.detach();
+    else core.outdoors = core.herd;
+    core.herd = herd;
+    core.interior = { door: { x: cave.x, z: cave.z, angle: cave.angle }, room: level, deep: { cave, kinds } };
+    core.space = level;
+    core.placesChanged = true;
+    core.journalAt = 0;
+    const at = up && plan.down ? plan.down : plan.entry;
+    core.player.removeFromParent();
+    level.scene.add(core.player);
+    core.player.position.set(at.x, 0, at.z);
+    core.player.rotation.y = at.angle;
+    core.cameraYaw = at.angle + Math.PI;
+    core.camera.position.set(at.x - Math.sin(at.angle) * 4, 3, at.z - Math.cos(at.angle) * 4);
+    core.crowd.moveParty(level, at);
+    before?.room.dispose();
+    showBeaten();
+  });
 }
 
 // ── Using things ─────────────────────────────────────────────────────────────
@@ -7605,7 +7664,7 @@ function usable() {
       act: putDownBody,
     });
   // The beaten, lying in reach: an animal to harvest, a person to search (once).
-  for (const body of core.interior ? [] : core.herd.bodies(core.player.position, 2.6)) {
+  for (const body of inHouse() ? [] : core.herd.bodies(core.player.position, 2.6)) {
     const person = !!ANIMALS[body.kind]?.person;
     if (person && body.searched) continue;
     const what = creatureWord(body);
@@ -7650,7 +7709,30 @@ function usable() {
       act: () => travel(edge),
     });
   }
-  if (core.interior) {
+  const deep = core.interior?.deep;
+  if (deep) {
+    // Below ground: out (or back up a level) where they came in, and further down where it goes on.
+    const { exit, down } = core.interior.room;
+    const above = deep.kinds.slice(0, -1);
+    list.push({
+      kind: "exit",
+      label: above.length ? "Go back up" : "Leave",
+      x: exit.x,
+      z: exit.z,
+      y: 1.6,
+      act: () => (above.length ? enterDeep(deep.cave, above, true) : leaveInterior()),
+    });
+    if (down)
+      list.push({
+        kind: "exit",
+        label: "Go further down",
+        x: down.x,
+        z: down.z,
+        y: 1.2,
+        reach: 2.2,
+        act: () => enterDeep(deep.cave, [...deep.kinds, down.kind]),
+      });
+  } else if (core.interior) {
     const { exit } = core.interior.room;
     list.push({ kind: "exit", label: "Leave", x: exit.x, z: exit.z, y: 1.6, act: () => leaveInterior() });
   } else {
@@ -8041,7 +8123,7 @@ function aimAt(x, y) {
     nearest = distance;
     best = entry;
   };
-  for (const foe of core.interior ? [] : core.herd.foes(at, 45))
+  for (const foe of inHouse() ? [] : core.herd.foes(at, 45))
     consider({ kind: "foe", id: foe.id }, foe.x, foe.z, 0.6 * (foe.scale ?? 1));
   for (const member of core.crowd.party()) {
     const person = core.crowd.present(core.space).find((entry) => entry.id === member.id);
@@ -8062,7 +8144,7 @@ function aimed() {
   if (!aim || !core.player) return null;
   const at = core.player.position;
   if (aim.kind === "foe") {
-    const foe = core.interior ? null : core.herd.foes(at, 60).find((entry) => entry.id === aim.id);
+    const foe = inHouse() ? null : core.herd.foes(at, 60).find((entry) => entry.id === aim.id);
     if (!foe) return null;
     const name = creatureWord(foe);
     return {
@@ -8122,7 +8204,7 @@ function aimInRange(reach, what) {
 function nearestWords() {
   const at = core.player.position;
   const inFight = new Set((core.battle?.order ?? []).map((entry) => entry.id));
-  const far = (core.interior ? [] : core.herd.foes(at, 60))
+  const far = (inHouse() ? [] : core.herd.foes(at, 60))
     .filter((foe) => !foe.fled && (foe.hostile || inFight.has(foe.id)))
     .reduce((least, foe) => Math.min(least, Math.hypot(foe.x - at.x, foe.z - at.z) - foe.room), Infinity);
   return Number.isFinite(far) ? `, and the nearest creature is ${Math.max(0, far).toFixed(1)} m away` : "";
@@ -8675,7 +8757,7 @@ function movesNow() {
 
 /** A readied attack goes off at the first hostile creature within reach of what the player fights with. */
 function readyTick() {
-  if (!buffed("readied") || core.downed || core.interior || afflicted().helpless || !afoot()) return;
+  if (!buffed("readied") || core.downed || inHouse() || afflicted().helpless || !afoot()) return;
   const at = core.player.position;
   const bow = core.shape ? null : bowOf(core.items ?? [], byDesc());
   const reach = bow ? Math.min(bow.range, 12) : SWING_REACH;
@@ -8945,9 +9027,7 @@ function useAbility(id) {
     return void narrate(null, `${who} makes an opening: a companion's next attack has advantage.`);
   }
   if (id === "hide") {
-    const near = core.interior
-      ? []
-      : core.herd.foes(core.player.position, 20).filter((foe) => foe.hostile && !foe.fled);
+    const near = inHouse() ? [] : core.herd.foes(core.player.position, 20).filter((foe) => foe.hostile && !foe.fled);
     const notices = near.reduce((most, foe) => Math.max(most, 10 + (foeOf(foe.kind, foeTable()).perception ?? 0)), 10);
     const die = () => 1 + Math.floor(Math.random() * 20);
     // (Armour that hinders Stealth: the worse of two.)
@@ -9041,7 +9121,7 @@ function useAbility(id) {
     const at = core.player.position;
     spellFx().wave(core.space.scene, chest(at.x, at.z, 0.15), spellColour("radiant"), 9);
     const turned = [];
-    for (const foe of core.interior ? [] : core.herd.foes(at, 9)) {
+    for (const foe of inHouse() ? [] : core.herd.foes(at, 9)) {
       const stats = statsOf(foe);
       if (stats.kin !== "undead") continue;
       const total = 1 + Math.floor(Math.random() * 20) + (stats.saves?.wisdom ?? 0);
@@ -9075,7 +9155,7 @@ function shortRest() {
   const notice = (words) => void core.hud?.setNotice(words);
   if (core.battle) return notice("Not in a fight.");
   const at = core.player.position;
-  if (!core.interior && core.herd.foes(at, 24).some((foe) => foe.hostile && !foe.fled))
+  if (!inHouse() && core.herd.foes(at, 24).some((foe) => foe.hostile && !foe.fled))
     return notice("Not with enemies near.");
   if (core.clock < (core.restAt ?? 0)) return notice("You've only just rested.");
   core.restAt = core.clock + 120;
@@ -9603,7 +9683,7 @@ function blowTarget(reach = SWING_REACH, arc = SWING_ARC, people = true) {
   const facing = core.player.rotation.y;
   let foe = null;
   let nearest = Infinity;
-  for (const entry of core.interior ? [] : core.herd.foes(at, reach + 2.5)) {
+  for (const entry of inHouse() ? [] : core.herd.foes(at, reach + 2.5)) {
     const dx = entry.x - at.x;
     const dz = entry.z - at.z;
     const distance = Math.hypot(dx, dz);
@@ -9824,7 +9904,7 @@ function faceEnemy(reach) {
     nearest = distance;
     best = { x, z };
   };
-  for (const foe of core.interior ? [] : core.herd.foes(at, reach + 2.5))
+  for (const foe of inHouse() ? [] : core.herd.foes(at, reach + 2.5))
     if (!foe.fled && (foe.hostile || foe.hp !== undefined || inFight.has(foe.id))) consider(foe.x, foe.z, foe.room);
   if (core.angry?.size)
     for (const person of core.crowd.present(core.space))
@@ -10093,7 +10173,7 @@ function battleFoes(id) {
  * their companions didn't see it coming, and lose their first turn.
  */
 function battleStart(id, surprised = false) {
-  if (core.battle || !byTurns() || core.downed || core.interior) return;
+  if (core.battle || !byTurns() || core.downed || inHouse()) return;
   const foes = battleFoes(id);
   if (!foes.length) return;
   const sheet = sheetNow();
@@ -10145,7 +10225,7 @@ function battleStart(id, surprised = false) {
  * against their passive Perception (10 and their Wisdom modifier): if not, they're surprised.
  */
 function spotted(event) {
-  if (core.downed || core.interior || core.mode === "talk") return;
+  if (core.downed || inHouse() || core.mode === "talk") return;
   if (core.battle) return void battleJoin(event.id);
   const who = personaName();
   const what = creatureWord(event);
@@ -10206,7 +10286,7 @@ function endTurn() {
 function battleTick(dt, moved) {
   const battle = core.battle;
   if (!battle) return;
-  if (!byTurns() || core.interior || !core.save) return void battleEnd("");
+  if (!byTurns() || inHouse() || !core.save) return void battleEnd("");
   if (core.downed) return void battleEnd("");
   const at = core.player.position;
   // Who of the creatures is still in it: on its feet, not run off, not left far behind.
@@ -10750,7 +10830,7 @@ const talks = (kind) => !!ANIMALS[kind]?.person || !!ANIMALS[kind]?.folk;
  * own lines.
  */
 function combatSay(moment, speaker) {
-  if (!core.settings.combatTalk || !fighting() || core.interior || core.downed) return;
+  if (!core.settings.combatTalk || !fighting() || inHouse() || core.downed) return;
   const id = speaker.foe?.id ?? speaker.person?.id;
   if (!id || core.clock < (core.talkAt ?? 0)) return;
   core.talkBy ??= new Map();
@@ -10921,7 +11001,7 @@ function coverSpot(from, target, range) {
     for (let i = 0; i < 8; i++) {
       const x = from.x + Math.sin((i * Math.PI) / 4) * walk;
       const z = from.z + Math.cos((i * Math.PI) / 4) * walk;
-      if (core.space.blocked?.(x, z, 0.4) || waterAt(x, z).depth > 0.3) continue;
+      if (core.space.blocked?.(x, z, 0.4) || (!core.interior && waterAt(x, z).depth > 0.3)) continue;
       const spot = { x, z, walk, far: Math.hypot(target.x - x, target.z - z) };
       spot.cover = coverBetween(target, spot) > 0;
       spots.push(spot);
@@ -10934,7 +11014,7 @@ function coverSpot(from, target, range) {
  * (herd.js walks them there between their shots): { [id]: { x, z } | null }.
  */
 function tacticsTick() {
-  if (!tacticsOn() || fightMode() !== "realtime" || core.interior || core.downed) return void (core.foeSpots = null);
+  if (!tacticsOn() || fightMode() !== "realtime" || inHouse() || core.downed) return void (core.foeSpots = null);
   if (core.clock < (core.tacticsAt ?? 0)) return;
   core.tacticsAt = core.clock + 1.1;
   const at = core.player.position;
@@ -11083,7 +11163,7 @@ const ALLY_REACH = 3.2; // metres within which a companion's weapon lands
  * Nothing attacks them, and they have no HP of their own yet.
  */
 function alliesTick(dt) {
-  if (fightMode() !== "realtime" || !core.settings.partyFights || core.downed || core.interior) return;
+  if (fightMode() !== "realtime" || !core.settings.partyFights || core.downed || inHouse()) return;
   core.alliesAt = (core.alliesAt ?? 0) - dt;
   if (core.alliesAt > 0) return;
   core.alliesAt = 0.4;
@@ -11121,7 +11201,7 @@ function alliesTick(dt) {
 
 /** The companions who can be in a fight now: with the player, out of doors, on their feet. */
 function fightingAllies() {
-  if (!fighting() || !core.settings.partyFights || core.interior || !core.crowd) return [];
+  if (!fighting() || !core.settings.partyFights || inHouse() || !core.crowd) return [];
   const party = new Set(core.crowd.party().map((member) => member.id));
   if (!party.size) return [];
   return core.crowd.present(core.space).filter((person) => party.has(person.id) && !core.crowd.isOut(person.id));
@@ -11194,7 +11274,7 @@ function allyMoves(person, foe, caster) {
   const around = Math.atan2(from.x - foe.x, from.z - foe.z) + side.way * (caster ? 0.35 : 0.6);
   const ring = caster ? 7.5 : 1.5 + foe.room;
   const spot = { x: foe.x + Math.sin(around) * ring, y: 0, z: foe.z + Math.cos(around) * ring };
-  if (waterAt(spot.x, spot.z).depth > 0.3) return;
+  if (!core.interior && waterAt(spot.x, spot.z).depth > 0.3) return;
   core.crowd.fightTo(person.id, spot.x, spot.z, 1.2);
 }
 
@@ -11659,7 +11739,7 @@ function personAngry(target, left) {
 function angryTick() {
   if (!core.angry?.size) return;
   if (core.downed || fightMode() !== "realtime" || !core.settings.fightBack) return void core.angry.clear();
-  if (core.interior || core.mode === "talk") return;
+  if (inHouse() || core.mode === "talk") return;
   const at = core.player.position;
   const here = new Map(core.crowd.present(core.space).map((person) => [person.id, person]));
   for (const [id, grudge] of core.angry) {
@@ -13290,10 +13370,10 @@ function step(dt) {
   viewProjection.multiplyMatrices(core.camera.projectionMatrix, core.camera.matrixWorldInverse);
   frustum.setFromProjectionMatrix(viewProjection);
   const inside = !!core.interior;
-  if (!core.interior) {
+  if (!inHouse()) {
     // Where each owner of an animal is, for it to keep up with (looked up a few times a second), and
     // now and then who has one at all (someone new in town, lore that's changed).
-    if (core.clock >= (core.petsAt ?? 0)) {
+    if (!core.interior && core.clock >= (core.petsAt ?? 0)) {
       core.petsAt = core.clock + 4;
       syncPets();
     }
@@ -13426,7 +13506,7 @@ function step(dt) {
   if (thunder !== null) core.sound.thunder(thunder, inside);
 
   placeCamera(dt);
-  core.interior?.room.update(dt, core.camera);
+  core.interior?.room.update(dt, core.camera, core.player.position);
 
   // The use prompt over whatever is in reach.
   core.target = core.mode === "walk" && !core.walkTo ? pickTarget() : null;

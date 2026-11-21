@@ -298,6 +298,17 @@ export const HELP = [
     ],
   },
   {
+    title: "Caves, and going down",
+    lines: [
+      "Most caves out in the country lead down into the rock. Stand in a cave's mouth and use \"Go in\": you go down to the first level, a small cave of winding passages and a chamber or two. Your party comes with you, apart from anyone you've told to wait. Your dog and horse wait outside.",
+      'Further in there may be a dark hole in the floor, or in a dungeon a breach in the wall or a trapdoor: "Go further down" takes you to the next level. That can be a cavern (one big open space with rock pillars, a pool or a stream, fallen rocks and glowing crystals, and sometimes a ruined tower, a camp or a shrine standing in it), a dungeon, a stronghold or another cave. It goes down four levels at most. Where you came in, "Go back up" takes you up a level, and on the first level "Leave" takes you back out to the cave\'s mouth.',
+      "It's dark down there. You carry a light, crystals glow, and the first level has a little daylight where you came in. Whatever stands between the camera and you, rock, roof or wall, isn't drawn, so you can always see where you are.",
+      "Creatures live there, the kinds that suit the place: rats, spiders, snakes, bats, slimes and wolves in caves; goblins, kobolds, lizardfolk and gnolls in caverns; skeletons and ghouls in dungeons; bandits in strongholds. Something bigger can wait at the bottom. They're picked to suit your level, and the deeper you go the tougher they are. Fights work as they do outside, in real time or by turns, by Settings → Inventory → Combat. What you beat stays beaten for as many days as you've set.",
+      "The same cave always leads to the same places. Only one level is loaded at a time. If you close the game or load the world while you're down there, you come back at the cave's mouth.",
+      "Settings → World → Places → Caves, dungeons and strongholds: whether caves lead down at all, how many of a world's caves do (a few, half, most or all; the rest show their card for starting a scene, as before), and whether creatures live down there.",
+    ],
+  },
+  {
     title: "Dungeons and strongholds",
     lines: [
       "Below ground there can be dungeons and strongholds as well as caves. A dungeon is a crypt, a ruin or a sealed vault: rooms and corridors of stone with torches on the walls. A crypt has tombs and a pillared hall, a ruin has rubble, crates and sometimes a camp, and a vault has guardrooms and a treasure room behind a door at the end. Doors and bars don't lock yet.",

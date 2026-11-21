@@ -18,7 +18,7 @@ const smooth = (t) => {
 };
 
 /** Smooth 3D value noise in about −1…1, from a seed. */
-function noise3(seed) {
+export function noise3(seed) {
   const hash = (x, y, z) => {
     let h = (x * 374761393 + y * 668265263 + z * 2147483647 + seed * 144665) | 0;
     h = Math.imul(h ^ (h >>> 13), 1274126177);
