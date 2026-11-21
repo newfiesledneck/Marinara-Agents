@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.37)
+## What it does now (0.7.38)
 
 ### The world
 
@@ -646,6 +646,12 @@ every roll, and no AI call is made in a real-time fight.
   ogres, trolls and minotaurs of its own, modelled in Blender by ThatOneCan (`assets/scripts/`). Each carries its SRD weapon (and a shield, armour or rags) as part of its body, moves with
   the people's animations and fights by the SRD's numbers; the ogre, troll and minotaur are met one at
   a time, now and then, and ghouls only at night.
+- **Monsters with shapes of their own**: a mimic passing for a chest, an awakened shrub, a shambling
+  mound, a grick, an otyugh and a roper passing for a stalagmite, modelled in Blender by ThatOneCan with
+  skeletons and movements of their own (`src/rigged.js`, played by three's AnimationMixer from
+  `kit/creatures/rigged-<name>.json`). The mimic, the shrub and the roper lie in wait as what they
+  pretend to be until they move or strike. The shambling mound, the otyugh and the roper are rare. Each
+  fights by its SRD stat block.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.
@@ -934,7 +940,7 @@ and Crystal Pack on Poly Pizza), also CC0 1.0. Thank you, iPoly3D.
 
 The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, which is under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html) and not CC0: free to use in a game, not to pass on as assets.
 
-Made in Blender by ThatOneCan: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur (`assets/scripts/make_*.py`).
+Made in Blender by ThatOneCan: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, and the mimic, awakened shrub, shambling mound, grick, otyugh and roper (`assets/scripts/make_*.py`).
 
 Credit required (CC-BY 3.0): Saddle by Poly by Google (https://poly.pizza/m/dSMm_V4sKNr), CC-BY 3.0
 (https://creativecommons.org/licenses/by/3.0/), modified: converted, resized and its texture shrunk. Its

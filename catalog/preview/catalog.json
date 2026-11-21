@@ -293,7 +293,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.7.37",
+        "version": "0.7.38",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -323,6 +323,18 @@
               "kit/creatures/farm.json",
               "kit/creatures/index.json",
               "kit/creatures/monsters.json",
+              "kit/creatures/rigged-awakened_shrub.json",
+              "kit/creatures/rigged-awakened_shrub.webp",
+              "kit/creatures/rigged-grick.json",
+              "kit/creatures/rigged-grick.webp",
+              "kit/creatures/rigged-mimic.json",
+              "kit/creatures/rigged-mimic.webp",
+              "kit/creatures/rigged-otyugh.json",
+              "kit/creatures/rigged-otyugh.webp",
+              "kit/creatures/rigged-roper.json",
+              "kit/creatures/rigged-roper.webp",
+              "kit/creatures/rigged-shambling_mound.json",
+              "kit/creatures/rigged-shambling_mound.webp",
               "kit/creatures/wild.json",
               "kit/fantasy/folk/folk-bugbear.webp",
               "kit/fantasy/folk/folk-built-bugbear.json",
@@ -471,8 +483,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "6e222f76fa6d1298eab4220398b7b5c848c1ed55892778de975686e88f131c7e",
-            "bytes": 3182163
+            "sha256": "6a67f39a820343a23423c103b72b196b442eb2d52a623264b1703dab2f027f7c",
+            "bytes": 3202597
           },
           {
             "path": "server.mjs",
@@ -498,6 +510,66 @@
             "path": "kit/creatures/monsters.json",
             "sha256": "aa2ccb3e4d93b9219e1a96c79ca83459a12c9a89ee8a14445937adfa1ae3a121",
             "bytes": 2074870
+          },
+          {
+            "path": "kit/creatures/rigged-awakened_shrub.json",
+            "sha256": "b1dcad0b80514c04fd3e408859254583e984501b55e4ce0b9f3909851201c230",
+            "bytes": 1583607
+          },
+          {
+            "path": "kit/creatures/rigged-awakened_shrub.webp",
+            "sha256": "25952f7b3d1f4fd24d5ff1bc1dd0ce54358de1e72cdc7f746b8a3b3dc299632a",
+            "bytes": 124558
+          },
+          {
+            "path": "kit/creatures/rigged-grick.json",
+            "sha256": "d46ad30347c5853fe70b5c00ebee041bb6712e51f104346fd6c26d2f5c8235a9",
+            "bytes": 1029791
+          },
+          {
+            "path": "kit/creatures/rigged-grick.webp",
+            "sha256": "fdebc570d039260b8fc6adffd757912726bf06a08205390dc3e2903145a51916",
+            "bytes": 48692
+          },
+          {
+            "path": "kit/creatures/rigged-mimic.json",
+            "sha256": "758103de427d1cb7aefb463e49c8d3646f33748df1b6a565d9ee76b493037406",
+            "bytes": 920535
+          },
+          {
+            "path": "kit/creatures/rigged-mimic.webp",
+            "sha256": "69d73a45f4992bf66efe8065d98a9ae31cce8f11a2d977140e709a3ed1302c3a",
+            "bytes": 67080
+          },
+          {
+            "path": "kit/creatures/rigged-otyugh.json",
+            "sha256": "4faca711d807bc2e0dc1d53fc600d77dd24de5479d8010e2a8bfd9a581559ade",
+            "bytes": 1247343
+          },
+          {
+            "path": "kit/creatures/rigged-otyugh.webp",
+            "sha256": "62a710ff1101a827f9308feb842e3ff7d099d9f6f59162f05f025514df706c63",
+            "bytes": 76336
+          },
+          {
+            "path": "kit/creatures/rigged-roper.json",
+            "sha256": "2d5dbc2381df1d921f2a2a81a85efa03cab51917117952ee413cbe6a68237644",
+            "bytes": 1580146
+          },
+          {
+            "path": "kit/creatures/rigged-roper.webp",
+            "sha256": "70208ff7b661955dcbda20c314e3df8dfcbb986087f1ebc6360586c360b578b8",
+            "bytes": 83142
+          },
+          {
+            "path": "kit/creatures/rigged-shambling_mound.json",
+            "sha256": "f037d289be58d47d333d3b514f4bf2bc75d456286f70cf2ed606c5131e03b136",
+            "bytes": 1646079
+          },
+          {
+            "path": "kit/creatures/rigged-shambling_mound.webp",
+            "sha256": "25fa6b17ccc8a495d2dd9b6acd616273ff2330dc3725e06f8974d527d2b9daf1",
+            "bytes": 105380
           },
           {
             "path": "kit/creatures/wild.json",
@@ -1197,9 +1269,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.7.37.zip",
-        "sha256": "69510ff7edf53d709ead6edf1079c4d677bfc9ce3e2564e8a279bee664ba47c6",
-        "bytes": 38844589
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.7.38.zip",
+        "sha256": "4c24ad4b292cd7337b3bf05555951adeabeb0c086eb006c2badc251ee22feeae",
+        "bytes": 47382061
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     }

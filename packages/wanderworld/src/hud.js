@@ -1019,7 +1019,7 @@ export function createHud(root, handlers) {
     animalsWild: "Deer, stags and foxes out in the country.",
     animalsHostile: "Wolves, alone and in packs of two to five. A pack of three counts as three.",
     animalsMonsters:
-      "Slimes, skeletons, giant spiders and rats, snakes, bats, wasps, frogs, imps, puglins, goblins, hobgoblins, bugbears, orcs, gnolls, kobolds, lizardfolk, ghouls, bandits, witches and wizards out in the country, and rarely an ogre, a troll, a minotaur or a dragon overhead. Skeletons, ghouls and bats only at night.",
+      "Slimes, skeletons, giant spiders and rats, snakes, bats, wasps, frogs, imps, puglins, goblins, hobgoblins, bugbears, orcs, gnolls, kobolds, lizardfolk, ghouls, gricks, awakened shrubs, mimics passing for chests, bandits, witches and wizards out in the country, and more rarely an ogre, a troll, a minotaur, a shambling mound, an otyugh, a roper passing for a stalagmite, or a dragon overhead. Skeletons, ghouls and bats only at night.",
     animalSizes:
       "Now and then: about one monster in eight is big (a quarter to two-fifths bigger) and one in fifty is huge (three-fifths to four-fifths bigger), always the first of its group. Often: about one in four big and one in fifteen huge. Never: every monster is about its kind's usual size.",
     monsterRespawn:
@@ -1648,6 +1648,12 @@ export function createHud(root, handlers) {
     ["animalHobgoblin", "Hobgoblins"],
     ["animalBugbear", "Bugbears"],
     ["animalOrc", "Orcs"],
+    ["animalMimic", "Mimics (as chests)"],
+    ["animalAwakened_shrub", "Awakened shrubs"],
+    ["animalShambling_mound", "Shambling mounds (rare)"],
+    ["animalGrick", "Gricks"],
+    ["animalOtyugh", "Otyughs (rare)"],
+    ["animalRoper", "Ropers (rare, as stalagmites)"],
     ["animalGnoll", "Gnolls"],
     ["animalKobold", "Kobolds"],
     ["animalLizardfolk", "Lizardfolk"],

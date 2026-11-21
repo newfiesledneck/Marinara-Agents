@@ -24,8 +24,9 @@ licence file says so). No credit is required; this note is a courtesy.
 
 `fantasy/folk/folk-built-<name>.json` and their textures (`folk-<name>.webp`): the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur,
 modelled in Blender by ThatOneCan with the scripts in `packages/wanderworld/assets/scripts/` and packed by
-`scripts/build-wanderworld-people.mjs --bestiary`. The models themselves are in
-`packages/wanderworld/assets/models/`.
+`scripts/build-wanderworld-people.mjs --bestiary`; and `creatures/rigged-<name>.json` with their textures
+(`rigged-<name>.webp`): the mimic, awakened shrub, shambling mound, grick, otyugh and roper, made the same
+way. The models themselves are in `packages/wanderworld/assets/models/`.
 
 ## Under the Quaternius Asset License
 
