@@ -902,6 +902,34 @@ Performance targets: about 30 fps on a mid-range phone and 60 on a desktop. The 
 1080p unless Settings says otherwise, nature and real lights follow the player, and fog hides the far
 edge. Readings by draw distance and tree density are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
+### Dungeons and strongholds
+
+`src/dungeon.js` makes the dungeon and stronghold levels of the deep places (docs/QUESTS.md section 8).
+`dungeonPlan(seed, depth, kind)` returns one level as plain data, in the level plan the deep places
+share with the caves and caverns: rooms, corridors, doorways, the kit pieces to place, colliders, torch
+lights, the way in, sometimes a way further down, and spawn spots tagged guard, boss, captive or wander.
+The same seed, depth and kind always give the same level.
+
+- A dungeon is a crypt (tombs and a pillared hall), a ruin (rubble, crates, sometimes a camp) or a vault
+  (guardrooms and a treasure room behind a door). Its end is the room farthest from the way in, where the
+  boss waits. Half the time a far wall has given way into natural rock, and that leads down to a cave.
+- A stronghold is a keep: a gatehouse, the hall, barracks, a store room, a gaol with two or three barred
+  cells, the leader's room behind a door, and a cellar whose trapdoor sometimes leads down to a cave.
+- Rooms and corridors are laid on a 4 m grid. Each room hangs off an earlier one by a straight corridor
+  one to four cells long, with an arch at each end. Walls, arches and the columns where walls meet come
+  from that grid, and furniture stands against the walls, clear of the doorways.
+- `buildDungeon(plan)` lays a plan out in a three.js Group: one InstancedMesh per model part, a few dozen
+  draw calls a level, with doors and bars as meshes of their own so they can be opened. It returns the
+  colliders as boxes for `world.js createCollider`. Lights are left to the caller.
+- The pieces are Quaternius's Updated Modular Dungeon, in `kit/fantasy/dungeon/` (one `models.json`,
+  about 1 MB, flat colours and no textures). Its 2 m floor, wall and stairs are drawn at twice their
+  size. Barrels, crates, beds and tables come from the props kit, and the rock where a wall has given way
+  from the nature kit.
+- A level stays under 650 pieces and 600,000 triangles (about 400 pieces and 500,000 triangles at most
+  so far), so a phone can draw it. `tests/wanderworld-dungeon.regression.mjs` checks this, and also that
+  every room, spawn and the way down can be walked to at the player's size, that doorways meet their
+  corridors and nothing stands in them, and that no two pieces stand in each other.
+
 ## Building and testing
 
 ```bash
@@ -927,7 +955,7 @@ The buildings, props, nature, townsfolk and recorded animations are converted fr
 [Quaternius](https://quaternius.com), released under
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/): Medieval Village MegaKit,
 Fantasy Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
-Fantasy, Ultimate Animated Animals, Monster Pack Animated, Easy Animated Enemy Pack, Farm Buildings, Ultimate Modular Men, Ultimate Modular Women, and the Universal Animation Library and Universal Animation Library 2.
+Fantasy, Ultimate Animated Animals, Monster Pack Animated, Easy Animated Enemy Pack, Farm Buildings, Updated Modular Dungeon (the dungeons and strongholds), Ultimate Modular Men, Ultimate Modular Women, and the Universal Animation Library and Universal Animation Library 2.
 
 The gallows, pillory, cage, signposts and crystals are by iPoly3D (Medieval Torture Devices, Signs pack
 and Crystal Pack on Poly Pizza), also CC0 1.0. Thank you, iPoly3D.

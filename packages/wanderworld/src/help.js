@@ -287,6 +287,14 @@ export const HELP = [
       'Gossip ("People tell each other about you", in Settings → People → Memory, off to begin with): people who spend time together tell each other what they saw or heard of you. It arrives as hearsay, isn\'t passed further, and what you whisper stays where you said it.',
     ],
   },
+  {
+    title: "Dungeons and strongholds",
+    lines: [
+      "Below ground there can be dungeons and strongholds as well as caves. A dungeon is a crypt, a ruin or a sealed vault: rooms and corridors of stone with torches on the walls. A crypt has tombs and a pillared hall, a ruin has rubble, crates and sometimes a camp, and a vault has guardrooms and a treasure room behind a door at the end. Doors and bars don't lock yet.",
+      "A stronghold is a bandit or faction keep: a gatehouse, a hall with a long table and banners, barracks with bunks, store rooms, a gaol with barred cells where captives are held, the leader's room behind a door, and a cellar.",
+      "Each one is built from the world's seed, so the same way down always leads to the same rooms. Guards keep to the hall and barracks, the leader or the dungeon's master waits in the last room, captives sit in the cells, and others wander. Sometimes there's a way further down: a dungeon's far wall that has given way into natural rock, or a trapdoor in a keep's cellar, both leading to a cave below.",
+    ],
+  },
   { title: "Lorebook keywords", keywords: true },
   {
     title: "A prompt for writing your keywords",
@@ -324,6 +332,7 @@ export const CREDITS = [
       "Stylized Nature MegaKit: the common, twisted, dead and pine trees with their bark and leaves, bushes and flowering bushes, ferns, clover, flowers, grasses, mushrooms, plants, pebbles, rocks and the rock path.",
       "Universal Base Characters and Modular Character Outfits - Fantasy: the townsfolk. The male and female bodies and heads, the peasant outfits and their colours, eyes, and the hair and beards.",
       "Farm Buildings: the barn and the windmill.",
+      "Updated Modular Dungeon: the dungeons and strongholds. Their floors, walls, arches, doors, cell bars, columns, stairs, wall torches and banners, pedestals, the trapdoor, skulls, cobwebs and the campfire.",
       SRD_CREDIT,
       "Medieval Torture Devices, Signs pack and Crystal Pack by iPoly3D (CC0, from Poly Pizza): the gallows, pillory and cage by a watchtower, signposts at inns and cottages, crystals among standing stones.",
       "Credit required (CC-BY 3.0, https://creativecommons.org/licenses/by/3.0/): Saddle by Poly by Google, https://poly.pizza/m/dSMm_V4sKNr, modified (converted, resized, its texture shrunk). Its maker has not endorsed Wanderworld.",
