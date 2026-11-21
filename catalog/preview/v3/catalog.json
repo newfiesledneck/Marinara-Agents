@@ -293,7 +293,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.7.44",
+        "version": "0.7.45",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -469,12 +469,31 @@
               "kit/generic/art/street-cobbles.webp",
               "kit/generic/art/water.webp",
               "kit/generic/art/wood-beam.webp",
-              "kit/generic/avatar/avatar-female-1.webp",
-              "kit/generic/avatar/avatar-female-2.webp",
+              "kit/generic/avatar/avatar-eyes.webp",
+              "kit/generic/avatar/avatar-female-3.webp",
+              "kit/generic/avatar/avatar-female-skin-middle-african.webp",
+              "kit/generic/avatar/avatar-female-skin-middle-asian.webp",
+              "kit/generic/avatar/avatar-female-skin-middle-caucasian.webp",
+              "kit/generic/avatar/avatar-female-skin-old-african.webp",
+              "kit/generic/avatar/avatar-female-skin-old-asian.webp",
+              "kit/generic/avatar/avatar-female-skin-old-caucasian.webp",
+              "kit/generic/avatar/avatar-female-skin-young-african.webp",
+              "kit/generic/avatar/avatar-female-skin-young-asian.webp",
+              "kit/generic/avatar/avatar-female-skin-young-caucasian.webp",
               "kit/generic/avatar/avatar-female.json",
               "kit/generic/avatar/avatar-female.webp",
               "kit/generic/avatar/avatar-male-1.webp",
               "kit/generic/avatar/avatar-male-2.webp",
+              "kit/generic/avatar/avatar-male-3.webp",
+              "kit/generic/avatar/avatar-male-skin-middle-african.webp",
+              "kit/generic/avatar/avatar-male-skin-middle-asian.webp",
+              "kit/generic/avatar/avatar-male-skin-middle-caucasian.webp",
+              "kit/generic/avatar/avatar-male-skin-old-african.webp",
+              "kit/generic/avatar/avatar-male-skin-old-asian.webp",
+              "kit/generic/avatar/avatar-male-skin-old-caucasian.webp",
+              "kit/generic/avatar/avatar-male-skin-young-african.webp",
+              "kit/generic/avatar/avatar-male-skin-young-asian.webp",
+              "kit/generic/avatar/avatar-male-skin-young-caucasian.webp",
               "kit/generic/avatar/avatar-male.json",
               "kit/generic/avatar/avatar-male.webp",
               "kit/generic/nature/bark-birchtree.webp",
@@ -521,8 +540,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "4559aaf6097854f959650dc1855fb6587a0a8c1c7c5b19e0cfcb9d6eaa4c8c16",
-            "bytes": 3469260
+            "sha256": "1c1e0b657ec164e4f6d46be43efd6d12d7def3340066b112cf291001eb844ed8",
+            "bytes": 3473540
           },
           {
             "path": "server.mjs",
@@ -1280,44 +1299,139 @@
             "bytes": 38302
           },
           {
-            "path": "kit/generic/avatar/avatar-female-1.webp",
-            "sha256": "5e36b4f336d9d36c897d48acb98feb35c0c940e98083468d382caab37339cddf",
-            "bytes": 111740
+            "path": "kit/generic/avatar/avatar-eyes.webp",
+            "sha256": "ebce478bc0fc47310fea5eee1a81a44cd52712597df5be776a83ed64a19d2dd7",
+            "bytes": 153766
           },
           {
-            "path": "kit/generic/avatar/avatar-female-2.webp",
+            "path": "kit/generic/avatar/avatar-female-3.webp",
             "sha256": "811eb0a68f84cca0577f5220d805089776deec58e9726aaac741316064c297db",
             "bytes": 293766
           },
           {
+            "path": "kit/generic/avatar/avatar-female-skin-middle-african.webp",
+            "sha256": "e715cc769136a9321f432f707c464a19cb286a1f08e250ffe80f79a52534e9cd",
+            "bytes": 111998
+          },
+          {
+            "path": "kit/generic/avatar/avatar-female-skin-middle-asian.webp",
+            "sha256": "f6a0038256fed03e1f599b57532c25b7b3ab6ffdbe97adf5a993a03051d7aa1c",
+            "bytes": 165368
+          },
+          {
+            "path": "kit/generic/avatar/avatar-female-skin-middle-caucasian.webp",
+            "sha256": "9e8a64a96c72f9f7cb74f7dcb650506ad97a143b5afe4e29a0099398f883bf1f",
+            "bytes": 197514
+          },
+          {
+            "path": "kit/generic/avatar/avatar-female-skin-old-african.webp",
+            "sha256": "ce582c92ca021c3b3767ec61db70c374194e975bb291bc38cf5a36574c724681",
+            "bytes": 119966
+          },
+          {
+            "path": "kit/generic/avatar/avatar-female-skin-old-asian.webp",
+            "sha256": "78bd6b14122217d30ae1223791218715df9312241fa148addd6b549cc5ac7e04",
+            "bytes": 303972
+          },
+          {
+            "path": "kit/generic/avatar/avatar-female-skin-old-caucasian.webp",
+            "sha256": "a1b9ec6080e8872807deccc7609c03d712084bb51cebf60051f4d60136926d47",
+            "bytes": 295774
+          },
+          {
+            "path": "kit/generic/avatar/avatar-female-skin-young-african.webp",
+            "sha256": "ca7f84fd2796d39ad1db5b34e03c2f5201d2713b830e320983cb72aad6d83940",
+            "bytes": 35728
+          },
+          {
+            "path": "kit/generic/avatar/avatar-female-skin-young-asian.webp",
+            "sha256": "6144c030b94ec2f4a05b63094502f0eca52d1d3ba0874e172156e17a2c8dab7a",
+            "bytes": 55502
+          },
+          {
+            "path": "kit/generic/avatar/avatar-female-skin-young-caucasian.webp",
+            "sha256": "a640d410e14568d55835f725424228dd501a066946c3a4cf1133b9723ebaf169",
+            "bytes": 66132
+          },
+          {
             "path": "kit/generic/avatar/avatar-female.json",
-            "sha256": "0a784403be4b44477882095be0098782be673ece4b82dccff77a1d1442bbe221",
-            "bytes": 8592858
+            "sha256": "f7698508dd9046a02d6c655da9f3cda3e8c53257c89601da6e2e3ef9374db0fd",
+            "bytes": 11359287
           },
           {
             "path": "kit/generic/avatar/avatar-female.webp",
-            "sha256": "bbdc35e5be896a8961e79583ddadd5f876ec99e2bfbfa23d86d3d9f6ce0aa5cd",
-            "bytes": 65062
+            "sha256": "7ba60b4c58eaedc670ead6a3bb882cd7906ec05d3775c8926e6ef52d5f350558",
+            "bytes": 65060
           },
           {
             "path": "kit/generic/avatar/avatar-male-1.webp",
-            "sha256": "bc3d9bd90ffdacce510e5727903216d7f4b77ee9de7e83e0555a3f1c7bca92aa",
-            "bytes": 114834
+            "sha256": "6f252d6d48024d65b416f7c2d3ce6ba2e6fef553681d9b6f2ada6bab9515dc5f",
+            "bytes": 13948
           },
           {
             "path": "kit/generic/avatar/avatar-male-2.webp",
+            "sha256": "8e2f26aa00f0a63bf7ee60c53f6c3749f853f8fb0d9c44342c87d4408149a666",
+            "bytes": 563406
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male-3.webp",
             "sha256": "e8ef5283d1b416f2800ae4c134d23fb422c099bf4b74c5e06d27f4c9a6b5c153",
             "bytes": 169836
           },
           {
+            "path": "kit/generic/avatar/avatar-male-skin-middle-african.webp",
+            "sha256": "160753e866cb314b497512db0284cb69a26fcb96ca51d51d965114071b46b069",
+            "bytes": 122170
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male-skin-middle-asian.webp",
+            "sha256": "535786a9d74b321bf8fb91f2d4bc98b1aba7a1d9cd900c6fba1f408ca86bafdc",
+            "bytes": 219088
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male-skin-middle-caucasian.webp",
+            "sha256": "399b069c2b7caa7320f6b441a928a3932de61f2f57c6dae6e38d830fb982a630",
+            "bytes": 202284
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male-skin-old-african.webp",
+            "sha256": "2ca93f14586c37f3055649e474c0f6a89ebe042f5ca02366c9de4e13b489d476",
+            "bytes": 176596
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male-skin-old-asian.webp",
+            "sha256": "172303bfa322ab67ce6725afda342442ebff3eb4edfd7da8bbd4cdf8d889a7da",
+            "bytes": 276110
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male-skin-old-caucasian.webp",
+            "sha256": "08ba73d77a1427c37a74a93480cdb87292c7ebc6f901e15c3763b9cdb91ac260",
+            "bytes": 355156
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male-skin-young-african.webp",
+            "sha256": "bcb4d89e38ba9e794c292307b0759fd0fa6f20e1b32aa24349cbd8ec8fee327e",
+            "bytes": 36804
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male-skin-young-asian.webp",
+            "sha256": "7fa61bfdeda32d0f874e71f07c1c65c92e09c1abadb4a40eaa8c227520358910",
+            "bytes": 55668
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male-skin-young-caucasian.webp",
+            "sha256": "e723f2e9ef21294000f19089af7478ec4edd6b34b0e3ca13e0db17a7d3c3887c",
+            "bytes": 60940
+          },
+          {
             "path": "kit/generic/avatar/avatar-male.json",
-            "sha256": "cefe429f017c152bdffb09ce6e0afddabd57abeb3f143fef5ea423634106dd86",
-            "bytes": 4123730
+            "sha256": "4b1176a1bff44bd37a4b1818ee5649b5f66918ef2aa9616de9c43464147b9848",
+            "bytes": 5728603
           },
           {
             "path": "kit/generic/avatar/avatar-male.webp",
-            "sha256": "f8f7fb9ac644085b2eba3778e5a279941a473ba4934b8b813627980bf92ed102",
-            "bytes": 66574
+            "sha256": "387b1a297f5f2658c5c9b9319a8b2e2c3da52d0316a85e20842bf81f9caf03be",
+            "bytes": 66580
           },
           {
             "path": "kit/generic/nature/bark-birchtree.webp",
@@ -1497,9 +1611,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.7.44.zip",
-        "sha256": "3fac2ca4ae9e05a414c6283c6c926531696e0ad7567522adb46c89233c4e75f3",
-        "bytes": 76220400
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/wanderworld-0.7.45.zip",
+        "sha256": "b4c3156f2cd0cc5966b804e9b13b751a70e9030c120ae3a965eeba920fd6c1bf",
+        "bytes": 83965639
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     }
