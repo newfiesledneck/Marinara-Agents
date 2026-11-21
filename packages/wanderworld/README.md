@@ -1115,9 +1115,10 @@ still count, and come first.
   provider charged. Only Wanderworld's own calls are in it.
   Anything shaped like a key in a provider's error message is hidden before it is shown.
 - The scattered, pond and quarters layouts are only built when chosen; "Surprise me" picks from the first four.
-- Simpler than the 5e SRD on purpose: paralyzed, stunned or asleep doesn't make Strength and Dexterity
-  saves fail by themselves, a blow on someone paralyzed or asleep isn't a critical hit by itself, and a
-  blow that lands always deals at least 1 damage.
+- Paralyzed, stunned or asleep, you, a companion or a creature fails Strength and Dexterity saves
+  without a roll, as the SRD has it. A hit on someone paralyzed or asleep (the SRD's unconscious) from
+  within 1.5 m is a critical hit. Simpler than the SRD on purpose: a blow that lands always deals at
+  least 1 damage.
 - Two browsers playing the same world at the same moment take turns: the save that reaches the Engine
   first wins whole, the other browser loads it, and nothing is merged.
 - Prompt caching is the provider's to do; Wanderworld only orders its prompts so that it can. The AI

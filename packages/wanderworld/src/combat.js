@@ -469,6 +469,7 @@ export function playerStrike({ sheet, worn = {}, weapon = UNARMED, foe, prof = 0
       critFrom: mods.critFrom ?? 20,
       more: mods.more ?? [],
       reroll: mods.reroll ?? 0,
+      critHit: !!mods.critHit, // (its target paralyzed or unconscious, and this blow from within 1.5 m)
     },
     random,
   );
@@ -520,15 +521,15 @@ export function multiattack(stats, holds) {
 
 /**
  * A creature's attack on the player. `guarded` (they're blocking): it's rolled twice and the worse for the
- * creature counts. { roll, total, hit, crit, damage, ac, guarded }.
+ * creature counts. `critHit`: a hit is a critical hit (attackRoll). { roll, total, hit, crit, damage, ac, guarded }.
  */
 export function foeStrike(
-  { foe, sheet, worn = {}, guarded = false, hindered = false, keen = false },
+  { foe, sheet, worn = {}, guarded = false, hindered = false, keen = false, critHit = false },
   random = Math.random,
 ) {
   const ac = armourOf(sheet, worn);
   const roll = () =>
-    attackRoll({ bonus: foe.attack, ac, damage: foe.damage, damageBonus: foe.damageBonus ?? 0 }, random);
+    attackRoll({ bonus: foe.attack, ac, damage: foe.damage, damageBonus: foe.damageBonus ?? 0, critHit }, random);
   const first = roll();
   // (`hindered`: blinded, say, by a spell. Rolled twice like a blocked one, the worse counting. `keen`: it has
   // advantage (its pack is beside it, or its target is down or held): the better of two. Both, and it's one roll.)
@@ -549,12 +550,16 @@ export function rolledTwice(roll, better) {
 /**
  * A saving throw: a d20 plus the modifier of `score` (and `bonus`) against `dc`. A save takes half of
  * `damage` (dice, or a number) or none of it, as `onSave` says ("half" | "none"); a failed one takes it all.
- * { roll, total, saved, damage }.
+ * `fails`: it fails without a roll (a Strength or Dexterity save by someone paralyzed, stunned or
+ * unconscious: conditions.js failsSave). { roll, total, saved, fails, damage }.
  */
-export function savingThrow({ score = 10, bonus = 0, dc = 10, damage = 0, onSave = "half" }, random = Math.random) {
-  const roll = 1 + Math.floor(random() * 20);
-  const total = roll + modifier(score) + bonus;
-  const saved = total >= dc;
+export function savingThrow(
+  { score = 10, bonus = 0, dc = 10, damage = 0, onSave = "half", fails = false },
+  random = Math.random,
+) {
+  const roll = fails ? 0 : 1 + Math.floor(random() * 20);
+  const total = fails ? 0 : roll + modifier(score) + bonus;
+  const saved = !fails && total >= dc;
   const rolled = rollDice(damage, random);
   const full = Math.max(0, rolled.total);
   const dealt = !saved ? full : onSave === "half" ? Math.floor(full / 2) : 0;
@@ -562,8 +567,10 @@ export function savingThrow({ score = 10, bonus = 0, dc = 10, damage = 0, onSave
   const detail = rolled.rolls.length
     ? `${diceWords(damage, rolled.rolls, full)} = ${full}${saved ? (onSave === "half" ? ", halved by the save" : ", none on a save") : ""}`
     : "";
-  return { roll, total, saved, damage: dealt, detail };
+  return { roll, total, saved, ...(fails ? { fails } : {}), damage: dealt, detail };
 }
+/** A saving throw's roll, told: "9 + 2 = 11", or "failed without a roll" for one that `fails`. */
+export const saveSum = (result) => (result.fails ? "failed without a roll" : sumWords(result.roll, result.total));
 
 /** Kinds that never run from a fight, and kinds that seldom do (Wanderworld's own, after what they are). */
 const UNSHAKEN = new Set(["undead", "construct", "ooze"]);
@@ -623,9 +630,11 @@ export function sumWords(roll, total) {
 export const rollWords = (result, against = `AC ${result.ac}`) =>
   `Attack roll: ${sumWords(result.roll, result.total)} against ${against}${
     result.crit
-      ? result.roll === 20
-        ? ", a natural 20"
-        : `, a critical on ${result.roll}`
+      ? result.sureCrit
+        ? ", a critical: helpless, and struck from within 1.5 m"
+        : result.roll === 20
+          ? ", a natural 20"
+          : `, a critical on ${result.roll}`
       : result.roll === 1
         ? ", a natural 1"
         : ""
@@ -672,17 +681,21 @@ export function personWords({ name, who, weapon, result, left, max, shot = false
  * Only the damage is played: a spell's effect doesn't take hold of the player.
  * { hit, saved, crit, sure, roll, total, against, damage }.
  */
-export function spellAtPlayer({ wit = 0, spell, sheet, worn = {}, prof = 2, saveBonus = 0 }, random = Math.random) {
+export function spellAtPlayer(
+  { wit = 0, spell, sheet, worn = {}, prof = 2, saveBonus = 0, fails = false, critHit = false },
+  random = Math.random,
+) {
   if (spell.save) {
     const dc = 8 + prof + wit;
     const score = valueOf(sheet, spell.save.attribute.toLowerCase()) || 10;
     const thrown = savingThrow(
-      { score, bonus: saveBonus, dc, damage: spell.damage ?? 0, onSave: spell.save.onSave },
+      { score, bonus: saveBonus, dc, damage: spell.damage ?? 0, onSave: spell.save.onSave, fails },
       random,
     );
     return {
       hit: thrown.damage > 0,
       saved: thrown.saved,
+      ...(thrown.fails ? { fails: true } : {}),
       crit: false,
       sure: false,
       roll: thrown.roll,
@@ -699,7 +712,7 @@ export function spellAtPlayer({ wit = 0, spell, sheet, worn = {}, prof = 2, save
     return { hit: true, saved: false, crit: false, sure: true, roll: 0, total: 0, against: "", damage, detail };
   }
   const ac = armourOf(sheet, worn);
-  const result = attackRoll({ bonus: prof + wit, ac, damage: spell.damage ?? "0" }, random);
+  const result = attackRoll({ bonus: prof + wit, ac, damage: spell.damage ?? "0", critHit }, random);
   return { ...result, ac, saved: false, sure: false, against: `AC ${ac}` };
 }
 
@@ -709,7 +722,7 @@ export function castAtWords({ name, spell, who, result, left, max }) {
   const hp = `${who} has ${Math.max(0, left)} of ${max} HP.`;
   if (result.sure) return `${start} (no roll: it can't miss): ${dealtWords(result)}. ${hp}`;
   if (result.against.startsWith("DC")) {
-    const thrown = `${who}'s saving throw: ${sumWords(result.roll, result.total)} against ${result.against}`;
+    const thrown = `${who}'s saving throw: ${saveSum(result)} against ${result.against}`;
     if (!result.saved) return `${start} (${thrown}): failed, ${dealtWords(result)}. ${hp}`;
     return result.damage
       ? `${start} (${thrown}): saved, ${dealtWords(result)}. ${hp}`
@@ -884,8 +897,10 @@ export function spellIn(entry) {
  * (a d20 + 2 + wit) against its AC, as a weapon's, a 20 a critical hit.
  * { hit, saved, crit, sure, roll, total, against, damage, effect }.
  */
-export function spellStrike({ wit = 0, spell, foe, prof = 2 }, random = Math.random) {
-  const result = spellRolled({ wit, spell, foe, prof }, random);
+export function spellStrike({ wit = 0, spell, foe, prof = 2, fails = false, critHit = false }, random = Math.random) {
+  // (`fails`: its Strength or Dexterity save fails without a roll; `critHit`: a spell attack that hits is a
+  // critical hit. Both for a target paralyzed or unconscious: conditions.js.)
+  const result = spellRolled({ wit, spell, foe, prof, fails, critHit }, random);
   const typed = typedDamage(result.damage, spell.type, foe, true);
   // (What it shoves back, it shoves on a failed save or a hit.)
   return {
@@ -896,7 +911,7 @@ export function spellStrike({ wit = 0, spell, foe, prof = 2 }, random = Math.ran
     push: result.hit ? (spell.push ?? 0) : 0,
   };
 }
-function spellRolled({ wit, spell, foe, prof }, random) {
+function spellRolled({ wit, spell, foe, prof, fails, critHit }, random) {
   if (spell.save) {
     const dc = 8 + prof + wit;
     const thrown = savingThrow(
@@ -907,12 +922,14 @@ function spellRolled({ wit, spell, foe, prof }, random) {
         dc,
         damage: spell.damage ?? 0,
         onSave: spell.save.onSave,
+        fails,
       },
       random,
     );
     return {
       hit: !thrown.saved,
       saved: thrown.saved,
+      ...(thrown.fails ? { fails: true } : {}),
       crit: false,
       sure: false,
       roll: thrown.roll,
@@ -940,11 +957,12 @@ function spellRolled({ wit, spell, foe, prof }, random) {
       effect: spell.effect,
     };
   }
-  const result = attackRoll({ bonus: prof + wit, ac: foe.ac, damage: spell.damage ?? "0" }, random);
+  const result = attackRoll({ bonus: prof + wit, ac: foe.ac, damage: spell.damage ?? "0", critHit }, random);
   return {
     hit: result.hit,
     saved: false,
     crit: result.crit,
+    ...(result.sureCrit ? { sureCrit: true } : {}),
     sure: false,
     roll: result.roll,
     total: result.total,
@@ -1005,7 +1023,7 @@ export function spellWords({ who, name, what, spell, result, left, max, named = 
   const rolled = result.sure
     ? " (no roll: it can't miss)"
     : spell.save
-      ? ` (${their} ${spell.save.attribute} save: ${sumWords(result.roll, result.total)} against ${result.against})`
+      ? ` (${their} ${spell.save.attribute} save: ${saveSum(result)} against ${result.against})`
       : ` (${rollWords(result, result.against)}${result.cover ? ", half cover" : ""})`;
   const parts = [];
   if (result.sure) {

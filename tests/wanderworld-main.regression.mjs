@@ -38,4 +38,26 @@ assert.ok(
   "it looks where the key was pressed before it takes it",
 );
 
+// The SRD's paralyzed and unconscious (review L-09): every attack on a creature, the player or a companion,
+// in real time or by turns, asks whether it's a critical hit from within 1.5 m, and a Strength or Dexterity
+// save by one of them fails without a roll. A creature held by a spell keeps the spell's effect for it.
+for (const name of [
+  "landOn",
+  "shapeStrike",
+  "spellOnFoe",
+  "allyStrikes",
+  "allyAttacked",
+  "foeGrabs",
+  "foeAttacks",
+  "foeShoots",
+  "personActs",
+]) {
+  assert.match(body(name), /critHit: |critHit = crit/u, `${name} passes critHit`);
+}
+assert.match(body("playerSave"), /if \(failsSave\(afflicted\(\), attribute\)\)/u);
+assert.match(body("allySave"), /if \(failsSave\(allyMods\(id\), attribute\)\)/u);
+assert.match(body("spellOnFoe"), /fails: failsSave\(foeMods\(foe\), spell\.save\?\.attribute\)/u);
+assert.match(body("foeShoots"), /fails: failsSave\(afflicted\(\), chosen\.spell\.save\?\.attribute\)/u);
+assert.match(body("spellOnFoe"), /core\.herd\.stun\(foe\.id, seconds, result\.effect\.name\)/u);
+
 console.log("wanderworld main regression: OK");

@@ -403,10 +403,12 @@ export function rollDice(dice, random = Math.random) {
 
 /**
  * One attack: a d20 plus `bonus` against `ac`, then `damage` (dice) plus `damageBonus`. A natural 20 always
- * hits and rolls the damage dice twice; a natural 1 always misses. { roll, total, hit, crit, damage }.
+ * hits and rolls the damage dice twice; a natural 1 always misses. `critHit`: any hit is a critical hit
+ * (the SRD's, on someone paralyzed or unconscious from within 1.5 m), told by `sureCrit`.
+ * { roll, total, hit, crit, sureCrit, damage }.
  */
 export function attackRoll(
-  { bonus = 0, ac = 10, damage = "1d4", damageBonus = 0, critFrom = 20, more = [], reroll = 0 },
+  { bonus = 0, ac = 10, damage = "1d4", damageBonus = 0, critFrom = 20, more = [], reroll = 0, critHit = false },
   random = Math.random,
 ) {
   // (A flat part written with the dice, a creature's "2d4+2", is added once like `damageBonus`: a critical
@@ -419,8 +421,9 @@ export function attackRoll(
   const roll = 1 + Math.floor(random() * 20);
   // (`critFrom`: the lowest roll of the die that's a critical hit, for one who has that. `more`: dice that
   // come with a hit besides the weapon's own, a Sneak Attack's say, doubled on a critical hit like the rest.)
-  const crit = roll >= Math.max(2, critFrom);
-  const hit = crit || (roll !== 1 && roll + bonus >= ac);
+  const natural = roll >= Math.max(2, critFrom);
+  const hit = natural || (roll !== 1 && roll + bonus >= ac);
+  const crit = natural || (hit && critHit);
   // (`reroll`: Great Weapon Fighting. One of the weapon's own dice that comes up that or less is rolled
   // again, once, and the new roll stands.)
   // (Each lot of dice is kept as it fell, for the telling: "1d8 (5)", "2d6 (1→4, 6)" where one was rolled again.)
@@ -453,7 +456,15 @@ export function attackRoll(
   const detail = hit
     ? `${told.join(" + ")}${damageBonus ? ` ${damageBonus < 0 ? "-" : "+"} ${Math.abs(damageBonus)}` : ""} = ${dealt}`
     : "";
-  return { roll, total: roll + bonus, hit, crit, damage: dealt, detail };
+  return {
+    roll,
+    total: roll + bonus,
+    hit,
+    crit,
+    ...(crit && !natural ? { sureCrit: true } : {}),
+    damage: dealt,
+    detail,
+  };
 }
 
 /** Dice as they fell, for the telling: "2d6 (3, 5)"; a plain number is just the number. */
