@@ -5216,7 +5216,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.7.30",
+        "version": "0.7.31",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -5374,8 +5374,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "2d0c9227a1cbd6c7a3fb32406b6baf0fa356b04348eebccbde0a618ab90f56cd",
-            "bytes": 3178208
+            "sha256": "a2e7c78f4237765a7c8ac7dcf80949584f8ea1d1aeee2edd538a3ea1ca1d993d",
+            "bytes": 3178205
           },
           {
             "path": "server.mjs",
@@ -5409,13 +5409,13 @@
           },
           {
             "path": "kit/fantasy/folk/folk-built.json",
-            "sha256": "df23145d25b5cc198490993021890761b5426e9e29589f40a7b39a831c15f3e5",
-            "bytes": 695500
+            "sha256": "a0a5430bb9a71c159a4aaae606f7aac7b10699957bbf2e80d316e072a75e747e",
+            "bytes": 898891
           },
           {
             "path": "kit/fantasy/folk/folk-goblin.webp",
-            "sha256": "4b342078dd2095abc1561eeb2fc4bc3f9c9ef3fa5237b60d9f082ca377e14d20",
-            "bytes": 79806
+            "sha256": "0fd6ddb74a50e6b3fd9aaf81141d89b8ae2f7fe1da4cdd3623c3bdd9d207dc11",
+            "bytes": 87988
           },
           {
             "path": "kit/fantasy/folk/folk-imp.webp",
@@ -6000,9 +6000,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.7.30.zip",
-        "sha256": "05a9f01470db7b55c2cd8e626d7286ab1730b47b104a5809f88f5a945847ff75",
-        "bytes": 30710980
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.7.31.zip",
+        "sha256": "94aa8ddab287933a7357a09f61fb88df10d33024ab5cb0a3b44321ebfb9f455a",
+        "bytes": 30922550
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },

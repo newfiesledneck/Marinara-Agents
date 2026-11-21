@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.31",
+          "date": "2026-11-20",
+          "notes": "- The goblin is reworked from reference pictures, so it looks less like a cartoon. It has a smaller, longer head with deep-set amber eyes, a bony hooked nose, a crooked grin and big ears swept back, and a wiry, stooped body with ribs and collarbones showing. Its fingers and toes are long and clawed. The tunic is gone: it wears a leather loincloth, a strap across its chest, bracers, wrapped feet and a necklace of teeth.",
+          "highlight": false
+        },
+        {
           "version": "0.7.30",
           "date": "2026-11-20",
           "notes": "- The goblin is more detailed. Blender now bakes it a texture of its own, with shading in its creases, mottled skin and dirt towards its feet. Its face is finer (heavy eyelids, lips, nostrils, crooked teeth, a wrinkled brow), its ears are leaf-shaped, one nicked and one with a brass ring, and its tunic is patched and tattered. It has a knotted rope belt, a necklace of teeth, wrapped shins and a chipped, rusty scimitar.\n- Credits name ThatOneCan as the maker of the goblin model, in Help, the README and the kit's credits.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.12",
           "date": "2026-11-17",
           "notes": "- Your companions fight by more of the rules. Their attack bonus and HP grow with their level (their card's, or yours). A rogue lands a Sneak Attack with someone beside the creature, a paladin a Divine Smite once a fight, a barbarian rages, a fighter takes a Second Wind below half HP, a monk strikes with bare hands, and those with Extra Attack strike twice from level 5.\n- Kinds of damage count for their weapons too.\n- Creatures' special attacks land on them: venom, and conditions such as prone, poisoned or grappled, with their effects.\n- With death saving throws on, a companion at 0 HP falls, dying, and rolls as you do. A healer among them, or your own healing spell aimed at them, gets them up. Nobody dies.\n- Their spells look like the spells they are.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.11",
-          "date": "2026-11-17",
-          "notes": "- Every explanation has its (i) now, not only the ones in Settings: the notes in the Inventory, the Journal and people's cards fold behind an (i) when \"Show explanations\" is off.\n- Aiming. In a fight by turns, or with your weapon drawn, tap a creature or a companion to aim at them: a ring marks them, your attacks and spells go for that creature, and a healing spell mends that companion. If they're too far it says \"Out of range\" and nothing is spent. Tap them again, or yourself, to stop aiming.\n- A row of things to do in a fight: Abilities, Moves and (on a phone) Spells each open to their own buttons, with a Back. It's in the chat window, and above the fighting buttons on a touch screen.\n- Phone layout: the bar in a fight by turns is much shorter, and the buttons along the bottom wrap and no longer run off the screen.",
           "highlight": false
         }
       ]

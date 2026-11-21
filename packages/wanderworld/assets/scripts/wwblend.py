@@ -793,14 +793,20 @@ def humanoid_body(m, p, c):
         # A palm, and fingers and a thumb as hard parts (too fine for metaballs), with claws if it has them.
         ell(at(x(wrist + 0.045 * h), arm_y, 0), (0.05 * h, 0.022 * h, 0.042 * h), skin)
         bone = f"hand_{side}"
+        # (`fingers`: how long they are, against a person's; long ones curl at a second knuckle.)
+        reach = p.get("fingers", 1.0)
         for i in range(4):
             z = (i - 1.5) * 0.022 * h
             base = at(x(wrist + 0.075 * h), arm_y - 0.004 * h, z)
-            tip = at(x(wrist + 0.15 * h), arm_y - 0.022 * h, z * 1.1)
-            m.tube(base, tip, 0.012 * h, 0.009 * h, skin, bone, segments=6)
-            m.sphere(tip, (0.009 * h,) * 3, skin, bone, segments=6, rings=4)
+            knuckle = at(x(wrist + (0.075 + 0.045 * reach) * h), arm_y - 0.012 * h, z * 1.08)
+            tip = knuckle + Vector((sign * 0.035 * reach * h, 0, -0.022 * reach * h))
+            m.tube(base, knuckle, 0.012 * h, 0.01 * h, skin, bone, segments=6)
+            m.sphere(knuckle, (0.0105 * h,) * 3, skin, bone, segments=6, rings=4)
+            m.tube(knuckle, tip, 0.01 * h, 0.0075 * h, skin, bone, segments=6)
+            m.sphere(tip, (0.0075 * h,) * 3, skin, bone, segments=6, rings=4)
             if p.get("claws"):
-                m.cone(tip, tip + Vector((sign * 0.035 * h, 0, -0.02 * h)), 0.008 * h, c.get("nails", 0x2A2420), bone, segments=5)
+                claw = tip + Vector((sign * 0.03 * h, 0, -0.03 * h))
+                m.cone(tip, claw, 0.007 * h, c.get("nails", 0x2A2420), bone, segments=5)
         m.tube(at(x(wrist + 0.03 * h), arm_y, 0.03 * h), at(x(wrist + 0.07 * h), arm_y - 0.012 * h, 0.075 * h), 0.013 * h, 0.01 * h, skin, bone, segments=6)
         # Legs: a full thigh, a calf with its muscle behind; a foot with three toes.
         legs, shins = c.get("legs", skin), c.get("shins", c.get("legs", skin))
@@ -813,10 +819,15 @@ def humanoid_body(m, p, c):
             m.tube(at(sign * hx, 0, 0.01 * f), at(sign * hx, 0.1 * f, 0.01 * f), 0.075 * f, 0.06 * f, p["hooves"], f"foot_{side}", segments=10, smooth=False)
         else:
             ell(at(sign * hx, 0.045 * f, 0.045 * f), (0.055 * f, 0.042 * f, 0.105 * f), feet)
+            # (`toes`: how long they are, against a person's.)
+            length = p.get("toes", 1.0)
             for toe in range(3):
                 tx = sign * hx + (toe - 1) * 0.03 * f
-                tip = at(tx, 0.02 * f, 0.155 * f)
-                m.sphere(at(tx, 0.022 * f, 0.135 * f), (0.019 * f, 0.03 * f, 0.018 * f), feet, f"ball_{side}", segments=6, rings=4)
+                root = at(tx, 0.024 * f, 0.12 * f)
+                tip = at(tx * 1.03, 0.014 * f, (0.12 + 0.04 * length) * f)
+                m.sphere(root, (0.018 * f,) * 3, feet, f"ball_{side}", segments=6, rings=4)
+                m.tube(root, tip, 0.016 * f, 0.012 * f, feet, f"ball_{side}", segments=6)
+                m.sphere(tip, (0.012 * f,) * 3, feet, f"ball_{side}", segments=6, rings=4)
                 if p.get("claws"):
-                    m.cone(tip, tip + Vector((0, -0.035 * f, -0.012 * f)), 0.009 * f, c.get("nails", 0x2A2420), f"ball_{side}", segments=5)
+                    m.cone(tip, tip + Vector((0, -0.03 * f, -0.014 * f)), 0.009 * f, c.get("nails", 0x2A2420), f"ball_{side}", segments=5)
     return {"s": s, "t": t, "arm_y": arm_y, "head_y": head_y, "sx": sx, "hx": hx, "chest_y": chest_y, "knee": knee, "h": h, "f": f}
