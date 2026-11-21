@@ -120,9 +120,18 @@ Budget: up to about 30,000 vertices for a body, 2,000 to 4,000 for a hair style.
   `kit/generic/avatar/avatar-<sex>.pack.png` (a file a body, about 2 to 4 MB, packed: `src/packed.js`;
   positions in an int16 box, normals int8, texture places uint16, weights bytes, each shape key only where
   it moves, its moves in 511 steps a way and int8 normal changes) with its textures as `.webp` beside it.
-  `avatar-hair-<style>.glb` go into one `avatar-hair.pack.png`, `outfit-<piece>.glb` into one
-  `kit/fantasy/avatar/avatar-outfits.pack.png`, their textures
-  beside them. The package may list at most 256 asset files, so it's a file a body and one a kind.
+  `avatar-hair-<style>.glb` go into `avatar-hair-short.pack.png` and `avatar-hair-long.pack.png`, and
+  `outfit-<piece>.glb` into `kit/fantasy/avatar/avatar-outfits-<group>.pack.png` by its slot's group
+  (`looks.js CLOTH_SLOTS`: head, tops, body, legs, feet, hands, armour, accessories), their textures inside
+  (at most 1,024 px), with `avatar-hair-index.json` and `avatar-outfits-index.json` saying which file has
+  which (and a piece's bodies, parts, colours and variants, all the Look card needs). The package may list
+  at most 256 asset files, so it's a file a body and a bundle a group; the game fetches a bundle the first
+  time someone wears from it. Packing puts two things right in the hair's and clothes' shape keys: a key
+  moves a vertex only where it moves the body on that vertex's bone (so "nose" no longer moves a boot, and
+  hair keeps only what moves the head), with the move that fitting left in every key taken out of them
+  all; and a key's normal that turned the wrong way round faces out again. The face keys are dropped
+  from everything not worn on the head, neck or brow. An outfit piece's parts are one mesh, each vertex
+  saying its part (`partOf`), so a piece is one draw.
 - **What the hair and outfit files need:** each a `male` and a `female` mesh (by its object's or mesh's
   name; one with neither name goes on both), on the people's skeleton or hung on the `Head` bone (then
   bound with the body's own matrices). A texture that is near white, coloured by the game (the hair by
@@ -131,7 +140,11 @@ Budget: up to about 30,000 vertices for a body, 2,000 to 4,000 for a hair style.
   mesh's or scene's custom properties (exported as extras): a list or comma-separated words, from
   `head`, `neck`, `torso`, `hips`, `upperarms`, `forearms`, `hands`, `thighs`, `calves`, `feet` (the
   skin, and underwear, whose vertices are mostly on those bones), and `underwear`, `underwear-top`,
-  `underwear-bottom`. Hair style names are the Look card's: `short`, `parted`, `long`, `ponytail`, `buns`.
+  `underwear-bottom`, and `hair` (a hood or helm). An outfit piece also says its `slot` and `layer`
+  (inner first), and another way of wearing it is a mesh of its own with `variant` (`male_hood_up`), shown
+  in place of the usual one, never with it. Each material is a part (`cloth`, `trim`, `metal`…:
+  `looks.js CLOTH_PARTS`), coloured on its own. Hair style names and pieces are `looks.js HAIRSTYLES` and
+  `CLOTHES`; the packer stops at one it can't name.
 - **Underwear styles:** a mesh each in the body's file, named `underwear-top-<style>` or
   `underwear-bottom-<style>` (bra, sports_bra, bralette, undershirt; briefs, boxer_briefs, boxers,
   boyshorts, bikini, thong), material `underwear` (and `underwear_trim`, a shade darker). The card offers
@@ -144,8 +157,9 @@ Budget: up to about 30,000 vertices for a body, 2,000 to 4,000 for a hair style.
   triangles are shared by everyone with that body. Arm and leg length stretch each limb bone along
   itself in its inverse bind matrix and move the next bone out, so a limb grows longer, not thicker;
   head size scales the head from the neck. Without the kit it falls back to `figure.js createFigure`.
-- **Looks** (`looks.js checkLook`): `body`, `shape`, `limbs`, `colours`, `underwear`, `clothes` and
-  `preset`, each clamped, anything unknown dropped; `height`, `hair`, `hairColour`, `hairTint`, `skin`
+- **Looks** (`looks.js checkLook`): `body`, `shape`, `limbs`, `colours`, `underwear`, `clothes` (known
+  pieces, one a slot; an empty list is nothing on), `clothColours` (`{ piece: { part: colour } }`),
+  `variants` (`{ cloak: "hood_up" }`) and `preset`, each clamped, anything unknown dropped; `height`, `hair`, `hairColour`, `hairTint`, `skin`
   and `skinTint` are shared with the older kit's look, so older looks carry over (a tone's number or
   `skinTint` is a skin of one's own). MakeHuman's system assets (CC0) add `age` (young, middle, old: the
   `age_middle` and `age_old` shape keys), `skin` (a skin picture of that age, drawn white, or `custom`),
@@ -153,9 +167,15 @@ Budget: up to about 30,000 vertices for a body, 2,000 to 4,000 for a hair style.
   (`checkPresets`) are the Settings value `lookPresets`.
 - **Townsfolk** (`avatarLook`): what isn't chosen comes from the name, within an everyday range, under
   their lore's `ww:looks:<word>` keywords and the appearance written for a person the world made
-  (`keywords.js lookFromWords`). Settings → People → "Townsfolk use the new bodies" switches back to
-  Quaternius's townsfolk.
-- **Not yet:** anthro bodies, facial hair, live shape keys while a slider is dragged in the world (the
+  (`keywords.js lookFromWords`). Unless their look chooses clothes, they wear everyday clothes for a
+  work the name gives (`avatar.js JOBS`: townsperson, farmer, smith, guard, noble, priest), three or four
+  pieces in a dye of their own; small pieces (a circlet, a belt, a scarf, bracers) aren't drawn far off.
+  Settings → People → "Townsfolk use the new bodies" switches back to Quaternius's townsfolk.
+- **The Look card's clothing:** Clothes and Armour, a piece a slot (or none) of those made for the body,
+  each part's colour, the cloak's hood up or down, and ready-made outfits (`looks.js OUTFIT_PRESETS`)
+  that change only the clothes.
+- **Not yet:** anthro bodies, facial hair, townsfolk's clothes following where they work (it's from the
+  name, so the Look card and the world agree), live shape keys while a slider is dragged in the world (the
   preview is made again instead), and a cheaper body far away (each person costs the same at any
   distance; the crowd's own spacing of animation updates applies).
 

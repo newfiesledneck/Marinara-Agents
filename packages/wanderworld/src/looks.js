@@ -63,33 +63,38 @@ export const RANGER_SHARE = 0.25;
 
 /** Hairstyles: [value, label]. "none" is a bare head. The base avatar's (avatar.js) and the older kit's
  *  share the names; the kit has no ponytail, so it wears that long. */
+// (Shortest first. The Look card offers the base avatar the styles its kit has: afro is the older kit's only.)
 export const HAIRSTYLES = [
+  ["shaved", "Shaved close"],
+  ["crop", "Cropped"],
   ["short", "Short"],
-  ["parted", "Parted"],
-  ["long", "Long"],
-  ["ponytail", "Ponytail"],
-  ["buns", "Buns"],
-  ["bob", "Bob"],
-  ["braid", "Braid"],
-  ["curly", "Curly"],
-  ["afro", "Afro"],
-  ["shaved", "Shaved"],
   ["mohawk", "Mohawk"],
   ["slicked", "Slicked back"],
-  ["crop", "Crop"],
-  ["fringe", "Fringe"],
+  ["fringe", "Short with a fringe"],
+  ["parted", "Side-parted"],
+  ["curly", "Curly"],
+  ["afro", "Afro"],
+  ["bob", "Bob"],
   ["bob_angled", "Angled bob"],
-  ["none", "None"],
+  ["buns", "Two buns"],
+  ["long", "Long"],
+  ["ponytail", "Ponytail"],
+  ["braid", "Braid"],
+  ["none", "None (bald)"],
 ];
 /** The older kit's file for a hairstyle: short hair is cut to each body's own head. (Older names too.) */
 // (The older kit has only short, parted, long and buns: the newer styles are worn as the nearest of those.)
 const OLDER_KIT_HAIR = {
   bob: "parted",
+  bob_angled: "parted",
+  fringe: "parted",
   braid: "long",
   curly: "short",
   afro: "short",
   shaved: "short",
   mohawk: "short",
+  slicked: "short",
+  crop: "short",
 };
 export const HAIR_FILE = (wanted, sex, hair = OLDER_KIT_HAIR[wanted] ?? wanted) =>
   hair === "short" || hair === "cropped"
@@ -105,8 +110,8 @@ export const HAIR_FILE = (wanted, sex, hair = OLDER_KIT_HAIR[wanted] ?? wanted) 
 const OLDER_HAIR = { buzzed: "short", buzzedfemale: "short", cropped: "short", simpleparted: "parted" };
 /** What a name alone picks from. */
 export const USUAL_HAIR = {
-  male: ["short", "parted", "long", "parted"],
-  female: ["buns", "long", "parted", "short"],
+  male: ["short", "parted", "long", "parted", "crop", "slicked", "fringe", "curly"],
+  female: ["buns", "long", "parted", "short", "ponytail", "braid", "bob", "bob_angled"],
 };
 
 /** Hair colours: [hex, label]; a look holds the place in this list. */
@@ -230,13 +235,26 @@ export function checkLook(raw) {
     if (value === BARE || styles.some(([style]) => style === value)) underwear[field] = value;
   }
   if (Object.keys(underwear).length) look.underwear = underwear;
-  // (Which outfit pieces there are is the kit's to say: avatar.js wears only those it has.)
+  // Clothing: known pieces (CLOTHES), the first one a slot; an empty list is nothing on (not the name's
+  // everyday clothes). Each piece's part colours, and the way it's worn (a cloak's hood up), when known.
   if (Array.isArray(raw.clothes)) {
-    const clothes = [
-      ...new Set(raw.clothes.filter((piece) => typeof piece === "string" && /^[a-z0-9_]{1,32}$/u.test(piece))),
-    ];
-    if (clothes.length) look.clothes = clothes.slice(0, 12);
+    const bySlot = new Map();
+    for (const piece of raw.clothes)
+      if (Object.hasOwn(SLOT_OF, piece) && !bySlot.has(SLOT_OF[piece])) bySlot.set(SLOT_OF[piece], piece);
+    look.clothes = [...bySlot.values()];
   }
+  const clothColours = {};
+  for (const [piece, colours] of Object.entries(isRecord(raw.clothColours) ? raw.clothColours : {})) {
+    if (!Object.hasOwn(SLOT_OF, piece) || !isRecord(colours)) continue;
+    const kept = {};
+    for (const [part] of CLOTH_PARTS) if (isColour(colours[part])) kept[part] = colours[part];
+    if (Object.keys(kept).length) clothColours[piece] = kept;
+  }
+  if (Object.keys(clothColours).length) look.clothColours = clothColours;
+  const variants = {};
+  for (const [piece, variant] of Object.entries(isRecord(raw.variants) ? raw.variants : {}))
+    if (variant && CLOTH_VARIANTS[piece]?.ways.some(([way]) => way === variant)) variants[piece] = variant;
+  if (Object.keys(variants).length) look.variants = variants;
   if (typeof raw.preset === "string" && raw.preset.trim()) look.preset = raw.preset.trim().slice(0, PRESET_NAME);
   return look;
 }
@@ -250,7 +268,9 @@ export function checkLook(raw) {
 //     limbs: { arms, legs, head },   arm and leg length and head size, as a share of the usual
 //     colours: { skin, eyes, … },    each part's colour (0xRRGGBB): AVATAR_COLOURS
 //     underwear: { top, bottom },    a style of each (UNDERWEAR_TOPS, UNDERWEAR_BOTTOMS), or "none"
-//     clothes: [piece, …],           outfit pieces worn (the kit's avatar-outfits.pack.png)
+//     clothes: [piece, …],           outfit pieces worn (CLOTHES), one a slot; missing: their work's (avatar.js)
+//     clothColours: { piece: { part: 0xRRGGBB } },  a colour of one's own for a piece's part (CLOTH_PARTS)
+//     variants: { piece: variant },  another way of wearing a piece (CLOTH_VARIANTS: a cloak's hood up)
 //     age,                           "young", "middle" or "old" (AGES): shape keys and skins of its own
 //     skin,                          a skin picture (SKINS: MakeHuman's), or "custom": colours.skin
 //     brows, lashes,                 which style of each (1 … BROWS, 1 … LASHES)
@@ -396,6 +416,175 @@ export const UNDERWEAR_BOTTOMS = [
   ["thong", "Thong"],
 ];
 
+// ── The base avatar's clothing (avatar.js; kit/fantasy/avatar) ──
+//
+// Each piece is worn in a slot, one piece a slot, so a shirt, a tunic over it and a cloak over both go
+// together. A slot's pieces are packed into one of the kit's bundles (the last column), so wearing a shirt
+// loads the tops and not the armour. "mh_" pieces are MakeHuman's (CC0) modern clothes.
+
+/** The slots, as the Look card lists them: [slot, label, what goes there, the kit bundle it's in]. */
+export const CLOTH_SLOTS = [
+  ["head", "Head", "A hood, a helm or a hat. Most hide the hair.", "head"],
+  ["brow", "Brow", "A circlet on the brow.", "head"],
+  ["neck", "Neck", "A scarf.", "accessories"],
+  ["back", "Cloak or coat", "Worn over everything else.", "body"],
+  ["body", "Whole outfit", "A dress, gown, robe or one-piece: top and legs in one.", "body"],
+  ["top", "Shirt or top", "Next to the skin, under everything else.", "tops"],
+  ["over", "Over the shirt", "A tunic, vest, corset, padded gambeson or jacket.", "tops"],
+  ["armour", "Body armour", "Mail, scale, brigandine, leather or a harness.", "armour"],
+  ["plate", "Breastplate", "A plate cuirass, over mail or a gambeson.", "armour"],
+  ["shoulders", "Shoulders", "Plate pauldrons.", "armour"],
+  ["arms", "Forearms", "Leather bracers.", "hands"],
+  ["hands", "Hands", "Gloves or plate gauntlets.", "hands"],
+  ["waist", "Belt", "A belt with pouches.", "accessories"],
+  ["apron", "Apron", "A work apron, as a smith or a cook wears.", "accessories"],
+  ["legs", "Legs", "Trousers, skirts, shorts and the like.", "legs"],
+  ["thighs", "Thigh plates", "Plate tassets hung from the waist.", "armour"],
+  ["shins", "Shins", "Plate greaves.", "armour"],
+  ["feet", "Feet", "Boots, shoes or sandals.", "feet"],
+];
+/** The pieces: [piece (the kit's name), label, slot]. The kit says which body each is made for. */
+export const CLOTHES = [
+  ["hood", "Hood", "head"],
+  ["helm", "Open helm", "head"],
+  ["full_helm", "Full helm", "head"],
+  ["mh_fedora", "Fedora", "head"],
+  ["mh_fedora_cocked", "Fedora, tilted", "head"],
+  ["circlet", "Circlet", "brow"],
+  ["scarf", "Scarf", "neck"],
+  ["cloak", "Cloak", "back"],
+  ["long_coat", "Long coat", "back"],
+  ["dress", "Dress", "body"],
+  ["gown", "Gown", "body"],
+  ["robe", "Robe", "body"],
+  ["one_piece_swimsuit", "Swimsuit", "body"],
+  ["mh_workwear", "Work overalls and shirt", "body"],
+  ["shirt", "Linen shirt", "top"],
+  ["t_shirt", "T-shirt", "top"],
+  ["tank_top", "Tank top", "top"],
+  ["crop_top", "Crop top", "top"],
+  ["blouse", "Blouse", "top"],
+  ["bikini_top", "Bikini top", "top"],
+  ["mh_tee", "Tee", "top"],
+  ["mh_long_tee", "Long tee", "top"],
+  ["mh_longsleeve_tee", "Long-sleeved tee", "top"],
+  ["mh_denim_shirt", "Denim shirt", "top"],
+  ["mh_plaid_shirt", "Plaid shirt", "top"],
+  ["mh_female_tee", "Tee", "top"],
+  ["mh_female_loose_tee", "Loose tee", "top"],
+  ["mh_female_sport_top", "Sports top", "top"],
+  ["tunic", "Tunic", "over"],
+  ["vest", "Vest", "over"],
+  ["corset", "Corset", "over"],
+  ["gambeson", "Gambeson", "over"],
+  ["mh_jacket", "Jacket", "over"],
+  ["mh_suit_jacket", "Suit jacket", "over"],
+  ["mh_female_blazer", "Blazer", "over"],
+  ["chainmail", "Chainmail", "armour"],
+  ["scale_mail", "Scale mail", "armour"],
+  ["brigandine", "Brigandine", "armour"],
+  ["leather_armour", "Leather armour", "armour"],
+  ["bikini_armour", "Bikini armour", "armour"],
+  ["barbarian_harness", "Barbarian harness", "armour"],
+  ["plate_cuirass", "Plate cuirass", "plate"],
+  ["pauldrons", "Pauldrons", "shoulders"],
+  ["bracers", "Bracers", "arms"],
+  ["gloves", "Leather gloves", "hands"],
+  ["gauntlets", "Gauntlets", "hands"],
+  ["belt_pouches", "Belt and pouches", "waist"],
+  ["apron", "Apron", "apron"],
+  ["trousers", "Trousers", "legs"],
+  ["leggings", "Leggings", "legs"],
+  ["shorts", "Shorts", "legs"],
+  ["skirt", "Long skirt", "legs"],
+  ["short_skirt", "Short skirt", "legs"],
+  ["pleated_skirt", "Pleated skirt", "legs"],
+  ["loincloth", "Loincloth", "legs"],
+  ["swim_trunks", "Swim trunks", "legs"],
+  ["bikini_bottom", "Bikini bottom", "legs"],
+  ["mh_jeans", "Jeans", "legs"],
+  ["mh_jeans_dark", "Dark jeans", "legs"],
+  ["mh_suit_trousers", "Suit trousers", "legs"],
+  ["mh_overalls", "Overalls", "legs"],
+  ["mh_female_jeans", "Jeans", "legs"],
+  ["mh_female_leggings", "Leggings", "legs"],
+  ["mh_female_shorts", "Shorts", "legs"],
+  ["mh_female_skirt", "Skirt", "legs"],
+  ["tassets", "Tassets", "thighs"],
+  ["greaves", "Greaves", "shins"],
+  ["boots", "Boots", "feet"],
+  ["tall_boots", "Tall boots", "feet"],
+  ["shoes", "Shoes", "feet"],
+  ["sandals", "Sandals", "feet"],
+  ["sabatons", "Sabatons", "feet"],
+  ["mh_boots_black", "Black boots", "feet"],
+  ["mh_shoes_black", "Black shoes", "feet"],
+  ["mh_shoes_brown", "Brown shoes", "feet"],
+  ["mh_trainers_white", "White trainers", "feet"],
+  ["mh_trainers_blue", "Blue trainers", "feet"],
+  ["mh_trainers_worn", "Worn trainers", "feet"],
+];
+/** A piece's slot, by its name. */
+export const SLOT_OF = Object.fromEntries(CLOTHES.map(([piece, , slot]) => [piece, slot]));
+/** The other ways a piece can be worn: { piece: { label, says, ways: [[variant ("" is the usual), label]] } }.
+ *  One shows at a time. */
+export const CLOTH_VARIANTS = {
+  cloak: {
+    label: "Hood",
+    says: "The cloak's hood down on the shoulders, or up over the head (which hides the hair).",
+    ways: [
+      ["", "Down"],
+      ["hood_up", "Up"],
+    ],
+  },
+};
+/** What a piece's parts can be called (its materials'), each recoloured on its own: [part, label]. */
+export const CLOTH_PARTS = [
+  ["cloth", "Cloth"],
+  ["trim", "Trim"],
+  ["lining", "Lining"],
+  ["bodice", "Bodice"],
+  ["shirt", "Shirt"],
+  ["suit", "Suit"],
+  ["under", "Underlayer"],
+  ["felt", "Felt"],
+  ["laces", "Laces"],
+  ["cord", "Cord"],
+  ["leather", "Leather"],
+  ["belt", "Belt"],
+  ["pouch", "Pouches"],
+  ["fur", "Fur"],
+  ["sole", "Soles"],
+  ["shoe", "Shoe"],
+  ["sock", "Sock"],
+  ["mail", "Mail"],
+  ["scale", "Scales"],
+  ["plate", "Plate"],
+  ["metal", "Metal fittings"],
+  ["gem", "Gem"],
+];
+/** Dyes for clothing parts: [hex, label]. */
+export const DYES = [
+  [0xe8e0cc, "Undyed linen"],
+  [0xf4f4f0, "White"],
+  [0x2a2a2e, "Black"],
+  [0x7a7a7a, "Grey"],
+  [0x6a4a32, "Brown"],
+  [0x9a7a52, "Tan"],
+  [0x8a2a2a, "Red"],
+  [0x6a2a4a, "Wine"],
+  [0xb07a2a, "Ochre"],
+  [0x5a6a2a, "Olive"],
+  [0x2f5a3a, "Green"],
+  [0x2f4a7a, "Blue"],
+  [0x1f2a4a, "Navy"],
+  [0x5a3a7a, "Purple"],
+  [0xc08a9a, "Rose"],
+  [0xb8b8c0, "Steel"],
+  [0xc8a050, "Brass"],
+  [0xd8b860, "Gold"],
+];
+
 /** The older kit's cloth colours (OUTFITS), as a colour: an older look's underwear takes its outfit's. */
 export const CLOTH_HEX = {
   "clothes-a": 0xe0d4b8,
@@ -418,7 +607,7 @@ export const CLOTH_HEX = {
  *  sliders and colours, so a look's own choices sit on what lore says. */
 export function mergeLooks(base, over) {
   const out = { ...base, ...over };
-  for (const field of ["shape", "limbs", "colours", "underwear", "tints"])
+  for (const field of ["shape", "limbs", "colours", "underwear", "tints", "clothColours", "variants"])
     if (base?.[field] || over?.[field]) out[field] = { ...base?.[field], ...over?.[field] };
   return out;
 }
@@ -435,6 +624,8 @@ export const PRESET_FIELDS = [
   "colours",
   "underwear",
   "clothes",
+  "clothColours",
+  "variants",
   "hair",
   "hairColour",
   "hairTint",
@@ -540,3 +731,75 @@ export const BUILT_IN_PRESETS = [
     },
   },
 ].map((preset) => ({ ...preset, look: checkLook(preset.look) }));
+
+/**
+ * Ready-made outfits: only the clothes, so the body stays as it is. Each body's pieces (some are made for
+ * one body only), their colours and the way they're worn.
+ */
+export const OUTFIT_PRESETS = [
+  {
+    name: "Peasant",
+    male: ["tunic", "trousers", "shoes"],
+    female: ["blouse", "skirt", "shoes"],
+    clothColours: { tunic: { cloth: 0x9a7a52 }, skirt: { cloth: 0x6a4a32 }, trousers: { cloth: 0x6a4a32 } },
+  },
+  {
+    name: "Townsperson",
+    male: ["shirt", "vest", "trousers", "shoes"],
+    female: ["dress", "shoes"],
+    clothColours: { vest: { cloth: 0x2f4a7a }, dress: { cloth: 0x2f5a3a } },
+  },
+  {
+    name: "Ranger",
+    both: ["shirt", "leather_armour", "trousers", "tall_boots", "gloves", "cloak"],
+    clothColours: { cloak: { cloth: 0x2f5a3a }, trousers: { cloth: 0x5a6a2a } },
+    variants: { cloak: "hood_up" },
+  },
+  {
+    name: "Mage",
+    both: ["robe", "shoes", "circlet"],
+    clothColours: { robe: { cloth: 0x1f2a4a, trim: 0xc8a050 } },
+  },
+  {
+    name: "Knight",
+    both: [
+      "gambeson",
+      "chainmail",
+      "plate_cuirass",
+      "pauldrons",
+      "gauntlets",
+      "trousers",
+      "tassets",
+      "greaves",
+      "sabatons",
+      "full_helm",
+    ],
+  },
+  {
+    name: "Barbarian",
+    male: ["loincloth", "barbarian_harness", "bracers", "sandals"],
+    female: ["bikini_armour", "loincloth", "bracers", "sandals"],
+  },
+  {
+    name: "Beach",
+    male: ["swim_trunks", "sandals"],
+    female: ["bikini_top", "bikini_bottom", "sandals"],
+    clothColours: {
+      swim_trunks: { cloth: 0x2f4a7a },
+      bikini_top: { cloth: 0x8a2a2a },
+      bikini_bottom: { cloth: 0x8a2a2a },
+    },
+  },
+  {
+    name: "Modern casual",
+    male: ["mh_tee", "mh_jeans", "mh_trainers_white"],
+    female: ["mh_female_tee", "mh_female_jeans", "mh_trainers_white"],
+  },
+];
+
+/** What putting on `preset` (OUTFIT_PRESETS) sets in a look on `body`: { clothes, clothColours, variants }, checked. */
+export function outfitLook(preset, body) {
+  const clothes = preset[body] ?? preset.both ?? [];
+  const pick = (record = {}) => Object.fromEntries(Object.entries(record).filter(([piece]) => clothes.includes(piece)));
+  return checkLook({ clothes, clothColours: pick(preset.clothColours), variants: pick(preset.variants) });
+}

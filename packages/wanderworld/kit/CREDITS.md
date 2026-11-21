@@ -40,11 +40,30 @@ distant version, made from it when it's packed.
 ## The built-in body
 
 `generic/avatar/avatar-male.pack.png`, `avatar-female.pack.png` and their textures (`avatar-<sex>.webp`,
-`avatar-<sex>-1.webp`), with the hair styles (`avatar-hair.pack.png`) and outfit pieces
-(`fantasy/avatar/avatar-outfits.pack.png`) when there are some: Base mesh and shapes: MakeHuman (CC0), adapted
-in Blender by ThatOneCan, with `packages/wanderworld/assets/scripts/make_avatar.py`, and packed by
+`avatar-<sex>-1.webp`): Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan, with
+`packages/wanderworld/assets/scripts/make_avatar.py`, and packed by
 `scripts/build-wanderworld-people.mjs --avatar`. MakeHuman's hm08 base mesh and morph targets are public
 domain (CC0 1.0); they're read as data, and MakeHuman itself is neither run nor copied.
+
+Its hair styles are in `generic/avatar/avatar-hair-short.pack.png` and `avatar-hair-long.pack.png`, and its
+clothing in `fantasy/avatar/avatar-outfits-<group>.pack.png`, textures in them, each folder with an index
+of which file has which (`avatar-hair-index.json`, `avatar-outfits-index.json`), packed the same way.
+
+Hair styles and clothing from MakeHuman's system assets (CC0), fitted in Blender by ThatOneCan: the short,
+slicked, crop, fringe, curly, bob, bob angled, long, ponytail and braid hair styles
+(`make_mh_hair.py`), and the modern clothes (`make_mh_clothes.py`): the tee, long tee, longsleeve tee,
+denim shirt, plaid shirt, jacket, suit jacket, suit trousers, jeans, jeans dark, overalls, workwear,
+female tee, female loose tee, female sport top, female blazer, female jeans, female leggings, female
+shorts, female skirt, fedora, fedora cocked, shoes black, shoes brown, boots black, trainers white,
+trainers blue and trainers worn. The pack's files are read as data; MakeHuman is neither run nor copied.
+
+Made in Blender by ThatOneCan for the built-in body: the parted, buns, shaved and mohawk hair styles
+(`make_hair.py`), and the clothing and armour (`make_outfit.py`, `make_outfit2.py`): the shirt, t shirt,
+tank top, crop top, blouse, bikini top, tunic, vest, corset, gambeson, dress, gown, robe, one piece
+swimsuit, cloak, long coat, trousers, leggings, shorts, skirt, short skirt, pleated skirt, loincloth,
+swim trunks, bikini bottom, boots, tall boots, shoes, sandals, gloves, hood, scarf, circlet, apron, belt
+pouches, chainmail, scale mail, brigandine, leather armour, bikini armour, barbarian harness, plate
+cuirass, pauldrons, bracers, gauntlets, tassets, greaves, sabatons, helm and full helm.
 
 MakeHuman system assets (skins, eyes, eyebrows, eyelashes): CC0. The skin pictures
 (`avatar-<sex>-skin-<age>-<ethnicity>.webp`), the eye pictures (`avatar-eyes.webp`, nine in one) and the

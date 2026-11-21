@@ -36,12 +36,22 @@ assert.ok(helpFor("", 1e9).length < 100000);
 // the built-in body's MakeHuman credit and the giants' base body.
 {
   const { readdirSync, readFileSync } = await import("node:fs");
-  const { BLENDER_MODELS, CREDITS, MAKEHUMAN_CREDIT, namesOf } = await import("../packages/wanderworld/src/help.js");
+  const { BLENDER_MODELS, CREDITS, MAKEHUMAN_CREDIT, MAKEHUMAN_FITTED_CREDIT, namesOf } =
+    await import("../packages/wanderworld/src/help.js");
   const pkg = new URL("../packages/wanderworld/", import.meta.url);
   // (Each folder's index of its bundles names every model in them.)
   const kitNames = (index) => Object.keys(JSON.parse(readFileSync(new URL(index, pkg), "utf8"))).sort();
   assert.deepEqual([...BLENDER_MODELS.folk].sort(), kitNames("kit/fantasy/folk/folk-built-index.json"));
   assert.deepEqual([...BLENDER_MODELS.rigged].sort(), kitNames("kit/creatures/rigged-index.json"));
+  // The built-in body's hair and clothing: ours and MakeHuman's together are what the kit has.
+  assert.deepEqual(
+    [...BLENDER_MODELS.hair, ...BLENDER_MODELS.makehumanHair].sort(),
+    kitNames("kit/generic/avatar/avatar-hair-index.json"),
+  );
+  assert.deepEqual(
+    [...BLENDER_MODELS.clothing, ...BLENDER_MODELS.makehumanClothing].sort(),
+    kitNames("kit/fantasy/avatar/avatar-outfits-index.json"),
+  );
   const flat = (text) => text.replace(/\s+/gu, " ");
   const help = flat(CREDITS.flatMap((part) => part.lines).join(" "));
   for (const [where, text] of [
@@ -52,6 +62,7 @@ assert.ok(helpFor("", 1e9).length < 100000);
     for (const list of Object.values(BLENDER_MODELS))
       assert.ok(text.includes(namesOf(list)), `${where} names ${namesOf(list)}`);
     assert.ok(text.includes(MAKEHUMAN_CREDIT), `${where} gives the MakeHuman credit`);
+    assert.ok(text.includes(MAKEHUMAN_FITTED_CREDIT), `${where} gives the fitted hair and clothing's credit`);
     assert.ok(text.includes("giant-base.glb"), `${where} names the giants' base body`);
     assert.ok(text.includes("ThatOneCan"), `${where} credits ThatOneCan`);
   }
