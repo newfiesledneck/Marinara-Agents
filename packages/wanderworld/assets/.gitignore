@@ -1,0 +1,2 @@
+# Debug .blend files from the make_*.py scripts: rebuilt on every run, never committed.
+build/

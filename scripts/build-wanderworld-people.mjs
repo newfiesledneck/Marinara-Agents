@@ -6,12 +6,14 @@
 //
 // Usage (unzip both packs first; ffmpeg must be on PATH, or set FFMPEG):
 //   node scripts/build-wanderworld-people.mjs "<…>/Universal Base Characters[Standard]" "<…>/Modular Character Outfits - Fantasy[Standard]"
+//   node scripts/build-wanderworld-people.mjs --folk "<…>/Bestiary - Dungeon Monsters Kit[Standard]/glTF"
+//   node scripts/build-wanderworld-people.mjs --bestiary   (the models made in Blender: packages/wanderworld/AGENTS.md)
 //
 // Each part (an outfit, a head, a hairstyle) keeps its own joints' inverse bind matrices, and every part
 // of a person binds to one shared skeleton built from the outfit's. So a head cut from the base body, or a
 // hairstyle rigged to its head bone, sits right on an outfit's body without reshaping anything.
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -353,8 +355,9 @@ function toneOf(name, uvs = null) {
  */
 function folk(dir) {
   const out = join(KIT, "fantasy/folk");
-  rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
+  // (Only its own files: the folder also holds the Blender-made ones, `bestiary` below.)
+  for (const name of ["folk.json", "folk-imp.webp", "folk-puglin.webp"]) rmSync(join(out, name), { force: true });
   const all = { source: "Bestiary - Dungeon Monsters Kit by Quaternius", folk: {} };
   for (const [name, file] of [
     ["imp", "Imp.glb"],
@@ -389,7 +392,42 @@ function folk(dir) {
   console.log(`wrote ${out}`);
 }
 
+/**
+ * The monsters made in Blender (packages/wanderworld/assets/scripts/make_*.py, each a .glb in
+ * assets/models/ on the people's skeleton, its colours in one palette texture), into
+ * kit/fantasy/folk/folk-built.json with a texture each (folk-<name>.webp, kept lossless so the colours
+ * stay flat). The game moves them with the people's animations, as it does the imp and the puglin; their
+ * own actions stay in the .glb for anyone using the model elsewhere.
+ */
+function bestiary() {
+  const dir = join(ROOT, "packages/wanderworld/assets/models");
+  const out = join(KIT, "fantasy/folk");
+  mkdirSync(out, { recursive: true });
+  const all = { source: "Made in Blender by packages/wanderworld/assets/scripts", folk: {} };
+  for (const file of readdirSync(dir)
+    .filter((name) => name.endsWith(".glb"))
+    .sort()) {
+    const name = file.slice(0, -4);
+    const gltf = readGltf(join(dir, file));
+    const primitives = skinnedPrimitives(gltf);
+    const png = join(out, `${name}.png`);
+    writeFileSync(png, gltf.imageOf(primitives[0].texture));
+    execFileSync(FFMPEG, ["-v", "error", "-y", "-i", png, "-lossless", "1", join(out, `folk-${name}.webp`)]);
+    rmSync(png);
+    let top = 0;
+    for (const primitive of primitives)
+      for (let i = 1; i < primitive.position.values.length; i += 3) top = Math.max(top, primitive.position.values[i]);
+    all.folk[name] = {
+      height: Math.round(top * 100) / 100,
+      ...packPart(primitives, { texture: () => `folk-${name}`, skeleton: skeletonOf(gltf) }),
+    };
+  }
+  writeFileSync(join(out, "folk-built.json"), JSON.stringify(all));
+  console.log(`wrote ${Object.keys(all.folk).length} to ${out}`);
+}
+
 function main() {
+  if (process.argv[2] === "--bestiary") return bestiary();
   if (process.argv[2] === "--folk") {
     if (!process.argv[3]) throw new Error("Usage: build-wanderworld-people.mjs --folk <Bestiary GLB dir>");
     return folk(process.argv[3]);

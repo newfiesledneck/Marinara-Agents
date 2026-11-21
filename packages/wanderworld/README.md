@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.28)
+## What it does now (0.7.29)
 
 ### The world
 
@@ -631,8 +631,8 @@ every roll, and no AI call is made in a real-time fight.
   casters keep their distance and take cover; casters pick their spell. Companions fight by class.
   Things are said in a fight, and the AI can write them and choose creatures' moves in turn-based combat.
 - **Monsters of its own**: goblins, hobgoblins, bugbears, orcs, gnolls, kobolds, lizardfolk, ghouls,
-  ogres, trolls and minotaurs, built in code from simple shapes (`src/bestiary.js`), so they cost no
-  download. Each carries its SRD weapon (and a shield, armour or rags) as part of its body, moves with
+  ogres, trolls and minotaurs of its own: the goblin modelled in Blender (`assets/scripts/`), the rest
+  built in code from simple shapes (`src/bestiary.js`). Each carries its SRD weapon (and a shield, armour or rags) as part of its body, moves with
   the people's animations and fights by the SRD's numbers; the ogre, troll and minotaur are met one at
   a time, now and then, and ghouls only at night.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
@@ -844,8 +844,11 @@ still count, and come first.
   `kit/fantasy/folk/`, and the bandit, witch and wizard, who are default people dressed for it) are
   built by `people.js` and moved by the people's clips, with an animal's handles on them. Eleven
   (`built`: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and
-  minotaur) are made in code by `src/bestiary.js`, from shapes bound to the built-in person's skeleton
-  (`figure.js figureFrom`), with their weapons and armour in the same mesh, so they need no kit files.
+  minotaur) are Wanderworld's own. Those with a model made in Blender (the goblin so far:
+  `assets/scripts/make_*.py`, packed into `kit/fantasy/folk/folk-built.json` by
+  `scripts/build-wanderworld-people.mjs --bestiary`; how, in `AGENTS.md`) load like the imp and the
+  puglin; the rest are made in code by `src/bestiary.js`, from shapes bound to the built-in person's
+  skeleton (`figure.js figureFrom`), with their weapons and armour in the same mesh.
 - `src/social.js` moves relationships on with time spent together and keeps the record of it;
   `src/memory.js` is each person's own memories; `src/household.js` the rules for the player's home
   (empty houses, moving, who's asked in and out, visits, furniture); `src/events.js` market days and
@@ -920,7 +923,7 @@ and Crystal Pack on Poly Pizza), also CC0 1.0. Thank you, iPoly3D.
 
 The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, which is under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html) and not CC0: free to use in a game, not to pass on as assets.
 
-The goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur are Wanderworld's own, built in code (`src/bestiary.js`).
+The goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur are Wanderworld's own: the goblin modelled in Blender (`assets/scripts/make_goblin.py`), the rest built in code (`src/bestiary.js`).
 
 Credit required (CC-BY 3.0): Saddle by Poly by Google (https://poly.pizza/m/dSMm_V4sKNr), CC-BY 3.0
 (https://creativecommons.org/licenses/by/3.0/), modified: converted, resized and its texture shrunk. Its

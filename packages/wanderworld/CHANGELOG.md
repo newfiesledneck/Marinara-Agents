@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.29 — 2026-11-20
+
+- The goblin is now a model made in Blender: one smooth body instead of shapes stuck together, a face with its eyes set in sockets, a hooked nose and fangs, a ragged tunic and its scimitar, rigged to the people's skeleton so it still moves with their animations. The other monsters follow; until then they're built in code as before.
+- For contributors: models are made by Blender scripts in packages/wanderworld/assets/scripts, run from the command line, and packed into the kit. AGENTS.md in the package says how.
+
 ## 0.7.28 — 2026-11-20
 
 - Seven more monsters of Wanderworld's own: hobgoblins in mail with sword and shield, bugbears with morningstars, orcs with greataxes, gnolls with spears, kobolds with daggers, lizardfolk with clubs and spiked shields, and ghouls, who come out at night. Each has its own switch in Menu → Settings → Creatures and the SRD's numbers in a fight.

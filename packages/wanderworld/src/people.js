@@ -432,7 +432,9 @@ export async function createOutlaw(kind) {
  * made. Rejects if the kit hasn't got it.
  */
 export async function createFolk(kind, scale = 1) {
-  const body = (await load("folk.json")).folk[kind];
+  // (The Bestiary's in folk.json; those made in Blender, packages/wanderworld/assets, in folk-built.json.)
+  const body =
+    (await load("folk.json")).folk[kind] ?? (await load("folk-built.json").catch(() => ({ folk: {} }))).folk[kind];
   if (!body) throw new Error(`The kit has no ${kind}`);
   const { root, bones } = rigOf(body);
   const material = new MeshLambertMaterial({ map: texture(`folk-${kind}`) });
