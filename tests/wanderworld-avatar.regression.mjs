@@ -188,6 +188,24 @@ for (const sex of ["male", "female"]) {
   );
 }
 
+// ── Default skins with underwear (Settings → People): off, nobody wears any unless it's chosen ──
+{
+  const { setUnderwearByDefault } = await import("../packages/wanderworld/src/avatar.js");
+  setUnderwearByDefault(false);
+  assert.deepEqual(
+    avatarLook("Rowan", "female", {}).underwear,
+    { top: "none", bottom: "none" },
+    "off: no underwear unless chosen",
+  );
+  assert.deepEqual(
+    avatarLook("Rowan", "female", { underwear: { top: "bralette" } }).underwear.top,
+    "bralette",
+    "a choice made by hand still wins",
+  );
+  setUnderwearByDefault(true);
+  assert.deepEqual(avatarLook("Rowan", "female", {}).underwear, { top: "bra", bottom: "briefs" }, "on: the usual");
+}
+
 // ── Underwear, and what an outfit piece hides ───────────────────────────────
 {
   const count = (person) => bodyMesh(person).geometry.index.count;

@@ -59,6 +59,13 @@ const REGION_OF = {
   ball_l: "feet",
   ball_r: "feet",
 };
+// Whether someone with no underwear chosen wears the usual (a bra and briefs, or briefs): Settings → People
+// → "Default skins with underwear". Off, the base skin shows as it is unless underwear is chosen by hand.
+let underwearByDefault = true;
+export function setUnderwearByDefault(on) {
+  underwearByDefault = on !== false;
+}
+
 /** What an outfit piece can hide: these regions of skin (and underwear on them), or the underwear itself. */
 export const HIDE_WORDS = [...new Set(Object.values(REGION_OF)), "underwear", "underwear-top", "underwear-bottom"];
 /** The parts the regions hide (the skin, and underwear under the piece). */
@@ -149,8 +156,8 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
     hair: HAIRSTYLES.some(([style]) => style === chosen.hair) ? chosen.hair : usualHair,
     hairColour,
     underwear: {
-      top: chosen.underwear?.top ?? (sex === "female" ? "bra" : BARE),
-      bottom: chosen.underwear?.bottom ?? "briefs",
+      top: chosen.underwear?.top ?? (underwearByDefault && sex === "female" ? "bra" : BARE),
+      bottom: chosen.underwear?.bottom ?? (underwearByDefault ? "briefs" : BARE),
     },
     clothes: chosen.clothes ?? [],
     seed: hashString(`${name}:motion`),
