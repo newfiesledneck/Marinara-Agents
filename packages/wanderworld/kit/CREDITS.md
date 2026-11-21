@@ -9,23 +9,25 @@ Asset files the game loads when it needs them, served by the Engine as package a
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) (public domain; each download's
 licence file says so). No credit is required; this note is a courtesy.
 
-| Folder                                | From                                                                                                                                                                                                         | Made by                                     |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
-| `generic/people/`, `fantasy/outfits/` | Universal Base Characters (Standard), Modular Character Outfits - Fantasy (Standard)                                                                                                                         | `scripts/build-wanderworld-people.mjs`      |
-| `generic/nature/`                     | Stylized Nature MegaKit (Pro), its `glTF` folder                                                                                                                                                             | `scripts/build-wanderworld-kit.mjs nature`  |
-| `fantasy/village/`                    | Medieval Village MegaKit (Standard), its `glTF` folder                                                                                                                                                       | `scripts/build-wanderworld-kit.mjs village` |
-| `generic/art/`                        | Original art for Wanderworld (menu backdrops, logo, loading screen, ground, water and rock textures, the sign board, parchment, bridge planks and beams), made by the package's author with ComfyUI          | converted to WebP by hand                   |
-| `creatures/`                          | Ultimate Animated Animals, its `glTF` folder; and the monsters from Monster Pack Animated and Easy Animated Enemy Pack, their `FBX` files (read here by three's FBXLoader: no Blender needed)                | `scripts/build-wanderworld-animals.mjs`     |
-| `fantasy/props/`                      | Fantasy Props MegaKit (Standard) `Exports/glTF`, Medieval Village MegaKit (Standard) `glTF`, Farm Buildings `FBX` (the barn and the windmill); iPoly3D's three packs' `.glb` files, unzipped into one folder | `scripts/build-wanderworld-kit.mjs props`   |
-| `fantasy/tools/`                      | Fantasy Props MegaKit (Pro), its `Exports/glTF` folder (tools and weapons; CC0 by that download's licence file)                                                                                              | `scripts/build-wanderworld-kit.mjs tools`   |
-| `fantasy/market/`                     | Fantasy Props MegaKit (Pro), its `Exports/glTF` folder (dressed stalls and painted shop signs; CC0 by that download's licence file)                                                                          | `scripts/build-wanderworld-kit.mjs market`  |
+| Folder                                | From                                                                                                                                                                                                          | Made by                                     |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `generic/people/`, `fantasy/outfits/` | Universal Base Characters (Standard), Modular Character Outfits - Fantasy (Standard)                                                                                                                          | `scripts/build-wanderworld-people.mjs`      |
+| `generic/nature/`                     | Stylized Nature MegaKit (Pro), its `glTF` folder                                                                                                                                                              | `scripts/build-wanderworld-kit.mjs nature`  |
+| `fantasy/village/`                    | Medieval Village MegaKit (Standard), its `glTF` folder                                                                                                                                                        | `scripts/build-wanderworld-kit.mjs village` |
+| `generic/art/`                        | Original art for Wanderworld (menu backdrops, logo, loading screen, ground, water and rock textures, the sign board, parchment, bridge planks and beams), made by the package's author with ComfyUI           | converted to WebP by hand                   |
+| `creatures/`                          | Ultimate Animated Animals, its `glTF` folder; and the monsters from Monster Pack Animated and Easy Animated Enemy Pack, their `FBX` files (read here by three's FBXLoader: no Blender needed)                 | `scripts/build-wanderworld-animals.mjs`     |
+| `fantasy/props/`                      | Fantasy Props MegaKit (Standard) `Exports/glTF`, Medieval Village MegaKit (Standard) `glTF`, Farm Buildings `FBX` (the barn and the windmill); iPoly3D's three packs' `.glb` files, unzipped into one folder  | `scripts/build-wanderworld-kit.mjs props`   |
+| `fantasy/tools/`                      | Fantasy Props MegaKit (Pro), its `Exports/glTF` folder (tools and weapons; CC0 by that download's licence file)                                                                                               | `scripts/build-wanderworld-kit.mjs tools`   |
+| `fantasy/market/`                     | Fantasy Props MegaKit (Pro), its `Exports/glTF` folder (dressed stalls and painted shop signs; CC0 by that download's licence file)                                                                           | `scripts/build-wanderworld-kit.mjs market`  |
+| `fantasy/dungeon/`                    | Updated Modular Dungeon (May 2019), its `FBX` folder (floor, wall, arch, door, bars, column, stairs, torch, wall banner, pedestal, trapdoor, skull, cobweb and campfire; CC0 by that download's licence file) | `scripts/build-wanderworld-kit.mjs dungeon` |
 
 ## Made in Blender by ThatOneCan
 
 `fantasy/folk/folk-built-<name>.json` and their textures (`folk-<name>.webp`): the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur,
 modelled in Blender by ThatOneCan with the scripts in `packages/wanderworld/assets/scripts/` and packed by
-`scripts/build-wanderworld-people.mjs --bestiary`. The models themselves are in
-`packages/wanderworld/assets/models/`.
+`scripts/build-wanderworld-people.mjs --bestiary`; and `creatures/rigged-<name>.json` with their textures
+(`rigged-<name>.webp`): the mimic, awakened shrub, shambling mound, grick, otyugh and roper, made the same
+way. The models themselves are in `packages/wanderworld/assets/models/`.
 
 ## Under the Quaternius Asset License
 

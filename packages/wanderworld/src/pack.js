@@ -530,6 +530,12 @@ const FOES = {
   lizardfolk: { hp: 22, ac: 15, attack: 4, damage: "1d6+2", xp: 25, verb: "swings" },
   ghoul: { hp: 22, ac: 12, attack: 4, damage: "2d4+2", xp: 50, verb: "claws" },
   orc: { hp: 15, ac: 13, attack: 5, damage: "1d12+3", xp: 25, verb: "swings" },
+  mimic: { hp: 58, ac: 12, attack: 5, damage: "1d8+3", xp: 110, verb: "bites" },
+  awakened_shrub: { hp: 10, ac: 9, attack: 1, damage: "1d4", xp: 4, verb: "rakes" },
+  shambling_mound: { hp: 136, ac: 15, attack: 7, damage: "2d8+4", xp: 300, verb: "slams" },
+  grick: { hp: 27, ac: 14, attack: 4, damage: "2d6+2", xp: 110, verb: "lashes" },
+  otyugh: { hp: 114, ac: 14, attack: 6, damage: "2d8+3", xp: 300, verb: "lashes" },
+  roper: { hp: 93, ac: 20, attack: 7, damage: "4d8+4", xp: 300, verb: "lashes" },
 };
 /**
  * What's had from each creature once it's beaten (combat.js spoilsOf): an animal is harvested, a person
@@ -607,6 +613,26 @@ const SPOILS = {
   },
   ghoul: { items: [{ name: "Grave dust", description: "A pinch of grey dust.", chance: 0.5 }], coins: [0, 6] },
   orc: { items: [{ name: "Orc tusk", description: "A heavy, chipped tusk.", chance: 0.7 }], coins: [2, 12] },
+  mimic: {
+    items: [{ name: "Mimic tooth", description: "A yellowed fang, sticky still.", chance: 0.7 }],
+    coins: [0, 20],
+  },
+  awakened_shrub: {
+    items: [{ name: "Living twig", description: "A twig that still twitches now and then.", chance: 0.6 }],
+  },
+  shambling_mound: {
+    items: [{ name: "Rotting vine", description: "A length of slimy, knotted vine.", chance: 0.7 }],
+    coins: [0, 4],
+  },
+  grick: { items: [{ name: "Grick beak", description: "A hard, hooked beak.", chance: 0.7 }] },
+  otyugh: {
+    items: [{ name: "Otyugh spike", description: "A bony spike off a tentacle's tip.", chance: 0.7 }],
+    coins: [0, 12],
+  },
+  roper: {
+    items: [{ name: "Roper strand", description: "A sticky, rope-like tendril.", chance: 0.7 }],
+    coins: [5, 30],
+  },
   bandit: {
     items: [{ name: "Knife", description: "A plain belt knife. [Weapon: 1d4 damage]", chance: 0.5 }],
     coins: [2, 12],
@@ -746,6 +772,12 @@ const ANIMALS = {
   lizardfolk: "the lizardfolk",
   ghoul: "the ghoul",
   orc: "the orc",
+  mimic: "the mimic",
+  awakened_shrub: "the awakened shrub",
+  shambling_mound: "the shambling mound",
+  grick: "the grick",
+  otyugh: "the otyugh",
+  roper: "the roper",
 };
 
 /**

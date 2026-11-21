@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.37)
+## What it does now (0.7.38)
 
 ### The world
 
@@ -646,6 +646,12 @@ every roll, and no AI call is made in a real-time fight.
   ogres, trolls and minotaurs of its own, modelled in Blender by ThatOneCan (`assets/scripts/`). Each carries its SRD weapon (and a shield, armour or rags) as part of its body, moves with
   the people's animations and fights by the SRD's numbers; the ogre, troll and minotaur are met one at
   a time, now and then, and ghouls only at night.
+- **Monsters with shapes of their own**: a mimic passing for a chest, an awakened shrub, a shambling
+  mound, a grick, an otyugh and a roper passing for a stalagmite, modelled in Blender by ThatOneCan with
+  skeletons and movements of their own (`src/rigged.js`, played by three's AnimationMixer from
+  `kit/creatures/rigged-<name>.json`). The mimic, the shrub and the roper lie in wait as what they
+  pretend to be until they move or strike. The shambling mound, the otyugh and the roper are rare. Each
+  fights by its SRD stat block.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.
@@ -902,6 +908,34 @@ Performance targets: about 30 fps on a mid-range phone and 60 on a desktop. The 
 1080p unless Settings says otherwise, nature and real lights follow the player, and fog hides the far
 edge. Readings by draw distance and tree density are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
+### Dungeons and strongholds
+
+`src/dungeon.js` makes the dungeon and stronghold levels of the deep places (docs/QUESTS.md section 8).
+`dungeonPlan(seed, depth, kind)` returns one level as plain data, in the level plan the deep places
+share with the caves and caverns: rooms, corridors, doorways, the kit pieces to place, colliders, torch
+lights, the way in, sometimes a way further down, and spawn spots tagged guard, boss, captive or wander.
+The same seed, depth and kind always give the same level.
+
+- A dungeon is a crypt (tombs and a pillared hall), a ruin (rubble, crates, sometimes a camp) or a vault
+  (guardrooms and a treasure room behind a door). Its end is the room farthest from the way in, where the
+  boss waits. Half the time a far wall has given way into natural rock, and that leads down to a cave.
+- A stronghold is a keep: a gatehouse, the hall, barracks, a store room, a gaol with two or three barred
+  cells, the leader's room behind a door, and a cellar whose trapdoor sometimes leads down to a cave.
+- Rooms and corridors are laid on a 4 m grid. Each room hangs off an earlier one by a straight corridor
+  one to four cells long, with an arch at each end. Walls, arches and the columns where walls meet come
+  from that grid, and furniture stands against the walls, clear of the doorways.
+- `buildDungeon(plan)` lays a plan out in a three.js Group: one InstancedMesh per model part, a few dozen
+  draw calls a level, with doors and bars as meshes of their own so they can be opened. It returns the
+  colliders as boxes for `world.js createCollider`. Lights are left to the caller.
+- The pieces are Quaternius's Updated Modular Dungeon, in `kit/fantasy/dungeon/` (one `models.json`,
+  about 1 MB, flat colours and no textures). Its 2 m floor, wall and stairs are drawn at twice their
+  size. Barrels, crates, beds and tables come from the props kit, and the rock where a wall has given way
+  from the nature kit.
+- A level stays under 650 pieces and 600,000 triangles (about 400 pieces and 500,000 triangles at most
+  so far), so a phone can draw it. `tests/wanderworld-dungeon.regression.mjs` checks this, and also that
+  every room, spawn and the way down can be walked to at the player's size, that doorways meet their
+  corridors and nothing stands in them, and that no two pieces stand in each other.
+
 ## Building and testing
 
 ```bash
@@ -927,14 +961,14 @@ The buildings, props, nature, townsfolk and recorded animations are converted fr
 [Quaternius](https://quaternius.com), released under
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/): Medieval Village MegaKit,
 Fantasy Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
-Fantasy, Ultimate Animated Animals, Monster Pack Animated, Easy Animated Enemy Pack, Farm Buildings, Ultimate Modular Men, Ultimate Modular Women, and the Universal Animation Library and Universal Animation Library 2.
+Fantasy, Ultimate Animated Animals, Monster Pack Animated, Easy Animated Enemy Pack, Farm Buildings, Updated Modular Dungeon (the dungeons and strongholds), Ultimate Modular Men, Ultimate Modular Women, and the Universal Animation Library and Universal Animation Library 2.
 
 The gallows, pillory, cage, signposts and crystals are by iPoly3D (Medieval Torture Devices, Signs pack
 and Crystal Pack on Poly Pizza), also CC0 1.0. Thank you, iPoly3D.
 
 The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, which is under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html) and not CC0: free to use in a game, not to pass on as assets.
 
-Made in Blender by ThatOneCan: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur (`assets/scripts/make_*.py`).
+Made in Blender by ThatOneCan: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, and the mimic, awakened shrub, shambling mound, grick, otyugh and roper (`assets/scripts/make_*.py`).
 
 Credit required (CC-BY 3.0): Saddle by Poly by Google (https://poly.pizza/m/dSMm_V4sKNr), CC-BY 3.0
 (https://creativecommons.org/licenses/by/3.0/), modified: converted, resized and its texture shrunk. Its

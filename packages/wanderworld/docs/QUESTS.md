@@ -240,6 +240,17 @@ Each level is generated the first time it's entered, as rooms are now, and only 
 Quests use them: a stage's target can be "in the cave above the mill, two levels down", and the quest
 owns what it puts there.
 
+**Built: dungeon and stronghold levels.** `src/dungeon.js` `dungeonPlan(seed, depth, kind)` makes a
+dungeon (a crypt, a ruin or a vault, chosen by the seed) or a stronghold (gatehouse, hall, barracks,
+store, a gaol with barred cells, the leader's room and a cellar) in the shared level plan. A room's
+`x, z` is its middle and `w, d` its size in metres. Optional extras are `variant`, `doorways` (with a door
+or bars standing in some), each collider's `what`, and each room's `grid` in cells. A dungeon's way down
+is a far wall given way into rock, and a keep's is a trapdoor in its cellar. Both lead to a `"cave"`,
+about half the time. `buildDungeon(plan)` lays a plan out from the kit: the structure from `kit/fantasy/dungeon/`
+(Quaternius's Updated Modular Dungeon), furniture from the props kit and fallen rock from the nature kit. Still to come: locks and keys
+(doors and bars stand closed but don't stop anyone yet), traps, a faction's own banners and colours in
+its keep, and stairs between levels when a stronghold's next level is another stronghold.
+
 ---
 
 ## 9. Regions with a purpose

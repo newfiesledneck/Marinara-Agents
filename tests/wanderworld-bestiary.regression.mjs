@@ -98,9 +98,15 @@ for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", 
 // the people's skeleton with its palette texture, its kind's height, and its own Idle, Walk and Attack.
 {
   const pkg = join(dirname(fileURLToPath(import.meta.url)), "../packages/wanderworld");
+  // (The avatar and anthro bodies are packed apart; a creature with a skeleton of its own goes to
+  // kit/creatures/rigged-<name>.json instead, which the animals suite checks.)
+  const rigged = readdirSync(join(pkg, "kit/creatures"))
+    .filter((name) => /^rigged-.+\.json$/u.test(name))
+    .map((name) => name.slice(7, -5));
   const models = readdirSync(join(pkg, "assets/models"))
-    .filter((name) => name.endsWith(".glb"))
-    .map((name) => name.slice(0, -4));
+    .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro)-/u.test(name))
+    .map((name) => name.slice(0, -4))
+    .filter((name) => !rigged.includes(name));
   assert.ok(models.includes("goblin"), "the goblin is made in Blender");
   const folk = join(pkg, "kit/fantasy/folk");
   const built = {};

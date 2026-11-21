@@ -246,6 +246,12 @@ const CREATURE_OF = {
   lizardfolk: "lizardfolk",
   ghoul: "ghoul",
   orc: "orc",
+  mimic: "mimic",
+  awakened_shrub: "awakened-shrub",
+  shambling_mound: "shambling-mound",
+  grick: "grick",
+  otyugh: "otyugh",
+  roper: "roper",
 };
 /** A dice expression's average, rounded down, as the SRD gives a creature's hit points ("2d8+2" is 11). */
 const average = (dice) => {

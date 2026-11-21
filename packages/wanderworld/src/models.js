@@ -218,6 +218,9 @@ function findBones(root, names, originalName) {
 
 // ── Each format ──────────────────────────────────────────────────────────────
 
+/** A .glb's bytes (an ArrayBuffer) as three's glTF: { scene, animations, … }. Nothing is fetched. */
+export const parseGlb = (bytes) => loadGltf(bytes);
+
 async function loadGltf(bytes, plugin) {
   const manager = embeddedOnly();
   const loader = new GLTFLoader(manager);

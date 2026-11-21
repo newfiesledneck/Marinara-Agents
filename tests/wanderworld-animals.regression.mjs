@@ -39,7 +39,7 @@ assert.ok(index.source.includes("CC0"), "the kit says where it's from and its li
 assert.deepEqual(
   Object.keys(index.animals).sort(),
   Object.keys(ANIMALS)
-    .filter((kind) => !ANIMALS[kind].folk)
+    .filter((kind) => !ANIMALS[kind].folk && !ANIMALS[kind].rigged)
     .sort(),
   "the kit has every animal the game knows",
 );
@@ -64,6 +64,7 @@ assert.deepEqual(
 
 // ── Each kind ────────────────────────────────────────────────────────────────
 for (const [kind, facts] of Object.entries(ANIMALS)) {
+  if (facts.rigged) continue; // (their own suite, below)
   if (facts.folk) {
     // Built as a person is: it stands, walks and runs, whole, and doesn't leap.
     const folk = await createAnimal(kind);
@@ -146,7 +147,7 @@ assert.equal((await createAnimal("unicorn")).kind, "deer", "an unknown kind is a
 
 // ── Files by group, and coats ────────────────────────────────────────────────
 for (const [kind, facts] of Object.entries(ANIMALS)) {
-  if (facts.folk) continue;
+  if (facts.folk || facts.rigged) continue;
   assert.equal(index.animals[kind].group, facts.group, `the ${kind} is in the file the game looks in`);
   const file = JSON.parse(await readFile(join(kit, `${facts.group}.json`), "utf8"));
   assert.ok(file.animals[kind], `${facts.group}.json has the ${kind}`);
@@ -541,32 +542,7 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
   }
   const slimes = herdFor(world, 4242, {
     counts: { ...none, monsters: 9 },
-    off: [
-      "skeleton",
-      "spider",
-      "rat",
-      "snake",
-      "bat",
-      "wasp",
-      "frog",
-      "dragon",
-      "imp",
-      "puglin",
-      "goblin",
-      "ogre",
-      "troll",
-      "minotaur",
-      "hobgoblin",
-      "bugbear",
-      "gnoll",
-      "kobold",
-      "lizardfolk",
-      "ghoul",
-      "orc",
-      "bandit",
-      "witch",
-      "wizard",
-    ],
+    off: Object.keys(ANIMALS).filter((kind) => ANIMALS[kind].group === "monsters" && kind !== "slime"),
   });
   assert.ok(slimes.length === 9 && slimes.every((beast) => beast.kind === "slime"), "only the kinds left on");
   // Wolves keep to their packs: several of them, some sharing a home, none bigger than five.
@@ -827,6 +803,34 @@ for (const [text, dog, horse] of [
     "and new ones came",
   );
   herd.detach();
+}
+
+// The creatures with skeletons of their own (made in Blender, played by AnimationMixer: rigged.js) load
+// from the kit at their height, walk, strike, and the ones that lie in wait hide when left standing.
+{
+  for (const kind of Object.keys(ANIMALS).filter((name) => ANIMALS[name].rigged)) {
+    const data = JSON.parse(await readFile(join(kit, `rigged-${kind}.json`), "utf8"));
+    assert.ok(data.source.includes("ThatOneCan"), `${kind}: credited`);
+    const body = await createAnimal(kind);
+    body.object.updateMatrixWorld(true);
+    const box = new Box3().setFromObject(body.object, true);
+    assert.ok(
+      Math.abs(box.max.y - data.height) < 0.25,
+      `${kind} stands about ${data.height} m (${box.max.y.toFixed(2)})`,
+    );
+    assert.ok(box.min.y > -0.1, `${kind} stands on the ground`);
+    for (let i = 0; i < 20; i++) body.update(0.05, ANIMALS[kind].walk);
+    assert.equal(body.act("strike"), true, `${kind} has an attack`);
+    for (let i = 0; i < 30; i++) body.update(0.05, 0);
+    if (ANIMALS[kind].hides) {
+      for (let i = 0; i < 150; i++) body.update(0.05, 0);
+      assert.equal(body.hidden(), true, `${kind} lies in wait when left standing`);
+      body.update(0.05, ANIMALS[kind].walk);
+      for (let i = 0; i < 10; i++) body.update(0.05, ANIMALS[kind].walk);
+      assert.equal(body.hidden(), false, `${kind} shows itself when it moves`);
+    }
+    body.dispose();
+  }
 }
 
 console.log("wanderworld animals regression: OK");

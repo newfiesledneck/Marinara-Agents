@@ -8,6 +8,9 @@
 //   node scripts/build-wanderworld-people.mjs "<…>/Universal Base Characters[Standard]" "<…>/Modular Character Outfits - Fantasy[Standard]"
 //   node scripts/build-wanderworld-people.mjs --folk "<…>/Bestiary - Dungeon Monsters Kit[Standard]/glTF"
 //   node scripts/build-wanderworld-people.mjs --bestiary   (the models made in Blender: packages/wanderworld/AGENTS.md)
+//     (Two-legged ones on the people's skeleton go to kit/fantasy/folk; ones with a skeleton of their own, a
+//     mimic or a roper, to kit/creatures/rigged-<name>.json, each with its own actions; avatar-* and anthro-*
+//     bodies are left for the avatar packing.)
 //
 // Each part (an outfit, a head, a hairstyle) keeps its own joints' inverse bind matrices, and every part
 // of a person binds to one shared skeleton built from the outfit's. So a head cut from the base body, or a
@@ -404,12 +407,21 @@ function bestiary() {
   const out = join(KIT, "fantasy/folk");
   mkdirSync(out, { recursive: true });
   for (const old of readdirSync(out).filter((name) => /^folk-built/u.test(name))) rmSync(join(out, old));
+  const creatures = join(KIT, "creatures");
+  for (const old of readdirSync(creatures).filter((name) => /^rigged-/u.test(name))) rmSync(join(creatures, old));
   let count = 0;
+  let own = 0;
   for (const file of readdirSync(dir)
-    .filter((name) => name.endsWith(".glb"))
+    .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro)-/u.test(name))
     .sort()) {
     const name = file.slice(0, -4);
     const gltf = readGltf(join(dir, file));
+    const bones = skeletonOf(gltf).names;
+    if (!bones.includes("pelvis") || !bones.includes("hand_r")) {
+      rigged(name, join(dir, file), creatures);
+      own++;
+      continue;
+    }
     const primitives = skinnedPrimitives(gltf);
     const png = join(out, `${name}.png`);
     writeFileSync(png, gltf.imageOf(primitives[0].texture));
@@ -429,7 +441,80 @@ function bestiary() {
     writeFileSync(join(out, `folk-built-${name}.json`), JSON.stringify(packed));
     count++;
   }
-  console.log(`wrote ${count} to ${out}`);
+  console.log(`wrote ${count} to ${out}, and ${own} with skeletons of their own to ${creatures}`);
+}
+
+/**
+ * A creature with a skeleton of its own (a mimic, a roper): its .glb as it is, actions and all, played by
+ * three's AnimationMixer in the game (src/rigged.js), but with its texture taken out into a .webp beside
+ * it (smaller, and loaded without holding the model up). `kit/creatures/rigged-<name>.json`: { source,
+ * height, glb (base64) }, and `rigged-<name>.webp`.
+ * ponytail: the whole .glb in base64 (a third bigger than the bytes); a packed format like the animals'
+ * would be smaller, once the format keeps textures and move and scale tracks.
+ */
+function rigged(name, path, out) {
+  const file = readFileSync(path);
+  const jsonLength = file.readUInt32LE(12);
+  const json = JSON.parse(file.subarray(20, 20 + jsonLength).toString("utf8"));
+  const bin = file.subarray(20 + jsonLength + 8);
+  // The texture out to a .webp, through a .png.
+  const image = json.images?.[0];
+  if (!image) throw new Error(`${name}.glb has no texture`);
+  const imageView = json.bufferViews[image.bufferView];
+  const png = join(out, `${name}.png`);
+  writeFileSync(png, bin.subarray(imageView.byteOffset ?? 0, (imageView.byteOffset ?? 0) + imageView.byteLength));
+  execFileSync(FFMPEG, ["-v", "error", "-y", "-i", png, "-quality", "90", join(out, `rigged-${name}.webp`)]);
+  rmSync(png);
+  // The model without its images: their buffer views dropped and the rest packed up again.
+  const dropped = new Set((json.images ?? []).map((entry) => entry.bufferView));
+  const renumber = new Map();
+  const parts = [];
+  let offset = 0;
+  json.bufferViews = json.bufferViews.filter((view, i) => {
+    if (dropped.has(i)) return false;
+    const bytes = bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength);
+    const pad = (4 - (offset % 4)) % 4;
+    if (pad) parts.push(Buffer.alloc(pad));
+    offset += pad;
+    renumber.set(i, renumber.size);
+    view.byteOffset = offset;
+    parts.push(bytes);
+    offset += bytes.length;
+    return true;
+  });
+  for (const accessor of json.accessors) accessor.bufferView = renumber.get(accessor.bufferView);
+  delete json.images;
+  delete json.textures;
+  delete json.samplers;
+  for (const material of json.materials ?? []) delete material.pbrMetallicRoughness?.baseColorTexture;
+  const body = Buffer.concat(parts);
+  json.buffers = [{ byteLength: body.length }];
+  const text = Buffer.from(JSON.stringify(json));
+  const jsonChunk = Buffer.concat([text, Buffer.alloc((4 - (text.length % 4)) % 4, 0x20)]);
+  const binChunk = Buffer.concat([body, Buffer.alloc((4 - (body.length % 4)) % 4)]);
+  const header = Buffer.alloc(12);
+  header.write("glTF", 0);
+  header.writeUInt32LE(2, 4);
+  header.writeUInt32LE(12 + 8 + jsonChunk.length + 8 + binChunk.length, 8);
+  const chunk = (data, type) => {
+    const head = Buffer.alloc(8);
+    head.writeUInt32LE(data.length, 0);
+    head.write(type, 4);
+    return Buffer.concat([head, data]);
+  };
+  const glb = Buffer.concat([header, chunk(jsonChunk, "JSON"), chunk(binChunk, "BIN\0")]);
+  // How tall it stands: the highest point of its meshes at rest.
+  let top = 0;
+  for (const mesh of json.meshes)
+    for (const primitive of mesh.primitives) top = Math.max(top, json.accessors[primitive.attributes.POSITION].max[1]);
+  writeFileSync(
+    join(out, `rigged-${name}.json`),
+    JSON.stringify({
+      source: "Made in Blender by ThatOneCan (packages/wanderworld/assets/scripts)",
+      height: Math.round(top * 100) / 100,
+      glb: glb.toString("base64"),
+    }),
+  );
 }
 
 function main() {

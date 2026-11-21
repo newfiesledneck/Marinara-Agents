@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.38 — 2026-11-20
+
+- Six new monsters, modelled in Blender, each with a skeleton and movements of its own: a mimic that passes for a chest, an awakened shrub, a shambling mound, a grick, an otyugh and a roper that passes for a stalagmite. The mimic, the shrub and the roper lie in wait as what they pretend to be until they move or strike. The shambling mound, the otyugh and the roper are rare. Each fights by its SRD stat block, has its own switch under Settings → Creatures → Kinds and counts toward the Monsters slider.
+- A plan for Wanderworld's own player and character bodies (docs/AVATAR.md): male and female bodies, wolf and dragon anthro bodies, sliders for build and face, colours, hair and presets.
+
 ## 0.7.37 — 2026-11-20
 
 - The Monsters slider is how many there are, whichever kinds are on: with only trolls switched on and the slider at 100, there are 100 trolls. With other kinds on, a rare kind is only less likely.
