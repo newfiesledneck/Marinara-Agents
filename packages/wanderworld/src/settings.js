@@ -381,6 +381,20 @@ export const SETTINGS = {
   factionGuards: { value: true },
   factionLand: { value: true },
   factionTold: { value: true },
+  /**
+   * Quests (quests.js, questplay.js): on or off; the game's own; written by the AI (one call a quest, off to
+   * begin with) and changed by it when something goes wrong; how often work is offered and how much can be
+   * open at once; failure branches and time limits; the quest line on screen (each device's own).
+   */
+  quests: { value: true },
+  questsBuiltIn: { value: true },
+  questsAi: { value: false },
+  questAdapt: { value: true },
+  questOffers: { value: "sometimes", options: ["rarely", "sometimes", "often"] },
+  questMax: { value: 3, options: [1, 2, 3, 5] },
+  questFailures: { value: true },
+  questTimeLimits: { value: false },
+  questLine: { value: true },
   /** Each person remembers what they themselves saw and heard (memory.js), and the model is told theirs alone. */
   memories: { value: true },
   /** People in sight remember what the player does (getting on a horse, going into a house), not only what's said. */
@@ -441,6 +455,7 @@ export const DEVICE_SETTINGS = new Set([
   "stats",
   "clock",
   "place",
+  "questLine",
   "textSize",
   "sound",
   "volume",

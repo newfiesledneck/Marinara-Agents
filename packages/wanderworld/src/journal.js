@@ -11,6 +11,7 @@ import { ACTIVITIES, ACTIVITY_WORDS, hourText } from "./schedules.js";
 
 const TABS = [
   ["here", "Here"],
+  ["quests", "Quests"],
   ["people", "People"],
   ["party", "Party"],
   ["home", "Home"],
@@ -1138,6 +1139,50 @@ export function createJournal(panelCss, handlers, shows = () => true) {
     body.append(row);
   }
 
+  // Quests (questplay.js journal): open ones first, each with its stages so far, then the finished ones.
+  function drawQuests() {
+    const { on, list = [] } = data.quests ?? {};
+    body.append(
+      explain(
+        "What you've taken on: from the noticeboard, from asking someone \"Any work going?\", or from your lore. A quest shows the stages done (✓) and the one you're on (▸); later ones show once you reach them. Track puts one on screen and on the map. Settings → Quests has the rest.",
+      ),
+    );
+    if (!on) body.append(line("Quests are off (Menu → Settings → Quests).", MUTED));
+    if (!list.length)
+      body.append(line('No quests yet. Read the noticeboard, or ask someone in town "Any work going?".', MUTED));
+    const words = { active: "", done: "Done", failed: "Failed", "given up": "Given up", offered: "Offered" };
+    let heading = "";
+    for (const quest of list) {
+      const part = quest.state === "active" ? "Open" : "Finished";
+      if (part !== heading) body.append(section((heading = part)));
+      const head = element("div", "display:flex;align-items:center;gap:6px;margin-top:4px;");
+      head.append(
+        element("span", "flex:1;font-weight:700;font-size:13px;", `${quest.tracked ? "★ " : ""}${quest.title}`),
+        element("span", MUTED, words[quest.state] ?? ""),
+      );
+      body.append(head);
+      if (quest.from) body.append(line(quest.from, "font-size:12px;"));
+      for (const stage of quest.stages)
+        body.append(
+          line(`${stage.mark === "done" ? "✓" : stage.mark === "now" ? "▸" : "·"} ${stage.text}`, "font-size:12px;"),
+        );
+      if (quest.later) body.append(line(`… and ${quest.later} more to come.`, MUTED));
+      const row = element("div", "display:flex;gap:4px;flex-wrap:wrap;");
+      for (const [i, label] of (quest.choose ?? []).entries())
+        row.append(button(label, SMALL, () => handlers.onQuestChoose?.(quest.id, i)));
+      if (quest.state === "active") {
+        if (!quest.tracked) row.append(button("Track", SMALL, () => handlers.onQuestTrack?.(quest.id)));
+        row.append(button("Give up", SMALL, () => handlers.onQuestGiveUp?.(quest.id)));
+      }
+      if (row.childElementCount) body.append(row);
+      const more = element("details", "font-size:12px;");
+      more.append(element("summary", "cursor:pointer;opacity:0.8;", "(i) More"));
+      for (const text of [quest.intro, quest.reward && `Reward: ${quest.reward}.`, ...quest.log].filter(Boolean))
+        more.append(line(text, "font-size:12px;"));
+      body.append(more);
+    }
+  }
+
   let map = null; // the Map tab's canvas, redrawn in place as you walk
   let mapView = { x: 0, z: 0, zoom: 1 }; // what the map shows: its middle, and how close
   let mapHalf = 160; // half the region's side, in metres (from the last drawing)
@@ -1248,6 +1293,7 @@ export function createJournal(panelCss, handlers, shows = () => true) {
     if (!data) return;
     ({
       here: drawHere,
+      quests: drawQuests,
       people: drawPeople,
       party: drawParty,
       home: drawHome,
@@ -1275,12 +1321,14 @@ export function createJournal(panelCss, handlers, shows = () => true) {
         tab === "home" ||
         tab === "relations" ||
         tab === "world" ||
-        tab === "factions";
+        tab === "factions" ||
+        tab === "quests";
       // The lore picker redraws only when it's opened or its lorebooks arrive (showLore), never under you.
       if (picker && body.childElementCount) return;
       // The World tab's clock ticks on even when the tab isn't redrawn.
       if (tab === "world" && worldClock?.isConnected) worldClock.textContent = next.world.time;
-      const changed = next.partyChanged || next.relationsChanged || next.placesChanged || next.factionsChanged;
+      const changed =
+        next.partyChanged || next.relationsChanged || next.placesChanged || next.factionsChanged || next.questsChanged;
       if (lists && !picker && body.childElementCount && (!changed || groupEdit)) return; // a group's ticks are already shown
       draw();
     },
@@ -1292,6 +1340,13 @@ export function createJournal(panelCss, handlers, shows = () => true) {
     },
     /** Redraws now (after a rename or a lore change). */
     refresh() {
+      draw();
+    },
+    /** Turns to a tab this Journal has (the quest line on screen opens Quests). */
+    showTab(id) {
+      if (!shown.some(([at]) => at === id)) return;
+      tab = id;
+      picker = null;
       draw();
     },
   };

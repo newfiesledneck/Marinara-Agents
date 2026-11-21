@@ -14,6 +14,7 @@ import { mapCanvas, randomSeed } from "./map.js";
 import { SETTINGS } from "./settings.js";
 import { LAND_CHOICES } from "./land.js";
 import { FACTION_EXPLAIN, FACTION_SETTINGS } from "./factions.js";
+import { QUEST_EXPLAIN } from "./quests.js";
 import { kindWords, SHEET_KINDS, xpNeeded } from "./sheet.js";
 import {
   INK_BUTTON,
@@ -804,6 +805,7 @@ export function createHud(root, handlers) {
       : `Now ${count}: one person gets ${count}, two get ${Math.ceil(count / 2)} each, three get ${Math.ceil(count / 3)} each.`;
   const EXPLAIN = {
     ...FACTION_EXPLAIN,
+    ...QUEST_EXPLAIN,
     genderMale: (s) => {
       const total = s.genderMale + s.genderFemale + s.genderCustom;
       const of = (value) => (total ? Math.round((value / total) * 100) : 0);
@@ -1418,6 +1420,25 @@ export function createHud(root, handlers) {
   toggle("memoryToldCounted", "Count personal limits against the total", "memories");
   part("Keeping memories short");
   sumUpRow();
+  // Quests (quests.js): what's offered and who writes it, how quests go wrong, and the line on screen.
+  heading(
+    "Quests",
+    "Work to take on: from the noticeboard, from asking people, from your lore. The game makes its own with no AI; the AI can write them too, one call a quest. Journal → Quests keeps them, and Settings → Debug can finish or fail a stage.",
+  );
+  toggle("quests", "Quests");
+  toggle("questsBuiltIn", "The game's own quests", "quests");
+  toggle("questsAi", "The AI writes quests (one call each)", "quests");
+  toggle("questAdapt", "The AI changes a quest that goes wrong", "questsAi");
+  choice(
+    "questOffers",
+    "How often work is offered",
+    { rarely: "Rarely", sometimes: "Sometimes", often: "Often" },
+    "quests",
+  );
+  choice("questMax", "Open at once, at most", { 1: "1", 2: "2", 3: "3", 5: "5" }, "quests");
+  toggle("questFailures", "Quests can take a turn when things go wrong", "quests");
+  toggle("questTimeLimits", "Time limits", "quests");
+  toggle("questLine", "The quest line on screen", "quests");
   // Inventory: everything about what you carry and what you can do with it, in four parts. (Its tab comes
   // after People's; People's own last part, Genders, is added below.)
   heading(
@@ -2025,6 +2046,8 @@ export function createHud(root, handlers) {
   toggle("aiJoin", "…when you join someone", "aiMoments");
   toggle("aiSeparate", "A separate call for each person who answers", "aiMoments");
   toggle("vendorAi", "The AI stocks shop shelves");
+  toggle("questsAi", "The AI writes quests (one call each)");
+  toggle("questAdapt", "The AI changes a quest that goes wrong", "questsAi");
   choice("sheetTrack", "The AI updates your sheet", {
     off: "Off",
     moments: "After moments",
@@ -2128,6 +2151,20 @@ export function createHud(root, handlers) {
   unstickBar.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;align-items:center;";
   unstickBar.append(unstick, unstickState);
   add(unstickBar);
+  // Quests: the tracked quest's stage finished or failed by hand, or its state shown (questplay.js debug).
+  const questState = document.createElement("div");
+  questState.style.cssText = `font-size:11px;color:${INK_SOFT};white-space:pre-wrap;`;
+  questState.textContent =
+    "The tracked quest (Journal → Quests): move its stage on by hand, or see what it's waiting for.";
+  const questBar = document.createElement("div");
+  questBar.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;align-items:center;";
+  for (const [label, action] of [
+    ["Finish this stage", "finish"],
+    ["Fail this stage", "fail"],
+    ["Show this quest's state", "show"],
+  ])
+    questBar.append(inkSmall(label, () => (questState.textContent = handlers.onQuestDebug?.(action) ?? "")));
+  add(questBar, questState);
   const debugPart = (sub) => {
     at("Debug", sub);
     const node = document.createElement("div");
@@ -2461,6 +2498,9 @@ export function createHud(root, handlers) {
     onRegions: (canvas) => handlers.onRegions?.(canvas),
     onStanding: (id, value, locked) => handlers.onStanding?.(id, value, locked),
     onPurposeAhead: (side, kind, faction) => handlers.onPurposeAhead?.(side, kind, faction),
+    onQuestTrack: (id) => handlers.onQuestTrack?.(id),
+    onQuestGiveUp: (id) => handlers.onQuestGiveUp?.(id),
+    onQuestChoose: (id, option) => handlers.onQuestChoose?.(id, option),
   };
   const journal = createJournal(PANEL, journalHandlers, (id) => id !== "map");
   // The Map: the Journal's map in a window of its own, with a button of its own.
@@ -3742,7 +3782,16 @@ export function createHud(root, handlers) {
   const menuWrap = document.createElement("div");
   menuWrap.style.cssText = "position:relative;display:flex;align-items:center;";
   menuWrap.append(menuButton, controls);
-  top.append(clock, place, stats, spacer, menuWrap);
+  // Quests: the tracked quest's stage on screen (Settings → Quests → The quest line); a tap opens Journal → Quests.
+  const questChip = document.createElement("button");
+  questChip.type = "button";
+  questChip.style.cssText = `${CHIP}font:12px system-ui,sans-serif;border:0;display:none;max-width:min(420px,70vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:auto;cursor:pointer;text-align:left;`;
+  questChip.title = "Your tracked quest: what to do now (opens Journal → Quests)";
+  questChip.addEventListener("click", () => {
+    journal.showTab("quests");
+    if (journal.panel.style.display === "none") togglePanel(journal.panel);
+  });
+  top.append(clock, place, questChip, stats, spacer, menuWrap);
 
   // The "use" prompt over whatever you could use, and on touch screens a Use button by the stick.
   const prompt = document.createElement("button");
@@ -3754,6 +3803,7 @@ export function createHud(root, handlers) {
   // On touch screens, a row along the bottom (the stick sits above its left end): Run, Sit (which becomes
   // Lie down once you're sitting on the ground), Jump, and Use at the right, under the other thumb.
   let sleepCard = null; // the tent's card, while it's open (openSleep)
+  let questCard = null; // a quest offered, while its card is up (offerQuest)
   const wanted = { jump: true, rest: true, run: true, chat: true, place: true }; // Settings: the thumb's buttons, the chat window's, the place line
   const jump = button("Jump", "Jump", () => handlers.onJump());
   const strike = button("Attack", "Swing at whatever is in front of you", () => handlers.onAttack?.());
@@ -4643,6 +4693,53 @@ export function createHud(root, handlers) {
     closeSleep() {
       sleepCard?.remove();
       sleepCard = null;
+    },
+    /** The line for the tracked quest at the top ("" hides it). */
+    setQuestLine(text) {
+      if (questChip.textContent === text) return;
+      questChip.textContent = text;
+      questChip.style.display = text ? "" : "none";
+    },
+    /**
+     * A quest offered: who's asking, what they want, its first step, the reward, Accept or Decline.
+     * `card`: { title, from, text, first, steps, reward }; `onAnswer(yes)` is given the choice.
+     */
+    offerQuest(card, onAnswer) {
+      questCard?.remove();
+      const node = document.createElement("div");
+      node.setAttribute("data-wanderworld-ui", "");
+      // (Near the top, clear of a conversation's panel and the chat at the bottom.)
+      node.style.cssText = `${PANEL}display:flex;top:56px;right:auto;bottom:auto;left:50%;transform:translateX(-50%);gap:8px;width:min(380px,calc(100% - 32px));z-index:5;`;
+      const line = (text, css) => {
+        const element = document.createElement("div");
+        element.style.cssText = css;
+        element.textContent = text;
+        return element;
+      };
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:8px;";
+      const answer = (yes) => {
+        node.remove();
+        if (questCard === node) questCard = null;
+        onAnswer(yes);
+      };
+      const yes = button("Accept", "Take this quest on: it goes in Journal → Quests", () => answer(true));
+      const no = button("Decline", "Not this one", () => answer(false));
+      for (const control of [yes, no]) control.style.cssText += "flex:1;padding:10px 12px;";
+      row.append(yes, no);
+      node.append(
+        line(card.from, `font-size:12px;color:${INK_SOFT};`),
+        line(card.title, `font:700 15px ${SERIF};`),
+        line(card.text, "font-size:13px;line-height:1.4;"),
+        line(
+          `First: ${card.first}${card.steps > 1 ? ` (${card.steps} steps in all)` : ""}`,
+          "font-size:12px;line-height:1.35;",
+        ),
+        line(`Reward: ${card.reward}.`, "font-size:12px;"),
+        row,
+      );
+      pages.append(node);
+      questCard = node;
     },
     /** The place line: `text` ("Briarwood · Mill Lane") and the titles of the lore active there. */
     setPlace(text, lore = []) {
