@@ -1033,7 +1033,7 @@ export function createHud(root, handlers) {
     animalsWild: "Deer, stags and foxes out in the country.",
     animalsHostile: "Wolves, alone and in packs of two to five. A pack of three counts as three.",
     animalsMonsters:
-      "Slimes, skeletons, giant spiders and rats, snakes, bats, wasps, frogs, imps, puglins, goblins, hobgoblins, bugbears, orcs, gnolls, kobolds, lizardfolk, ghouls, gricks, awakened shrubs, mimics passing for chests, bandits, witches and wizards out in the country, and more rarely an ogre, a troll, a minotaur, a shambling mound, an otyugh, a roper passing for a stalagmite, or a dragon overhead. Skeletons, ghouls and bats only at night.",
+      "Slimes, skeletons, giant spiders and rats, snakes, bats, wasps, frogs, imps, puglins, goblins, hobgoblins, bugbears, orcs, gnolls, kobolds, lizardfolk, ghouls, gricks, awakened shrubs, mimics passing for chests, gelatinous cubes, basilisks, zombies, bandits, witches and wizards out in the country, and more rarely an ogre, a troll, a minotaur, a shambling mound, an otyugh, a roper passing for a stalagmite, an elemental of earth, fire, water or air, a hill, stone, frost or fire giant, or a dragon overhead. Skeletons, ghouls, ghosts, specters and bats only at night.",
     animalSizes:
       "Now and then: about one monster in eight is big (a quarter to two-fifths bigger) and one in fifty is huge (three-fifths to four-fifths bigger), always the first of its group. Often: about one in four big and one in fifteen huge. Never: every monster is about its kind's usual size.",
     animalHabitats:
@@ -1690,6 +1690,17 @@ export function createHud(root, handlers) {
     ["animalRoper", "Ropers (rare, as stalagmites)"],
     ["animalGelatinous_cube", "Gelatinous cubes"],
     ["animalBasilisk", "Basilisks"],
+    ["animalZombie", "Zombies"],
+    ["animalGhost", "Ghosts (night)"],
+    ["animalSpecter", "Specters (night)"],
+    ["animalEarth_elemental", "Earth elementals (rare)"],
+    ["animalFire_elemental", "Fire elementals (rare)"],
+    ["animalWater_elemental", "Water elementals (rare)"],
+    ["animalAir_elemental", "Air elementals (rare)"],
+    ["animalHill_giant", "Hill giants (rare)"],
+    ["animalStone_giant", "Stone giants (rare)"],
+    ["animalFrost_giant", "Frost giants (rare)"],
+    ["animalFire_giant", "Fire giants (rare)"],
     ["animalGnoll", "Gnolls"],
     ["animalKobold", "Kobolds"],
     ["animalLizardfolk", "Lizardfolk"],

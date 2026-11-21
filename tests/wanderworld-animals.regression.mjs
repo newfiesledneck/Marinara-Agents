@@ -36,13 +36,9 @@ const { createWorld, waterAt } = await import("../packages/wanderworld/src/world
 
 const index = JSON.parse(await readFile(join(kit, "index.json"), "utf8"));
 assert.ok(index.source.includes("CC0"), "the kit says where it's from and its licence");
-assert.deepEqual(
-  Object.keys(index.animals).sort(),
-  Object.keys(ANIMALS)
-    .filter((kind) => !ANIMALS[kind].folk && !ANIMALS[kind].rigged)
-    .sort(),
-  "the kit has every animal the game knows",
-);
+// (The kit may still hold a pack's model the game has since made its own, the skeleton.)
+for (const kind of Object.keys(ANIMALS).filter((name) => !ANIMALS[name].folk && !ANIMALS[name].rigged))
+  assert.ok(index.animals[kind], `the kit has the ${kind}`);
 // The ones on the people's skeleton (the imp, the puglin) are in the folk kit instead, each with every
 // bone the people's clips move and a texture; people.js builds them (the people suite covers that path).
 // The ones built in code (`built`) have no kit files: the bestiary suite covers them.
@@ -73,7 +69,7 @@ for (const [kind, facts] of Object.entries(ANIMALS)) {
       folk.object.updateMatrixWorld(true);
       const box = new Box3().setFromObject(folk.object, true);
       assert.ok(
-        Number.isFinite(box.max.y) && box.max.y > 0.4 && box.max.y < (facts.built ? 3.2 : 2.4),
+        Number.isFinite(box.max.y) && box.max.y > 0.4 && box.max.y < (facts.built ? 7 : 2.4), // (a giant stands up to 6.5 m)
         `the ${kind} keeps its shape at ${speed}`,
       );
     }
@@ -819,7 +815,7 @@ for (const [text, dog, horse] of [
       Math.abs(box.max.y - data.height) < 0.25,
       `${kind} stands about ${data.height} m (${box.max.y.toFixed(2)})`,
     );
-    assert.ok(box.min.y > -0.1, `${kind} stands on the ground`);
+    assert.ok(box.min.y > -0.35, `${kind} stands on the ground`); // (a water elemental's pool dips in)
     for (let i = 0; i < 20; i++) body.update(0.05, ANIMALS[kind].walk);
     assert.equal(body.act("strike"), true, `${kind} has an attack`);
     for (let i = 0; i < 30; i++) body.update(0.05, 0);

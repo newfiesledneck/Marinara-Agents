@@ -254,6 +254,17 @@ const CREATURE_OF = {
   roper: "roper",
   gelatinous_cube: "gelatinous-cube",
   basilisk: "basilisk",
+  zombie: "zombie",
+  ghost: "ghost",
+  specter: "specter",
+  earth_elemental: "earth-elemental",
+  fire_elemental: "fire-elemental",
+  water_elemental: "water-elemental",
+  air_elemental: "air-elemental",
+  hill_giant: "hill-giant",
+  stone_giant: "stone-giant",
+  frost_giant: "frost-giant",
+  fire_giant: "fire-giant",
 };
 /** A dice expression's average, rounded down, as the SRD gives a creature's hit points ("2d8+2" is 11). */
 const average = (dice) => {

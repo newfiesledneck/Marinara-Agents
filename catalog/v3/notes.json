@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.41",
+          "date": "2026-11-20",
+          "notes": "- Twelve new monsters made in Blender: a skeleton of Wanderworld's own (in place of the old one), a zombie, a see-through ghost and a specter with glowing eyes (both at night), earth, fire, water and air elementals, and hill, stone, frost and fire giants. The elementals and giants are rare; the giants can grab and throw. Each has its own switch under Settings → Creatures → Kinds, lives where it would be found, and fights by its SRD stat block.\n- The fire elemental and the fire giant's hair glow, and the water and air elementals are see-through.\n- Creature files with skeletons of their own are about a third smaller.",
+          "highlight": false
+        },
+        {
           "version": "0.7.40",
           "date": "2026-11-20",
           "notes": "- Caves lead down: a cave's way in can open into caverns, dungeons and strongholds, one level at a time, dark but for your light, each with creatures that belong there (Settings → World → Places).\n- Monsters only where they'd be found: lizardfolk by water, ogres and trolls in the hills, ghouls among ruins (Settings → Creatures; off: anywhere).\n- Creatures grab and hold: a roper reels you in, an otyugh or a mimic holds you, a shambling mound or a gelatinous cube engulfs you, vines catch your legs, and ogres, trolls and minotaurs throw people. Break free with a roll. Each has its own switch.\n- Two new monsters, the gelatinous cube (see-through, with what it swallowed inside) and the basilisk; the otyugh and roper remade to look like the real ones.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.22",
           "date": "2026-11-17",
           "notes": "- Illustrate → \"What the AI is told\" is no longer cut off at 4,000 characters. It now takes about 60,000, so a long instruction with conditions in it is sent whole. The picture template's limit went from 2,000 to 20,000.\n- A world's instructions for scenes go from 1,000 characters to 20,000.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.21",
-          "date": "2026-11-17",
-          "notes": "- Fight messages show their working. An attack reads \"(Attack roll: 4 + 2 = 6 against AC 16, half cover): a miss\", with the die, what was added and the total. A natural 20 or 1 is said beside it.\n- Damage shows its dice: \"for 7 (Damage: 1d8 (5) + 2 = 7)\", with anything that changed it after (doubled by a weakness, halved by a save, by Rage or by Uncanny Dodge).\n- Saving throws show the same sum against the DC.\n- A spell that can't miss says \"(no roll: it can't miss)\" in place of \"it strikes home\".",
           "highlight": false
         }
       ]

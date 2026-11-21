@@ -116,7 +116,7 @@ for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", 
     // (no git: every model there counts)
   }
   const models = readdirSync(join(pkg, "assets/models"))
-    .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro)-/u.test(name))
+    .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro)-|^giant-base/u.test(name))
     .filter((name) => !tracked || tracked.has(name))
     .map((name) => name.slice(0, -4))
     .filter((name) => !rigged.includes(name));
@@ -126,11 +126,23 @@ for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", 
   for (const name of readdirSync(folk).filter((file) => /^folk-built-.+\.json$/u.test(file)))
     Object.assign(built, JSON.parse(readFileSync(join(folk, name), "utf8")).folk);
   assert.deepEqual(Object.keys(built).sort(), models.sort(), "the kit has every model and only those");
+  // (The ones made only in Blender, with no code-built shape to fall back on, and how tall each stands.)
+  const MADE_HEIGHT = {
+    skeleton: [1.6, 1.9],
+    zombie: [1.6, 1.9],
+    ghost: [1.6, 2.0],
+    specter: [1.7, 2.1],
+    earth_elemental: [3.0, 3.5],
+    hill_giant: [4.7, 5.2],
+    stone_giant: [5.2, 5.8],
+    frost_giant: [6.0, 6.8],
+    fire_giant: [5.2, 5.8],
+  };
   for (const [kind, body] of Object.entries(built)) {
-    assert.ok(BESTIARY[kind] && ANIMALS[kind]?.built, `${kind} is one of Wanderworld's own monsters`);
+    assert.ok(ANIMALS[kind]?.built, `${kind} is one of Wanderworld's own monsters`);
     for (const bone of ["pelvis", "spine_01", "Head", "upperarm_l", "hand_r", "thigh_l", "calf_r", "foot_l"])
       assert.ok(body.skeleton.names.includes(bone), `the ${kind} has the people's ${bone}`);
-    const [low, high] = HEIGHT[kind];
+    const [low, high] = HEIGHT[kind] ?? MADE_HEIGHT[kind];
     assert.ok(body.height >= low && body.height <= high, `the ${kind} model is ${body.height} m tall`);
     assert.ok(existsSync(join(folk, `folk-${kind}.webp`)), `the ${kind}'s palette texture`);
     const glb = readFileSync(join(pkg, `assets/models/${kind}.glb`));

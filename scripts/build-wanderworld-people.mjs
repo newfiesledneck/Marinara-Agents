@@ -417,7 +417,7 @@ function bestiary(only = []) {
   let count = 0;
   let own = 0;
   for (const file of readdirSync(dir)
-    .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro)-/u.test(name))
+    .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro)-|^giant-base/u.test(name))
     .filter((name) => !only.length || only.includes(name.slice(0, -4)))
     .sort()) {
     const name = file.slice(0, -4);
@@ -471,6 +471,46 @@ function rigged(name, path, out) {
   writeFileSync(png, bin.subarray(imageView.byteOffset ?? 0, (imageView.byteOffset ?? 0) + imageView.byteLength));
   execFileSync(FFMPEG, ["-v", "error", "-y", "-i", png, "-quality", "90", join(out, `rigged-${name}.webp`)]);
   rmSync(png);
+  // Smaller numbers where glTF allows them: bone weights and texture places as whole numbers (core glTF),
+  // normals as bytes (KHR_mesh_quantization, which three's GLTFLoader reads). About 40% off the mesh.
+  const replaced = new Map(); // buffer view → its new bytes
+  const shrink = (index, Type, componentType, scale, components) => {
+    const accessor = json.accessors[index];
+    const view = json.bufferViews[accessor.bufferView];
+    const shared = json.accessors.filter((other) => other.bufferView === accessor.bufferView).length > 1;
+    if (accessor.componentType !== 5126 || view.byteStride || shared || replaced.has(accessor.bufferView)) return;
+    const start = (view.byteOffset ?? 0) + (accessor.byteOffset ?? 0);
+    const floats = new Float32Array(
+      bin.buffer.slice(bin.byteOffset + start, bin.byteOffset + start + accessor.count * components * 4),
+    );
+    if (Type === Uint16Array && floats.some((value) => value < 0 || value > 1)) return; // (texture places outside 0…1 stay as they are)
+    // (A byte normal is padded to four, as glTF wants each element on a four-byte boundary.)
+    const stride = Type === Int8Array && components === 3 ? 4 : components;
+    const out = new Type(accessor.count * stride);
+    for (let i = 0; i < accessor.count; i++)
+      for (let c = 0; c < components; c++) out[i * stride + c] = Math.round(floats[i * components + c] * scale);
+    replaced.set(accessor.bufferView, Buffer.from(out.buffer));
+    Object.assign(accessor, { componentType, normalized: true, byteOffset: 0 });
+    if (stride !== components) view.byteStride = stride;
+    delete accessor.min;
+    delete accessor.max;
+    view.byteLength = out.byteLength;
+  };
+  let normals = false;
+  for (const mesh of json.meshes)
+    for (const primitive of mesh.primitives) {
+      const { WEIGHTS_0: weights, TEXCOORD_0: uv, NORMAL: normal } = primitive.attributes;
+      if (weights !== undefined) shrink(weights, Uint8Array, 5121, 255, 4);
+      if (uv !== undefined) shrink(uv, Uint16Array, 5123, 65535, 2);
+      if (normal !== undefined && !primitive.targets) {
+        shrink(normal, Int8Array, 5120, 127, 3);
+        normals = true;
+      }
+    }
+  if (normals) {
+    json.extensionsUsed = [...new Set([...(json.extensionsUsed ?? []), "KHR_mesh_quantization"])];
+    json.extensionsRequired = [...new Set([...(json.extensionsRequired ?? []), "KHR_mesh_quantization"])];
+  }
   // The model without its images: their buffer views dropped and the rest packed up again.
   const dropped = new Set((json.images ?? []).map((entry) => entry.bufferView));
   const renumber = new Map();
@@ -478,7 +518,7 @@ function rigged(name, path, out) {
   let offset = 0;
   json.bufferViews = json.bufferViews.filter((view, i) => {
     if (dropped.has(i)) return false;
-    const bytes = bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength);
+    const bytes = replaced.get(i) ?? bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength);
     const pad = (4 - (offset % 4)) % 4;
     if (pad) parts.push(Buffer.alloc(pad));
     offset += pad;
