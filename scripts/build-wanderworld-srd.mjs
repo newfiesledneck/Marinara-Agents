@@ -252,6 +252,8 @@ const CREATURE_OF = {
   grick: "grick",
   otyugh: "otyugh",
   roper: "roper",
+  gelatinous_cube: "gelatinous-cube",
+  basilisk: "basilisk",
 };
 /** A dice expression's average, rounded down, as the SRD gives a creature's hit points ("2d8+2" is 11). */
 const average = (dice) => {
@@ -260,6 +262,84 @@ const average = (dice) => {
   return Math.floor((Number(match[1]) * (Number(match[2]) + 1)) / 2 + Number((match[3] ?? "0").replace(/\s/gu, "")));
 };
 const bestiary = new Map(read("creatures.json").map((entry) => [entry.id, entry]));
+/** The ruleset's own conditions that harm whoever is in them each round (engulfed in a shambling mound). */
+const HARMS = new Map(
+  (ruleset.combat?.conditions ?? [])
+    .filter((entry) => entry.harms?.dice)
+    .map((entry) => [entry.condition, entry.harms]),
+);
+/** And those that put Strength checks at a disadvantage while they hold (a roper's). */
+const WEAKENS = new Set(
+  (ruleset.combat?.conditions ?? [])
+    .filter((entry) =>
+      (entry.modifiers ?? []).some(
+        (change) => change.to === "checks" && change.abilities?.includes("str") && change.mode === "disadvantage",
+      ),
+    )
+    .map((entry) => entry.condition),
+);
+const feetToMetres = (feet) => Math.max(1.5, Math.round(feet * 0.3 * 2) / 2);
+const diceWithFlat = (damage) =>
+  damage?.dice ? `${damage.dice}${damage.flat > 0 ? `+${damage.flat}` : damage.flat < 0 ? damage.flat : ""}` : "";
+/**
+ * What a creature grabs and holds with, where the SRD gives it one: the action whose hit grapples (a roper's
+ * tendril, an otyugh's tentacle, a frog's bite), the one that engulfs by a saving throw (a gelatinous cube),
+ * or a Multiattack whose blows all landing grapple and engulf (a shambling mound). { name, escape (the DC),
+ * restrained, reach (metres), and where it has them: main (it's the creature's own attack up close), attack
+ * and damage (dice) and type (a holding attack of its own), save { attribute, dc } (it engulfs by a save),
+ * both (every blow of its Multiattack must land), times (how many of these its Multiattack makes), upTo (the
+ * biggest size it holds), pull (metres its Reel draws the held in), blinded, weak (Strength checks against
+ * it are at a disadvantage), engulf { damage, type, save } (what being inside it does each round) }.
+ */
+function holdOf(sheet, main) {
+  const actions = sheet.actions ?? [];
+  const grabs = (action) =>
+    (action?.applies ?? []).find((entry) => entry.escapeDc && /^(grappled|engulfed)/u.test(entry.condition));
+  const multi = actions.find((action) => grabs(action.allHit));
+  const action = multi
+    ? actions.find((entry) => entry.id === multi.allHit.uses)
+    : actions.find((entry) => grabs(entry) && (Number.isInteger(entry.toHit) || entry.engulf));
+  const grip = multi ? grabs(multi.allHit) : grabs(action);
+  if (!action || !grip) return null;
+  const applies = [...(multi?.allHit.applies ?? []), ...(action.applies ?? [])];
+  const hold = { name: action.name, escape: grip.escapeDc };
+  if (applies.some((entry) => entry.condition === "restrained")) hold.restrained = true;
+  hold.reach = feetToMetres(action.reach ?? 5);
+  if (action === main) hold.main = true;
+  else if (Number.isInteger(action.toHit)) {
+    hold.attack = action.toHit;
+    if (action.damage?.dice) {
+      hold.damage = diceWithFlat(action.damage);
+      hold.type = action.damage.type ?? "";
+    }
+  }
+  if (action.engulf?.save) {
+    hold.save = { attribute: SAVES[action.engulf.save.save].toLowerCase(), dc: action.engulf.save.difficulty };
+    if (action.damage?.dice) {
+      hold.damage = diceWithFlat(action.damage);
+      hold.type = action.damage.type ?? "";
+    }
+  }
+  if (multi) hold.both = true;
+  const steps = actions.find((entry) => Array.isArray(entry.sequence))?.sequence ?? [];
+  const times = steps.filter((step) => step.action === action.id).reduce((sum, step) => sum + (step.times ?? 1), 0);
+  if (times > 1) hold.times = times;
+  const upTo =
+    (action.applies ?? []).find((entry) => entry.targetIs?.upToSize)?.targetIs.upToSize ?? action.engulf?.upToSize;
+  if (upTo) hold.upTo = upTo;
+  const reel = actions.find((entry) => entry.pull > 0 && entry.targetHolds);
+  if (reel) hold.pull = feetToMetres(reel.pull);
+  if (applies.some((entry) => entry.condition === "blinded")) hold.blinded = true;
+  if (applies.some((entry) => WEAKENS.has(entry.condition))) hold.weak = true;
+  const harm = applies.map((entry) => HARMS.get(entry.condition)).find(Boolean);
+  if (harm)
+    hold.engulf = {
+      damage: diceWithFlat(harm),
+      type: harm.type ?? "",
+      ...(harm.save ? { save: { attribute: SAVES[harm.save.save].toLowerCase(), dc: harm.save.difficulty } } : {}),
+    };
+  return hold;
+}
 const creatures = {};
 for (const [kind, id] of Object.entries(CREATURE_OF)) {
   const entry = bestiary.get(id);
@@ -331,6 +411,11 @@ for (const [kind, id] of Object.entries(CREATURE_OF)) {
         : {}),
       ...(laid.escapeDc ? { escape: laid.escapeDc } : {}),
     };
+  // Its size and Strength (what a grab, a hold and a throw go by), and what it grabs and holds with.
+  if (sheet.size) made.size = sheet.size;
+  if (Number.isInteger(sheet.abilities?.str)) made.str = sheet.abilities.str;
+  const held = holdOf(sheet, attack);
+  if (held) made.hold = held;
   // How many blows its Multiattack is, of this attack.
   const multi = (sheet.actions ?? []).find((action) => Array.isArray(action.sequence));
   const times = multi?.sequence.reduce((sum, step) => sum + (Number(step.times) || 1), 0) ?? 0;
@@ -587,7 +672,8 @@ export const SRD_CLASSES = ${JSON.stringify(classes)};
  * The SRD's numbers for Wanderworld's creatures, by Wanderworld's kind: { name (the SRD creature it's taken
  * as), hp (its hit dice's average), ac, attack (what its attack up close adds to the roll), damage (dice),
  * dex (what it adds to initiative), and where it has them ranged { name, attack, damage, range (metres) },
- * spells (names from SRD_SPELLS) and wit (what its casting adds) }.
+ * spells (names from SRD_SPELLS) and wit (what its casting adds), size, str (its Strength) and hold (what it
+ * grabs and holds with, with its escape DC) }.
  */
 export const SRD_CREATURES = ${JSON.stringify(creatures)};
 

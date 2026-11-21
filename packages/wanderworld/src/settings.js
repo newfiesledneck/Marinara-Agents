@@ -40,6 +40,12 @@ export const SETTINGS = {
   combat: { value: "outsideSafe", options: ["anywhere", "outsideTowns", "outsideSafe", "off"] },
   /** Walking into buildings' rooms (unfinished); off, a door shows who's inside instead. */
   interiors: { value: false },
+  /** Caves, dungeons and strongholds (deep.js): a cave's mouth leads down into levels to walk, for
+   *  `deepShare` of a world's caves; off, a cave's mouth shows its card as before. Creatures live down
+   *  there with `deepCreatures` on. */
+  deepPlaces: { value: true },
+  deepShare: { value: 0.75, options: [0.25, 0.5, 0.75, 1] },
+  deepCreatures: { value: true },
   /** Buildings assembled from the village kit; off keeps the simple ones. */
   buildings: { value: true },
   /** People without a 3D model: "kit" dresses them from the Quaternius characters; "simple" uses the
@@ -186,6 +192,11 @@ export const SETTINGS = {
   damageTypes: { value: true },
   // Whether creatures use what the SRD gives them besides a plain attack: Multiattack, venom, a knock-down, Pack Tactics, a breath.
   creatureExtras: { value: true },
+  // Holds and throws (grapple.js), each under creatureExtras: the SRD's grapples (a roper's tendrils, a
+  // shambling mound's engulfing), vines round the legs, and a big creature's grab and throw (those two Wanderworld's own).
+  creatureHolds: { value: true },
+  vineHolds: { value: true },
+  giantThrows: { value: true },
   // Whether creatures fight each by its own sort (tactics.js): some close in, some shoot, some cast; cover; a spell for the moment.
   foeTactics: { value: true },
   // What's said in a fight: taunts, threats, cries. Written lines, or (combatAiTalk) the AI's.
@@ -327,6 +338,8 @@ export const SETTINGS = {
   animalGrick: { value: true },
   animalOtyugh: { value: true },
   animalRoper: { value: true },
+  animalGelatinous_cube: { value: true },
+  animalBasilisk: { value: true },
   animalGnoll: { value: true },
   animalKobold: { value: true },
   animalLizardfolk: { value: true },
@@ -336,6 +349,8 @@ export const SETTINGS = {
   animalMinotaur: { value: true },
   /** How often a monster is bigger than most of its kind (and tougher: herd.js MONSTER_SIZES). */
   animalSizes: { value: "some", options: ["off", "some", "more"] },
+  /** Monsters only where their kind would be found (animals.js HABITATS); off: anywhere out in the country. */
+  animalHabitats: { value: true },
   /** Every how many minutes (real time) the monsters out of sight are counted out again (0: never; herd.js respawn). */
   monsterRespawn: { value: 10, min: 0, max: 60 },
   // The living world, by rules alone (no model is called): relationships that move with time spent

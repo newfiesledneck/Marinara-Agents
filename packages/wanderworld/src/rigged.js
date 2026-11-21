@@ -5,7 +5,16 @@
 //
 // Each has "Idle", "Walk", "Run" and "Attack", and a creature that lies in wait ("Hidden": the mimic as a
 // plain chest, the roper as a stalagmite) goes still into it after standing a while, until it moves or strikes.
-import { AnimationMixer, Group, LoopOnce, MeshLambertMaterial, SRGBColorSpace, TextureLoader } from "three";
+import {
+  AnimationMixer,
+  Color,
+  FrontSide,
+  Group,
+  LoopOnce,
+  MeshLambertMaterial,
+  SRGBColorSpace,
+  TextureLoader,
+} from "three";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { parseGlb } from "./models.js";
 
@@ -18,7 +27,26 @@ const bytes = (base64) => Uint8Array.from(atob(base64), (char) => char.charCodeA
 // Each kind is read once and shared: its model (cloned for each one in the world), clips and material.
 const kinds = new Map();
 const textures = new TextureLoader();
-function source(kind) {
+/**
+ * The material for a mesh of `kind`, by its name in the model: most are plain, but `draw` (its ANIMALS
+ * entry's) can name meshes to draw see-through ({ opacity }: the gelatinous cube's ooze, a ghost) or
+ * glowing ({ glow: 0xRRGGBB, strength }: the basilisk's eyes, fire).
+ */
+function materialFor(map, style) {
+  const material = new MeshLambertMaterial({ map });
+  if (style?.opacity !== undefined) {
+    Object.assign(material, { transparent: true, opacity: style.opacity, depthWrite: false, side: FrontSide });
+  }
+  if (style?.glow !== undefined) {
+    material.emissive = new Color(style.glow);
+    material.emissiveMap = map; // (its dark parts, a pupil, stay dark)
+    material.emissiveIntensity = style.strength ?? 1;
+  }
+  material.userData.shared = true;
+  return material;
+}
+
+function source(kind, draw = {}) {
   if (!kinds.has(kind)) {
     kinds.set(
       kind,
@@ -31,11 +59,13 @@ function source(kind) {
         map.flipY = false; // glTF texture coordinates
         map.colorSpace = SRGBColorSpace;
         map.userData.shared = true;
-        const material = new MeshLambertMaterial({ map });
-        material.userData.shared = true;
+        const plain = materialFor(map);
+        const styled = new Map(Object.entries(draw).map(([name, style]) => [name, materialFor(map, style)]));
         gltf.scene.traverse((node) => {
           if (!node.isMesh) return;
-          node.material = material;
+          const name = styled.has(node.name) ? node.name : node.parent?.name;
+          node.material = styled.get(name) ?? plain;
+          if (draw[name]?.opacity !== undefined) node.renderOrder = 1; // (after what's inside it)
           node.frustumCulled = false; // (its bones carry it beyond its resting bounds)
           node.geometry.userData.shared = true;
         });
@@ -52,7 +82,7 @@ function source(kind) {
  * can't be loaded.
  */
 export async function createRigged(kind, facts) {
-  const { scene, clips } = await source(kind);
+  const { scene, clips } = await source(kind, facts.draw);
   const model = clone(scene);
   const root = new Group();
   root.add(model);

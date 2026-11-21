@@ -302,6 +302,29 @@ export const ANIMALS = {
     hides: true,
     rare: true,
   },
+  gelatinous_cube: {
+    group: "monsters",
+    walk: 0.5,
+    gallop: 1.1,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    rigged: true,
+    // (Its ooze see-through, with what it's swallowed showing inside.)
+    draw: { gelatinous_cube: { opacity: 0.4 } },
+  },
+  basilisk: {
+    group: "monsters",
+    walk: 0.5,
+    gallop: 1.3,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    rigged: true,
+    draw: { "basilisk-eyes": { glow: 0xd6e070, strength: 2.5 } },
+  },
 };
 
 /**
@@ -381,6 +404,48 @@ export const COATS = {
 };
 
 /**
+ * Where each monster lives out in the country, with Settings → Creatures → "Only where they'd be found"
+ * on (herd.js habitatsAt says what a spot is): "open" low ground, "hills", "mountains", by "water", among
+ * "ruins" (ruins, a graveyard, standing stones, a watchtower) and by "caves". A kind not listed lives anywhere.
+ * (Below ground, deep.js DWELLERS says who lives in each kind of place.)
+ */
+export const HABITATS = {
+  slime: ["water", "caves", "ruins"],
+  skeleton: ["ruins"],
+  spider: ["open", "caves", "ruins"],
+  rat: ["open", "ruins", "water"],
+  snake: ["open", "water", "hills"],
+  bat: ["caves", "ruins", "hills"],
+  wasp: ["open"],
+  frog: ["water"],
+  dragon: ["mountains", "hills"],
+  imp: ["ruins"],
+  bandit: ["open", "hills", "ruins"],
+  witch: ["water", "ruins"],
+  wizard: ["ruins", "open"],
+  puglin: ["open", "hills"],
+  goblin: ["open", "hills", "caves"],
+  ogre: ["hills", "mountains"],
+  troll: ["hills", "mountains", "water"],
+  minotaur: ["ruins", "caves"],
+  hobgoblin: ["open", "hills"],
+  bugbear: ["caves", "hills"],
+  gnoll: ["open"],
+  kobold: ["caves", "hills"],
+  lizardfolk: ["water"],
+  ghoul: ["ruins"],
+  orc: ["hills", "mountains", "open"],
+  mimic: ["ruins", "caves"],
+  awakened_shrub: ["open"],
+  shambling_mound: ["water"],
+  grick: ["caves", "hills"],
+  otyugh: ["ruins", "water"],
+  roper: ["caves", "mountains"],
+  gelatinous_cube: ["caves", "ruins"],
+  basilisk: ["hills", "caves"],
+};
+
+/**
  * Which sort each kind is, for how many of each a world has (Settings → Creatures): strays about the
  * settlement, the farms' animals, the country's that keep their distance, the country's that would
  * attack, and monsters (none with a body yet).
@@ -428,6 +493,8 @@ export const SORT_OF = {
   grick: "monsters",
   otyugh: "monsters",
   roper: "monsters",
+  gelatinous_cube: "monsters",
+  basilisk: "monsters",
 };
 /** How many of each sort a world has when nothing says otherwise, and the most the slider goes to. */
 // (`town`: the most of them that are inside the settlement itself; the rest are put outside it.)
@@ -476,6 +543,8 @@ export const SWITCHES = {
   grick: ["grick"],
   otyugh: ["otyugh"],
   roper: ["roper"],
+  gelatinous_cube: ["gelatinous_cube"],
+  basilisk: ["basilisk"],
 };
 
 /**
@@ -537,6 +606,9 @@ export function animalKind(word) {
     mound: "shambling_mound",
     "awakened shrub": "awakened_shrub",
     shrub: "awakened_shrub",
+    "gelatinous cube": "gelatinous_cube",
+    cube: "gelatinous_cube",
+    ooze: "gelatinous_cube",
   };
   const kind = other[plain] ?? plain;
   return ANIMALS[kind] ? kind : null;

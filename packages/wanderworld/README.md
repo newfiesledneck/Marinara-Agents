@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.39)
+## What it does now (0.7.40)
 
 ### The world
 
@@ -443,6 +443,12 @@ only walk about.
   → Bigger monsters: never, now and then (the default) or often (`herd.js MONSTER_SIZES`). Bats, wasps,
   dragons and people keep their size. The goblins, hobgoblins, bugbears, orcs, gnolls, kobolds,
   lizardfolk, ghouls, ogres, trolls and minotaurs each have their own switch under Kinds.
+- **Where monsters live:** with Settings → Creatures → "Only where they'd be found" on (the default),
+  each kind turns up only where it would be (`animals.js HABITATS`: open ground, hills, mountains, by
+  water, among ruins, by caves; `herd.js habitatsAt` reads a spot from its height, the water nearby and
+  the landmarks and cave mouths around it). Off, anything that's on can be anywhere out in the country.
+  The Monsters number holds either way. Below ground, `deep.js DWELLERS` says who lives in each kind of
+  place.
 - **New monsters:** the Monsters slider is how many there are whichever kinds are on (only trolls on at
   100: 100 trolls); a rare kind is half as likely as a common one (`herd.js RARE_SHARE`). Every so often
   (Settings → Creatures → New monsters every, 10 real minutes by default, 0 never) the monsters out of
@@ -652,6 +658,14 @@ every roll, and no AI call is made in a real-time fight.
   `kit/creatures/rigged-<name>.json`). The mimic, the shrub and the roper lie in wait as what they
   pretend to be until they move or strike. The shambling mound, the otyugh and the roper are rare. Each
   fights by its SRD stat block.
+- **Caves that go down**: "Go in" at a cave's mouth takes you and your party down into the rock, a level
+  at a time: a small cave of winding passages and chambers, then a cavern with rock pillars, a pool,
+  fallen rocks, glowing crystals and sometimes a ruined tower, a camp or a shrine, or a dungeon, a
+  stronghold or another cave, four levels down at most. It's dark: you carry a light, and the rock
+  between the camera and you isn't drawn. Creatures that suit the place live there, picked for your
+  level and tougher the deeper you go, and fights work as they do outside. The same cave always leads to
+  the same places. Settings → World → Places → Caves, dungeons and strongholds turns it off, sets how
+  many of a world's caves lead down, and turns the creatures down there off.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.
@@ -673,6 +687,40 @@ every roll, and no AI call is made in a real-time fight.
   The ones you've set are buttons in the chat window too.
 
 Every number of days, minutes and cost above is a setting on the same page.
+
+### Holds and throws
+
+Creatures can catch hold of you or a companion, and big ones can throw you (`src/grapple.js`). It works in
+real time, by turns and in a narrated moment. Each part has its own switch in Settings → Inventory → 5e
+rules, under "Creatures use their special attacks", and all three start on. With fights off, or that
+switch off, nothing grabs or throws.
+
+- **Holds (the 5e SRD's).** Where a creature's SRD attack grapples, a hit holds the target: a roper's
+  tendril from up to 15 metres off, which then reels them in 7.5 metres at a time; an otyugh's tentacle
+  (Medium or smaller); a giant frog's bite; a mimic's pseudopod; and a shambling mound that lands both its
+  slams engulfs them (blinded and restrained, a DC 14 Constitution save every round or 2d8 + 4). The
+  escape DCs are the SRD's, built into `src/srd.js` with the rest of each creature's numbers
+  (`scripts/build-wanderworld-srd.mjs`), so the gelatinous cube, the giant octopus and the giant
+  constrictor snake will hold in the same way when they're added. The held can't walk away and stay
+  where they're held. A bar at the top says what holds you and its DC, with a Break free button; pushing
+  hard on the move keys tries too. Each try is the better of Strength (Athletics) and Dexterity
+  (Acrobatics) against the DC; by turns it's the player's action. The hold ends when the creature is
+  beaten, knocked back, stunned, runs, or lets go after a minute. Switch: "Creatures grab and hold".
+  Off, a frog's or a mimic's grab is the plain Grappled condition, shaken off by itself.
+- **Vines (Wanderworld's own rule).** An awakened shrub's blow, and a shambling mound's slam that doesn't
+  engulf, can catch someone's legs: restrained for about eight seconds (a turn by turns), escape DC 10.
+  Switch: "Vines catch your legs".
+- **Throws (Wanderworld's own rule).** Anything Large or bigger with a Strength of 18 or more and no hold
+  of its own (an ogre, a troll, a minotaur, and giants once they're in) sometimes grabs someone Medium or
+  smaller and throws them: 3 metres at Strength 18, further for a stronger or bigger one. A Strength or
+  Dexterity save against 8 + its proficiency + its Strength modifier avoids it. They fly in an arc, land
+  prone, take 1d6 falling damage for every 3 metres and get up. A throw never goes through a wall, a tree
+  or a rock, or into deep water, and doesn't happen where fights are kept out. Switch: "Giants grab and
+  throw".
+
+By turns, "grapple" and "throw" are among the moves the AI can choose for a creature that has them. In a
+narrated moment, who is held or thrown is in the lines the AI tells, so it hears of it only when AI
+narration is on.
 
 ### Factions and regions
 
@@ -963,6 +1011,34 @@ Performance targets: about 30 fps on a mid-range phone and 60 on a desktop. The 
 1080p unless Settings says otherwise, nature and real lights follow the player, and fog hides the far
 edge. Readings by draw distance and tree density are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
+### Caves and caverns, and the levels below a cave's mouth
+
+`src/deep.js` runs the deep places (docs/QUESTS.md section 8). Its header describes the level plan, the
+plain data every kind of level is made from. One level is loaded at a time, in a scene of its own, as a
+house's room is.
+
+- `deepPlan(seed, depth, kind)` gives a level's plan: a cave or a cavern from `src/deepcave.js`, a
+  dungeon or a stronghold from `src/dungeon.js`. The seed comes from the world's seed, the cave and the
+  depth (`deepSeed`), so the same entrance always leads to the same place. `leadsDown` says which of a
+  world's caves lead down at all.
+- `deepcave.js` lays out a cave (an entry chamber, one or two chambers along winding passages, a side
+  den) or a cavern (one big chamber with pillars, water, rubble, crystals and sometimes a ruined tower,
+  a camp or a shrine from the kit). Passages are never narrower than 3 m. The rock's edge is the rooms
+  and passages worn back by noise, which only ever widens them (`openAt`), and the colliders are the
+  rock beside the floor, half a metre at a time.
+- `createDeep(plan)` builds the level: for a cave or cavern, one merged mesh of floor, walls and roof
+  carved from `openAt` by marching squares (2,000 to 10,000 triangles); for a dungeon or stronghold,
+  `dungeon.js buildDungeon`. A shader change leaves out whatever is between the camera and the player,
+  and the roof just over them. The player carries a light, and only the four of a level's own lights
+  nearest the player are lit.
+- Creatures down there are a herd of their own (`herd.js`, given the level as its world), from
+  `creaturesFor(plan, level)`: kinds by the kind of place, no tougher than the party's level allows,
+  at the plan's spawn spots. While the player is below, `main.js` keeps the world's own herd aside
+  (`core.outdoors`) and the party moves into the level (`npcs.js moveParty`).
+- `tests/wanderworld-deep.regression.mjs` checks every kind's plans: the same each time, every room
+  reachable, passages wide enough, the way in, the way down and every spawn on the floor, and nobody
+  walking about getting into the rock.
+
 ### Dungeons and strongholds
 
 `src/dungeon.js` makes the dungeon and stronghold levels of the deep places (docs/QUESTS.md section 8).
@@ -1023,7 +1099,7 @@ and Crystal Pack on Poly Pizza), also CC0 1.0. Thank you, iPoly3D.
 
 The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, which is under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html) and not CC0: free to use in a game, not to pass on as assets.
 
-Made in Blender by ThatOneCan: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, and the mimic, awakened shrub, shambling mound, grick, otyugh and roper (`assets/scripts/make_*.py`).
+Made in Blender by ThatOneCan: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, and the mimic, awakened shrub, shambling mound, grick, otyugh, roper, gelatinous cube and basilisk (`assets/scripts/make_*.py`).
 
 Credit required (CC-BY 3.0): Saddle by Poly by Google (https://poly.pizza/m/dSMm_V4sKNr), CC-BY 3.0
 (https://creativecommons.org/licenses/by/3.0/), modified: converted, resized and its texture shrunk. Its

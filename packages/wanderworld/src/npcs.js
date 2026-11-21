@@ -1182,7 +1182,7 @@ export function createCrowd() {
       return;
     }
     // In the player's room and time to go: head for the door first.
-    if (person.space !== world && timeToLeave(person, view.hour) && person.state !== "talk" && !person.leaving) {
+    if (person.space === room?.room && timeToLeave(person, view.hour) && person.state !== "talk" && !person.leaving) {
       person.leaving = true;
       leaveSeat(person);
       person.plan = [{ walk: room.room.exit, straight: true }, { leave: true }];
@@ -1626,6 +1626,23 @@ export function createCrowd() {
       }
       room = null;
     },
+    /**
+     * The party goes with the player into `space` (a deep place, deep.js) or back out into the world,
+     * coming to stand at `at`. Anyone told to wait stays where they are.
+     */
+    moveParty(space, at) {
+      for (const id of party) {
+        const person = people.get(id);
+        if (!person || person.waiting || person.state === "inside") continue;
+        leaveSeat(person);
+        person.group.removeFromParent();
+        person.space = space;
+        space.scene.add(person.group);
+        person.group.position.set(at.x, groundY(person, at.x, at.z), at.z);
+        person.next = null;
+        person.state = "idle";
+      }
+    },
     /** Makes the townsfolk exactly `characters` ([{ id, name }]), keeping anyone already here. */
     setCast(characters) {
       const wanted = new Map(characters.slice(0, MAX_PEOPLE).map((entry) => [entry.id, entry]));
@@ -1659,6 +1676,20 @@ export function createCrowd() {
       if (view.apart !== false) stepAside(dt);
       for (const person of people.values()) {
         stepPerson(person, dt, view);
+        // (Thrown, they fly along an arc to where they land; held by a creature, they're kept where it holds them.)
+        const flight = person.flight;
+        if (flight) {
+          flight.t = Math.min(1, flight.t + dt / flight.seconds);
+          const at = person.group.position;
+          at.x = flight.from.x + (flight.to.x - flight.from.x) * flight.t;
+          at.z = flight.from.z + (flight.to.z - flight.from.z) * flight.t;
+          at.y = groundY(person, at.x, at.z) + flight.height * Math.sin(Math.PI * flight.t);
+          if (flight.t >= 1) person.flight = null;
+        } else if (person.pin) {
+          const at = person.group.position;
+          at.x += (person.pin.x - at.x) * Math.min(1, dt * 8);
+          at.z += (person.pin.z - at.z) * Math.min(1, dt * 8);
+        }
         // The name tag's colour: how they see the player (checked now and then; redrawn when it changes).
         if (clock > (person.tagAt ?? 0)) {
           person.tagAt = clock + 0.6;
@@ -1726,6 +1757,20 @@ export function createCrowd() {
       person.wait = seconds;
       person.outUntil = clock + seconds;
       return true;
+    },
+    /** `id` is held where `spot` ({ x, z }) is, by a creature that has hold of them; null lets them go. */
+    pin(id, spot) {
+      const person = people.get(id);
+      if (person) person.pin = spot;
+    },
+    /** `id` is thrown to (x, z), `height` metres high at the top, over `seconds`, falling as they go. */
+    fling(id, x, z, height, seconds) {
+      const person = people.get(id);
+      if (!person || person.state === "inside") return;
+      const at = person.group.position;
+      person.pin = null;
+      person.flight = { from: { x: at.x, z: at.z }, to: { x, z }, height, seconds, t: 0 };
+      person.gesture = "fall";
     },
     /** Whether `id` is knocked out now. */
     isOut: (id) => (people.get(id)?.outUntil ?? 0) > clock,

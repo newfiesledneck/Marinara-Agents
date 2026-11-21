@@ -224,3 +224,31 @@ def lathe(m, profile, colour, bone, segments=10, axis=None, centre=(0, 0, 0), sm
     bm.faces.new(rings[-1])
     rotation = Vector((0, 0, 1)).rotation_difference(Vector(axis).normalized()) if axis else None
     m._add_bm(m._placed(bm, (1, 1, 1), rotation, centre), colour, bone, smooth_)
+
+
+def loft(m, rings, colours, bone, smooth_=True, cap=None):
+    """A closed hull through `rings` (each a list of points, all the same length, in order round): a head
+    or a jaw with flat planes and hard edges that metaballs can't give. `colours` is one colour, a list with
+    one for each side of a ring (the faces between point k and k + 1 take colours[k]), or a function of
+    (k, i, the face's middle) for the face from point k of ring i; `cap` colours the two ends, if given."""
+    bm = bmesh.new()
+    vs = [[bm.verts.new(Vector(p)) for p in ring] for ring in rings]
+    n = len(rings[0])
+    face_colours = []
+    if callable(colours):
+        pick = colours
+    elif isinstance(colours, list):
+        pick = lambda k, i, p: colours[k]  # noqa: E731
+    else:
+        pick = lambda k, i, p: colours  # noqa: E731
+    for i, (a, b) in enumerate(zip(vs, vs[1:])):
+        for k in range(n):
+            face = bm.faces.new((a[k], a[(k + 1) % n], b[(k + 1) % n], b[k]))
+            face_colours.append(pick(k, i, face.calc_center_median()))
+    for ring in (vs[0], vs[-1]):
+        centre = bm.verts.new(sum((v.co for v in ring), Vector()) / n)
+        for k in range(n):
+            bm.faces.new((ring[k], ring[(k + 1) % n], centre))
+            face_colours.append(cap if cap is not None else pick(k, 0, centre.co))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    m._add_bm(bm, face_colours, bone, smooth_)

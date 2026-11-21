@@ -38,6 +38,8 @@ class Creature(wwblend.Model):
         if shape is not None:
             for v in mesh.vertices:
                 v.co += shape(v.co.copy(), v.normal.copy())
+                # (Nothing pushed down through the ground: the feet stand flat on it.)
+                v.co.z = max(v.co.z, 0.0)
             mesh.update()
         if len(mesh.polygons) > faces:
             decimate = body.modifiers.new("Decimate", "DECIMATE")
@@ -48,6 +50,35 @@ class Creature(wwblend.Model):
             body.data = reduced
             bpy.data.meshes.remove(mesh)
         return body
+
+    def _bake(self, obj, **kwargs):
+        # A roughened skin unwraps into thousands of crumbs (each split at its edges in the game's mesh), so
+        # the texture coordinates are laid out on a smoothed copy of it: a shape key, the mesh as smoothed
+        # under the shaped one, so the unwrap sees the smooth one and the bake the shaped one.
+        import bmesh
+        import numpy as np
+
+        mesh = obj.data
+        real = np.empty(len(mesh.vertices) * 3, dtype=np.float32)
+        mesh.vertices.foreach_get("co", real)
+        bm = bmesh.new()
+        bm.from_mesh(mesh)
+        for _ in range(30):
+            bmesh.ops.smooth_vert(bm, verts=bm.verts, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+        smooth = np.array([c for v in bm.verts for c in v.co], dtype=np.float32)
+        bm.free()
+        basis = obj.shape_key_add(name="Basis")
+        shaped = obj.shape_key_add(name="Shaped")
+        basis.data.foreach_set("co", smooth)
+        mesh.vertices.foreach_set("co", smooth)
+        shaped.data.foreach_set("co", real)
+        shaped.value = 1.0
+        obj.active_shape_key_index = 0
+        mesh.update()
+        super()._bake(obj, **kwargs)
+        obj.shape_key_clear()
+        mesh.vertices.foreach_set("co", real)
+        mesh.update()
 
     def _face_colour(self, p, group):
         colour = super()._face_colour(p, group)
@@ -194,15 +225,15 @@ def even(points, n):
     return out
 
 
-def tube(model, controls, r0, r1, colour, pieces=14, colour_tip=None, power=1.0):
+def tube(model, controls, r0, r1, colour, pieces=14, colour_tip=None, power=1.0, group="body"):
     """A skin along the curve `controls`, tapering from r0 to r1 (capsules joined smoothly, metaballs of
-    the body, so bone heat skins it along its chain); `colour_tip` takes over the last third."""
+    the body, or of `group`, so bone heat skins it along its chain); `colour_tip` takes over the last third."""
     points = even(curve(controls, 64), pieces)
     for i in range(pieces):
         u = (i + 0.5) / pieces
         r = r0 + (r1 - r0) * u**power
         c = colour if colour_tip is None or u < 0.66 else colour_tip
-        model.capsule(points[i], points[i + 1], r, c)
+        model.capsule(points[i], points[i + 1], r, c, group=group)
     return points
 
 

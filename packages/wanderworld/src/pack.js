@@ -536,6 +536,8 @@ const FOES = {
   grick: { hp: 27, ac: 14, attack: 4, damage: "2d6+2", xp: 110, verb: "lashes" },
   otyugh: { hp: 114, ac: 14, attack: 6, damage: "2d8+3", xp: 300, verb: "lashes" },
   roper: { hp: 93, ac: 20, attack: 7, damage: "4d8+4", xp: 300, verb: "lashes" },
+  gelatinous_cube: { hp: 84, ac: 6, attack: 4, damage: "3d6", xp: 110, verb: "surges" },
+  basilisk: { hp: 52, ac: 15, attack: 5, damage: "2d6+3", xp: 150, verb: "bites" },
 };
 /**
  * What's had from each creature once it's beaten (combat.js spoilsOf): an animal is harvested, a person
@@ -778,6 +780,8 @@ const ANIMALS = {
   grick: "the grick",
   otyugh: "the otyugh",
   roper: "the roper",
+  gelatinous_cube: "the gelatinous cube",
+  basilisk: "the basilisk",
 };
 
 /**

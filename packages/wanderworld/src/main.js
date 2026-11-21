@@ -38,6 +38,7 @@ import { createFigure } from "./figure.js";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
 import { createInterior } from "./interiors.js";
+import { createDeep, creaturesFor, deepPlan, deepSeed, leadsDown } from "./deep.js";
 import { BUILT_IN, findModel, loadModelCharacter, modelKinds } from "./models.js";
 import { summariseSetup } from "./setup.js";
 import { HELP, helpFor, KEYWORD_PROMPT } from "./help.js";
@@ -177,6 +178,7 @@ import {
   TURN_MOVE,
   bowOf,
   castAtWords,
+  dealtWords,
   foeNerve,
   foeOf,
   foeStrike,
@@ -190,6 +192,7 @@ import {
   potionIn,
   proficiency,
   rolledTwice,
+  rollWords,
   slotFor,
   slotOf,
   slotsAt,
@@ -211,6 +214,21 @@ import {
   witOf,
 } from "./combat.js";
 import { createSpellFx, spellColour, spellLook } from "./spellfx.js";
+import {
+  escapeRoll,
+  fallDice,
+  gripOf,
+  gripRules,
+  holdAfter,
+  holdConditions,
+  holdEnds,
+  holdFits,
+  landing,
+  pinned,
+  reeled,
+  tossArc,
+  tossOf,
+} from "./grapple.js";
 import { greaterCasts, mendSpell, pickSpell, roleOf, roleStats, standoff, standSpot } from "./tactics.js";
 import {
   SRD_FEATS,
@@ -256,6 +274,7 @@ import {
   changeSheet,
   checkRoll,
   checkSheet,
+  diceWords,
   entryNamed,
   entryOf,
   gainXp,
@@ -3155,7 +3174,8 @@ function stepPlaces(dt) {
   core.zoneCheck = 0.25;
   const position = core.player.position;
   const zone = core.interior
-    ? (core.zones.byId.get(`building:${core.interior.door.index}`) ?? zoneAt(core.zones, position.x, position.z))
+    ? (core.zones.byId.get(`building:${core.interior.door.index}`) ??
+      zoneAt(core.zones, core.interior.door.x, core.interior.door.z))
     : zoneAt(core.zones, position.x, position.z);
   const snapshot = core.crowd.snapshot();
   const residents = residentsOf(snapshot);
@@ -3735,6 +3755,7 @@ function herdOptions() {
       s[`animal${name[0].toUpperCase()}${name.slice(1)}`] === false ? kinds : [],
     ),
     sizes: s.animalSizes,
+    habitats: s.animalHabitats !== false,
   };
 }
 
@@ -3747,6 +3768,11 @@ function animalAllowed(kind) {
   return !off.includes(kind) && (core.settings.loreAnimals || counts[SORT_OF[kind]] > 0);
 }
 
+/** The world's own animals: `core.herd`, except below ground, where that's the creatures down there (enterDeep). */
+const outdoorHerd = () => core.outdoors ?? core.herd;
+/** Inside a house's room, where there are no creatures and no fights (a deep place has both). */
+const inHouse = () => !!core.interior && !core.interior.deep;
+
 /** Counts the world's animals out again after a change in Settings → Creatures. */
 function restockHerd() {
   if (!core.world) return;
@@ -3758,7 +3784,7 @@ function restockHerd() {
     core.glide = null;
     core.player.rotation.z = 0;
   }
-  core.herd.setWorld(core.world, hashString(core.seed), herdOptions());
+  outdoorHerd().setWorld(core.world, hashString(core.seed), herdOptions());
   core.respawnAt = null;
   syncPets();
   syncSpawns();
@@ -3914,7 +3940,7 @@ function syncPets() {
         home: beside(door, -3.6, 2.6),
       });
   }
-  core.herd.setOwned(list);
+  outdoorHerd().setOwned(list);
 }
 
 /**
@@ -3965,7 +3991,7 @@ function syncSpawns() {
     const kind = animalKind(creature.name);
     if (kind && (creature.tame || creature.hostile)) tempers[kind] = creature.tame ? "tame" : "hostile";
   }
-  core.herd.setTempers(tempers);
+  outdoorHerd().setTempers(tempers);
   // Who keeps a region made for a purpose: a faction's guards (tame till it's Hostile), a stronghold's bandits.
   const purpose = purposeHere();
   if (purpose && animalAllowed("bandit"))
@@ -3988,7 +4014,7 @@ function syncSpawns() {
         creature.when === "night" || creature.when === "day" ? creature.when : "",
       ),
     );
-  core.herd.setSpawns(list);
+  outdoorHerd().setSpawns(list);
 }
 
 /** Chooses `id`'s dog or horse (`role`): { kind, coat, out }, or null for none. */
@@ -6196,6 +6222,7 @@ function aggressionAllowed(x, z) {
   const rule = core.settings.combat;
   if (rule === "anywhere") return true;
   if (rule === "off" || !core.zones) return false;
+  if (core.interior?.deep) return true; // (below ground is out in the wilds)
   if (landUnsafe()) return true; // (a faction's land is no refuge while it's Hostile to you)
   const chain = chainOf(core.zones, zoneAt(core.zones, x, z));
   if (chain.some((zone) => zone.kind === "town")) return false;
@@ -7441,8 +7468,10 @@ function openNoticeboard() {
   show();
 }
 
-/** A cave's mouth: a card like a door's, for starting a scene in there later. */
+/** A cave's mouth: down into what's below it, if it leads down (enterDeep); else a card like a door's. */
 function enterCave(cave) {
+  if (core.settings.deepPlaces && leadsDown(`${core.seed}:${cave.outpost}`, core.settings.deepShare))
+    return void enterDeep(cave, ["cave"]);
   const zone = core.zones?.byId.get(`cave:${cave.outpost}`);
   const title = zone ? zoneName(zone) : "A cave";
   core.sceneDoor = cave;
@@ -7459,6 +7488,13 @@ function leaveInterior(now = false) {
     core.placesChanged = true;
     core.journalAt = 0;
     core.player.removeFromParent();
+    if (inside.deep) {
+      // Out of a deep place: its creatures go, the world's own are back, and so is the party, at the mouth.
+      core.herd.detach();
+      core.herd = core.outdoors;
+      core.outdoors = null;
+      if (core.world) core.crowd.moveParty(core.world, inside.door);
+    }
     inside.room.dispose();
     if (!core.world) return;
     core.space = core.world;
@@ -7468,11 +7504,53 @@ function leaveInterior(now = false) {
     core.player.rotation.y = door.angle;
     // The camera out on the street, a little to one side, looking back at the player and the door.
     core.cameraYaw = door.angle + STREET_VIEW;
-    core.world.setDoor(door.index, true, 2.5);
+    if (!inside.deep) core.world.setDoor(door.index, true, 2.5);
     core.sound.door();
   };
   if (now) out();
   else goThrough(out);
+}
+
+// ── Deep places (deep.js): the levels below a cave's mouth ──────────────────
+
+/**
+ * Into a level below `cave`: `kinds` is the kind of each level from the first one down to this one. One
+ * level is loaded at a time, with creatures of its own (Settings → World → Places), and the party comes
+ * along. `up`: back up from the level below, so they come out at its way down.
+ */
+function enterDeep(cave, kinds, up = false) {
+  goThrough(() => {
+    const before = core.interior?.deep ? core.interior : null;
+    if (core.battle) battleEnd("");
+    const seed = deepSeed(`${core.seed}:${cave.outpost}`, kinds.length);
+    const plan = deepPlan(seed, kinds.length, kinds.at(-1));
+    const level = createDeep(plan);
+    if (core.settings.props) void level.dress();
+    // Its creatures are a herd of their own (any kind switched on in Settings → Creatures); the world's
+    // own wait above.
+    const herd = createHerd();
+    herd.setWorld(level, seed, { quiet: { all: true } });
+    const { off } = herdOptions();
+    if (core.settings.deepCreatures)
+      herd.setSpawns(creaturesFor(plan, valueOf(sheetNow(), "level"), (kind) => !off.includes(kind)));
+    if (before) core.herd.detach();
+    else core.outdoors = core.herd;
+    core.herd = herd;
+    core.interior = { door: { x: cave.x, z: cave.z, angle: cave.angle }, room: level, deep: { cave, kinds } };
+    core.space = level;
+    core.placesChanged = true;
+    core.journalAt = 0;
+    const at = up && plan.down ? plan.down : plan.entry;
+    core.player.removeFromParent();
+    level.scene.add(core.player);
+    core.player.position.set(at.x, 0, at.z);
+    core.player.rotation.y = at.angle;
+    core.cameraYaw = at.angle + Math.PI;
+    core.camera.position.set(at.x - Math.sin(at.angle) * 4, 3, at.z - Math.cos(at.angle) * 4);
+    core.crowd.moveParty(level, at);
+    before?.room.dispose();
+    showBeaten();
+  });
 }
 
 // ── Using things ─────────────────────────────────────────────────────────────
@@ -7605,7 +7683,7 @@ function usable() {
       act: putDownBody,
     });
   // The beaten, lying in reach: an animal to harvest, a person to search (once).
-  for (const body of core.interior ? [] : core.herd.bodies(core.player.position, 2.6)) {
+  for (const body of inHouse() ? [] : core.herd.bodies(core.player.position, 2.6)) {
     const person = !!ANIMALS[body.kind]?.person;
     if (person && body.searched) continue;
     const what = creatureWord(body);
@@ -7650,7 +7728,30 @@ function usable() {
       act: () => travel(edge),
     });
   }
-  if (core.interior) {
+  const deep = core.interior?.deep;
+  if (deep) {
+    // Below ground: out (or back up a level) where they came in, and further down where it goes on.
+    const { exit, down } = core.interior.room;
+    const above = deep.kinds.slice(0, -1);
+    list.push({
+      kind: "exit",
+      label: above.length ? "Go back up" : "Leave",
+      x: exit.x,
+      z: exit.z,
+      y: 1.6,
+      act: () => (above.length ? enterDeep(deep.cave, above, true) : leaveInterior()),
+    });
+    if (down)
+      list.push({
+        kind: "exit",
+        label: "Go further down",
+        x: down.x,
+        z: down.z,
+        y: 1.2,
+        reach: 2.2,
+        act: () => enterDeep(deep.cave, [...deep.kinds, down.kind]),
+      });
+  } else if (core.interior) {
     const { exit } = core.interior.room;
     list.push({ kind: "exit", label: "Leave", x: exit.x, z: exit.z, y: 1.6, act: () => leaveInterior() });
   } else {
@@ -8041,7 +8142,7 @@ function aimAt(x, y) {
     nearest = distance;
     best = entry;
   };
-  for (const foe of core.interior ? [] : core.herd.foes(at, 45))
+  for (const foe of inHouse() ? [] : core.herd.foes(at, 45))
     consider({ kind: "foe", id: foe.id }, foe.x, foe.z, 0.6 * (foe.scale ?? 1));
   for (const member of core.crowd.party()) {
     const person = core.crowd.present(core.space).find((entry) => entry.id === member.id);
@@ -8062,7 +8163,7 @@ function aimed() {
   if (!aim || !core.player) return null;
   const at = core.player.position;
   if (aim.kind === "foe") {
-    const foe = core.interior ? null : core.herd.foes(at, 60).find((entry) => entry.id === aim.id);
+    const foe = inHouse() ? null : core.herd.foes(at, 60).find((entry) => entry.id === aim.id);
     if (!foe) return null;
     const name = creatureWord(foe);
     return {
@@ -8122,7 +8223,7 @@ function aimInRange(reach, what) {
 function nearestWords() {
   const at = core.player.position;
   const inFight = new Set((core.battle?.order ?? []).map((entry) => entry.id));
-  const far = (core.interior ? [] : core.herd.foes(at, 60))
+  const far = (inHouse() ? [] : core.herd.foes(at, 60))
     .filter((foe) => !foe.fled && (foe.hostile || inFight.has(foe.id)))
     .reduce((least, foe) => Math.min(least, Math.hypot(foe.x - at.x, foe.z - at.z) - foe.room), Infinity);
   return Number.isFinite(far) ? `, and the nearest creature is ${Math.max(0, far).toFixed(1)} m away` : "";
@@ -8675,7 +8776,7 @@ function movesNow() {
 
 /** A readied attack goes off at the first hostile creature within reach of what the player fights with. */
 function readyTick() {
-  if (!buffed("readied") || core.downed || core.interior || afflicted().helpless || !afoot()) return;
+  if (!buffed("readied") || core.downed || inHouse() || afflicted().helpless || !afoot()) return;
   const at = core.player.position;
   const bow = core.shape ? null : bowOf(core.items ?? [], byDesc());
   const reach = bow ? Math.min(bow.range, 12) : SWING_REACH;
@@ -8945,9 +9046,7 @@ function useAbility(id) {
     return void narrate(null, `${who} makes an opening: a companion's next attack has advantage.`);
   }
   if (id === "hide") {
-    const near = core.interior
-      ? []
-      : core.herd.foes(core.player.position, 20).filter((foe) => foe.hostile && !foe.fled);
+    const near = inHouse() ? [] : core.herd.foes(core.player.position, 20).filter((foe) => foe.hostile && !foe.fled);
     const notices = near.reduce((most, foe) => Math.max(most, 10 + (foeOf(foe.kind, foeTable()).perception ?? 0)), 10);
     const die = () => 1 + Math.floor(Math.random() * 20);
     // (Armour that hinders Stealth: the worse of two.)
@@ -9041,7 +9140,7 @@ function useAbility(id) {
     const at = core.player.position;
     spellFx().wave(core.space.scene, chest(at.x, at.z, 0.15), spellColour("radiant"), 9);
     const turned = [];
-    for (const foe of core.interior ? [] : core.herd.foes(at, 9)) {
+    for (const foe of inHouse() ? [] : core.herd.foes(at, 9)) {
       const stats = statsOf(foe);
       if (stats.kin !== "undead") continue;
       const total = 1 + Math.floor(Math.random() * 20) + (stats.saves?.wisdom ?? 0);
@@ -9075,7 +9174,7 @@ function shortRest() {
   const notice = (words) => void core.hud?.setNotice(words);
   if (core.battle) return notice("Not in a fight.");
   const at = core.player.position;
-  if (!core.interior && core.herd.foes(at, 24).some((foe) => foe.hostile && !foe.fled))
+  if (!inHouse() && core.herd.foes(at, 24).some((foe) => foe.hostile && !foe.fled))
     return notice("Not with enemies near.");
   if (core.clock < (core.restAt ?? 0)) return notice("You've only just rested.");
   core.restAt = core.clock + 120;
@@ -9388,7 +9487,7 @@ function conditionsTick(dt) {
     core.stillUntil = Math.max(core.stillUntil ?? 0, core.clock + 0.15);
     core.walkTo = null;
   }
-  if (core.afflicted.grappled !== undefined && !core.battle) {
+  if (core.afflicted.grappled !== undefined && !core.battle && !core.hold) {
     core.escapeAt ??= core.clock + 3;
     if (core.clock >= core.escapeAt) {
       core.escapeAt = core.clock + 3;
@@ -9407,7 +9506,7 @@ function turnConditions() {
   if (!core.afflicted || !Object.keys(core.afflicted).length) return { stood: false, mods: afflicted() };
   const stood = core.afflicted.prone !== undefined;
   core.afflicted = lift(tickConditions(core.afflicted, 6), "prone");
-  if (core.afflicted.grappled !== undefined) tryEscape();
+  if (core.afflicted.grappled !== undefined && !core.hold) tryEscape();
   return { stood, mods: afflicted() };
 }
 
@@ -9433,7 +9532,9 @@ function foeExtras(stats, what, event) {
     if (hp?.on !== false && (hp?.value ?? 1) <= 0) return void defeated();
   }
   const laid = stats.inflict;
-  if (laid && core.settings.conditions && !core.downed && core.afflicted?.[laid.condition] === undefined) {
+  // (A creature's grab that comes with its blow is a hold of its own with holds on: gripAfter.)
+  const grabs = laid?.condition === "grappled" && grips().holds && stats.hold?.main;
+  if (laid && !grabs && core.settings.conditions && !core.downed && core.afflicted?.[laid.condition] === undefined) {
     const thrown = laid.save ? playerSave(laid.save.attribute, laid.save.dc) : null;
     const label = CONDITIONS[laid.condition]?.label.toLowerCase() ?? laid.condition;
     if (thrown?.saved) narrate(null, `${who} isn't ${label} (${thrown.words}).`);
@@ -9473,6 +9574,398 @@ function foeBreathes(event, what, stats) {
     `The ${what} breathes ${breath.type} over ${who} (${thrown.words}, ${thrown.saved ? "made: half" : "failed"}): ${dealt}. ${who} has ${Math.max(0, hp?.value ?? 0)} of ${hp?.max ?? 0} HP.`,
   );
   if (hp?.on !== false && (hp?.value ?? 1) <= 0) defeated();
+}
+
+// ── Holds and throws (grapple.js) ──
+// A creature that grabs the player or a companion and keeps hold (the SRD's grapples, and vines round the legs),
+// and a big one that throws them (Wanderworld's own). Who is held: core.hold for the player, core.allyHolds by
+// companion's id; each { id (the creature's), kind, what, hold, keep (metres it holds them at), spot (where
+// vines hold them), until, next (its next reel or crush in real time), tryAt (the next try at breaking free) }.
+
+/** What the settings allow (grapple.js gripRules), in a world. */
+const grips = () => (core.save ? gripRules(core.settings) : gripRules(null));
+/** Who holds the player (`id` null) or a companion, or null. */
+const holdOn = (id) => (id ? core.allyHolds?.get(id) : core.hold) ?? null;
+/** Whom creature `foeId` holds: null for the player, and companions' ids. */
+const heldBy = (foeId) => [
+  ...(core.hold?.id === foeId ? [null] : []),
+  ...[...(core.allyHolds ?? [])].filter(([, state]) => state.id === foeId).map(([id]) => id),
+];
+const holding = (foeId) => heldBy(foeId).length > 0;
+/** How big the player is (a beast's shape is the beast's size) or a companion (Medium). */
+const sizeOf = (id) => (!id && core.shape ? (SRD_CREATURES[core.shape.kind]?.size ?? "medium") : "medium");
+/** How far off a creature grabs from while it holds no one (a roper's tendril: 15 metres); 0 for one that closes in. */
+function holdReach(foe) {
+  const hold = grips().holds && foe.id ? statsOf(foe).hold : null;
+  return hold && hold.reach > 3.5 && !holding(foe.id) ? hold.reach : 0;
+}
+/** The player (`id` null) or a companion in the fight: { name, at }, or null when they can't be held or thrown. */
+function bodyOf(id) {
+  if (!id) return core.downed || core.mode !== "walk" ? null : { name: personaName(), at: core.player.position };
+  const person = fightingAllies().find((entry) => entry.id === id);
+  return person ? { name: nameFor(person.id, person.name), at: person.position } : null;
+}
+/** A companion's saving throw: a d20, 2, and their proficiency where their class is trained in it. */
+function allySave(id, attribute, dc) {
+  const trained = allyKit(id).saves.includes(attribute) ? proficiency(allyLevel(id)) : 0;
+  const total = 1 + Math.floor(Math.random() * 20) + 2 + trained;
+  return { saved: total >= dc, words: `${attribute} save: ${total} against DC ${dc}` };
+}
+/** The better of the player's Strength and Dexterity saves, rolled. */
+function strengthOrDexterity(dc) {
+  const sheet = sheetNow();
+  const worn = wornNow(sheet);
+  const score = (attribute) => modifier(valueOf(sheet, attribute) + (worn[attribute] ?? 0)) + saveBonus(attribute);
+  return playerSave(score("strength") >= score("dexterity") ? "strength" : "dexterity", dc);
+}
+/** Hurts the player (`id` null) or a companion by `damage` (a hold's crush, a fall); whether they're still up. */
+function gripHurts(id, damage, from) {
+  if (!id) {
+    const hp = playerStruck({ hit: damage > 0, damage, guarded: true }, from);
+    if (hp?.on !== false && (hp?.value ?? 1) <= 0) return void defeated();
+    return hp;
+  }
+  const health = allyHp(id);
+  health.hp = Math.max(0, health.hp - damage);
+  if (health.hp <= 0) return void allyDown(id, bodyOf(id)?.name ?? "", health);
+  return { value: health.hp, max: health.max };
+}
+const hpWords = (name, hp) => (hp ? ` ${name} has ${Math.max(0, hp.value ?? 0)} of ${hp.max ?? 0} HP.` : "");
+
+/** What a creature does about whom it strikes at before it strikes: grabs and throws them, or makes its holding attack. Whether it did. */
+function gripFirst(event, what, stats) {
+  const id = event.target ?? null;
+  const body = bodyOf(id);
+  if (!body || !event.id) return false;
+  const chosen = gripOf({
+    stats,
+    rules: grips(),
+    held: !!holdOn(id),
+    size: sizeOf(id),
+    force: event.force ?? "",
+    safe: !aggressionAllowed(body.at.x, body.at.z),
+    scale: event.scale,
+  });
+  if (!chosen) return false;
+  if (chosen.move === "throw") foeTosses(event, what, chosen.toss);
+  else foeGrabs(event, what, chosen.hold, stats);
+  return true;
+}
+/** After a creature's blows (`hits` of `blows` landed): the hold that comes with them, or vines. */
+function gripAfter(event, what, stats, hits, blows) {
+  const id = event.target ?? null;
+  if (!event.id || !bodyOf(id)) return;
+  const hold = holdAfter({
+    stats,
+    kind: event.kind,
+    rules: grips(),
+    hits,
+    blows,
+    held: !!holdOn(id),
+    size: sizeOf(id),
+  });
+  if (hold) startHold(id, event, what, hold);
+}
+
+/** `hold` takes hold of the player (`id` null) or a companion, kept at its reach (vines: where they stand). */
+function startHold(id, foe, what, hold) {
+  const body = bodyOf(id);
+  if (!body || holdOn(id) || !holdFits(hold, sizeOf(id)) || !core.settings.conditions) return;
+  const names = holdConditions(hold);
+  const seconds = hold.vines ? hold.seconds : 600;
+  if (id) {
+    const laid = names.reduce((state, name) => afflict(state, name, seconds), allyFx(id));
+    core.allyFx.set(id, laid);
+  } else for (const name of names) afflictPlayer(name, seconds);
+  const far = Math.hypot(body.at.x - foe.x, body.at.z - foe.z);
+  const state = {
+    id: foe.id,
+    kind: foe.kind,
+    what,
+    hold,
+    keep: Math.max(1.1, Math.min(far, hold.reach ?? 1.5)),
+    spot: { x: body.at.x, z: body.at.z },
+    until: core.clock + (hold.vines ? Infinity : 60),
+    next: core.clock + 2.5,
+    tryAt: 0,
+    save: core.save?.id,
+  };
+  if (id) (core.allyHolds ??= new Map()).set(id, state);
+  else core.hold = state;
+  if (!hold.vines) core.herd.root(foe.id, 600);
+  const held = names.map((name) => CONDITIONS[name].label.toLowerCase());
+  const how = `${held.length > 1 ? `${held.slice(0, -1).join(", ")} and ${held.at(-1)}` : held[0]} (escape DC ${hold.escape})`;
+  narrate(
+    null,
+    hold.vines
+      ? `Vines from the ${what} wrap round ${body.name}'s legs: ${how}.`
+      : hold.engulf
+        ? `The ${what} engulfs ${body.name}: ${how}.`
+        : `The ${what}'s ${hold.name.toLowerCase()} takes hold of ${body.name}: ${how}.`,
+  );
+}
+
+/** The hold on the player (`id` null) or a companion ends: the conditions it laid are lifted. `words` say how. */
+function endHold(id, words = "") {
+  const state = holdOn(id);
+  if (!state) return;
+  const names = holdConditions(state.hold);
+  if (id) {
+    core.allyHolds.delete(id);
+    core.allyFx?.set(
+      id,
+      names.reduce((left, name) => lift(left, name), allyFx(id)),
+    );
+    core.crowd.pin(id, null);
+  } else {
+    core.hold = null;
+    for (const name of names) core.afflicted = lift(core.afflicted, name);
+    core.player.rotation.z = 0;
+    core.hud?.setHeld(null);
+  }
+  if (!state.hold.vines && !holding(state.id) && core.grappling?.id !== state.id) core.herd.root(state.id, 0);
+  if (words) narrate(null, words);
+}
+
+/**
+ * A try at breaking free (the Break free button, pushing hard on the move keys, or a companion's turn): the
+ * better of Athletics and Acrobatics against the escape DC. By turns, the player's try is their action.
+ */
+function breakFree(id = null) {
+  const state = holdOn(id);
+  if (!state || core.clock < state.tryAt) return false;
+  if (!id && core.battle && (!battleMine() || !battleSpend("action"))) return false;
+  state.tryAt = core.clock + 1.5;
+  const name = bodyOf(id)?.name ?? personaName();
+  const thrown = escapeRoll({
+    athletics: id ? allyAttack(id) : skillAdd("athletics"),
+    acrobatics: id ? allyAttack(id) : skillAdd("acrobatics"),
+    dc: state.hold.escape,
+    weak: !!state.hold.weak,
+  });
+  if (thrown.freed) endHold(id, `${name} breaks free of the ${state.what} (${thrown.words}).`);
+  else narrate(null, `${name} struggles against the ${state.what} (${thrown.words}): still held.`);
+  return true;
+}
+
+/** What a creature that holds someone does with them on its turn (every six seconds in real time): a roper reels them in, a mound crushes whoever is inside it. */
+function holdTurn(id, state, foe) {
+  const name = bodyOf(id)?.name;
+  if (!name) return;
+  if (state.hold.pull && state.keep > 1.2) {
+    core.herd.act(state.id, "strike");
+    state.keep = reeled(state.keep, state.hold.pull, 1.1);
+    narrate(null, `The ${state.what} reels ${name} in: ${state.keep.toFixed(1)} m off now.`);
+  }
+  const engulf = state.hold.engulf;
+  if (!engulf) return;
+  core.herd.act(state.id, "strike");
+  const thrown = engulf.save
+    ? id
+      ? allySave(id, engulf.save.attribute, engulf.save.dc)
+      : playerSave(engulf.save.attribute, engulf.save.dc)
+    : null;
+  if (thrown?.saved) return void narrate(null, `Inside the ${state.what}, ${name} holds on (${thrown.words}).`);
+  const damage = Math.max(1, rollDice(engulf.damage).total);
+  const hp = gripHurts(id, damage, foe);
+  narrate(
+    null,
+    `Inside the ${state.what}, ${name} is crushed${thrown ? ` (${thrown.words}, failed)` : ""}: ${damage} ${engulf.type}.${hpWords(name, hp)}`,
+  );
+}
+
+/** Why a hold is over now, as told ("" to say nothing), or null while it lasts. */
+function holdOver(id, state, foe) {
+  const name = bodyOf(id)?.name;
+  const rules = grips();
+  const lasting = id ? allyFx(id)[holdConditions(state.hold)[0]] : core.afflicted?.[holdConditions(state.hold)[0]];
+  if (!name || !fightMode() || core.interior || state.save !== core.save?.id) return "";
+  if (!(state.hold.vines ? rules.vines : rules.holds)) return "";
+  const why = holdEnds({
+    hold: state.hold,
+    foe,
+    at: id ? bodyOf(id).at : core.player.position,
+    keep: state.keep,
+    until: state.until,
+    clock: core.clock,
+    lasting: lasting !== undefined,
+  });
+  if (!why) return null;
+  if (state.hold.vines) return `The vines round ${name}'s legs go slack.`;
+  return {
+    worn: "",
+    beaten: `The ${state.what} is down, and lets go of ${name}.`,
+    fled: `The ${state.what} lets go of ${name} and flees.`,
+    "let go": `The ${state.what} lets go of ${name}.`,
+    "knocked back": `The ${state.what} is knocked back, and lets go of ${name}.`,
+  }[why];
+}
+
+/**
+ * Each frame: whoever is held stays where they're held (or is let go), struggles when they push to get away
+ * (a try at breaking free every second of pushing), and in real time what holds them has its turn with them
+ * every six seconds (by turns, on its own turn). `input`: the move keys.
+ */
+function holdTick(dt, input) {
+  const near = core.hold || core.allyHolds?.size ? core.herd.foes(core.player.position, 45) : [];
+  for (const [id, state] of [...(core.hold ? [[null, core.hold]] : []), ...(core.allyHolds ?? [])]) {
+    const foe = near.find((entry) => entry.id === state.id) ?? null;
+    const over = holdOver(id, state, foe);
+    if (over !== null) {
+      endHold(id, over);
+      continue;
+    }
+    const at = id ? bodyOf(id).at : core.player.position;
+    const spot = state.hold.vines ? state.spot : pinned(foe, at, state.keep);
+    if (!core.battle && core.clock >= state.next) {
+      state.next = core.clock + 6;
+      holdTurn(id, state, foe);
+      if (!holdOn(id)) continue;
+    }
+    const pushing = !id && !!(input?.x || input?.y);
+    if (id) {
+      core.crowd.pin(id, spot);
+      if (core.clock >= (state.writhe ?? 0)) {
+        state.writhe = core.clock + 1.2;
+        core.crowd.gesture(id, "hurt");
+      }
+      continue;
+    }
+    if (!core.glide) {
+      at.x = spot.x;
+      at.z = spot.z;
+    }
+    // (Held, they sway; pushing to get away, they writhe, and each second of it is a try at breaking free.)
+    core.player.rotation.z = Math.sin(core.clock * (pushing ? 11 : 3)) * (pushing ? 0.07 : 0.025);
+    if (pushing && core.clock >= (state.writhe ?? 0)) {
+      state.writhe = core.clock + 0.9;
+      core.gesture = "hurt";
+    }
+    state.push = pushing && !core.battle ? (state.push ?? 0) + dt : 0;
+    if (state.push >= 1) {
+      state.push = 0;
+      breakFree();
+    }
+    const how = state.hold.vines ? "Vines hold your legs" : state.hold.engulf ? "Engulfed by the" : "Held by the";
+    core.hud?.setHeld({
+      text: `${how}${state.hold.vines ? "" : ` ${state.what}`} (escape DC ${state.hold.escape})`,
+      ready: core.clock >= state.tryAt && (!core.battle || (battleMine() && core.battle.action > 0)),
+    });
+  }
+}
+
+/** A creature's holding attack (a roper's tendril) or its grab by a saving throw (a cube's engulfing), as many times as its Multiattack makes it till one lands. */
+function foeGrabs(event, what, hold, stats) {
+  const id = event.target ?? null;
+  const body = bodyOf(id);
+  if (!body) return;
+  core.herd.act(event.id, "strike");
+  if (!id && core.clock < (core.dodgeUntil ?? 0))
+    return void narrate(null, `The ${what} reaches for ${body.name}, who rolls clear.`);
+  const verb = hold.name.toLowerCase();
+  for (let tries = 0; tries < (hold.times ?? 1); tries++) {
+    let landed;
+    let told;
+    let dealt;
+    if (hold.save) {
+      const thrown = id
+        ? allySave(id, hold.save.attribute, hold.save.dc)
+        : playerSave(hold.save.attribute, hold.save.dc);
+      landed = !thrown.saved;
+      dealt = landed && hold.damage ? Math.max(1, rollDice(hold.damage).total) : 0;
+      told = `The ${what} tries to ${verb} ${body.name} (${thrown.words}): ${landed ? `caught${dealt ? `, ${dealt} ${hold.type}` : ""}` : "clear"}.`;
+    } else {
+      const damage = (hold.main ? stats.damage : hold.damage) || "1";
+      const bonus = hold.main ? stats.attack : hold.attack;
+      const sheet = sheetNow();
+      const result = id
+        ? attackRoll({ bonus, ac: foeTable().ally.ac, damage })
+        : foeStrike({
+            foe: { attack: bonus, damage, damageBonus: 0 },
+            sheet,
+            worn: wornNow(sheet),
+            guarded: core.clock < (core.blockUntil ?? 0) || !!core.battle?.dodging,
+            keen: afflicted().defendAdv,
+          });
+      if (id) result.ac = foeTable().ally.ac;
+      landed = result.hit;
+      dealt = landed && (hold.main || hold.damage) ? result.damage : 0;
+      result.damage = dealt;
+      told = `The ${what} lashes out with its ${verb} at ${body.name} (${rollWords(result)}): ${
+        !landed ? "a miss" : dealt ? `a hit, ${dealtWords(result)}` : "a hit"
+      }.`;
+    }
+    const hp = dealt ? gripHurts(id, dealt, event) : null;
+    narrate(null, `${told}${hpWords(body.name, hp)}`);
+    if (!bodyOf(id)) return; // (it beat them)
+    if (landed) return void startHold(id, event, what, hold);
+  }
+}
+
+/** A big creature grabs the player or a companion and throws them (Wanderworld's own rule: grapple.js tossOf). */
+function foeTosses(event, what, toss) {
+  const id = event.target ?? null;
+  const body = bodyOf(id);
+  if (!body) return;
+  core.herd.act(event.id, "strike");
+  if (!id && core.clock < (core.dodgeUntil ?? 0))
+    return void narrate(null, `The ${what} grabs at ${body.name}, who rolls clear.`);
+  // (The better of their Strength and Dexterity saves avoids it.)
+  const thrown = id
+    ? allySave(id, allyKit(id).saves.includes("dexterity") ? "dexterity" : "strength", toss.dc)
+    : strengthOrDexterity(toss.dc);
+  if (thrown.saved) return void narrate(null, `The ${what} grabs at ${body.name}, who twists free (${thrown.words}).`);
+  endHold(id); // (a throw breaks any hold on them)
+  // Where they land: never through a wall, a tree or a rock, nor into deep water (grapple.js landing).
+  const edge = (core.world?.size ?? WORLD_SIZE) / 2 - 2;
+  const outside = !core.interior;
+  const clear = (x, z) =>
+    Math.abs(x) < edge &&
+    Math.abs(z) < edge &&
+    !core.space.blocked?.(x, z, PLAYER_RADIUS) &&
+    !(outside && core.world?.treeNear?.(x, z, 0.6) >= 0) &&
+    !(outside && core.world?.rockNear?.(x, z, 0.8) >= 0) &&
+    !(outside && waterAt(x, z).depth > 0.4);
+  const spot = landing({ from: event, at: { x: body.at.x, z: body.at.z }, metres: toss.metres, clear });
+  narrate(
+    null,
+    `The ${what} grabs ${body.name} (${thrown.words}, failed) and ${spot.metres ? `throws them ${spot.metres} m` : "slams them down"}.`,
+  );
+  const arc = tossArc(spot.metres);
+  const saveId = core.save?.id;
+  const land = () => {
+    if (core.save?.id !== saveId) return;
+    const dice = fallDice(spot.metres);
+    const rolled = rollDice(dice);
+    const damage = Math.max(1, rolled.total);
+    if (!id) core.player.rotation.x = 0;
+    const name = bodyOf(id)?.name ?? body.name;
+    const hp = gripHurts(id, damage, event);
+    narrate(null, `${name} lands hard: ${diceWords(dice, rolled.rolls, damage)} falling damage.${hpWords(name, hp)}`);
+    if (!hp) return; // (beaten by it)
+    // Down, then up again: prone while they lie there and get up.
+    if (id) {
+      if (core.settings.conditions) {
+        const down = afflict(allyFx(id), "prone", 3);
+        core.allyFx.set(id, down);
+      }
+      core.crowd.knockOut(id, 1.4);
+      return;
+    }
+    afflictPlayer("prone", 1.8 + LIE_SECONDS);
+    core.gesture = null; // (the fall plays on into lying there)
+    core.liesUntil = core.clock + 1.8;
+    core.stillUntil = Math.max(core.stillUntil ?? 0, core.liesUntil + LIE_SECONDS);
+  };
+  if (id) {
+    core.crowd.fling(id, spot.x, spot.z, spot.metres ? arc.height : 0.2, arc.seconds);
+    return void later(arc.seconds, land);
+  }
+  core.walkTo = null;
+  core.gesture = "fall";
+  if (!spot.metres) return void land();
+  glideTo(spot.x, spot.z, core.player.rotation.y, arc.seconds, land);
+  core.glide.arc = arc.height;
 }
 
 /**
@@ -9603,7 +10096,7 @@ function blowTarget(reach = SWING_REACH, arc = SWING_ARC, people = true) {
   const facing = core.player.rotation.y;
   let foe = null;
   let nearest = Infinity;
-  for (const entry of core.interior ? [] : core.herd.foes(at, reach + 2.5)) {
+  for (const entry of inHouse() ? [] : core.herd.foes(at, reach + 2.5)) {
     const dx = entry.x - at.x;
     const dz = entry.z - at.z;
     const distance = Math.hypot(dx, dz);
@@ -9824,7 +10317,7 @@ function faceEnemy(reach) {
     nearest = distance;
     best = { x, z };
   };
-  for (const foe of core.interior ? [] : core.herd.foes(at, reach + 2.5))
+  for (const foe of inHouse() ? [] : core.herd.foes(at, reach + 2.5))
     if (!foe.fled && (foe.hostile || foe.hp !== undefined || inFight.has(foe.id))) consider(foe.x, foe.z, foe.room);
   if (core.angry?.size)
     for (const person of core.crowd.present(core.space))
@@ -10045,6 +10538,17 @@ function battleActs() {
       ready: action && !battle.dodging,
       basic: true,
     },
+    ...(core.hold
+      ? [
+          {
+            id: "breakFree",
+            label: "Break free (A)",
+            title: `An action: Strength (Athletics) or Dexterity (Acrobatics) against DC ${core.hold.hold.escape}`,
+            ready: action,
+            basic: true,
+          },
+        ]
+      : []),
     // What their class can call on (build.js abilities), each for what it takes of the turn.
     ...abilitiesNow().map((ability) => ({
       id: ability.id,
@@ -10065,6 +10569,7 @@ function battleAct(id) {
   if (!battle || !act?.ready) return;
   const who = personaName();
   if (id === "dodge") return void dodge();
+  if (id === "breakFree") return void breakFree();
   if (id === "dash" || id === "bdash") {
     if (!battleSpend(id === "dash" ? "action" : "bonus")) return;
     battle.reach += turnNow().move;
@@ -10093,7 +10598,7 @@ function battleFoes(id) {
  * their companions didn't see it coming, and lose their first turn.
  */
 function battleStart(id, surprised = false) {
-  if (core.battle || !byTurns() || core.downed || core.interior) return;
+  if (core.battle || !byTurns() || core.downed || inHouse()) return;
   const foes = battleFoes(id);
   if (!foes.length) return;
   const sheet = sheetNow();
@@ -10145,7 +10650,7 @@ function battleStart(id, surprised = false) {
  * against their passive Perception (10 and their Wisdom modifier): if not, they're surprised.
  */
 function spotted(event) {
-  if (core.downed || core.interior || core.mode === "talk") return;
+  if (core.downed || inHouse() || core.mode === "talk") return;
   if (core.battle) return void battleJoin(event.id);
   const who = personaName();
   const what = creatureWord(event);
@@ -10206,7 +10711,7 @@ function endTurn() {
 function battleTick(dt, moved) {
   const battle = core.battle;
   if (!battle) return;
-  if (!byTurns() || core.interior || !core.save) return void battleEnd("");
+  if (!byTurns() || inHouse() || !core.save) return void battleEnd("");
   if (core.downed) return void battleEnd("");
   const at = core.player.position;
   // Who of the creatures is still in it: on its feet, not run off, not left far behind.
@@ -10299,12 +10804,15 @@ function battleTick(dt, moved) {
       { id: null, x: at.x, z: at.z },
       ...[...allies.values()].map((person) => ({ id: person.id, x: person.position.x, z: person.position.z })),
     ];
-    const target = foeTarget(foe, targets);
+    // (One holding someone goes on with them.)
+    const gripped = heldBy(foe.id);
+    const target = (gripped.length && targets.find((entry) => entry.id === gripped[0])) || foeTarget(foe, targets);
     const far = Math.hypot(target.x - foe.x, target.z - foe.z);
     const reach = 1.2 + foe.room;
     // (One with a bow or spells that reach from where it stands stays there and uses them.)
     const stats = statsOf(foe);
-    const range =
+    const range = Math.max(
+      extrasOn() ? holdReach(foe) : 0, // (a roper's tendril)
       core.settings.rangedFoes && core.settings.srdCreatures
         ? Math.max(
             stats.ranged?.range ?? 0,
@@ -10312,7 +10820,8 @@ function battleTick(dt, moved) {
             // (One with its breath ready uses it from as far as it reaches.)
             extrasOn() && stats.breath && !core.foeFx?.get(foe.id)?.breathSpent ? stats.breath.reach : 0,
           )
-        : 0;
+        : 0,
+    );
     let shoots = far > reach + 0.9 && far <= range;
     // The AI's move for it (Settings → Inventory → Combat), asked for as its turn begins; the fight waits a
     // few seconds for it, and goes on without it after that.
@@ -10333,7 +10842,7 @@ function battleTick(dt, moved) {
       return;
     }
     const plan = battle.plan?.id === foe.id ? battle.plan.move : "";
-    if (plan === "close") shoots = false;
+    if (plan === "close" || plan === "throw") shoots = false;
     if (plan === "shoot" || plan.startsWith("cast:") || plan === "mend") shoots = true;
     if (battle.step === "move" && plan === "flee" && !foe.stunned) {
       core.herd.strike(foe.id, 0, stats.hp, "flee");
@@ -10346,6 +10855,11 @@ function battleTick(dt, moved) {
       core.herd.march(foe.id, foe.x + way.x * TURN_MOVE, foe.z + way.z * TURN_MOVE, target.x, target.z);
       battle.step = "act";
       battle.wait = 2;
+    } else if (battle.step === "move" && gripped.length && !foe.stunned) {
+      // (Holding someone, it stays where it is: a roper reels them in, a mound crushes whoever is inside it.)
+      for (const id of gripped) holdTurn(id, holdOn(id), foe);
+      battle.step = "act";
+      battle.wait = 1;
     } else if (battle.step === "move") {
       if (foe.stunned) {
         battle.step = "next";
@@ -10355,7 +10869,7 @@ function battleTick(dt, moved) {
         // allows); else it stays to shoot, or closes in.
         const spot = (plan === "cover" || (!plan && tacticsOn())) && range > 0 ? coverSpot(foe, target, range) : null;
         // (Told to shoot or cast from too far: it comes as near as it must. Told to close in: it does.)
-        const keep = plan === "close" ? reach : range > 0 ? range - 2 : reach;
+        const keep = plan === "close" || plan === "throw" ? reach : range > 0 ? range - 2 : reach;
         const go = spot || (shoots && far <= range) ? 0 : Math.max(0, Math.min(TURN_MOVE, far - keep));
         const way = far > 0.01 ? { x: (target.x - foe.x) / far, z: (target.z - foe.z) / far } : { x: 0, z: 0 };
         if (spot) core.herd.march(foe.id, spot.x, spot.z, target.x, target.z);
@@ -10367,9 +10881,12 @@ function battleTick(dt, moved) {
       const event = { id: foe.id, kind: foe.kind, scale: foe.scale, x: foe.x, z: foe.z, target: target.id };
       // (What the AI chose, where it's something it can still do from here.)
       if (plan === "shoot" || plan.startsWith("cast:") || plan === "mend") event.force = plan;
-      const strikes = far <= reach + 0.9 && !event.force;
-      if (event.force && far > range && plan !== "mend") delete event.force;
-      shoots = !!event.force || (shoots && far <= range);
+      // (A grab and a throw, or a hold, are made as a blow is: grapple.js.)
+      const grip = plan === "grapple" || plan === "throw";
+      if (grip) event.force = plan;
+      const strikes = (far <= reach + 0.9 || (plan === "grapple" && far <= range)) && (!event.force || grip);
+      if (event.force && !grip && far > range && plan !== "mend") delete event.force;
+      shoots = (!!event.force && !grip) || (shoots && far <= range);
       if (strikes || shoots) core.herd.act(foe.id, strikes ? "strike" : "cast");
       if (strikes) {
         if (target.id) allyAttacked(event, what(foe));
@@ -10561,6 +11078,9 @@ function foeShoots(event, what) {
   if (event.target ? !ally : core.downed || core.mode === "talk") return;
   const to = ally ? ally.position : core.player.position;
   const far = Math.hypot(to.x - event.x, to.z - event.z);
+  // (A hold that reaches from where it stands, a roper's tendril: grapple.js.)
+  if (!event.force && extrasOn() && holdReach(event) >= far && gripFirst({ ...event, force: "grapple" }, what, stats))
+    return;
   // (A breath, from as far as it reaches.)
   if (
     !event.force &&
@@ -10750,7 +11270,7 @@ const talks = (kind) => !!ANIMALS[kind]?.person || !!ANIMALS[kind]?.folk;
  * own lines.
  */
 function combatSay(moment, speaker) {
-  if (!core.settings.combatTalk || !fighting() || core.interior || core.downed) return;
+  if (!core.settings.combatTalk || !fighting() || inHouse() || core.downed) return;
   const id = speaker.foe?.id ?? speaker.person?.id;
   if (!id || core.clock < (core.talkAt ?? 0)) return;
   core.talkBy ??= new Map();
@@ -10835,6 +11355,10 @@ function moveOptions(foe, stats, far, reach, range) {
       says: `cast ${entry.name} (${does}${spell.area ? ", an area" : ""}, ${spell.range} m)`,
     });
   }
+  // (Holds and throws: grapple.js.)
+  if (grips().holds && stats.hold && !holding(foe.id))
+    list.push({ id: "grapple", says: `grab and hold them (its ${stats.hold.name.toLowerCase()})` });
+  if (grips().throws && tossOf(stats, foe.scale)) list.push({ id: "throw", says: "grab them and throw them" });
   if (range > 0) list.push({ id: "cover", says: "move behind a tree or a rock" });
   list.push({ id: "back", says: "back away from them" }, { id: "flee", says: "run from the fight" });
   return list;
@@ -10856,7 +11380,7 @@ async function askMove(foe, stats, target, far, reach, range) {
       setting: core.save?.setting ?? "",
       creature: foeDescribed(foe),
       talks: talks(foe.kind),
-      state: `It has ${foe.hp ?? stats.hp} of ${stats.hp} HP.${afflicted().names.length ? ` They are ${afflicted().names.join(", ")}.` : ""}`,
+      state: `It has ${foe.hp ?? stats.hp} of ${stats.hp} HP.${afflicted().names.length ? ` They are ${afflicted().names.join(", ")}.` : ""}${holding(foe.id) ? " It holds them." : ""}`,
       foe: whom,
       options: moveOptions(foe, stats, far, reach, range),
       recent: recentWords(),
@@ -10900,10 +11424,12 @@ function statsOf(foe) {
 
 /** How far a creature shoots or casts from, in a fight in real time (0: it closes in). */
 function foeRange(foe) {
-  if (!core.settings.rangedFoes || !core.settings.srdCreatures) return 0;
+  const grip = extrasOn() ? holdReach(foe) : 0; // (a roper's tendril)
+  if (!core.settings.rangedFoes || !core.settings.srdCreatures) return grip;
+  if (!tacticsOn()) return Math.max(grip, RANGED_KINDS[foe.kind] ?? 0);
   const stats = statsOf(foe);
   const breath = extrasOn() && stats.breath && !core.foeFx?.get(foe.id)?.breathSpent ? stats.breath.reach : 0;
-  return Math.max(stats.ranged?.range ?? 0, stats.spells?.length ? 18 : 0, breath);
+  return Math.max(stats.ranged?.range ?? 0, stats.spells?.length ? 18 : 0, breath, grip);
 }
 
 /**
@@ -10921,7 +11447,7 @@ function coverSpot(from, target, range) {
     for (let i = 0; i < 8; i++) {
       const x = from.x + Math.sin((i * Math.PI) / 4) * walk;
       const z = from.z + Math.cos((i * Math.PI) / 4) * walk;
-      if (core.space.blocked?.(x, z, 0.4) || waterAt(x, z).depth > 0.3) continue;
+      if (core.space.blocked?.(x, z, 0.4) || (!core.interior && waterAt(x, z).depth > 0.3)) continue;
       const spot = { x, z, walk, far: Math.hypot(target.x - x, target.z - z) };
       spot.cover = coverBetween(target, spot) > 0;
       spots.push(spot);
@@ -10934,7 +11460,7 @@ function coverSpot(from, target, range) {
  * (herd.js walks them there between their shots): { [id]: { x, z } | null }.
  */
 function tacticsTick() {
-  if (!tacticsOn() || fightMode() !== "realtime" || core.interior || core.downed) return void (core.foeSpots = null);
+  if (!tacticsOn() || fightMode() !== "realtime" || inHouse() || core.downed) return void (core.foeSpots = null);
   if (core.clock < (core.tacticsAt ?? 0)) return;
   core.tacticsAt = core.clock + 1.1;
   const at = core.player.position;
@@ -11083,7 +11609,7 @@ const ALLY_REACH = 3.2; // metres within which a companion's weapon lands
  * Nothing attacks them, and they have no HP of their own yet.
  */
 function alliesTick(dt) {
-  if (fightMode() !== "realtime" || !core.settings.partyFights || core.downed || core.interior) return;
+  if (fightMode() !== "realtime" || !core.settings.partyFights || core.downed || inHouse()) return;
   core.alliesAt = (core.alliesAt ?? 0) - dt;
   if (core.alliesAt > 0) return;
   core.alliesAt = 0.4;
@@ -11121,7 +11647,7 @@ function alliesTick(dt) {
 
 /** The companions who can be in a fight now: with the player, out of doors, on their feet. */
 function fightingAllies() {
-  if (!fighting() || !core.settings.partyFights || core.interior || !core.crowd) return [];
+  if (!fighting() || !core.settings.partyFights || inHouse() || !core.crowd) return [];
   const party = new Set(core.crowd.party().map((member) => member.id));
   if (!party.size) return [];
   return core.crowd.present(core.space).filter((person) => party.has(person.id) && !core.crowd.isOut(person.id));
@@ -11148,6 +11674,7 @@ function allyAttacked(event, what, with_ = null) {
   const name = nameFor(person.id, person.name);
   // (`with_`: what it attacks with when that isn't its own teeth: a bow's or a spell's numbers, and how it's told.)
   const stats = { ...statsOf(event), ...with_ };
+  if (extrasOn() && !with_ && gripFirst(event, what, stats)) return;
   const ac = foeTable().ally.ac;
   const roll = () => attackRoll({ bonus: stats.attack, ac, damage: stats.damage, damageBonus: stats.damageBonus ?? 0 });
   // (Down, held or blinded, they're easier to hit: the better of two. A hindered creature: the worse.)
@@ -11171,7 +11698,10 @@ function allyAttacked(event, what, with_ = null) {
   narrate(null, foeWords({ who: name, what, verb: stats.verb, result, left: health.hp, max: health.max }));
   if (result.hit && health.hp > 0 && health.hp < health.max / 2) combatSay("hurt", { person });
   if (result.hit && health.hp <= 0) allyDown(person.id, name, health);
-  else if (result.hit && extrasOn() && !with_) allyExtras(person, name, stats, what, health);
+  else if (result.hit && extrasOn() && !with_) {
+    allyExtras(person, name, stats, what, health);
+    if (allyHp(person.id).hp > 0) gripAfter(event, what, stats, 1, 1);
+  }
   core.fightSeen = core.clock;
 }
 
@@ -11194,7 +11724,7 @@ function allyMoves(person, foe, caster) {
   const around = Math.atan2(from.x - foe.x, from.z - foe.z) + side.way * (caster ? 0.35 : 0.6);
   const ring = caster ? 7.5 : 1.5 + foe.room;
   const spot = { x: foe.x + Math.sin(around) * ring, y: 0, z: foe.z + Math.cos(around) * ring };
-  if (waterAt(spot.x, spot.z).depth > 0.3) return;
+  if (!core.interior && waterAt(spot.x, spot.z).depth > 0.3) return;
   core.crowd.fightTo(person.id, spot.x, spot.z, 1.2);
 }
 
@@ -11209,6 +11739,7 @@ function allyActs(person, foes, hurt) {
   const scene = core.space.scene;
   // What's on them: one who can't act loses the turn; one who's held strains against it.
   if (allyMods(person.id).helpless) return true;
+  if (holdOn(person.id)) return breakFree(person.id) || true;
   if (allyFx(person.id).grappled !== undefined && 1 + Math.floor(Math.random() * 20) + 2 >= 11) {
     core.allyFx.set(person.id, lift(allyFx(person.id), "grappled"));
     narrate(null, `${name} breaks free.`);
@@ -11356,11 +11887,7 @@ function allyDown(id, name, health) {
 
 /** What comes with a creature's blow that has landed on a companion: venom and the like, and a condition. */
 function allyExtras(person, name, stats, what, health) {
-  const save = (attribute, dc) => {
-    const trained = allyKit(person.id).saves.includes(attribute) ? proficiency(allyLevel(person.id)) : 0;
-    const total = 1 + Math.floor(Math.random() * 20) + 2 + trained;
-    return { saved: total >= dc, words: `${attribute} save: ${total} against DC ${dc}` };
-  };
+  const save = (attribute, dc) => allySave(person.id, attribute, dc);
   const rider = stats.rider;
   if (rider) {
     const full = Math.max(1, rollDice(rider.damage).total);
@@ -11375,6 +11902,7 @@ function allyExtras(person, name, stats, what, health) {
   }
   const laid = stats.inflict;
   if (!laid || !core.settings.conditions || allyFx(person.id)[laid.condition] !== undefined) return;
+  if (laid.condition === "grappled" && grips().holds && stats.hold?.main) return; // (the hold is gripAfter's)
   const thrown = laid.save ? save(laid.save.attribute, laid.save.dc) : null;
   if (thrown?.saved) return;
   core.allyFx.set(person.id, afflict(allyFx(person.id), laid.condition, laid.condition === "grappled" ? 12 : 0));
@@ -11659,7 +12187,7 @@ function personAngry(target, left) {
 function angryTick() {
   if (!core.angry?.size) return;
   if (core.downed || fightMode() !== "realtime" || !core.settings.fightBack) return void core.angry.clear();
-  if (core.interior || core.mode === "talk") return;
+  if (inHouse() || core.mode === "talk") return;
   const at = core.player.position;
   const here = new Map(core.crowd.present(core.space).map((person) => [person.id, person]));
   for (const [id, grudge] of core.angry) {
@@ -11842,7 +12370,7 @@ function encounter(foe, what, first) {
   const target = core.herd.foes(core.player.position, 6).find((entry) => entry.id === foe.id);
   let down = false;
   if (first === "player" && target) down = landOn(target, weapon);
-  if (!down) foeAttacks({ kind: foe.kind, scale: foe.scale ?? 1, x: foe.x, z: foe.z }, what);
+  if (!down) foeAttacks({ id: foe.id, kind: foe.kind, scale: foe.scale ?? 1, x: foe.x, z: foe.z }, what);
   if (first === "foe" && target && !core.downed) {
     core.gesture = weapon.name ? "strike" : "punch";
     core.gestureHeld = weapon.held;
@@ -12006,7 +12534,7 @@ function dodge() {
     );
   }
   if (!fighting() || core.downed || core.mode !== "walk" || core.glide || core.air || core.swimming) return;
-  if (core.carrying || core.clock < (core.dodgeAgain ?? 0)) return;
+  if (core.carrying || core.hold || core.clock < (core.dodgeAgain ?? 0)) return;
   const at = core.player.position;
   const facing = core.player.rotation.y;
   // On the move: the way they're going (with a weapon drawn that may be sideways or back); standing: back.
@@ -12038,6 +12566,8 @@ function foeAttacks(event, what, with_ = null) {
   // (A breath, when it has one ready, in place of its bite.)
   if (extras && stats.breath && !event.again && breathReady(event.id, stats.breath))
     return void foeBreathes(event, what, stats);
+  // (A grab and a throw, or a holding attack, in place of its blows: grapple.js.)
+  if (extras && !event.again && gripFirst(event, what, stats)) return false;
   // (Pack Tactics: the better of two rolls with another of its kind beside the player. And anyone who's
   // down, held or blinded is easier to hit.)
   const pack =
@@ -12083,9 +12613,15 @@ function foeAttacks(event, what, with_ = null) {
   if (shielded) narrate(null, `${who} casts ${shielded} in answer: +5 AC, and the blow is turned.`);
   if (result.hit && hp?.on !== false && (hp?.value ?? 1) <= 0) return void defeated();
   if (extras && result.hit) foeExtras(stats, what, event);
-  // (Multiattack: its other blows, one after another.)
+  // (Multiattack: its other blows, one after another; with holds on, less those its holding attack makes, a
+  // roper's four tendrils. Then the hold that comes of them landing.)
+  const blows = Math.max(1, (stats.multi ?? 1) - (grips().holds ? (stats.hold?.times ?? 0) : 0));
+  let hits = result.hit ? 1 : 0;
   if (extras && !event.again && !core.downed)
-    for (let more = 1; more < (stats.multi ?? 1) && !core.downed; more++) foeAttacks({ ...event, again: true }, what);
+    for (let more = 1; more < blows && !core.downed; more++)
+      hits += foeAttacks({ ...event, again: true }, what) ? 1 : 0;
+  if (extras && !event.again && !core.downed) gripAfter(event, what, stats, hits, blows);
+  return result.hit;
 }
 
 /**
@@ -13105,6 +13641,11 @@ function movePlayer(dt, input) {
       core.player.rotation.z = -core.dismounting.side * 0.28 * Math.sin(Math.PI * t);
     }
   }
+  // (Thrown: up along an arc and down again, tipping back as they go: foeTosses.)
+  if (core.glide?.arc) {
+    position.y += core.glide.arc * Math.sin(Math.PI * core.glide.t);
+    player.rotation.x = -0.9 * Math.sin(Math.PI * core.glide.t);
+  }
   core.shadow.visible = core.settings.shadows && !core.swimming && !riding;
   if (core.air)
     core.shadow.position.y = 0.06 - core.air.height; // the shadow stays on the ground
@@ -13200,6 +13741,7 @@ function step(dt) {
     savePlace(true, captureThumbnail());
   }
   const speed = movePlayer(dt, read);
+  holdTick(dt, read); // (grapple.js)
   carryTick();
   battleTick(dt, speed * dt);
   core.spellFx?.update(dt);
@@ -13240,7 +13782,14 @@ function step(dt) {
   const still = (core.mode === "ride" && core.mounting?.phase !== "approach") || core.dismounting;
   const pose = core.character?.update(dt, still ? 0 : speed, {
     sit: core.mode === "sit" && !onGround,
-    act: core.mode === "ride" ? (stepping ? null : "ride") : astride ? "ride" : onGround,
+    act:
+      core.mode === "ride"
+        ? stepping
+          ? null
+          : "ride"
+        : astride
+          ? "ride"
+          : (onGround ?? (core.clock < (core.liesUntil ?? 0) ? "lie" : null)),
     gesture: core.gesture,
     held: core.gestureHeld ?? null,
     carry: weaponDrawn() ? weaponNow().held : null,
@@ -13290,10 +13839,10 @@ function step(dt) {
   viewProjection.multiplyMatrices(core.camera.projectionMatrix, core.camera.matrixWorldInverse);
   frustum.setFromProjectionMatrix(viewProjection);
   const inside = !!core.interior;
-  if (!core.interior) {
+  if (!inHouse()) {
     // Where each owner of an animal is, for it to keep up with (looked up a few times a second), and
     // now and then who has one at all (someone new in town, lore that's changed).
-    if (core.clock >= (core.petsAt ?? 0)) {
+    if (!core.interior && core.clock >= (core.petsAt ?? 0)) {
       core.petsAt = core.clock + 4;
       syncPets();
     }
@@ -13329,7 +13878,7 @@ function step(dt) {
       ranged:
         core.settings.rangedFoes && core.settings.srdCreatures && fightMode() === "realtime" ? RANGED_KINDS : null,
       // (With each fighting by its own sort: how far this one reaches, and where it wants to stand.)
-      ...(tacticsOn() && fightMode() === "realtime"
+      ...((tacticsOn() || grips().holds) && fightMode() === "realtime"
         ? { rangeOf: foeRange, spotOf: (beast) => core.foeSpots?.get(beast.id) ?? null }
         : {}),
       // (Whom else a creature may go for: the companions in the fight.)
@@ -13426,7 +13975,7 @@ function step(dt) {
   if (thunder !== null) core.sound.thunder(thunder, inside);
 
   placeCamera(dt);
-  core.interior?.room.update(dt, core.camera);
+  core.interior?.room.update(dt, core.camera, core.player.position);
 
   // The use prompt over whatever is in reach.
   core.target = core.mode === "walk" && !core.walkTo ? pickTarget() : null;
@@ -13796,6 +14345,7 @@ function attach(element) {
         setSheet(changeSheet(sheetNow(), { add: { kind: "spell", name: spell.name, about: spellRule(spell) } }));
     },
     onRespawn: () => respawn(),
+    onBreakFree: () => void breakFree(),
     onRespawnNow: () => respawn(true),
     onClearBodies: () => {
       const cleared = core.herd.clearBodies();

@@ -1,5 +1,12 @@
 # Wanderworld release notes
 
+## 0.7.40 — 2026-11-20
+
+- Caves lead down: a cave's way in can open into caverns, dungeons and strongholds, one level at a time, dark but for your light, each with creatures that belong there (Settings → World → Places).
+- Monsters only where they'd be found: lizardfolk by water, ogres and trolls in the hills, ghouls among ruins (Settings → Creatures; off: anywhere).
+- Creatures grab and hold: a roper reels you in, an otyugh or a mimic holds you, a shambling mound or a gelatinous cube engulfs you, vines catch your legs, and ogres, trolls and minotaurs throw people. Break free with a roll. Each has its own switch.
+- Two new monsters, the gelatinous cube (see-through, with what it swallowed inside) and the basilisk; the otyugh and roper remade to look like the real ones.
+
 ## 0.7.39 — 2026-11-20
 
 - Faction standing: from Hated to Honoured (−100 to 100), moving a little at a time with errands for a faction's people, trading with it and fighting its guards, at most 10 a day. Helping one faction costs a little with its enemies (ww:enemy of:). Journal → Factions shows each, with a slider and a lock.

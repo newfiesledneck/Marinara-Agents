@@ -872,6 +872,12 @@ export function createHud(root, handlers) {
     illustrateTell:
       'On: if the chat has no line yet describing where you are, Illustrate has one told first, so the picture matches. The AI writes it if arrivals use the AI; otherwise it\'s a written line. Needs "Lines about where you are" on. Not indoors.',
     interiors: "On: you can walk into furnished rooms (still unfinished). Off: a door shows who's inside.",
+    deepPlaces:
+      "On: \"Go in\" at a cave's mouth takes you down into it, a level at a time: a small cave, then a big cavern, a dungeon, a stronghold or another cave, up to four levels down. Your party comes with you. Off: a cave's mouth shows its card, for starting a scene there.",
+    deepShare:
+      "Which of a world's caves lead down. The rest show their card as before. A cave keeps its answer: the same cave always leads to the same place.",
+    deepCreatures:
+      "On: creatures live down there, the kinds that suit the place (rats, spiders, snakes, bats and slimes in caves, skeletons and ghouls in dungeons, bandits in strongholds), no tougher than your level can take, and tougher the deeper you go. The kinds switched off in Settings → Creatures stay off. Off: the deep places are empty.",
     worldEvents:
       "On: once a week is market day and every fourth week an evening festival, when much of the town gathers in the square. Off: every day is the same.",
     approach: "How often townsfolk walk up to greet you, or to confront you. 0 is never.",
@@ -942,9 +948,15 @@ export function createHud(root, handlers) {
     foeTactics:
       "On: creatures of one kind don't all fight alike. About half the bandits close in with a blade, some stand off with a crossbow and some cast spells. Puglins and skeletons are fighters or archers. One that shoots or casts keeps its distance, backs off when you crowd it, and puts a tree or a boulder between you where it can. A caster picks its spell: one that hits an area when you and a companion stand together, a hold now and then, sometimes its strongest. It heals itself when badly hurt, and its greater spells run out for the fight. Off: every creature of a kind fights the same way and comes straight at you.",
     creatureExtras:
-      "On: creatures use what the 5e SRD gives them besides a plain attack. A wolf's bite can knock you prone (a Strength save) and wolves, jackals and rats attack with advantage when one of their own is beside you. A snake's, a spider's, a wasp's and an imp's venom does more damage (a Constitution save for half). A frog's bite holds you. A slime's touch burns with acid and a dragon's bite with fire. A witch strikes twice. A dragon breathes fire (a Dexterity save for half), then needs a while before it can again. Off: one plain attack each.",
+      "On: creatures use what the 5e SRD gives them besides a plain attack. A wolf's bite can knock you prone (a Strength save) and wolves, jackals and rats attack with advantage when one of their own is beside you. A snake's, a spider's, a wasp's and an imp's venom does more damage (a Constitution save for half). A frog's bite holds you. A slime's touch burns with acid and a dragon's bite with fire. A witch strikes twice. A dragon breathes fire (a Dexterity save for half), then needs a while before it can again. Holds, vines and throws have a switch each below. Off: one plain attack each, and nothing grabs, holds or throws, whatever those say.",
+    creatureHolds:
+      "The 5e SRD's grapples. On: a roper's tendril (from 15 metres off), an otyugh's tentacle, a frog's bite and a mimic's pseudopod catch hold of you or a companion, and a shambling mound that lands both its slams engulfs you (blinded, and a Constitution save or more damage every few seconds). Held, you can't walk away; you stay where it holds you, and a roper reels you in. Break free with the button, or by pushing hard on the move keys: each try is Strength (Athletics) or Dexterity (Acrobatics), the better, against the SRD's escape DC. By turns, a try is your action. The hold ends when the creature is beaten, knocked back (a Shove, Thunderwave), stunned, or lets go. Off: a creature's grab is the plain Grappled condition, which you shake off by yourself. Needs \"Creatures use their special attacks\" and \"Conditions can land on you\".",
+    vineHolds:
+      "Wanderworld's own rule, not the SRD's. On: an awakened shrub's blow, and a shambling mound's slam that doesn't engulf you, can catch your legs in vines: restrained for about eight seconds (a turn by turns), so you can't move and attacks on you have advantage. Break free as from any hold, against DC 10. Off: they only strike. Needs \"Creatures use their special attacks\" and \"Conditions can land on you\".",
+    giantThrows:
+      "Wanderworld's own rule, not the SRD's. On: now and then something Large or bigger with a Strength of 18 or more (an ogre, a troll, a minotaur, and giants) grabs you or a companion, if Medium or smaller, and throws you: a few metres, further for a bigger, stronger one. A Strength or Dexterity save (DC 8 + its proficiency + its Strength modifier) avoids the grab. You land prone and take 1d6 falling damage for every 3 metres. Nobody is thrown through a wall or a tree or into deep water, nor at all where fights are kept out (towns, as \"Where people may confront you\" says). By turns it's one of the creature's moves, chosen by the rules or by the AI. Off: they only strike. Needs \"Creatures use their special attacks\".",
     conditions:
-      "On: conditions can land on you, from a creature's attack or a spell cast at you, and show at the top left. Prone, restrained, blinded: your attacks are rolled twice and the worse counts, and attacks on you take the better. Poisoned, frightened: your attacks are rolled twice and the worse counts. Grappled, restrained: you can't move (when grappled, you try to break free by yourself). Paralyzed, stunned, asleep: you can't move or act. Slowed: you move at half pace. Each wears off. Off: only damage lands on you.",
+      "On: conditions can land on you, from a creature's attack or a spell cast at you, and show at the top left. Prone, restrained, blinded: your attacks are rolled twice and the worse counts, and attacks on you take the better. Poisoned, frightened: your attacks are rolled twice and the worse counts. Grappled, restrained: you can't move (held by a creature, you break free with the Break free button, or by yourself with holds switched off). Paralyzed, stunned, asleep: you can't move or act. Slowed: you move at half pace. Each wears off. Off: only damage lands on you, and no creature holds you.",
     deathSaves:
       "On: at 0 HP you fall, dying, and roll a death saving throw every few seconds: 10 or more is a success, less a failure, a 1 two failures, and a 20 gets you up with 1 HP. Three successes and you're stable and come round with 1 HP; three failures and you're beaten, and \"When your HP runs out\" says what happens then. Healing from a companion gets you up at once. Off: you're beaten at 0 HP.",
     concentration:
@@ -1024,6 +1036,8 @@ export function createHud(root, handlers) {
       "Slimes, skeletons, giant spiders and rats, snakes, bats, wasps, frogs, imps, puglins, goblins, hobgoblins, bugbears, orcs, gnolls, kobolds, lizardfolk, ghouls, gricks, awakened shrubs, mimics passing for chests, bandits, witches and wizards out in the country, and more rarely an ogre, a troll, a minotaur, a shambling mound, an otyugh, a roper passing for a stalagmite, or a dragon overhead. Skeletons, ghouls and bats only at night.",
     animalSizes:
       "Now and then: about one monster in eight is big (a quarter to two-fifths bigger) and one in fifty is huge (three-fifths to four-fifths bigger), always the first of its group. Often: about one in four big and one in fifteen huge. Never: every monster is about its kind's usual size.",
+    animalHabitats:
+      "Overrides nothing else: the Monsters number still holds. If no kind that's switched on lives anywhere this world has (only frost giants and no mountains), they turn up anywhere instead.",
     monsterRespawn:
       "Real minutes of play. At 0 the monsters a world starts with are all it has until it's counted out again (a change in the sliders above does that too).",
     animalsTown: "The most stray dogs and horses inside the settlement itself. Any more are put just outside it.",
@@ -1502,6 +1516,9 @@ export function createHud(root, handlers) {
   toggle("combatAiTalk", "The AI writes what's said in fights", "combatTalk");
   toggle("combatAiMoves", "Turn-based: the AI chooses creatures' moves", "sheet");
   toggle("creatureExtras", "Creatures use their special attacks", "srdCreatures");
+  toggle("creatureHolds", "Creatures grab and hold (tendrils, tentacles)", "creatureExtras");
+  toggle("vineHolds", "Vines catch your legs", "creatureExtras");
+  toggle("giantThrows", "Giants grab and throw", "creatureExtras");
   toggle("srdLoot", "Creatures carry pocket treasure", "srdCreatures");
   toggle("moves", "Shove, Grapple, Help, Hide and off-hand attacks", "sheet");
   toggle("reactions", "Shield and Counterspell cast themselves", "sheet");
@@ -1592,6 +1609,11 @@ export function createHud(root, handlers) {
   );
   choice("animalSizes", "How often", { off: "Never (all the usual size)", some: "Now and then", more: "Often" });
   group(
+    "Where they live",
+    "On: each kind of monster turns up only where it would be found: lizardfolk, frogs and shambling mounds by water, ogres, trolls and orcs in the hills and mountains, skeletons and ghouls among ruins and graveyards, kobolds and gricks by caves, gnolls and hobgoblins on open ground. Off: any kind that's switched on can turn up anywhere out in the country. Caves, dungeons and strongholds always have their own (Settings → World → Places). A lorebook's placed creatures go where it says either way.",
+  );
+  toggle("animalHabitats", "Only where they'd be found");
+  group(
     "New monsters",
     "Every so often the monsters out of sight go and others come in their place, so over time you meet every kind that's switched on, the rare ones too. Kinds not about yet are likelier to turn up. Nothing you can see goes, and nothing you're fighting, nothing a lorebook placed and nobody's own animal. The Monsters number above still says how many there are.",
   );
@@ -1666,6 +1688,8 @@ export function createHud(root, handlers) {
     ["animalGrick", "Gricks"],
     ["animalOtyugh", "Otyughs (rare)"],
     ["animalRoper", "Ropers (rare, as stalagmites)"],
+    ["animalGelatinous_cube", "Gelatinous cubes"],
+    ["animalBasilisk", "Basilisks"],
     ["animalGnoll", "Gnolls"],
     ["animalKobold", "Kobolds"],
     ["animalLizardfolk", "Lizardfolk"],
@@ -1674,6 +1698,20 @@ export function createHud(root, handlers) {
     ["animalTroll", "Trolls (rare)"],
     ["animalMinotaur", "Minotaurs (rare)"],
   ]);
+  // Caves, dungeons and strongholds: the deep places below a cave's mouth (deep.js), with the world's places.
+  at("World", "Places");
+  group(
+    "Caves, dungeons and strongholds",
+    "A cave's mouth can lead down into the rock: winding passages and chambers, a cavern with pillars and a pool, and further down dungeons and strongholds. It's dark down there, so you carry a light. Fights work there as they do outside, by the combat settings in Inventory → Combat. You leave the way you came in.",
+  );
+  toggle("deepPlaces", "Caves lead down");
+  choice(
+    "deepShare",
+    "Which caves lead down",
+    { 0.25: "A few (1 in 4)", 0.5: "Half of them", 0.75: "Most (3 in 4)", 1: "All of them" },
+    "deepPlaces",
+  );
+  toggle("deepCreatures", "Creatures live down there", "deepPlaces");
   // AI: the server part's connections and styles. The connection lists come from the Engine when the
   // panel opens (they're the user's own, so they can change while playing).
   heading(
@@ -4265,6 +4303,17 @@ export function createHud(root, handlers) {
   respawn.style.cssText +=
     "position:absolute;left:50%;top:calc(52px + env(safe-area-inset-top, 0px));transform:translateX(-50%);padding:10px 18px;font-size:14px;background:#96422e;display:none;";
   layer.append(respawn);
+  // Held by a creature (grapple.js): what holds them and its escape DC, and a Break free button (setHeld).
+  const held = document.createElement("div");
+  held.setAttribute("data-wanderworld-ui", "");
+  held.style.cssText =
+    "position:absolute;left:50%;top:calc(150px + env(safe-area-inset-top, 0px));transform:translateX(-50%);display:none;align-items:center;gap:10px;padding:6px 8px 6px 12px;border-radius:10px;background:rgba(120,30,20,0.86);color:#fff;font:600 13px system-ui,sans-serif;pointer-events:auto;max-width:calc(100% - 16px);";
+  const heldText = document.createElement("span");
+  const breakFree = button("Break free", "Strength (Athletics) or Dexterity (Acrobatics) against the escape DC", () =>
+    handlers.onBreakFree?.(),
+  );
+  held.append(heldText, breakFree);
+  layer.append(held);
 
   const hud = {
     /**
@@ -5004,6 +5053,14 @@ export function createHud(root, handlers) {
     /** The Respawn button at the top, while the player lies beaten and has chosen to stay down. */
     setRespawn(shown) {
       respawn.style.display = shown ? "" : "none";
+    },
+    /** Held by something: { text, ready } ("Held by the roper (escape DC 15)"; whether a try can be made now), or null. */
+    setHeld(state) {
+      held.style.display = state ? "flex" : "none";
+      if (!state) return;
+      if (heldText.textContent !== state.text) heldText.textContent = state.text;
+      breakFree.disabled = !state.ready;
+      breakFree.style.opacity = state.ready ? "1" : "0.5";
     },
     /** The Run button shown as on or off (Ctrl turned running on or off). */
     setRun(on) {
