@@ -24,6 +24,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MeshoptSimplifier } from "three/examples/jsm/libs/meshopt_simplifier.module.js";
 import { MESH_KINDS, RIGGED_KINDS, writePacked } from "./wanderworld-packed.mjs";
+// (The avatar's hair styles and clothing slots are the game's own lists: a piece the game can't name isn't packed.)
+import { CLOTH_PARTS, CLOTH_SLOTS, HAIRSTYLES, SLOT_OF } from "../packages/wanderworld/src/looks.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 await MeshoptSimplifier.ready;
@@ -203,8 +205,10 @@ const MORPH_STEPS = 511;
 
 /** One mesh, quantized: positions int16 within its box, normals int8, uvs uint16 (0…1, wrapped), joint
  *  indices uint8 into the part's joint list, weights uint8. `keep(triangle)` can drop triangles. With
- *  `share`, a distant version too (`far`, distantIndex). */
-function packMesh(primitive, texture, jointIndex, keep = () => true, share = 1) {
+ *  `share`, a distant version too (`far`, distantIndex). A merged outfit piece (mergePrimitives) also
+ *  says each vertex's colour part (`partOf`, uint8 into its `parts`). A shape key keeps the vertices it
+ *  moves more than `still` metres. */
+function packMesh(primitive, texture, jointIndex, keep = () => true, share = 1, still = 1e-5) {
   const triangles = [];
   for (let i = 0; i < primitive.index.count; i += 3) {
     const tri = [primitive.index.values[i], primitive.index.values[i + 1], primitive.index.values[i + 2]];
@@ -245,6 +249,8 @@ function packMesh(primitive, texture, jointIndex, keep = () => true, share = 1) 
       weights[n * 4 + c] = Math.round((primitive.weights.values[v * 4 + c] / (total || 1)) * 255);
     }
   }
+  const partOf = primitive.partOf ? new Uint8Array(count) : null;
+  if (partOf) for (const [v, n] of remap) partOf[n] = primitive.partOf[v];
   const index = count > 65535 ? new Uint32Array(triangles.length * 3) : new Uint16Array(triangles.length * 3);
   triangles.forEach((tri, i) => tri.forEach((v, c) => (index[i * 3 + c] = remap.get(v))));
   const places = new Float32Array(count * 3);
@@ -259,7 +265,7 @@ function packMesh(primitive, texture, jointIndex, keep = () => true, share = 1) 
     for (const [v, n] of remap) {
       let size = 0;
       for (let c = 0; c < 3; c++) size = Math.max(size, Math.abs(target.position.values[v * 3 + c]));
-      if (size > 1e-5) moved.push([v, n]);
+      if (size > still) moved.push([v, n]);
     }
     if (!moved.length) return;
     const d = [0, 0, 0];
@@ -300,6 +306,7 @@ function packMesh(primitive, texture, jointIndex, keep = () => true, share = 1) 
     weights: b64(weights),
     index: b64(index),
     ...(far ? { far: b64(far) } : {}),
+    ...(partOf ? { partOf: b64(partOf) } : {}),
     wide: index instanceof Uint32Array,
   };
 }
@@ -308,7 +315,7 @@ function packMesh(primitive, texture, jointIndex, keep = () => true, share = 1) 
  * A part file: its joints (names and inverse bind matrices) and meshes; a body also carries the skeleton.
  * `distant`: the share of its triangles each mesh keeps in its distant version (packMesh).
  */
-function packPart(primitives, { texture, keep, skeleton, distant = 1 } = {}) {
+function packPart(primitives, { texture, keep, skeleton, distant = 1, still } = {}) {
   const names = [];
   const ibms = [];
   const jointIndex = (name) => names.indexOf(name);
@@ -321,7 +328,7 @@ function packPart(primitives, { texture, keep, skeleton, distant = 1 } = {}) {
     });
   }
   const meshes = primitives.map((primitive) =>
-    packMesh(primitive, texture(primitive), jointIndex, keep?.(primitive), distant),
+    packMesh(primitive, texture(primitive), jointIndex, keep?.(primitive), distant, still),
   );
   // (A mesh hung on a bone rather than skinned has no inverse bind matrices of its own: the game binds it
   // with the body's, avatar.js.)
@@ -863,6 +870,149 @@ function meshPrimitives(gltf) {
   return out;
 }
 
+/** The joint (its place in `jointNames`) with the most weight on vertex `v`. */
+function mainJoint(primitive, v) {
+  let best = 0;
+  for (let c = 1; c < 4; c++)
+    if (primitive.weights.values[v * 4 + c] > primitive.weights.values[v * 4 + best]) best = c;
+  return primitive.joints.values[v * 4 + best];
+}
+
+/** How far each shape key moves the body on each bone: bone → key → metres (the most any vertex moves). */
+function keyReach(primitives) {
+  const reach = new Map();
+  for (const primitive of primitives)
+    for (let v = 0; v < primitive.position.count; v++) {
+      const bone = primitive.jointNames[mainJoint(primitive, v)];
+      if (!reach.has(bone)) reach.set(bone, new Map());
+      (primitive.targets ?? []).forEach((target, k) => {
+        const p = target.position.values;
+        const size = Math.hypot(p[v * 3], p[v * 3 + 1], p[v * 3 + 2]);
+        const key = primitive.keyNames[k];
+        reach.get(bone).set(key, Math.max(reach.get(bone).get(key) ?? 0, size));
+      });
+    }
+  return reach;
+}
+
+// A key that moves a bone's skin less than this leaves a piece on that bone where it is.
+const STILL_KEY = 0.0005;
+/**
+ * A hair style's or outfit piece's shape keys made to follow only the body (in place): a key moves a vertex
+ * only if it moves the body on the vertex's bone (`reach`, keyReach), so "nose" no longer moves a boot.
+ * Fitting left the same move in every key at some vertices (a few millimetres to centimetres), which
+ * adds up as more sliders are moved: the middle of the keys that shouldn't move it is taken out of them
+ * all. (The piece at rest, what's seen with every slider in the middle, stays as it was made.)
+ */
+function followBody(primitive, reach) {
+  const targets = primitive.targets ?? [];
+  const keys = primitive.keyNames;
+  const median = (values) => {
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = sorted.length >> 1;
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  };
+  for (let v = 0; v < primitive.position.count; v++) {
+    const moves = reach.get(primitive.jointNames[mainJoint(primitive, v)]);
+    if (!moves) continue; // (a bone the body has no skin on: left as made)
+    const still = keys.map((key) => (moves.get(key) ?? 0) < STILL_KEY);
+    const quiet = targets.filter((_, k) => still[k]);
+    const common = [0, 1, 2].map((c) =>
+      quiet.length >= 2 ? median(quiet.map((target) => target.position.values[v * 3 + c])) : 0,
+    );
+    targets.forEach((target, k) => {
+      for (let c = 0; c < 3; c++) {
+        target.position.values[v * 3 + c] = still[k] ? 0 : target.position.values[v * 3 + c] - common[c];
+        if (still[k] && target.normal) target.normal.values[v * 3 + c] = 0;
+      }
+    });
+  }
+}
+
+/**
+ * Shape keys' normal changes put right (in place): some turn a normal the other way round (a change of
+ * nearly twice its length), which flips the shading wherever that key is used. Each key's normal is made
+ * to face the same side as the normal at rest, at unit length, and its change is the difference.
+ */
+function keyNormals(primitive) {
+  const normal = primitive.normal.values;
+  for (const target of primitive.targets ?? []) {
+    if (!target.normal) continue;
+    const d = target.normal.values;
+    for (let v = 0; v < primitive.position.count; v++) {
+      const at = v * 3;
+      let [x, y, z] = [normal[at] + d[at], normal[at + 1] + d[at + 1], normal[at + 2] + d[at + 2]];
+      if (x * normal[at] + y * normal[at + 1] + z * normal[at + 2] < 0) [x, y, z] = [-x, -y, -z];
+      const length = Math.hypot(x, y, z);
+      if (length < 1e-6) [x, y, z] = [normal[at], normal[at + 1], normal[at + 2]];
+      else [x, y, z] = [x / length, y / length, z / length];
+      [d[at], d[at + 1], d[at + 2]] = [x - normal[at], y - normal[at + 1], z - normal[at + 2]];
+    }
+  }
+}
+
+/**
+ * One node's meshes (an outfit piece's parts: cloth, trim, metal…, one texture) as one primitive, drawn at
+ * once: `partOf` says each vertex's part (its place in `parts`, [{ part, colour }]), so the game colours
+ * each part on its own, by vertex.
+ */
+function mergePrimitives(primitives) {
+  const [first] = primitives;
+  for (const primitive of primitives)
+    if (primitive.jointNames.join() !== first.jointNames.join() || primitive.texture !== first.texture)
+      throw new Error(`${first.nodeName}: its meshes need one skin and one texture to be one piece`);
+  const count = primitives.reduce((sum, primitive) => sum + primitive.position.count, 0);
+  const join = (get, size) => {
+    const out = new Float64Array(count * size);
+    let at = 0;
+    for (const primitive of primitives) {
+      out.set(get(primitive) ?? new Float64Array(primitive.position.count * size), at * size);
+      at += primitive.position.count;
+    }
+    return { values: out, size, count };
+  };
+  const index = [];
+  const partOf = new Uint8Array(count);
+  const parts = [];
+  let offset = 0;
+  for (const primitive of primitives) {
+    for (const v of primitive.index.values) index.push(v + offset);
+    const material = primitive.material;
+    const part =
+      material?.extras?.part ??
+      String(material?.name ?? "cloth")
+        .split("-")
+        .pop();
+    const colour = (material?.pbrMetallicRoughness?.baseColorFactor ?? [1, 1, 1]).slice(0, 3);
+    let at = parts.findIndex((each) => each.part === part);
+    if (at < 0) at = parts.push({ part, colour: colour.map((value) => Math.round(value * 1e4) / 1e4) }) - 1;
+    partOf.fill(at, offset, offset + primitive.position.count);
+    offset += primitive.position.count;
+  }
+  const keyNames = first.keyNames;
+  return {
+    ...first,
+    position: join((primitive) => primitive.position.values, 3),
+    normal: join((primitive) => primitive.normal.values, 3),
+    uv: join((primitive) => primitive.uv.values, 2),
+    joints: join((primitive) => primitive.joints.values, 4),
+    weights: join((primitive) => primitive.weights.values, 4),
+    index: { values: index, count: index.length },
+    targets: keyNames.map((key) => ({
+      position: join((primitive) => primitive.targets?.[primitive.keyNames.indexOf(key)]?.position.values, 3),
+      normal: join((primitive) => primitive.targets?.[primitive.keyNames.indexOf(key)]?.normal?.values, 3),
+    })),
+    partOf,
+    parts,
+  };
+}
+
+/** A linear colour (a glTF factor) as 0xRRGGBB in sRGB, as the Look card shows colours. */
+const srgbHex = (linear) =>
+  linear
+    .map((value) => Math.round(255 * (value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055)))
+    .reduce((hex, value) => (hex << 8) | Math.max(0, Math.min(255, value)), 0);
+
 /** Which body a mesh is for, by its name ("male", "hair_female"): "male", "female", or null (both). */
 const sexOfName = (name) =>
   /(?:^|[^a-z])female/u.test(name.toLowerCase())
@@ -877,11 +1027,17 @@ const sexOfName = (name) =>
  *   colour, the underwear's, brows' and lashes' styles, shape keys), and its textures avatar-<sex>.webp,
  *   avatar-<sex>-1.webp; MakeHuman's skins (avatar-<sex>-skin-<age>-<ethnicity>.webp) and eye pictures
  *   (avatar-eyes.webp) from assets/textures/avatar;
- * - kit/generic/avatar/avatar-hair.pack.png, every hair style (avatar-hair-<style>.glb, a `male` and a `female`
- *   mesh, skinned or hung on the head bone), and their textures;
- * - kit/fantasy/avatar/avatar-outfits.pack.png, every outfit piece (outfit-<piece>.glb, a `male` and a `female`
- *   mesh with the body's shape keys, and `hides`, the body's regions it covers, in its extras), and theirs.
- * One file a body and one for each kind of the rest, as a package may list at most 256 asset files.
+ * - kit/generic/avatar/avatar-hair-short.pack.png and avatar-hair-long.pack.png, every hair style
+ *   (avatar-hair-<style>.glb, a `male` and a `female` mesh, skinned or hung on the head bone) with its
+ *   textures inside (`pictures`), and avatar-hair-index.json saying which file has which;
+ * - kit/fantasy/avatar/avatar-outfits-<group>.pack.png, every outfit piece (outfit-<piece>.glb, a `male` and
+ *   a `female` mesh, and another way of wearing it as a mesh of its own: `female_hood_up`, with the body's
+ *   shape keys and in its extras `slot`, `layer`, `hides`, `variant`), grouped by its slot (looks.js
+ *   CLOTH_SLOTS), its textures inside at most 1,024 pixels, and avatar-outfits-index.json saying which file
+ *   has which, the bodies it's made for, its parts and their colours, and its variants.
+ * A file a body and a bundle a group of the rest, as a package may list at most 256 asset files. The hair's
+ * and clothes' shape keys move them only where they move the body (followBody), and every key's normals
+ * are put right (keyNormals).
  */
 function avatar() {
   const dir = join(ROOT, "packages/wanderworld/assets/models");
@@ -939,10 +1095,13 @@ function avatar() {
   // (Each body's distant version keeps DISTANT_VERTICES' worth of its triangles, and its hair and outfit
   // pieces the same share of theirs.)
   const shares = {};
+  const reach = {}; // each body's keyReach, for its hair and clothes (followBody)
   for (const sex of ["male", "female"]) {
     if (!glbs.includes(`avatar-${sex}.glb`)) continue;
     const gltf = readGltf(join(dir, `avatar-${sex}.glb`));
     const primitives = skinnedPrimitives(gltf);
+    primitives.forEach(keyNormals);
+    reach[sex] = keyReach(primitives);
     shares[sex] = distantShare(primitives.reduce((sum, primitive) => sum + primitive.position.count, 0));
     const body = part(primitives, namer(gltf, `avatar-${sex}`, out), {
       skeleton: skeletonOf(gltf),
@@ -987,51 +1146,141 @@ function avatar() {
         ...["-frames:v", "1", "-quality", "88", join(out, "avatar-eyes.webp")],
       ]);
   }
-  /** Each body's meshes of a hair or outfit file: { male, female }, a part each (a mesh for both goes in both). */
-  const bySex = (gltf, base, folder) => {
-    const primitives = meshPrimitives(gltf).filter(
-      (primitive) => !/^avatar-/u.test(primitive.nodeName ?? primitive.name ?? ""),
-    );
-    const texture = namer(gltf, base, folder);
-    const sexes = {};
-    for (const sex of ["male", "female"]) {
-      const own = primitives.filter(
-        (primitive) => (sexOfName(primitive.nodeName || primitive.name || "") ?? sex) === sex,
-      );
-      if (own.length) sexes[sex] = part(own, texture, { distant: shares[sex] ?? 1 });
-    }
-    return { sexes, primitives };
+  // ── Hair styles and outfit pieces: bundles with their pictures inside, and an index of which has which ──
+  // (A file a bundle, not a piece or a picture: the package may list at most 256 asset files. A bundle is
+  // loaded the first time someone wears one of its pieces, so a shirt doesn't fetch the armour.)
+  const bundles = new Map(); // a bundle's path → { …its document, pictures }
+  const seen = new Map(); // `${bundle}:${a picture's bytes}` → its name there
+  const bundleAt = (path, document) => {
+    if (!bundles.has(path)) bundles.set(path, { source, ...document, pictures: [] });
+    return bundles.get(path);
   };
-  const styles = {};
+  /** A .glb's picture into a bundle as WebP, at most 1,024 pixels a side, once however often it's used. */
+  const pictureIn = (path, gltf, image, name) => {
+    const bytes = gltf.imageOf(image);
+    const key = `${path}:${bytes.toString("base64")}`;
+    if (!seen.has(key)) {
+      const jpeg = gltf.json.images[Number(image.slice(6))].mimeType === "image/jpeg";
+      const raw = join(dirname(path), `${name}.${jpeg ? "jpg" : "png"}`);
+      writeFileSync(raw, bytes);
+      const scale = ["-vf", "scale=w='min(1024,iw)':h='min(1024,ih)'"];
+      bundles.get(path).pictures.push({ name, webp: webp(raw, 82, scale) });
+      seen.set(key, name);
+    }
+    return seen.get(key);
+  };
+  /** A file's meshes for `sex` (a mesh named for neither body is both's), read afresh, so each body's
+   *  shape keys can be put right on its own. */
+  const meshesFor = (gltf, sex) =>
+    meshPrimitives(gltf).filter((primitive) => {
+      const name = primitive.nodeName || primitive.name || "";
+      return !/^avatar-/u.test(name) && (sexOfName(name) ?? sex) === sex;
+    });
+  /** Words from an extras value: a list, or a string of words ("torso, upperarms"). */
+  const wordsOf = (value) => [
+    ...new Set((Array.isArray(value) ? value : String(value ?? "").split(/[\s,]+/u)).filter(Boolean)),
+  ];
+  // A shape key's moves under a tenth of a millimetre are left out of hair and clothes.
+  const PIECE_STILL = 1e-4;
+  const sexes = Object.keys(reach);
+
+  // Hair: in two bundles, the short styles and the long. Each keeps only the keys that move the head.
+  const hairIndex = {};
   for (const file of glbs.filter((name) => /^avatar-hair-[a-z0-9_]+\.glb$/u.test(name)).sort()) {
     const style = file.slice("avatar-hair-".length, -4);
-    styles[style] = bySex(readGltf(join(dir, file)), `avatar-hair-${style}`, out).sexes;
+    if (!HAIRSTYLES.some(([name]) => name === style))
+      throw new Error(`${file}: add "${style}" to HAIRSTYLES in packages/wanderworld/src/looks.js`);
+    const name = `avatar-hair-${LONG_HAIR.has(style) ? "long" : "short"}`;
+    const path = join(out, `${name}.pack.png`);
+    const bundle = bundleAt(path, { styles: {} });
+    const gltf = readGltf(join(dir, file));
+    const entry = {};
+    for (const sex of sexes) {
+      const own = meshesFor(gltf, sex);
+      if (!own.length) continue;
+      for (const primitive of own) {
+        followBody(primitive, reach[sex]);
+        keyNormals(primitive);
+      }
+      const texture = (primitive) =>
+        primitive.texture?.startsWith("image:")
+          ? pictureIn(path, gltf, primitive.texture, `avatar-hair-${style}-${primitive.texture.slice(6)}`)
+          : null;
+      entry[sex] = part(own, texture, { distant: shares[sex] ?? 1, still: PIECE_STILL });
+    }
+    bundle.styles[style] = entry;
+    hairIndex[style] = { bundle: name, bodies: Object.keys(entry) };
   }
-  if (Object.keys(styles).length) writePacked(join(out, "avatar-hair.pack.png"), { source, styles }, MESH_KINDS);
-  const pieces = {};
+
+  // Outfit pieces: a bundle for each group of slots (looks.js CLOTH_SLOTS), each piece's parts drawn as
+  // one (mergePrimitives), the face keys only on what's worn on the head, and another way of wearing it
+  // (a cloak's hood up) a variant of its own, never shown with the usual one.
+  const FACE_KEYS = new Set(["jaw", "cheeks", "nose", "eyes", "ears_pointed"]);
+  const HEAD_SLOTS = new Set(["head", "brow", "neck"]);
+  const PART_NAMES = new Set(CLOTH_PARTS.map(([name]) => name));
+  const outfitIndex = {};
   for (const file of glbs.filter((name) => /^outfit-[a-z0-9_]+\.glb$/u.test(name)).sort()) {
     const piece = file.slice("outfit-".length, -4);
+    const slot = SLOT_OF[piece];
+    if (!slot) throw new Error(`${file}: add "${piece}" to CLOTHES in packages/wanderworld/src/looks.js`);
+    const name = `avatar-outfits-${CLOTH_SLOTS.find(([each]) => each === slot)[3]}`;
+    const path = join(outfitsOut, `${name}.pack.png`);
+    const bundle = bundleAt(path, { pieces: {} });
     const gltf = readGltf(join(dir, file));
-    const { sexes, primitives } = bySex(gltf, `avatar-outfit-${piece}`, outfitsOut);
-    // What it covers: `hides` in its meshes', nodes' or scene's extras, a list or words ("torso, upperarms").
-    const said = [
-      ...primitives.map((primitive) => primitive.extras?.hides),
-      ...(gltf.json.scenes ?? []).map((scene) => scene.extras?.hides),
-    ];
-    const hides = [
-      ...new Set(
-        said.flatMap((value) => (Array.isArray(value) ? value : String(value ?? "").split(/[\s,]+/u))).filter(Boolean),
-      ),
-    ];
-    pieces[piece] = { hides, ...sexes };
+    const entry = { slot, layer: 0, hides: [] };
+    const info = { bundle: name, slot, bodies: [], parts: {} };
+    for (const sex of sexes) {
+      const nodes = new Map(); // node name ("female", "female_hood_up") → its meshes
+      for (const primitive of meshesFor(gltf, sex)) {
+        if (!nodes.has(primitive.nodeName)) nodes.set(primitive.nodeName, []);
+        nodes.get(primitive.nodeName).push(primitive);
+      }
+      for (const meshes of nodes.values()) {
+        const merged = mergePrimitives(meshes);
+        const kept = merged.keyNames.filter((key) => HEAD_SLOTS.has(slot) || !FACE_KEYS.has(key));
+        merged.targets = kept.map((key) => merged.targets[merged.keyNames.indexOf(key)]);
+        merged.keyNames = kept;
+        followBody(merged, reach[sex]);
+        keyNormals(merged);
+        for (const { part: partName } of merged.parts)
+          if (!PART_NAMES.has(partName))
+            throw new Error(`${file}: add the part "${partName}" to CLOTH_PARTS in packages/wanderworld/src/looks.js`);
+        const texture = (primitive) =>
+          primitive.texture?.startsWith("image:")
+            ? pictureIn(path, gltf, primitive.texture, `avatar-outfit-${piece}-${primitive.texture.slice(6)}`)
+            : null;
+        const packed = part([merged], texture, { distant: shares[sex] ?? 1, still: PIECE_STILL });
+        const [mesh] = packed.meshes;
+        delete mesh.part;
+        delete mesh.colour;
+        mesh.parts = merged.parts;
+        const extras = meshes[0].extras ?? {};
+        const variant = extras.variant ?? "";
+        const into = variant ? ((entry.variants ??= {})[variant] ??= {}) : entry;
+        into.hides = wordsOf(extras.hides);
+        into[sex] = packed;
+        entry.layer = Number(extras.layer) || entry.layer;
+        if (variant && !(info.variants ??= []).includes(variant)) info.variants.push(variant);
+        if (!variant) info.parts[sex] = merged.parts.map(({ part: partName, colour }) => [partName, srgbHex(colour)]);
+      }
+      if (entry[sex]) info.bodies.push(sex);
+    }
+    bundle.pieces[piece] = entry;
+    outfitIndex[piece] = info;
   }
-  if (Object.keys(pieces).length)
-    writePacked(join(outfitsOut, "avatar-outfits.pack.png"), { source, pieces }, MESH_KINDS);
+  const sorted = (index) => Object.fromEntries(Object.entries(index).sort(([a], [b]) => a.localeCompare(b)));
+  for (const [path, bundle] of bundles) writePacked(path, bundle, MESH_KINDS);
+  if (Object.keys(hairIndex).length)
+    writeFileSync(join(out, "avatar-hair-index.json"), `${JSON.stringify(sorted(hairIndex), null, 1)}\n`);
+  if (Object.keys(outfitIndex).length)
+    writeFileSync(join(outfitsOut, "avatar-outfits-index.json"), `${JSON.stringify(sorted(outfitIndex), null, 1)}\n`);
   for (const folder of [out, outfitsOut]) if (!readdirSync(folder).length) rmSync(folder, { recursive: true });
   console.log(
-    `wrote the avatar: ${readdirSync(out).join(", ")}${Object.keys(pieces).length ? `; outfits: ${Object.keys(pieces).join(", ")}` : ""}`,
+    `wrote the avatar: ${readdirSync(out).join(", ")}; ${Object.keys(hairIndex).length} hair styles and ${Object.keys(outfitIndex).length} outfit pieces in ${[...bundles.keys()].map((path) => path.split(/[\\/]/u).pop()).join(", ")}`,
   );
 }
+/** The hair styles packed with the long ones (avatar-hair-long.pack.png); the rest are the short ones'. */
+const LONG_HAIR = new Set(["long", "ponytail", "braid", "bob", "bob_angled", "curly", "buns"]);
 
 function main() {
   if (process.argv[2] === "--bestiary") return bestiary(process.argv.slice(3));

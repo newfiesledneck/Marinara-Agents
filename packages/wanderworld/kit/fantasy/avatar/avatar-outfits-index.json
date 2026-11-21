@@ -1,0 +1,2179 @@
+{
+ "apron": {
+  "bundle": "avatar-outfits-accessories",
+  "slot": "apron",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     12101768
+    ],
+    [
+     "trim",
+     12101768
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     12101768
+    ],
+    [
+     "trim",
+     12101768
+    ]
+   ]
+  }
+ },
+ "barbarian_harness": {
+  "bundle": "avatar-outfits-armour",
+  "slot": "armour",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "leather",
+     4074012
+    ],
+    [
+     "metal",
+     9079952
+    ],
+    [
+     "fur",
+     8020040
+    ]
+   ],
+   "female": [
+    [
+     "leather",
+     4074012
+    ],
+    [
+     "metal",
+     9079952
+    ],
+    [
+     "fur",
+     8020040
+    ]
+   ]
+  }
+ },
+ "belt_pouches": {
+  "bundle": "avatar-outfits-accessories",
+  "slot": "waist",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "belt",
+     4074012
+    ],
+    [
+     "pouch",
+     7029800
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "belt",
+     4074012
+    ],
+    [
+     "pouch",
+     7029800
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ]
+  }
+ },
+ "bikini_armour": {
+  "bundle": "avatar-outfits-armour",
+  "slot": "armour",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "leather",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ],
+    [
+     "cloth",
+     8268328
+    ]
+   ]
+  }
+ },
+ "bikini_bottom": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "cloth",
+     12595246
+    ],
+    [
+     "trim",
+     12595246
+    ]
+   ]
+  }
+ },
+ "bikini_top": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "cloth",
+     12595246
+    ],
+    [
+     "trim",
+     12595246
+    ]
+   ]
+  }
+ },
+ "blouse": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "cloth",
+     15920870
+    ],
+    [
+     "laces",
+     6967352
+    ]
+   ]
+  }
+ },
+ "boots": {
+  "bundle": "avatar-outfits-feet",
+  "slot": "feet",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "leather",
+     7029800
+    ],
+    [
+     "sole",
+     4074012
+    ],
+    [
+     "metal",
+     9079952
+    ]
+   ],
+   "female": [
+    [
+     "leather",
+     7029800
+    ],
+    [
+     "sole",
+     4074012
+    ],
+    [
+     "metal",
+     9079952
+    ]
+   ]
+  }
+ },
+ "bracers": {
+  "bundle": "avatar-outfits-hands",
+  "slot": "arms",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "leather",
+     7029800
+    ],
+    [
+     "metal",
+     11843774
+    ]
+   ],
+   "female": [
+    [
+     "leather",
+     7029800
+    ],
+    [
+     "metal",
+     11843774
+    ]
+   ]
+  }
+ },
+ "brigandine": {
+  "bundle": "avatar-outfits-armour",
+  "slot": "armour",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     6954020
+    ],
+    [
+     "trim",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     6954020
+    ],
+    [
+     "trim",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ]
+  }
+ },
+ "chainmail": {
+  "bundle": "avatar-outfits-armour",
+  "slot": "armour",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "mail",
+     9079952
+    ],
+    [
+     "trim",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "mail",
+     9079952
+    ],
+    [
+     "trim",
+     12619848
+    ]
+   ]
+  }
+ },
+ "circlet": {
+  "bundle": "avatar-outfits-head",
+  "slot": "brow",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "metal",
+     14200928
+    ],
+    [
+     "gem",
+     10491944
+    ]
+   ],
+   "female": [
+    [
+     "metal",
+     14200928
+    ],
+    [
+     "gem",
+     10491944
+    ]
+   ]
+  }
+ },
+ "cloak": {
+  "bundle": "avatar-outfits-body",
+  "slot": "back",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     4873786
+    ],
+    [
+     "lining",
+     6048314
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     4873786
+    ],
+    [
+     "lining",
+     6048314
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ]
+  },
+  "variants": [
+   "hood_up"
+  ]
+ },
+ "corset": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "over",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "leather",
+     4074012
+    ],
+    [
+     "trim",
+     7029800
+    ],
+    [
+     "laces",
+     6967352
+    ]
+   ],
+   "female": [
+    [
+     "leather",
+     4074012
+    ],
+    [
+     "trim",
+     7029800
+    ],
+    [
+     "laces",
+     6967352
+    ]
+   ]
+  }
+ },
+ "crop_top": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     13615782
+    ],
+    [
+     "trim",
+     13615782
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     13615782
+    ],
+    [
+     "trim",
+     13615782
+    ]
+   ]
+  }
+ },
+ "dress": {
+  "bundle": "avatar-outfits-body",
+  "slot": "body",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     4873786
+    ],
+    [
+     "bodice",
+     6048314
+    ],
+    [
+     "trim",
+     10119738
+    ],
+    [
+     "laces",
+     6967352
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     4873786
+    ],
+    [
+     "bodice",
+     6048314
+    ],
+    [
+     "trim",
+     10119738
+    ],
+    [
+     "laces",
+     6967352
+    ]
+   ]
+  }
+ },
+ "full_helm": {
+  "bundle": "avatar-outfits-head",
+  "slot": "head",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "trim",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "trim",
+     12619848
+    ]
+   ]
+  }
+ },
+ "gambeson": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "over",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     12102284
+    ],
+    [
+     "laces",
+     4074012
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     12102284
+    ],
+    [
+     "laces",
+     4074012
+    ]
+   ]
+  }
+ },
+ "gauntlets": {
+  "bundle": "avatar-outfits-hands",
+  "slot": "hands",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "leather",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "leather",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ]
+  }
+ },
+ "gloves": {
+  "bundle": "avatar-outfits-hands",
+  "slot": "hands",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "leather",
+     7029800
+    ]
+   ],
+   "female": [
+    [
+     "leather",
+     7029800
+    ]
+   ]
+  }
+ },
+ "gown": {
+  "bundle": "avatar-outfits-body",
+  "slot": "body",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "bodice",
+     2502750
+    ],
+    [
+     "cloth",
+     2502750
+    ],
+    [
+     "trim",
+     13148232
+    ],
+    [
+     "metal",
+     14200928
+    ],
+    [
+     "gem",
+     2117808
+    ]
+   ]
+  }
+ },
+ "greaves": {
+  "bundle": "avatar-outfits-armour",
+  "slot": "shins",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "leather",
+     4074012
+    ]
+   ],
+   "female": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "leather",
+     4074012
+    ]
+   ]
+  }
+ },
+ "helm": {
+  "bundle": "avatar-outfits-head",
+  "slot": "head",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "trim",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "trim",
+     12619848
+    ]
+   ]
+  }
+ },
+ "hood": {
+  "bundle": "avatar-outfits-head",
+  "slot": "head",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     5920854
+    ],
+    [
+     "lining",
+     6048314
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     5920854
+    ],
+    [
+     "lining",
+     6048314
+    ]
+   ]
+  }
+ },
+ "leather_armour": {
+  "bundle": "avatar-outfits-armour",
+  "slot": "armour",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "leather",
+     7029800
+    ],
+    [
+     "trim",
+     4074012
+    ],
+    [
+     "metal",
+     9079952
+    ]
+   ],
+   "female": [
+    [
+     "leather",
+     7029800
+    ],
+    [
+     "trim",
+     4074012
+    ],
+    [
+     "metal",
+     9079952
+    ]
+   ]
+  }
+ },
+ "leggings": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     4868688
+    ],
+    [
+     "trim",
+     4868688
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     4868688
+    ],
+    [
+     "trim",
+     4868688
+    ]
+   ]
+  }
+ },
+ "loincloth": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     9071178
+    ],
+    [
+     "under",
+     14998728
+    ],
+    [
+     "belt",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     9071178
+    ],
+    [
+     "under",
+     14998728
+    ],
+    [
+     "belt",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ]
+  }
+ },
+ "long_coat": {
+  "bundle": "avatar-outfits-body",
+  "slot": "back",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     6048314
+    ],
+    [
+     "trim",
+     6048314
+    ],
+    [
+     "lining",
+     8268328
+    ],
+    [
+     "belt",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     6048314
+    ],
+    [
+     "trim",
+     6048314
+    ],
+    [
+     "lining",
+     8268328
+    ],
+    [
+     "belt",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ]
+  }
+ },
+ "mh_boots_black": {
+  "bundle": "avatar-outfits-feet",
+  "slot": "feet",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "shoe",
+     16777215
+    ],
+    [
+     "sock",
+     16777215
+    ]
+   ],
+   "female": [
+    [
+     "shoe",
+     16777215
+    ],
+    [
+     "sock",
+     16777215
+    ]
+   ]
+  }
+ },
+ "mh_denim_shirt": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "male"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     4345192
+    ]
+   ]
+  }
+ },
+ "mh_fedora": {
+  "bundle": "avatar-outfits-head",
+  "slot": "head",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "felt",
+     9932686
+    ]
+   ],
+   "female": [
+    [
+     "felt",
+     9932686
+    ]
+   ]
+  }
+ },
+ "mh_fedora_cocked": {
+  "bundle": "avatar-outfits-head",
+  "slot": "head",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "felt",
+     9932686
+    ]
+   ],
+   "female": [
+    [
+     "felt",
+     9932686
+    ]
+   ]
+  }
+ },
+ "mh_female_blazer": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "over",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "cloth",
+     16777215
+    ]
+   ]
+  }
+ },
+ "mh_female_jeans": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "cloth",
+     6522533
+    ]
+   ]
+  }
+ },
+ "mh_female_leggings": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "cloth",
+     4342338
+    ]
+   ]
+  }
+ },
+ "mh_female_loose_tee": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "cloth",
+     4283281
+    ]
+   ]
+  }
+ },
+ "mh_female_shorts": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "cloth",
+     9479122
+    ]
+   ]
+  }
+ },
+ "mh_female_skirt": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "cloth",
+     4606533
+    ]
+   ]
+  }
+ },
+ "mh_female_sport_top": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "cloth",
+     4545682
+    ]
+   ]
+  }
+ },
+ "mh_female_tee": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "cloth",
+     4283281
+    ]
+   ]
+  }
+ },
+ "mh_jacket": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "over",
+  "bodies": [
+   "male"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     16777215
+    ]
+   ]
+  }
+ },
+ "mh_jeans": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "male"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     6522534
+    ]
+   ]
+  }
+ },
+ "mh_jeans_dark": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "male"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     5791853
+    ]
+   ]
+  }
+ },
+ "mh_long_tee": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "male"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     13619151
+    ]
+   ]
+  }
+ },
+ "mh_longsleeve_tee": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "male"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     4283281
+    ]
+   ]
+  }
+ },
+ "mh_overalls": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "male"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     7314912
+    ]
+   ]
+  }
+ },
+ "mh_plaid_shirt": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "male"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     16777215
+    ]
+   ]
+  }
+ },
+ "mh_shoes_black": {
+  "bundle": "avatar-outfits-feet",
+  "slot": "feet",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "shoe",
+     16777215
+    ],
+    [
+     "sock",
+     16777215
+    ]
+   ],
+   "female": [
+    [
+     "shoe",
+     16777215
+    ],
+    [
+     "sock",
+     16777215
+    ]
+   ]
+  }
+ },
+ "mh_shoes_brown": {
+  "bundle": "avatar-outfits-feet",
+  "slot": "feet",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "shoe",
+     16777215
+    ],
+    [
+     "sock",
+     16777215
+    ]
+   ],
+   "female": [
+    [
+     "shoe",
+     16777215
+    ],
+    [
+     "sock",
+     16777215
+    ]
+   ]
+  }
+ },
+ "mh_suit_jacket": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "over",
+  "bodies": [
+   "male"
+  ],
+  "parts": {
+   "male": [
+    [
+     "suit",
+     16777215
+    ]
+   ]
+  }
+ },
+ "mh_suit_trousers": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "male"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     2829099
+    ]
+   ]
+  }
+ },
+ "mh_tee": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "male"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     4480145
+    ]
+   ]
+  }
+ },
+ "mh_trainers_blue": {
+  "bundle": "avatar-outfits-feet",
+  "slot": "feet",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "shoe",
+     16777215
+    ],
+    [
+     "sock",
+     16777215
+    ]
+   ],
+   "female": [
+    [
+     "shoe",
+     16777215
+    ],
+    [
+     "sock",
+     16777215
+    ]
+   ]
+  }
+ },
+ "mh_trainers_white": {
+  "bundle": "avatar-outfits-feet",
+  "slot": "feet",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "shoe",
+     16777215
+    ],
+    [
+     "sock",
+     16777215
+    ]
+   ],
+   "female": [
+    [
+     "shoe",
+     16777215
+    ],
+    [
+     "sock",
+     16777215
+    ]
+   ]
+  }
+ },
+ "mh_trainers_worn": {
+  "bundle": "avatar-outfits-feet",
+  "slot": "feet",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "shoe",
+     16777215
+    ],
+    [
+     "sock",
+     16777215
+    ]
+   ],
+   "female": [
+    [
+     "shoe",
+     16777215
+    ],
+    [
+     "sock",
+     16777215
+    ]
+   ]
+  }
+ },
+ "mh_workwear": {
+  "bundle": "avatar-outfits-body",
+  "slot": "body",
+  "bodies": [
+   "male"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     7314912
+    ],
+    [
+     "shirt",
+     16579839
+    ]
+   ]
+  }
+ },
+ "one_piece_swimsuit": {
+  "bundle": "avatar-outfits-body",
+  "slot": "body",
+  "bodies": [
+   "female"
+  ],
+  "parts": {
+   "female": [
+    [
+     "cloth",
+     2001546
+    ],
+    [
+     "trim",
+     2001546
+    ]
+   ]
+  }
+ },
+ "pauldrons": {
+  "bundle": "avatar-outfits-armour",
+  "slot": "shoulders",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ]
+  }
+ },
+ "plate_cuirass": {
+  "bundle": "avatar-outfits-armour",
+  "slot": "plate",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "leather",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "leather",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ]
+  }
+ },
+ "pleated_skirt": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     4873786
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     4873786
+    ]
+   ]
+  }
+ },
+ "robe": {
+  "bundle": "avatar-outfits-body",
+  "slot": "body",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     5123662
+    ],
+    [
+     "trim",
+     13148232
+    ],
+    [
+     "cord",
+     13148232
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     5123662
+    ],
+    [
+     "trim",
+     13148232
+    ],
+    [
+     "cord",
+     13148232
+    ]
+   ]
+  }
+ },
+ "sabatons": {
+  "bundle": "avatar-outfits-feet",
+  "slot": "feet",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "sole",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "sole",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ]
+  }
+ },
+ "sandals": {
+  "bundle": "avatar-outfits-feet",
+  "slot": "feet",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "sole",
+     4074012
+    ],
+    [
+     "leather",
+     7029800
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "sole",
+     4074012
+    ],
+    [
+     "leather",
+     7029800
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ]
+  }
+ },
+ "scale_mail": {
+  "bundle": "avatar-outfits-armour",
+  "slot": "armour",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "scale",
+     11843774
+    ],
+    [
+     "trim",
+     4074012
+    ]
+   ],
+   "female": [
+    [
+     "scale",
+     11843774
+    ],
+    [
+     "trim",
+     4074012
+    ]
+   ]
+  }
+ },
+ "scarf": {
+  "bundle": "avatar-outfits-accessories",
+  "slot": "neck",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     9317930
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     9317930
+    ]
+   ]
+  }
+ },
+ "shirt": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     14998728
+    ],
+    [
+     "laces",
+     6967352
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     14998728
+    ],
+    [
+     "laces",
+     6967352
+    ]
+   ]
+  }
+ },
+ "shoes": {
+  "bundle": "avatar-outfits-feet",
+  "slot": "feet",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "leather",
+     7029800
+    ],
+    [
+     "trim",
+     4074012
+    ],
+    [
+     "sole",
+     4074012
+    ],
+    [
+     "metal",
+     9079952
+    ]
+   ],
+   "female": [
+    [
+     "leather",
+     7029800
+    ],
+    [
+     "trim",
+     4074012
+    ],
+    [
+     "sole",
+     4074012
+    ],
+    [
+     "metal",
+     9079952
+    ]
+   ]
+  }
+ },
+ "short_skirt": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     8268328
+    ],
+    [
+     "trim",
+     13148232
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     8268328
+    ],
+    [
+     "trim",
+     13148232
+    ]
+   ]
+  }
+ },
+ "shorts": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     12101768
+    ],
+    [
+     "laces",
+     6967352
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     12101768
+    ],
+    [
+     "laces",
+     6967352
+    ]
+   ]
+  }
+ },
+ "skirt": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     4083816
+    ],
+    [
+     "trim",
+     10119738
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     4083816
+    ],
+    [
+     "trim",
+     10119738
+    ]
+   ]
+  }
+ },
+ "swim_trunks": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     2372698
+    ],
+    [
+     "trim",
+     15920870
+    ],
+    [
+     "laces",
+     15920870
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     2372698
+    ],
+    [
+     "trim",
+     15920870
+    ],
+    [
+     "laces",
+     15920870
+    ]
+   ]
+  }
+ },
+ "t_shirt": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     14998728
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     14998728
+    ]
+   ]
+  }
+ },
+ "tall_boots": {
+  "bundle": "avatar-outfits-feet",
+  "slot": "feet",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "leather",
+     4074012
+    ],
+    [
+     "trim",
+     4074012
+    ],
+    [
+     "sole",
+     4074012
+    ],
+    [
+     "metal",
+     9079952
+    ]
+   ],
+   "female": [
+    [
+     "leather",
+     4074012
+    ],
+    [
+     "trim",
+     4074012
+    ],
+    [
+     "sole",
+     4074012
+    ],
+    [
+     "metal",
+     9079952
+    ]
+   ]
+  }
+ },
+ "tank_top": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "top",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     4868688
+    ],
+    [
+     "trim",
+     4868688
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     4868688
+    ],
+    [
+     "trim",
+     4868688
+    ]
+   ]
+  }
+ },
+ "tassets": {
+  "bundle": "avatar-outfits-armour",
+  "slot": "thighs",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "leather",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "plate",
+     11843774
+    ],
+    [
+     "leather",
+     4074012
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ]
+  }
+ },
+ "trousers": {
+  "bundle": "avatar-outfits-legs",
+  "slot": "legs",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     6048314
+    ],
+    [
+     "laces",
+     6967352
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     6048314
+    ],
+    [
+     "laces",
+     6967352
+    ]
+   ]
+  }
+ },
+ "tunic": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "over",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     4873786
+    ],
+    [
+     "trim",
+     10119738
+    ],
+    [
+     "belt",
+     7029800
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     4873786
+    ],
+    [
+     "trim",
+     10119738
+    ],
+    [
+     "belt",
+     7029800
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ]
+  }
+ },
+ "vest": {
+  "bundle": "avatar-outfits-tops",
+  "slot": "over",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "cloth",
+     6954020
+    ],
+    [
+     "trim",
+     13148232
+    ],
+    [
+     "metal",
+     12619848
+    ]
+   ],
+   "female": [
+    [
+     "cloth",
+     6954020
+    ],
+    [
+     "trim",
+     13148232
+    ],
+    [
+     "laces",
+     6967352
+    ]
+   ]
+  }
+ }
+}

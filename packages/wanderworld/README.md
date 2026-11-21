@@ -39,7 +39,7 @@ there, so a phone and a computer stay in step. Each browser writes only the worl
 made on one never drops out of another's list. If one world is played in two browsers at the same moment,
 the browser that saved it first keeps it and the other one loads that save, so don't do that.
 
-## What it does now (0.7.49)
+## What it does now (0.7.50)
 
 ### The world
 
@@ -81,7 +81,7 @@ the browser that saved it first keeps it and the other one loads that save, so d
   Quaternius's dressed townsfolk, with Settings → People → Townsfolk use the new bodies off), each looking
   as their name and lore have them; a body picker sets Auto, Male or Female, per world.
 - **The built-in body** (`src/avatar.js`, docs/AVATAR.md): Wanderworld's own person, male or female, made
-  in Blender from MakeHuman's CC0 base mesh and shapes, in plain underwear (outfits are coming). The
+  in Blender from MakeHuman's CC0 base mesh and shapes, with 14 hair styles and 78 pieces of clothing. The
   Look card shapes it, a section at a time, each folding away, with a small turning picture of them at
   the top:
   - **Presets:** start from one of your own or a ready-made one (a few for each body), save the look
@@ -99,7 +99,18 @@ the browser that saved it first keeps it and the other one loads that save, so d
     plain grey eye in a colour of your own; lips, nails and brows from a list or any colour (over a skin
     picture, lips and nails are the picture's own unless coloured). **Underwear:** a top and a
     bottom of the styles that body has (or none), and its colour; an outfit covering it hides it.
-    **Hair:** style and colour (the hair meshes are still being made: until then the body is bald).
+    **Hair:** one of the styles the kit has for that body (shaved close, cropped, short, mohawk, slicked
+    back, short with a fringe, side-parted, curly, bob, angled bob, two buns, long, ponytail, braid, or
+    none), and its colour. A hood or helm that covers the head hides it.
+  - **Clothes** and **Armour:** one piece a slot (head, brow, neck, cloak or coat, whole outfit, shirt,
+    over the shirt, legs, feet, hands, belt, apron; body armour, breastplate, shoulders, forearms, thigh
+    plates, shins), from the pieces made for that body, MakeHuman's modern clothes listed apart. Each
+    piece's parts (cloth, trim, leather, metal…) take a dye from the list or a colour of your own, and the
+    cloak's hood is up or down. A ready-made outfit puts on a whole set: peasant, townsperson, ranger,
+    mage, knight, barbarian, beach or modern casual. A piece hides the skin and underwear it covers.
+    Unless chosen, they wear everyday clothes for their work, from their name: a townsperson's shirt and
+    vest or dress, a farmer's tunic, a smith's apron, a guard's gambeson or brigandine, a noble's gown or
+    long coat, a priest's robe, each in a dye of its own.
   - Anything left unset comes from their name, within an everyday range, and from their lore's
     `ww:looks:` keywords (tall, stocky, red hair, elf, old, middle-aged…): most townsfolk are young
     adults, some middle-aged and a few old, each with a skin picture of their age and brows and lashes
@@ -1457,6 +1468,22 @@ Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan: the bui
 and the giants' base body made from it (`assets/models/giant-base.glb`).
 
 MakeHuman system assets (skins, eyes, eyebrows, eyelashes): CC0, read as data by `make_avatar.py`.
+
+Hair styles and clothing from MakeHuman's system assets (CC0), fitted in Blender by ThatOneCan
+(`assets/scripts/make_mh_hair.py`, `make_mh_clothes.py`): the short, slicked, crop, fringe, curly, bob,
+bob angled, long, ponytail and braid hair styles, and the modern clothes: the tee, long tee, longsleeve
+tee, denim shirt, plaid shirt, jacket, suit jacket, suit trousers, jeans, jeans dark, overalls, workwear,
+female tee, female loose tee, female sport top, female blazer, female jeans, female leggings, female
+shorts, female skirt, fedora, fedora cocked, shoes black, shoes brown, boots black, trainers white,
+trainers blue and trainers worn.
+
+Made in Blender by ThatOneCan for the built-in body (`assets/scripts/make_hair.py`, `make_outfit.py`,
+`make_outfit2.py`): the parted, buns, shaved and mohawk hair styles, and the clothing and armour: the
+shirt, t shirt, tank top, crop top, blouse, bikini top, tunic, vest, corset, gambeson, dress, gown, robe,
+one piece swimsuit, cloak, long coat, trousers, leggings, shorts, skirt, short skirt, pleated skirt,
+loincloth, swim trunks, bikini bottom, boots, tall boots, shoes, sandals, gloves, hood, scarf, circlet,
+apron, belt pouches, chainmail, scale mail, brigandine, leather armour, bikini armour, barbarian harness,
+plate cuirass, pauldrons, bracers, gauntlets, tassets, greaves, sabatons, helm and full helm.
 
 Made in Blender by ThatOneCan (`assets/scripts/make_*.py`), on the people's skeleton
 (`kit/fantasy/folk`): the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre,

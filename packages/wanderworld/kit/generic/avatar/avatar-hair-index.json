@@ -1,0 +1,100 @@
+{
+ "bob": {
+  "bundle": "avatar-hair-long",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "bob_angled": {
+  "bundle": "avatar-hair-long",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "braid": {
+  "bundle": "avatar-hair-long",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "buns": {
+  "bundle": "avatar-hair-long",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "crop": {
+  "bundle": "avatar-hair-short",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "curly": {
+  "bundle": "avatar-hair-long",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "fringe": {
+  "bundle": "avatar-hair-short",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "long": {
+  "bundle": "avatar-hair-long",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "mohawk": {
+  "bundle": "avatar-hair-short",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "parted": {
+  "bundle": "avatar-hair-short",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "ponytail": {
+  "bundle": "avatar-hair-long",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "shaved": {
+  "bundle": "avatar-hair-short",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "short": {
+  "bundle": "avatar-hair-short",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "slicked": {
+  "bundle": "avatar-hair-short",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ }
+}

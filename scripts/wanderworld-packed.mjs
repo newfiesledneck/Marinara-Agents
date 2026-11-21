@@ -32,6 +32,7 @@ export const MESH_KINDS = {
   far: indexKind,
   ids: indexKind,
   delta: () => [2, 3],
+  partOf: () => [1, 1], // (an outfit piece's colour part for each vertex)
   webp: () => null, // (a picture in a bundle: `pictures`, [{ name, webp }])
 };
 /** The creatures with skeletons of their own (build-wanderworld-people.mjs rigged): glTF buffer views. */
