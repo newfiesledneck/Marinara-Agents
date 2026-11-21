@@ -32,6 +32,102 @@ def data_dir():
 
 
 DATA = data_dir()
+_ASSETS = os.path.join("_planning", "Wanderworld asset packs", "MakeHuman", "makehuman_system_assets_cc0")
+
+
+def assets_dir():
+    """MakeHuman's system assets (CC0: skins, eyes, eyebrows, eyelashes), in `MAKEHUMAN_ASSETS`, else beside the
+    base data in `_planning`."""
+    found = os.environ.get("MAKEHUMAN_ASSETS")
+    if found and os.path.isdir(found):
+        return found
+    candidate = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(DATA))), "makehuman_system_assets_cc0")
+    if os.path.isdir(candidate):
+        return candidate
+    here = HERE
+    while True:
+        candidate = os.path.join(here, _ASSETS)
+        if os.path.isdir(candidate):
+            return candidate
+        up = os.path.dirname(here)
+        if up == here:
+            raise SystemExit("MakeHuman's system assets not found: set MAKEHUMAN_ASSETS to the makehuman_system_assets_cc0 folder")
+        here = up
+
+
+class Proxy:
+    """A MakeHuman proxy (.mhclo, read as data): each of its vertices a weighted sum of three base-mesh
+    vertices plus an offset in MakeHuman's axes (x, up, forward), scaled per axis by how far apart two
+    named base vertices are against the distance given; and its .obj's faces and texture coordinates."""
+
+    def __init__(self, path):
+        folder = os.path.dirname(path)
+        self.name = os.path.splitext(os.path.basename(path))[0]
+        self.scales = {}
+        refs, weights, offs = [], [], []
+        obj = None
+        reading = False
+        with open(path, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                words = line.split()
+                if not words or words[0].startswith("#"):
+                    continue
+                try:
+                    numbers = [float(w) for w in words]
+                except ValueError:
+                    numbers = None
+                if reading and numbers is not None:
+                    if len(words) == 1:
+                        refs.append([int(words[0])] * 3)
+                        weights.append([1.0, 0.0, 0.0])
+                        offs.append([0.0, 0.0, 0.0])
+                    elif len(words) >= 9:
+                        refs.append([int(w) for w in words[:3]])
+                        weights.append(numbers[3:6])
+                        offs.append(numbers[6:9])
+                    continue
+                key = words[0]
+                if key == "verts":
+                    reading = True
+                elif key in ("x_scale", "y_scale", "z_scale"):
+                    self.scales[key[0]] = (int(words[1]), int(words[2]), float(words[3]))
+                elif key == "obj_file":
+                    obj = words[1]
+                elif key == "material":
+                    self.material = os.path.join(folder, words[1])
+        self.refs = np.array(refs, dtype=np.int64)
+        self.weights = np.array(weights, dtype=np.float64)
+        self.offsets = np.array(offs, dtype=np.float64)
+        self.faces, self.face_uv, self.uv = [], [], []
+        with open(os.path.join(folder, obj), encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if line.startswith("vt "):
+                    self.uv.append([float(x) for x in line.split()[1:3]])
+                elif line.startswith("f "):
+                    parts = [p.split("/") for p in line.split()[1:]]
+                    self.faces.append([int(p[0]) - 1 for p in parts])
+                    self.face_uv.append([int(p[1]) - 1 if len(p) > 1 and p[1] else int(p[0]) - 1 for p in parts])
+        self.uv = np.array(self.uv, dtype=np.float64)
+        self.texture = None
+        if getattr(self, "material", None) and os.path.exists(self.material):
+            with open(self.material, encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    if line.startswith("diffuseTexture"):
+                        self.texture = os.path.join(folder, line.split()[1])
+
+    def fit(self, co):
+        """The proxy's vertices on a body whose base-mesh vertices are `co` (Blender's axes, metres): the
+        offsets scaled by the body's own measures, MakeHuman's (x, up, forward) taken to (x, -forward, up)."""
+        axis = {"x": 0, "y": 2, "z": 1}  # (MakeHuman's axis -> Blender's)
+        s = {}
+        for k, (a, b, ref) in self.scales.items():
+            s[k] = abs(co[a, axis[k]] - co[b, axis[k]]) / ref
+        off = np.stack([self.offsets[:, 0] * s["x"], -self.offsets[:, 2] * s["z"], self.offsets[:, 1] * s["y"]], axis=1)
+        return self.blend(co) + off
+
+    def blend(self, values):
+        """Any per-vertex values of the base mesh (shape key offsets) carried to the proxy's vertices."""
+        return (values[self.refs] * self.weights[:, :, None]).sum(1)
 
 
 class Base:

@@ -10,6 +10,7 @@ import { CREDITS, HELP, KEYWORD_GUIDE, keywordGroups } from "./help.js";
 import { makeFloating } from "./floating.js";
 import { cardRow, createInfoCard, createOverCard, logLines } from "./fightbar.js"; // (the fight display)
 import {
+  AGES,
   AVATAR_COLOURS,
   BARE,
   BODIES,
@@ -17,7 +18,10 @@ import {
   checkPresets,
   COLOUR_FIELD,
   EXTRAS,
+  EYE_PICTURES,
   FACE,
+  SKINS,
+  TINT,
   HAIR_COLOURS,
   HAIRSTYLES,
   HEIGHTS,
@@ -675,6 +679,10 @@ export function createHud(root, handlers) {
           body.addEventListener("change", () => set({ body: body.value || undefined, figure: undefined }));
           row("Body", body);
           says("Which model they are: the male or the female body. Anthro bodies come later.");
+          pick("Age", "age", AGES, shape.age);
+          says(
+            "All grown-ups. Middle-aged and old change the face and build a little, and the skin pictures show their lines. Unless chosen, it comes from their name or lore (old, elderly, middle-aged).",
+          );
         });
         // Build and face: shape keys, and the bones' lengths.
         const shapeSlider = ([key, label, least, most, what]) => {
@@ -716,15 +724,51 @@ export function createHud(root, handlers) {
         });
         section("Face", () => {
           for (const entry of FACE) shapeSlider(entry);
+          // Brow and lash styles (MakeHuman's): the ones this body has. Their colour is under Colours.
+          for (const [field, label, what] of [
+            ["brows", "Brows", "The eyebrows' shape. Their colour is the Brows colour below."],
+            ["lashes", "Lashes", "The eyelashes, shorter or fuller."],
+          ]) {
+            const have = avatar.choices?.[field] ?? [];
+            if (!have.length) continue;
+            pick(
+              label,
+              field,
+              have.map((style) => [style, `Style ${style}`]),
+              shape[field],
+              Number,
+            );
+            says(`${what} Unless chosen, it comes from their name.`);
+          }
         });
-        // Colours: each part from its list or a colour of one's own. (The skin is the older kit's too.)
+        // Colours: each part from its list or a colour of one's own. The skin and eyes are a picture, or a
+        // colour of one's own. (The skin's colour is the older kit's too.)
         section("Colours", () => {
+          const picture = shape.skin !== "custom";
           for (const [part, label, list, what] of AVATAR_COLOURS) {
             if (part === "underwear") continue; // (with the underwear, below)
-            colourRow(label, what, list, shape.colours[part], `colour:${part}`, (colour) =>
-              part === "skin"
-                ? set({ skinTint: colour, skin: undefined, colours: { ...chosen.colours, skin: undefined } })
-                : set({ colours: { ...chosen.colours, [part]: colour } }),
+            if (part === "skin") {
+              pick("Skin", "skin", SKINS, shape.skin);
+              says("MakeHuman's skin pictures, each at their age, or the plain skin in a colour of your own.");
+              if (picture) continue;
+            }
+            if (part === "eyes") {
+              pick("Eyes", "eyePicture", [...EYE_PICTURES, [TINT, "A colour of your own"]], shape.eyePicture);
+              says("A real eye's picture, or the plain grey eye in a colour of your own.");
+              if (shape.eyePicture !== TINT) continue;
+            }
+            // (Over a skin picture, lips and nails are the picture's own unless coloured.)
+            const own = picture && (part === "lips" || part === "nails");
+            colourRow(
+              { skin: "Skin colour", eyes: "Eye colour" }[part] ?? label,
+              what,
+              own ? [[0xffffff, "The skin's own"], ...list] : list,
+              shape.colours[part],
+              `colour:${part}`,
+              (colour) =>
+                part === "skin"
+                  ? set({ skinTint: colour, skin: "custom", colours: { ...chosen.colours, skin: undefined } })
+                  : set({ colours: { ...chosen.colours, [part]: colour } }),
             );
           }
         });
