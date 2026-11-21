@@ -8,6 +8,7 @@ import { createIllustrateWindow, floatingFrame } from "./illustrate.js";
 import { createPersonEditor } from "./person.js";
 import { CREDITS, HELP, KEYWORD_GUIDE, keywordGroups } from "./help.js";
 import { makeFloating } from "./floating.js";
+import { cardRow, createInfoCard, createOverCard, logLines } from "./fightbar.js"; // (the fight display)
 import { BARE, COLOUR_FIELD, EXTRAS, HAIR_COLOURS, HAIRSTYLES, HEIGHTS, OUTFITS, PIECES, SKIN_TONES } from "./looks.js";
 import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
@@ -925,6 +926,18 @@ export function createHud(root, handlers) {
       "How long something you've beaten lies where it fell before it goes. 0 keeps it until you harvest it or clear it with the button below. While it lies there, you can harvest an animal (hide, meat and the like go into your inventory, and the body goes) or search an outlaw (you take what they carried, and the body stays).",
     defeat:
       "What happens at 0 HP. Come to where you fell: you get up there with 1 HP, and whatever beat you has backed off. Wake at home: you wake at your own door (by the market if you have no home) with half your HP. Stay down until you choose: you lie where you fell while the chat and narration go on, and a Respawn button at the top gets you up at home whenever you like. Nothing is lost either way, and nobody dies for good.",
+    victorsStay:
+      'Only with "When your HP runs out" set to Stay down until you choose. On: what beat you stays near you instead of drawing off, and isn\'t counted away by "New monsters every". What they do depends on who they are. An outlaw (a bandit, a witch, a wizard and the like) stands over you, and with "What a defeat costs" set to money takes it there and then (not again when you get up). A beast circles you. A monster stands guard. A line in the chat says who stands over you, and a card gives you three choices. Plead: Charisma (Persuasion), or Wisdom (Animal Handling) with beasts alone, against DC 10 plus the strongest one\'s challenge rating, 2 more for each plea; the mindless can\'t be pleaded with. Wait: they may lose interest and go. Struggle: a Constitution check against DC 10, and on a success you get up with 1 HP and the fight starts again. With AI moments on, the narrator is told in one short line who stands over you, so you can play it out in the chat. Respawn still gets you up at home at any time. Overridden by: Undefeatable (you never go down), being indoors, and places where "Where people may confront you" keeps fights out (there they let you be). Off: they draw off, as before.',
+    nameplates:
+      "Over each creature and person in a fight: their name, an HP bar that goes from green to yellow, orange and red as they're hurt, and a mark for each condition on them (↓ prone, ☠ poisoned, ! frightened, ✋ held or grappled, # restrained, ✶ stunned, ≈ slowed, ✕ down and so on). A bigger creature has its plate higher. Plates fade with distance, one close to the camera fades out so it never fills your view, and ten at most are up at once. People keep their own name tag, so theirs shows the bar alone. Sometimes: only over one that's hurt, has a condition, is aimed at, or whose turn it is. Always in fights: over everyone in the fight. Off: none. Tap or click a plate for its info card. \"Show foes' exact HP\" decides whether a foe's bar is exact or in quarters.",
+    platesHostile:
+      'On: a hostile creature you can see, within about 30 metres, has its plate before any fight begins (as "Name and HP over heads" says). Off: only those in a fight. Does nothing with plates off.',
+    fightList:
+      "Real-time combat only: a turn-based fight has its own bar with the turn order, always. On: a compact list at the top of you, your companions and each creature or person in the fight, each with an HP bar, numbers and what's on them, and under it the last thing that happened in a few words (Before opens a few more; the chat keeps every line). Tap or click a name for the info card. Off: only the chat tells the fight.",
+    foeNumbers:
+      "On: a creature's or an enemy's HP shows as numbers (7/11) on the cards and in the info card. Off: a word for how hurt it is (Unhurt, Scratched, Wounded, Badly wounded, Near death) and a bar in quarters. Your own and your companions' HP are always numbers. The chat still tells every roll as it happened.",
+    foeKnowledge:
+      "Everything: a creature's info card shows all the 5e SRD has of it here: AC, HP, speed, senses, ability scores, what it resists and is immune or vulnerable to, the conditions it can't be put in, its traits and its actions. Only what you've learned: the card shows its size and type and how hurt it is, its attacks once you've seen it attack, its AC once you've fought it, and how each kind of damage you've dealt it went (halved, doubled, nothing, or as rolled). The first time you open a kind's card you try to recall it: Intelligence (Arcana) for dragons, elementals, monstrosities and the like, (Nature) for beasts, giants, oozes and plants, (Religion) for the undead and fiends, (History) for people, against DC 10 plus its challenge rating. Pass, and you know everything of that kind. It's rolled once a kind and kept with the world. Neither changes how a fight goes.",
     srdSlots:
       "Only in turn-based combat. Off: a spell costs its level in mana, as in real time. On: a spell uses a spell slot of its level or higher, as in the 5e SRD, and no mana. Your sheet and the spell buttons then show spell slots instead of mana. You have the slots of a full caster of your level (two first-level at level 1, three at level 2, four first-level and two second-level at level 3, and so on up to third-level slots). A sleep gives them back. Cantrips need neither.",
     srdCreatures:
@@ -1423,7 +1436,7 @@ export function createHud(root, handlers) {
   heading(
     "Inventory",
     "What you carry, your character sheet, gathering, shops and fights. Your items are kept by the Quartermaster package, if it's installed. Your sheet is Wanderworld's own and works without it.",
-    ["Items", "Sheet", "Gathering", "Shops", "Combat", "5e rules"],
+    ["Items", "Sheet", "Gathering", "Shops", "Combat", "5e rules", "Fight display"],
   );
   at("Inventory", "Items");
   intro(
@@ -1483,6 +1496,7 @@ export function createHud(root, handlers) {
     { here: "Come to where you fell", home: "Wake at home", stay: "Stay down until you choose" },
     "sheet",
   );
+  toggle("victorsStay", "Staying down: those who beat you stay over you", "sheet"); // (fight display)
   choice(
     "defeatCost",
     "What a defeat costs",
@@ -1527,6 +1541,21 @@ export function createHud(root, handlers) {
   toggle("deathSaves", "Death saving throws at 0 HP", "sheet");
   toggle("concentration", "Concentration", "sheet");
   toggle("cover", "Trees and boulders give cover", "sheet");
+  // ── Fight display (fighthud.js, plates.js, fightbar.js) ──
+  at("Inventory", "Fight display");
+  intro(
+    "What a fight shows: names and HP over heads, who's in the fight at the top, and a card for each creature or person (tap or click a name). None of it changes how a fight goes. Needs combat set to Real time or Turn-based.",
+  );
+  choice("nameplates", "Name and HP over heads", { off: "Off", some: "Sometimes", all: "Always in fights" }, "sheet");
+  toggle("platesHostile", "Also over hostile creatures in sight", "sheet");
+  toggle("fightList", "Real time: who's in the fight, at the top", "sheet");
+  toggle("foeNumbers", "Show foes' exact HP", "sheet");
+  choice(
+    "foeKnowledge",
+    "What you know of a creature",
+    { all: "Everything", learned: "Only what you've learned" },
+    "sheet",
+  );
   at("Inventory", "Combat");
   number("bodyMinutes", "Minutes the beaten lie where they fell", "sheet");
   number("beatenDays", "Days before the beaten are about again", "sheet");
@@ -4300,9 +4329,25 @@ export function createHud(root, handlers) {
   const battleBar = document.createElement("div");
   battleBar.setAttribute("data-wanderworld-ui", "");
   battleBar.style.cssText =
-    "position:absolute;left:50%;top:calc(46px + env(safe-area-inset-top, 0px));transform:translateX(-50%);max-width:min(560px,calc(100% - 16px));display:none;flex-direction:column;gap:5px;padding:7px 10px;border-radius:10px;background:rgba(10,14,20,0.78);color:#fff;font:13px system-ui,sans-serif;pointer-events:auto;";
+    "position:absolute;left:50%;top:calc(46px + env(safe-area-inset-top, 0px));transform:translateX(-50%);box-sizing:border-box;width:max-content;max-width:min(640px,calc(100% - 16px));display:none;flex-direction:column;gap:6px;padding:7px 10px;border-radius:10px;background:rgba(10,14,20,0.86);color:#fff;font:14px system-ui,sans-serif;pointer-events:auto;";
   let battleKey = "null";
   layer.append(battleBar);
+  // ── Fight display (fightbar.js): the real-time list, the info card, the card over a beaten player ──
+  const fightList = document.createElement("div");
+  fightList.setAttribute("data-wanderworld-ui", "");
+  fightList.style.cssText = battleBar.style.cssText;
+  let fightListKey = "null";
+  layer.append(fightList);
+  let fightLogOpen = false; // (the lines before the last, opened)
+  const infoCard = createInfoCard(layer);
+  const overCard = createOverCard(layer, (id) => handlers.onOverChoice?.(id));
+  /** Notices and captions come under whichever fight bar is up, not behind it. */
+  const placeUnder = () => {
+    const bar = [battleBar, fightList].find((element) => element.style.display !== "none");
+    const under = bar ? bar.offsetTop + bar.offsetHeight + 6 : 0;
+    notice.style.top = bar ? `${under}px` : "48px";
+    caption.style.top = bar ? `${under}px` : "84px";
+  };
   // What's on the player for now (prone, poisoned, …): a chip each at the top left (setConditions).
   const conditionRow = document.createElement("div");
   conditionRow.setAttribute("data-wanderworld-ui", "");
@@ -4920,36 +4965,32 @@ export function createHud(root, handlers) {
       sceneBody.replaceChildren(...nodes);
     },
     /**
-     * A fight by turns, shown along the top: { round, order: [{ name, current, kind }], mine, out, reach,
-     * action, attacks, bonus, acts: [{ id, label, title, ready }], slots } (`mine`: it's the player's turn; `slots`: "1st 2/2 · 2nd 0/0" or ""); null: no fight.
+     * A fight by turns, shown along the top: { round, order: [fighthud.js fighterView, in turn order], log:
+     * [{ text, short }], mine, out, reach, action, attacks, bonus, acts: [{ id, label, title, ready }], slots }
+     * (`mine`: it's the player's turn; `slots`: "1st 2/2 · 2nd 0/0" or ""); null: no fight. A tap on a
+     * name opens their info card (onFighterInfo).
      */
     setBattle(state) {
-      const key = JSON.stringify(state);
+      const key = JSON.stringify({ state, fightLogOpen });
       if (key === battleKey) return;
       battleKey = key;
       battleBar.style.display = state ? "flex" : "none";
-      if (!state) {
-        notice.style.top = "48px";
-        caption.style.top = "84px";
-        return;
-      }
-      const order = document.createElement("div");
-      order.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;justify-content:center;";
-      for (const entry of state.order) {
-        const chip = document.createElement("span");
-        chip.textContent = entry.name;
-        chip.style.cssText = `padding:2px 7px;border-radius:9px;font-size:11px;background:${entry.current ? "#c9a15a" : "rgba(255,255,255,0.12)"};color:${entry.current ? "#1a1408" : entry.kind === "foe" ? "#ffb4a0" : "#fff"};${entry.current ? "font-weight:700;" : ""}`;
-        order.append(chip);
-      }
+      if (!state) return void placeUnder();
+      fightList.style.display = "none";
+      const order = cardRow(state.order, (id) => handlers.onFighterInfo?.(id));
+      const told = logLines(state.log, fightLogOpen, () => {
+        fightLogOpen = !fightLogOpen;
+        hud.setBattle(state);
+      });
       const line = document.createElement("div");
-      line.style.cssText = "font-size:12px;text-align:center;";
+      line.style.cssText = "font:600 14px system-ui,sans-serif;text-align:center;";
       const count = (n, word) => (n > 0 ? `${n} ${word}${n === 1 ? "" : "s"}` : `no ${word}`);
       line.textContent = state.mine
         ? `Round ${state.round} · Your turn · Moved ${state.out.toFixed(1)} of ${state.reach} m · ${count(state.action, "action")}${state.attacks ? ` (+${count(state.attacks, "attack")})` : ""} · ${count(state.bonus, "bonus action")}${state.slots ? ` · Slots ${state.slots}` : ""}`
         : `Round ${state.round} · ${state.order.find((entry) => entry.current)?.name ?? ""}'s turn`;
       // (What's aimed at, with how far it is; none: a word on how to aim.)
       const aim = document.createElement("div");
-      aim.style.cssText = "font-size:12px;text-align:center;opacity:0.9;";
+      aim.style.cssText = "font-size:13px;text-align:center;opacity:0.9;";
       aim.textContent = state.target ? `Target: ${state.target}` : "Tap a creature or a companion to aim at them.";
       // What else a turn can be spent on (Dash, Disengage, Dodge, and a class's own), each a button.
       const acts = document.createElement("div");
@@ -4970,11 +5011,36 @@ export function createHud(root, handlers) {
       );
       flee.style.cssText += "padding:6px 10px;font-size:12px;";
       row.append(end, flee);
-      battleBar.replaceChildren(order, line, aim, ...(acts.childElementCount ? [acts] : []), row);
-      // (Notices and captions come under the bar, not behind it.)
-      const under = battleBar.offsetTop + battleBar.offsetHeight + 6;
-      notice.style.top = `${under}px`;
-      caption.style.top = `${under}px`;
+      battleBar.replaceChildren(order, line, told, aim, ...(acts.childElementCount ? [acts] : []), row);
+      placeUnder();
+    },
+    /**
+     * A fight in real time, shown along the top as a compact list: { fighters: [fighthud.js fighterView],
+     * log } or null (no fight, or the list is switched off). The turn-based bar takes its place in a fight by turns.
+     */
+    setFighters(state) {
+      const key = JSON.stringify({ state, fightLogOpen });
+      if (key === fightListKey) return;
+      fightListKey = key;
+      fightList.style.display = state && battleBar.style.display === "none" ? "flex" : "none";
+      if (state)
+        fightList.replaceChildren(
+          cardRow(state.fighters, (id) => handlers.onFighterInfo?.(id), true),
+          logLines(state.log, fightLogOpen, () => {
+            fightLogOpen = !fightLogOpen;
+            hud.setFighters(state);
+          }),
+        );
+      placeUnder();
+    },
+    /** The info card for a creature or a person (fighthud.js creatureCard, personCard); null closes it. */
+    showInfo(card) {
+      if (card) infoCard.show(card);
+      else infoCard.hide();
+    },
+    /** The card over a beaten player with their victors standing over them: { text, choices } or null (fightbar.js). */
+    setOver(state) {
+      overCard.set(state);
     },
     /** The hotkeys that are set: [{ key, label }]. A button each in the chat window (none hides the row). */
     setHotbar(slots) {

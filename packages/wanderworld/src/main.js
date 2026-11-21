@@ -176,6 +176,7 @@ import {
 import { canCraft, checkRecipes, craftTakes, knownRecipes, saveRecipe, toolBonus, toolFor, TOOLS } from "./craft.js";
 import {
   TURN_MOVE,
+  armourOf,
   bowOf,
   castAtWords,
   dealtWords,
@@ -288,6 +289,29 @@ import {
   wornMax,
 } from "./sheet.js";
 import { choicesFor, greetingFor, labelOf, lineFor, moodOf } from "./dialogue.js";
+// (The fight display: nameplates, the bar along the top, info cards, and who stands over a beaten player.)
+import {
+  creatureCard,
+  fighterView,
+  keepIds,
+  knowCheck,
+  knowSkill,
+  learned,
+  logged,
+  overRole,
+  overSpots,
+  overTold,
+  overWords,
+  personCard,
+  plateData,
+  plateShown,
+  pleaOf,
+  turnCards,
+  victorList,
+  victorsOf,
+  waitsOut,
+} from "./fighthud.js";
+import { createPlates } from "./plates.js";
 import {
   checkTraits,
   createRelationships,
@@ -6466,6 +6490,7 @@ function narrate(who, text, heard = [], place = false) {
     core.saves.write(core.save);
   }
   core.hud?.narrate(who, text, !!who && who === personaName());
+  if (!who && (core.battle || core.fighters?.length)) core.fightLog = logged(core.fightLog, text); // (fight display)
 }
 
 /**
@@ -6855,7 +6880,8 @@ function placeTold() {
   const beside = besideNow(zoneAt(core.zones, at.x, at.z))
     .filter((entry) => names[entry.id])
     .map((entry) => besideWords(entry, names[entry.id]));
-  return [[here, ...beside].join(", "), ...around.map((entry) => names[entry.id])].join(", in ");
+  const told = [[here, ...beside].join(", "), ...around.map((entry) => names[entry.id])].join(", in ");
+  return core.over && !core.over.gone ? `${told}. ${overTold(core.over.victors, personaName())}` : told; // (fight display)
 }
 
 /** The weather now, in a word, when there is any to speak of. */
@@ -8310,6 +8336,9 @@ function actionGroups() {
 
 /** A click or tap on the world: use (or walk to) what's under it, or walk to that spot on the ground. */
 function tap(clientX, clientY) {
+  // (Fight display: a nameplate opens its info card, whatever the player is doing, down or not.)
+  const stage = core.camera ? core.stage.getBoundingClientRect() : null;
+  if (stage && plateTap(clientX - stage.left, clientY - stage.top)) return;
   // (In the saddle a tap only aims.)
   if (core.mode === "ride" && core.camera && aiming()) {
     const box = core.stage.getBoundingClientRect();
@@ -8847,6 +8876,7 @@ function shapeStrike(foe) {
       ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
       : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
+  knowFrom(foe.kind, result); // (fight display)
   if (!struck) return false;
   const what = creatureWord(foe);
   const told = strikeWords({
@@ -9395,6 +9425,7 @@ function startDying() {
   core.walkTo = null;
   core.afflicted = {};
   breakConcentration("");
+  core.downFighters = fightersNow(); // (fight display: who beat them, for overBegin)
   core.herd.calm();
   core.angry?.clear();
   if (core.battle) battleEnd("");
@@ -10368,6 +10399,7 @@ function spellOnFoe(foe, who, name, spell, wit, from = null) {
         ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
         : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
+  knowFrom(foe.kind, result, result.type ?? spell.type); // (fight display)
   if (!struck) return 0;
   if (!struck.down) {
     const seconds = result.effect?.seconds ?? 0;
@@ -10934,7 +10966,8 @@ function battleTick(dt, moved) {
   const out = battle.from ? Math.hypot(at.x - battle.from.x, at.z - battle.from.z) : 0;
   core.hud?.setBattle({
     round: battle.round,
-    order: battle.order.map((entry, i) => ({ name: entry.name, kind: entry.kind, current: i === battle.at })),
+    order: battleCards(battle), // (fight display)
+    log: core.fightLog ?? [],
     mine: battleMine(),
     out: Math.round(out * 10) / 10,
     reach: battle.reach,
@@ -11074,6 +11107,7 @@ const ARROW = 0xd8c8a0;
  */
 function foeShoots(event, what) {
   const stats = statsOf(event);
+  knowOf(event.kind, { acts: true }); // (fight display)
   const ally = event.target ? fightingAllies().find((person) => person.id === event.target) : null;
   if (event.target ? !ally : core.downed || core.mode === "talk") return;
   const to = ally ? ally.position : core.player.position;
@@ -11671,6 +11705,7 @@ function allyHp(id) {
 function allyAttacked(event, what, with_ = null) {
   const person = fightingAllies().find((entry) => entry.id === event.target);
   if (!person) return;
+  knowOf(event.kind, { acts: true }); // (fight display)
   const name = nameFor(person.id, person.name);
   // (`with_`: what it attacks with when that isn't its own teeth: a bow's or a spell's numbers, and how it's told.)
   const stats = { ...statsOf(event), ...with_ };
@@ -12338,6 +12373,7 @@ function landOn(foe, weapon, cover = 0) {
       ? foeNerve(after, stats.hp, Math.random, extrasOn() ? stats.temperament : "")
       : "fight";
   const struck = core.herd.strike(foe.id, result.damage, stats.hp, nerve);
+  knowFrom(foe.kind, result); // (fight display)
   if (!struck) return false;
   const what = creatureWord(foe);
   const told = strikeWords({ who: personaName(), what, weapon, result, left: struck.hp, max: struck.max });
@@ -12552,6 +12588,7 @@ function dodge() {
 /** A creature's attack on the player (herd.js's "attack"): rolled against their AC, their HP taken, and told. */
 function foeAttacks(event, what, with_ = null) {
   if (core.downed || core.mode === "talk") return;
+  knowOf(event.kind, { acts: true }); // (fight display)
   const who = personaName();
   // Mid-roll, nothing lands.
   if (core.clock < (core.dodgeUntil ?? 0))
@@ -12637,6 +12674,7 @@ function defeated(final = false) {
   core.downAt = performance.now();
   core.gesture = "fall";
   core.walkTo = null;
+  if (!final) core.downFighters = fightersNow(); // (fight display: who beat them, for overBegin)
   core.herd.calm();
   core.angry?.clear();
   const who = personaName();
@@ -12650,6 +12688,7 @@ function defeated(final = false) {
       core.seat = { x, z, angle: core.player.rotation.y, approach: { x, z }, ground: "lie", taken: "player" };
       core.mode = "sit";
       core.stayDown = true; // (the Respawn button is shown from this, every frame: needsRespawn)
+      overBegin(); // (fight display: those who beat them stay over them)
       return;
     }
     comeTo(core.settings.defeat === "home");
@@ -12669,6 +12708,7 @@ const needsRespawn = () =>
  * `free`: they weren't beaten (Settings → Debug → Respawn): it costs nothing and takes no HP from them.
  */
 function comeTo(home, free = false) {
+  const robbed = overEnd(); // (fight display)
   core.downed = false;
   core.stayDown = false;
   core.afflicted = {};
@@ -12697,7 +12737,7 @@ function comeTo(home, free = false) {
     line = door ? PACK.fight.home : PACK.fight.square;
   }
   narrate(null, line.replace("{who}", who));
-  if (!free) void defeatCost(who);
+  if (!free && !robbed) void defeatCost(who);
   core.hud?.refreshInventory?.();
 }
 
@@ -12735,6 +12775,396 @@ function respawn(force = false) {
   if (core.battle) battleEnd("");
   resetMode();
   comeTo(true, !beaten);
+}
+
+// ── The fight display (fighthud.js, plates.js, fightbar.js) ─────────────────────────────────────────────
+// Who is in a fight, gathered every few frames (core.fighters) for the nameplates, the bar along the top and
+// the info cards; what the player has learned of each kind of creature (core.save.bestiary); and, after a
+// defeat with "Stay down until you choose", those who beat them standing over them (core.over). A quest may
+// set core.captive = { takes(kind), begin(over) } for foes that would carry the player off: none does yet.
+
+/** What's on the player, a companion or a creature, as fighthud.js STATUS ids. */
+const playerMarks = () => [
+  ...(core.settings.conditions ? Object.keys(core.afflicted ?? {}) : []),
+  ...(core.hold ? ["held"] : []),
+  ...(core.dying ? ["dying"] : []),
+  ...["hidden", "raging"].filter(buffed),
+  ...(core.battle?.dodging ? ["dodging"] : []),
+];
+const allyMarks = (id) => [
+  ...(core.settings.conditions ? Object.keys(core.allyFx?.get(id) ?? {}) : []),
+  ...(core.allyHolds?.has(id) ? ["held"] : []),
+];
+const foeMarks = (foe) => [
+  ...["stunned", "slowed", "rooted", "calmed"].filter((name) => foe[name]),
+  ...(hindered(foe.id) ? ["hindered"] : []),
+  ...(marked(foe.id) ? ["marked"] : []),
+  ...(holding(foe.id) ? ["holding"] : []),
+];
+
+/** A creature as a fighter for the display (`foe`: herd.js foes). */
+function foeFighter(foe, name = "") {
+  const stats = statsOf(foe);
+  return {
+    id: foe.id,
+    kind: "foe",
+    breed: foe.kind,
+    name: name || creatureWord(foe),
+    hp: foe.hp ?? stats.hp,
+    max: foe.max ?? stats.hp,
+    statuses: foeMarks(foe),
+    x: foe.x,
+    z: foe.z,
+    group: core.herd.bodyOf(foe.id),
+    size: SRD_CREATURES[foe.kind]?.size,
+    scale: foe.scale,
+  };
+}
+
+/**
+ * Everyone in the fight now: [{ id, kind ("player" | "ally" | "foe" | "person"), name, hp, max, statuses, x,
+ * z, group (their body), current, aimed }]. By turns, the turn order; in real time, the player, their
+ * companions, the creatures after them or struck, and anyone fighting back; beaten, those standing over them.
+ */
+function fightersNow() {
+  if (!fighting() || !core.save || !core.player || inHouse()) return [];
+  const at = core.player.position;
+  const hp = entryOf(sheetNow(), "hp");
+  const player = { id: "player", kind: "player", name: personaName(), hp: hp?.value ?? 0, max: hp?.max ?? 1 };
+  Object.assign(player, { statuses: playerMarks(), x: at.x, z: at.z, group: null });
+  const allyOf = (person) => ({
+    id: person.id,
+    kind: "ally",
+    name: nameFor(person.id, person.name),
+    ...allyHp(person.id),
+    statuses: allyMarks(person.id),
+    x: person.position.x,
+    z: person.position.z,
+    group: core.crowd.groupOf(person.id),
+    down: core.crowd.isOut(person.id),
+  });
+  const foes = core.herd.foes(at, 45);
+  const aim = core.aim?.id ?? null;
+  const battle = core.battle;
+  if (battle) {
+    const allies = new Map(fightingAllies().map((person) => [person.id, person]));
+    const about = new Map(foes.map((foe) => [foe.id, foe]));
+    return battle.order
+      .map((entry, i) => {
+        const made =
+          entry.kind === "player"
+            ? player
+            : entry.kind === "ally"
+              ? allies.has(entry.id) && allyOf(allies.get(entry.id))
+              : about.has(entry.id) && foeFighter(about.get(entry.id), entry.name);
+        return made && { ...made, name: entry.name, current: i === battle.at, aimed: entry.id === aim };
+      })
+      .filter(Boolean);
+  }
+  const standing = new Set(core.over && !core.over.gone ? core.over.victors.map((victor) => victor.id) : []);
+  const near = (foe) => Math.hypot(foe.x - at.x, foe.z - at.z);
+  const against = foes
+    .filter((foe) => standing.has(foe.id) || (!foe.fled && (foe.engaged || (foe.hp !== undefined && near(foe) < 20))))
+    .map((foe) => ({ ...foeFighter(foe), aimed: foe.id === aim }));
+  const people = core.angry?.size
+    ? core.crowd
+        .present(core.space)
+        .filter((person) => core.angry.has(person.id))
+        .map((person) => {
+          const most = foeOf("person", foeTable()).hp;
+          const { x, z } = person.position;
+          const group = core.crowd.groupOf(person.id);
+          const left = core.peopleHp?.get(person.id) ?? most;
+          return {
+            id: person.id,
+            kind: "person",
+            name: nameFor(person.id, person.name),
+            hp: left,
+            max: most,
+            x,
+            z,
+            group,
+          };
+        })
+    : [];
+  if (!against.length && !people.length) return [];
+  return [player, ...fightingAllies().map(allyOf), ...against, ...people];
+}
+
+/** The turn order's cards for the bar (fighthud.js turnCards), from those gathered for the display. */
+function battleCards(battle) {
+  const known = new Map((core.fighters ?? []).map((entry) => [entry.id, entry]));
+  const order = battle.order.map((entry) => known.get(entry.id) ?? { ...entry, hp: 1, max: 1 });
+  return turnCards(order, battle.at, core.settings.foeNumbers);
+}
+
+/**
+ * Each frame, after the camera is placed: who's in the fight (looked at again every 0.15 seconds), the
+ * real-time list along the top, the nameplates, and those standing over a beaten player.
+ */
+function fightHudTick(dt) {
+  const settings = core.settings;
+  core.fightHudAt = (core.fightHudAt ?? 0) - dt;
+  if (core.fightHudAt <= 0) {
+    core.fightHudAt = 0.15;
+    core.fighters = fightersNow();
+    // (The log starts again once a fight has been over for a while.)
+    if (core.fighters.length || core.battle) core.fightQuiet = 0;
+    else if ((core.fightQuiet = (core.fightQuiet ?? 0) + 0.15) > 8) core.fightLog = [];
+    const listed =
+      !core.battle && settings.fightList && fightMode() === "realtime" && !core.over && core.fighters.length > 0;
+    core.hud?.setFighters?.(
+      listed
+        ? { fighters: core.fighters.map((entry) => fighterView(entry, settings.foeNumbers)), log: core.fightLog ?? [] }
+        : null,
+    );
+  }
+  platesTick();
+  overTick(dt);
+}
+
+/** The nameplates (plates.js), as "Name and HP over heads" says, and over hostile creatures in sight too. */
+function platesTick() {
+  core.plates ??= createPlates();
+  const scene = core.space?.scene ?? null;
+  const mode = core.settings.nameplates;
+  if (mode === "off" || !fighting() || !core.player) return void core.plates.update([], scene);
+  const at = core.player.position;
+  const list = (core.fighters ?? []).filter((entry) => entry.kind !== "player");
+  if (core.settings.platesHostile && !inHouse() && !core.downed)
+    for (const foe of core.herd.foes(at, 30))
+      if (foe.hostile && !foe.fled && !list.some((entry) => entry.id === foe.id)) list.push(foeFighter(foe));
+  const exact = core.settings.foeNumbers;
+  core.plates.update(
+    list
+      .filter((entry) => entry.group && plateShown(mode, entry))
+      .map((entry) => ({
+        id: entry.id,
+        group: entry.group,
+        data: plateData(entry, exact),
+        far: Math.hypot(entry.x - at.x, entry.z - at.z),
+        lift: entry.kind === "foe" ? 0 : 2.5, // (a person's plate over their name tag)
+        size: entry.size,
+        scale: entry.scale,
+      })),
+    scene,
+    core.camera,
+  );
+}
+
+/** A tap on a nameplate opens its info card. Whether the tap was taken. */
+function plateTap(x, y) {
+  const id = core.plates?.hit(x, y, toScreen);
+  if (!id) return false;
+  fighterInfo(id);
+  return true;
+}
+
+/** What the player has learned of a kind of creature (fighthud.js learned), kept with the world. */
+const knownOf = (kind) => core.save?.bestiary?.[kind] ?? {};
+function keepKnown(kind, record) {
+  if (!core.save || record === knownOf(kind)) return;
+  core.save = { ...core.save, bestiary: { ...core.save.bestiary, [kind]: record } };
+  core.saves.write(core.save);
+}
+const knowOf = (kind, what) => keepKnown(kind, learned(knownOf(kind), what));
+/** The player struck a creature (`result`: the roll): its AC is known, and what that kind of damage did to it. */
+const knowFrom = (kind, result, type = result?.type) =>
+  knowOf(kind, { struck: true, ...(type && (result.how || result.damage > 0) ? { type, how: result.how } : {}) });
+
+/** The info card for the fighter `id` (a tap on their name or their plate). */
+function fighterInfo(id) {
+  const entry = (core.fighters ?? []).find((fighter) => fighter.id === id);
+  if (!entry || !core.save) return;
+  const settings = core.settings;
+  if (entry.kind !== "foe") {
+    const sheet = sheetNow();
+    const mine = entry.kind === "player";
+    const cls = mine ? playerClass() : classOf(id);
+    return void core.hud?.showInfo(
+      personCard({
+        ...entry,
+        foe: entry.kind === "person",
+        role: mine ? "You" : entry.kind === "ally" ? "Companion" : "Fighting you",
+        cls: SRD_CLASSES[cls]?.name ?? "",
+        level: mine ? valueOf(sheet, "level") : entry.kind === "ally" ? allyLevel(id) : 0,
+        ac: mine ? armourOf(sheet, wornNow(sheet)) : foeTable()[entry.kind === "ally" ? "ally" : "person"]?.ac,
+        statuses: entry.statuses ?? [],
+      }),
+    );
+  }
+  const kind = entry.breed;
+  const srd = SRD_CREATURES[kind] ?? {};
+  const own = statsOf({ kind, id, scale: entry.scale });
+  let record = knownOf(kind);
+  // (Recalling what it is: rolled the first time its card is opened, once a kind.)
+  if (settings.foeKnowledge === "learned" && srd.name && !record.check) {
+    record = knowCheck(record, { kin: srd.kin, cr: srd.cr, add: skillAdd(knowSkill(srd.kin)) });
+    keepKnown(kind, record);
+    const { skill, total, dc, passed } = record.check;
+    narrate(
+      null,
+      `${personaName()} tries to recall what a ${entry.name} is (${skillNamed(skill)?.name ?? skill} ${total} against DC ${dc}): ${passed ? "they know it well." : "little comes to mind."}`,
+    );
+  }
+  const card = creatureCard({
+    name: entry.name,
+    stats: { ...srd, size: srd.size ?? "", ac: own.ac, hp: own.hp },
+    record,
+    mode: settings.foeKnowledge,
+    fighter: entry,
+    exact: settings.foeNumbers,
+  });
+  if (!settings.damageTypes) card.notes.push("Kinds of damage don't matter here (Settings → 5e rules).");
+  if (!srd.name) card.notes.push("Not in the 5e SRD: it fights by the game's own numbers.");
+  core.hud?.showInfo(card);
+}
+
+/** Whether those who beat the player stay over them (Settings → Inventory → Combat), here and now. */
+const overOn = () => core.settings.victorsStay && core.settings.defeat === "stay" && fighting() && !inHouse();
+
+/**
+ * The player is down and staying down: those who beat them (fighthud.js victorsOf, from who was in the fight
+ * as they fell) stay over them, each as it would (overRole); a robber goes through their purse.
+ */
+function overBegin() {
+  if (!overOn() || core.over || !core.player) return;
+  const at = core.player.position;
+  if (!aggressionAllowed(at.x, at.z)) return; // (somewhere fights are kept out: they let them be)
+  const about = new Map(core.herd.foes(at, 30).map((foe) => [foe.id, foe]));
+  let ids = victorsOf(core.downFighters ?? [], at).filter((id) => about.has(id));
+  if (!ids.length)
+    ids = victorsOf([...about.values()].filter((foe) => foe.hostile && !foe.fled).map(foeFighter), at, 10);
+  const victors = ids.map((id) => {
+    const foe = about.get(id);
+    const srd = SRD_CREATURES[foe.kind] ?? {};
+    const speaks = talks(foe.kind);
+    const role = overRole({ kind: foe.kind, talks: speaks, kin: srd.kin ?? "", captors: core.captive?.takes });
+    return { id, kind: foe.kind, name: creatureWord(foe), role, talks: speaks, kin: srd.kin ?? "", cr: srd.cr ?? 0 };
+  });
+  core.downFighters = null;
+  if (!victors.length) return;
+  for (const victor of victors) victor.temperament = SRD_CREATURES[victor.kind]?.temperament ?? "";
+  core.over = { victors, step: 0, next: 0, tries: 0, waits: 0, robbed: false, gone: false };
+  core.herd.hold(ids);
+  const who = personaName();
+  narrate(null, overWords(victors, who));
+  if (victors.some((victor) => victor.role === "captive")) core.captive?.begin?.(core.over);
+  const robber = victors.find((victor) => victor.role === "rob");
+  if (robber && core.settings.defeatCost === "coins") {
+    core.over.robbed = true;
+    narrate(null, `The ${robber.name} goes through ${who}'s things.`);
+    void defeatCost(who);
+  }
+}
+
+/** Those standing over the player: where each stands (a robber close, a guard off, a beast circling), and the card. */
+function overTick(dt) {
+  const over = core.over;
+  if (!over) return;
+  if (!core.downed || !overOn()) return void overEnd();
+  const who = personaName();
+  if (over.gone) {
+    core.hud?.setOver({
+      text: `${who} lies alone.`,
+      choices: [{ id: "up", label: "Get up", title: "Get up where you are, with 1 HP", ready: true }],
+    });
+    return;
+  }
+  over.next -= dt;
+  if (over.next <= 0) {
+    over.next = 1.6;
+    over.step += 1;
+    const at = core.player.position;
+    core.herd.hold(over.victors.map((victor) => victor.id)); // (a fight's end lets go of everything)
+    for (const spot of overSpots(over.victors, at, over.step)) core.herd.march(spot.id, spot.x, spot.z, at.x, at.z);
+  }
+  const plea = pleaOf(over.victors, over.tries);
+  core.hud?.setOver({
+    text: overWords(over.victors, who),
+    choices: [
+      {
+        id: "plead",
+        label: "Plead",
+        title: plea
+          ? `${plea.skill === "persuasion" ? "Charisma (Persuasion)" : "Wisdom (Animal Handling)"} against DC ${plea.dc}`
+          : "They can't be reasoned with",
+        ready: !!plea,
+      },
+      { id: "wait", label: "Wait", title: "Lie still: they may lose interest and go", ready: true },
+      {
+        id: "struggle",
+        label: "Struggle",
+        title: "A Constitution check against DC 10: up with 1 HP, and the fight is on again",
+        ready: true,
+      },
+    ],
+  });
+}
+
+/** One of the choices on the card over a beaten player (the card's buttons). */
+function overChoice(id) {
+  const over = core.over;
+  if (!over || !core.downed) return;
+  const who = personaName();
+  if (id === "up") return void comeTo(false);
+  if (over.gone) return;
+  const list = victorList(over.victors);
+  const many = over.victors.length > 1;
+  const told = (action) => void runMoment({ action, voice: "talk", audience: "nearby", line: "", source: "fight" });
+  if (id === "plead") {
+    const plea = pleaOf(over.victors, over.tries);
+    if (!plea) return;
+    over.tries += 1;
+    const roll = 1 + Math.floor(Math.random() * 20);
+    const total = roll + skillAdd(plea.skill);
+    const skill = skillNamed(plea.skill)?.name ?? plea.skill;
+    const passed = total >= plea.dc;
+    narrate(
+      null,
+      `${who} pleads with ${list} (${skill} ${total} against DC ${plea.dc}): ${passed ? `${many ? "they let" : "it lets"} ${who} be.` : `${many ? "they aren't" : "it isn't"} moved.`}`,
+    );
+    told(
+      `pleads with ${list} standing over them. Their ${skill} check came to ${total} against DC ${plea.dc}: ${passed ? "they are let be" : "it fails"}`,
+    );
+    if (passed) overLeave();
+  } else if (id === "wait") {
+    over.waits += 1;
+    const goes = waitsOut(over.waits);
+    narrate(
+      null,
+      `Time passes. ${list[0].toUpperCase()}${list.slice(1)} ${goes ? (many ? "lose interest and go." : "loses interest and goes.") : many ? "stay over them." : "stays over them."}`,
+    );
+    if (goes) overLeave();
+  } else if (id === "struggle") {
+    const roll = 1 + Math.floor(Math.random() * 20);
+    const total = roll + modifier(valueOf(sheetNow(), "constitution"));
+    if (total < 10)
+      return void narrate(null, `${who} struggles to rise (Constitution ${total} against DC 10), and can't.`);
+    narrate(null, `${who} struggles up (Constitution ${total} against DC 10), with 1 HP: the fight is on again.`);
+    const victors = over.victors;
+    comeTo(false);
+    // (Roused: they come at them again, as anything struck does.)
+    for (const victor of victors) core.herd.strike(victor.id, 0, statsOf(victor).hp);
+  }
+}
+
+/** Those standing over the player go off: let go, and calm for a while. */
+function overLeave() {
+  if (!core.over) return;
+  core.herd.hold([]);
+  core.herd.calm();
+  core.over.gone = true;
+}
+
+/** It's over (they're up, or the setting's off): whoever stood over them is let go. Whether they'd been robbed. */
+function overEnd() {
+  const over = core.over;
+  if (!over) return false;
+  if (!over.gone && !core.battle) core.herd.hold([]);
+  core.over = null;
+  core.hud?.setOver(null);
+  return over.robbed;
 }
 
 // ── Gathering (gather.js) and the purse ─────────────────────────────────────────────────────────────────
@@ -13863,7 +14293,7 @@ function step(dt) {
       core.respawnAt ??= core.clock + every;
       if (core.clock >= core.respawnAt) {
         core.respawnAt = core.clock + every;
-        core.herd.respawn(at, new Set((core.battle?.order ?? []).map((entry) => entry.id)));
+        core.herd.respawn(at, keepIds(core.battle?.order ?? [], core.over && !core.over.gone ? core.over.victors : []));
       }
     } else core.respawnAt = null;
     core.herd.update(dt, {
@@ -13980,6 +14410,7 @@ function step(dt) {
   // The use prompt over whatever is in reach.
   core.target = core.mode === "walk" && !core.walkTo ? pickTarget() : null;
   core.hud?.setRespawn(needsRespawn());
+  fightHudTick(dt);
   const label = core.downed
     ? null // (down: the Respawn button is how they get up)
     : core.mode === "sit"
@@ -14345,6 +14776,8 @@ function attach(element) {
         setSheet(changeSheet(sheetNow(), { add: { kind: "spell", name: spell.name, about: spellRule(spell) } }));
     },
     onRespawn: () => respawn(),
+    onFighterInfo: (id) => fighterInfo(id), // (fight display)
+    onOverChoice: (id) => overChoice(id),
     onBreakFree: () => void breakFree(),
     onRespawnNow: () => respawn(true),
     onClearBodies: () => {
