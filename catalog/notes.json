@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.30",
+          "date": "2026-11-20",
+          "notes": "- The goblin is more detailed. Blender now bakes it a texture of its own, with shading in its creases, mottled skin and dirt towards its feet. Its face is finer (heavy eyelids, lips, nostrils, crooked teeth, a wrinkled brow), its ears are leaf-shaped, one nicked and one with a brass ring, and its tunic is patched and tattered. It has a knotted rope belt, a necklace of teeth, wrapped shins and a chipped, rusty scimitar.\n- Credits name ThatOneCan as the maker of the goblin model, in Help, the README and the kit's credits.",
+          "highlight": false
+        },
+        {
           "version": "0.7.29",
           "date": "2026-11-20",
           "notes": "- The goblin is now a model made in Blender: one smooth body instead of shapes stuck together, a face with its eyes set in sockets, a hooked nose and fangs, a ragged tunic and its scimitar, rigged to the people's skeleton so it still moves with their animations. The other monsters follow; until then they're built in code as before.\n- For contributors: models are made by Blender scripts in packages/wanderworld/assets/scripts, run from the command line, and packed into the kit. AGENTS.md in the package says how.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.11",
           "date": "2026-11-17",
           "notes": "- Every explanation has its (i) now, not only the ones in Settings: the notes in the Inventory, the Journal and people's cards fold behind an (i) when \"Show explanations\" is off.\n- Aiming. In a fight by turns, or with your weapon drawn, tap a creature or a companion to aim at them: a ring marks them, your attacks and spells go for that creature, and a healing spell mends that companion. If they're too far it says \"Out of range\" and nothing is spent. Tap them again, or yourself, to stop aiming.\n- A row of things to do in a fight: Abilities, Moves and (on a phone) Spells each open to their own buttons, with a Back. It's in the chat window, and above the fighting buttons on a touch screen.\n- Phone layout: the bar in a fight by turns is much shorter, and the buttons along the bottom wrap and no longer run off the screen.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.10",
-          "date": "2026-11-16",
-          "notes": "- Spells that creatures cast at you look like the spell they are (a beam, light from above, a volley), as yours do.\n- A condition landing on you shows as a ring round you for a moment.\n- The apothecary sells the SRD's Potion of Healing (2d4+2) and Potion of Greater Healing (4d4+4).\n- By turns, a dragon with its breath ready uses it from as far as it reaches, and no longer has to close with you first.\n- Help → Credits names everything now taken from the 5e SRD.",
           "highlight": false
         }
       ]

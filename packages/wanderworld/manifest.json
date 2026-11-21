@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.7.29",
+  "version": "0.7.30",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -168,8 +168,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "8355a7957e21d5d318a540d1a4af1c154caee5ddca0b3f70e75ff7deb17b7e41",
-      "bytes": 3178167
+      "sha256": "2d0c9227a1cbd6c7a3fb32406b6baf0fa356b04348eebccbde0a618ab90f56cd",
+      "bytes": 3178208
     },
     {
       "path": "server.mjs",
@@ -203,13 +203,13 @@
     },
     {
       "path": "kit/fantasy/folk/folk-built.json",
-      "sha256": "01e159301f860cf49308e7777dbceb19d5d9b9f8b577a7caad6b1199e8bf6011",
-      "bytes": 248859
+      "sha256": "df23145d25b5cc198490993021890761b5426e9e29589f40a7b39a831c15f3e5",
+      "bytes": 695500
     },
     {
       "path": "kit/fantasy/folk/folk-goblin.webp",
-      "sha256": "6cacc795bf1d994b2e5489bdf9671ec4b7c9b72dd414c42d4827a1a570fb836b",
-      "bytes": 240
+      "sha256": "4b342078dd2095abc1561eeb2fc4bc3f9c9ef3fa5237b60d9f082ca377e14d20",
+      "bytes": 79806
     },
     {
       "path": "kit/fantasy/folk/folk-imp.webp",
