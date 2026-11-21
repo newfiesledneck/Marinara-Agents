@@ -85,17 +85,24 @@ whole: don't play one world in two browsers at the same moment.
   - **Presets:** start from one of your own or a ready-made one (a few for each body), save the look
     under a name, delete one, or export it as a small JSON file and import one back. Your presets are
     kept with your settings, so they're in every world and every browser.
-  - **Body:** gender (how they're spoken of), and the male or the female body (as their gender unless
-    chosen). Anthro bodies come later.
+  - **Body:** gender (how they're spoken of), the male or the female body (as their gender unless
+    chosen), and age: young adult, middle-aged (about 50) or old (about 72), which shapes the face and
+    build a little and picks the skin picture of that age. Anthro bodies come later.
   - **Build:** height, weight, muscle, chest (her bust), hips, waist, belly, shoulders, neck, arm length,
-    leg length and head size. **Face:** jaw, cheekbones, nose, eyes and pointed ears. Each slider's middle
+    leg length and head size. **Face:** jaw, cheekbones, nose, eyes and pointed ears, and a brow style
+    (of 12) and a lash style (of 4), MakeHuman's, blended softly. Each slider's middle
     is an everyday person and says what it changes; dragged, the picture follows, and let go it's set.
-  - **Colours:** skin, eyes, lips, nails and brows, from a list or any colour. **Underwear:** a top and a
+  - **Colours:** the skin is one of MakeHuman's skin pictures (Caucasian, African or Asian, each at
+    their age) or the plain skin in a colour of your own; the eyes one of nine real eye pictures or the
+    plain grey eye in a colour of your own; lips, nails and brows from a list or any colour (over a skin
+    picture, lips and nails are the picture's own unless coloured). **Underwear:** a top and a
     bottom of the styles that body has (or none), and its colour; an outfit covering it hides it.
     **Hair:** style and colour (the hair meshes are still being made: until then the body is bald).
   - Anything left unset comes from their name, within an everyday range, and from their lore's
-    `ww:looks:` keywords (tall, stocky, red hair, elf…). A look saved before keeps its height, skin,
-    hair and colour.
+    `ww:looks:` keywords (tall, stocky, red hair, elf, old, middle-aged…): most townsfolk are young
+    adults, some middle-aged and a few old, each with a skin picture of their age and brows and lashes
+    of their own. A look saved before keeps its height, hair and colour, and its skin colour as a colour
+    of its own.
 - **Choose clothes for the older townsfolk** (Look card → Older kit's clothes, for Quaternius's people): an outfit (townsfolk, or the ranger), or each piece of one from either (top,
   sleeves, legs, boots) or None for any of them (the body shows there, in dark underclothes: bare arms,
   a bare chest, bare feet), the ranger's hood and pauldrons on or off (on anyone), each outfit's cloth, a
@@ -1360,6 +1367,8 @@ The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, wh
 
 Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan: the built-in body
 (`assets/scripts/make_avatar.py`, read by our own code from MakeHuman's hm08 mesh and morph targets).
+
+MakeHuman system assets (skins, eyes, eyebrows, eyelashes): CC0, read as data by `make_avatar.py`.
 
 Made in Blender by ThatOneCan: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, and the mimic, awakened shrub, shambling mound, grick, otyugh, roper, gelatinous cube, basilisk, skeleton, zombie, ghost, specter, earth, fire, water and air elementals, and the hill, stone, frost and fire giants (`assets/scripts/make_*.py`).
 

@@ -137,7 +137,7 @@ Budget: up to about 30,000 vertices for a body, 2,000 to 4,000 for a hair style.
   only those the body has. A body with one underwear layer in its own mesh (as now) has it as the
   briefs, and her bra.
 - **Building** (`src/avatar.js createAvatar(look, name, gender)`): the body's parts sharing a texture are
-  drawn as one, coloured by vertex (two draws: skin and the rest, then brows and lashes, alpha-tested),
+  drawn as one, coloured by vertex (two draws: skin and the rest, then one brow and one lash style, blended),
   plus one for the hair and each outfit piece. Shape keys are worked into each person's own positions
   and normals when they're made, so no one pays for them while drawing; the texture places, weights and
   triangles are shared by everyone with that body. Arm and leg length stretch each limb bone along
@@ -145,7 +145,10 @@ Budget: up to about 30,000 vertices for a body, 2,000 to 4,000 for a hair style.
   head size scales the head from the neck. Without the kit it falls back to `figure.js createFigure`.
 - **Looks** (`looks.js checkLook`): `body`, `shape`, `limbs`, `colours`, `underwear`, `clothes` and
   `preset`, each clamped, anything unknown dropped; `height`, `hair`, `hairColour`, `hairTint`, `skin`
-  and `skinTint` are shared with the older kit's look, so older looks carry over. Presets
+  and `skinTint` are shared with the older kit's look, so older looks carry over (a tone's number or
+  `skinTint` is a skin of one's own). MakeHuman's system assets (CC0) add `age` (young, middle, old: the
+  `age_middle` and `age_old` shape keys), `skin` (a skin picture of that age, drawn white, or `custom`),
+  `brows`, `lashes` (which style shows) and `eyePicture` (a tile of `avatar-eyes.webp`, or `tint`). Presets
   (`checkPresets`) are the Settings value `lookPresets`.
 - **Townsfolk** (`avatarLook`): what isn't chosen comes from the name, within an everyday range, under
   their lore's `ww:looks:<word>` keywords and the appearance written for a person the world made
