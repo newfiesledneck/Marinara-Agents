@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.36)
+## What it does now (0.7.37)
 
 ### The world
 
@@ -443,6 +443,12 @@ only walk about.
   → Bigger monsters: never, now and then (the default) or often (`herd.js MONSTER_SIZES`). Bats, wasps,
   dragons and people keep their size. The goblins, hobgoblins, bugbears, orcs, gnolls, kobolds,
   lizardfolk, ghouls, ogres, trolls and minotaurs each have their own switch under Kinds.
+- **New monsters:** the Monsters slider is how many there are whichever kinds are on (only trolls on at
+  100: 100 trolls); a rare kind is half as likely as a common one (`herd.js RARE_SHARE`). Every so often
+  (Settings → Creatures → New monsters every, 10 real minutes by default, 0 never) the monsters out of
+  sight are counted out again (`herd.js respawn`), kinds not about yet twice as likely, so every kind
+  that's on turns up in time. Kept: anything within sight, in a fight or after someone, what a lorebook
+  placed, and anyone's own.
 - **Tools in hand at work:** a sickle, a seed basket and a watering can on the farm, each for its
   part of the work; a trowel in the garden; the smith's hammer and a drinker's mug as before.
 - **A saddle** on any horse that's someone's own (yours, or a character's). Farm and tavern horses

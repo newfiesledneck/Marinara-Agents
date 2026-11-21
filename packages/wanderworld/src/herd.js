@@ -39,6 +39,8 @@ const FOLLOW_LOST = 45; // metres behind its owner at which their animal gives u
  * much: `big` and `huge` are the chances, the sizes are times its usual one. Size makes it tougher in a fight
  * as well (combat.js foeOf: more HP, harder blows, more XP). Only the first of a group may be huge.
  */
+/** How likely a rare monster kind (an ogre, a troll, a minotaur, a dragon) is next to a common one. */
+export const RARE_SHARE = 0.5;
 export const MONSTER_SIZES = {
   some: { big: 0.12, huge: 0.02 },
   more: { big: 0.25, huge: 0.065 },
@@ -73,7 +75,7 @@ export function afloatAt(x, z, back) {
   return water.depth > 0 ? Math.max(ground, water.level - back * AFLOAT) : ground;
 }
 
-export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}, sizes = "some" } = {}) {
+export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}, sizes = "some", favour = [] } = {}) {
   if (quiet.all) return [];
   // Each sort is counted out from numbers of its own, so changing how many there are of one sort leaves
   // the others where they were.
@@ -256,15 +258,25 @@ export function herdFor(world, seed, { counts = POPULATION, off = [], quiet = {}
     }
   }
   // Monsters: alone or in twos and threes of a kind, out in the country like the wolves; the night's ones
-  // (a kind's `when`) are about only then.
+  // (a kind's `when`) are about only then. As many as asked for, whichever kinds are on: with only trolls
+  // on, a hundred is a hundred trolls; with others on, a rare kind is only less likely.
   {
     const kinds = Object.keys(ANIMALS).filter((kind) => ANIMALS[kind].group === "monsters" && on(kind));
     from("monsters");
     let left = quiet.wild || !kinds.length ? 0 : want("monsters");
-    for (let guard = 0; guard < 200 && left > 0; guard++) {
-      // (A rare kind, a dragon, is let through one time in five, and is alone.)
-      const kind = pick(kinds);
-      if (ANIMALS[kind].rare && random() > 0.2 && kinds.some((other) => !ANIMALS[other].rare)) continue;
+    // (How likely each kind is: a rare one, an ogre or a dragon, `RARE_SHARE` of a common one; one not
+    // about yet when the monsters are counted out again, `favour`, twice as likely as it would be.)
+    const weights = kinds.map((kind) => (ANIMALS[kind].rare ? RARE_SHARE : 1) * (favour.includes(kind) ? 2 : 1));
+    const total = weights.reduce((sum, weight) => sum + weight, 0);
+    const weighted = () => {
+      let roll = random() * total;
+      for (let i = 0; i < kinds.length; i++) if ((roll -= weights[i]) < 0) return kinds[i];
+      return kinds.at(-1);
+    };
+    const tries = left * 6 + 60;
+    for (let guard = 0; guard < tries && left > 0; guard++) {
+      const kind = weighted();
+      // (A rare one is alone.)
       const size = ANIMALS[kind].rare ? 1 : Math.min(left, random() < 0.5 ? 1 : 2 + Math.floor(random() * 2));
       const den = wild(45) ?? wild(20) ?? wild(8);
       if (!den) continue;
@@ -317,9 +329,14 @@ export function createHerd() {
     beasts = [];
   }
 
+  let made = null; // { seed, options }: what the world's own were last counted out from (setWorld)
+  let round = 0; // how many times the monsters have been counted out again (respawn)
+
   function setWorld(nextWorld, seed, options) {
     clear();
     world = nextWorld;
+    made = { seed, options: options ?? {} };
+    round = 0;
     if (!world) return;
     const mine = token;
     beasts = herdFor(world, seed, options).map((start, i) => ({
@@ -329,6 +346,52 @@ export function createHerd() {
       id: `beast-${i}`,
     }));
     for (const beast of beasts) embody(beast, mine);
+  }
+
+  /**
+   * Counts the world's own monsters out again (Settings → Creatures → New monsters every): the ones far from
+   * `player` go and new ones come, out of sight, up to the Monsters number again, with kinds not about yet
+   * more likely. Kept: any within sight of the player (`NEAR`), any after someone or in a fight, those the
+   * lore placed, anyone's own, and every id in `keep` (a quest's, a fight's). How many came.
+   */
+  function respawn(player, keep = new Set()) {
+    if (!world || !made) return 0;
+    const own = (beast) => ANIMALS[beast.kind]?.group === "monsters" && !beast.owned && !beast.lore;
+    const stays = (beast) =>
+      !own(beast) ||
+      beast.ridden ||
+      beast.carried ||
+      beast.angry ||
+      beast.chasing ||
+      keep.has(beast.id) ||
+      (player && Math.hypot(beast.x - player.x, beast.z - player.z) < NEAR);
+    beasts = beasts.filter((beast) => {
+      if (stays(beast)) return true;
+      beast.gone = true;
+      beast.group?.removeFromParent();
+      beast.animal?.dispose();
+      return false;
+    });
+    const about = beasts.filter((beast) => own(beast) && beast.down === undefined && !beast.gone);
+    const counts = made.options.counts ?? POPULATION;
+    const wanted = Math.max(0, (counts.monsters ?? POPULATION.monsters) - about.length);
+    if (!wanted) return 0;
+    round++;
+    const quiet = made.options.quiet ?? {};
+    const fresh = herdFor(world, (made.seed ^ hashString(`round:${round}`)) >>> 0, {
+      ...made.options,
+      counts: { strays: 0, farm: 0, wild: 0, hostile: 0, monsters: wanted, town: 0 },
+      // (Out of sight: none where the player can see them come.)
+      quiet: { ...quiet, areas: [...(quiet.areas ?? []), ...(player ? [{ x: player.x, z: player.z, r: NEAR }] : [])] },
+      favour: Object.keys(ANIMALS).filter((kind) => !about.some((beast) => beast.kind === kind)),
+    });
+    fresh.forEach((start, i) => {
+      const id = `beast-r${round}-${i}`;
+      const beast = { ...alive(`${made.seed}:${id}`, i), home: { x: start.x, z: start.z }, ...start, id };
+      beasts.push(beast);
+      embody(beast, token);
+    });
+    return fresh.length;
   }
 
   /** What every animal here carries besides where it started. */
@@ -916,6 +979,7 @@ export function createHerd() {
     setWorld,
     setOwned,
     setSpawns,
+    respawn,
     /** What the lore says a kind is like in this world: { wolf: "tame", deer: "hostile" }. */
     setTempers(next) {
       tempers = { ...next };

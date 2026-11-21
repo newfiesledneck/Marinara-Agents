@@ -1022,6 +1022,8 @@ export function createHud(root, handlers) {
       "Slimes, skeletons, giant spiders and rats, snakes, bats, wasps, frogs, imps, puglins, goblins, hobgoblins, bugbears, orcs, gnolls, kobolds, lizardfolk, ghouls, bandits, witches and wizards out in the country, and rarely an ogre, a troll, a minotaur or a dragon overhead. Skeletons, ghouls and bats only at night.",
     animalSizes:
       "Now and then: about one monster in eight is big (a quarter to two-fifths bigger) and one in fifty is huge (three-fifths to four-fifths bigger), always the first of its group. Often: about one in four big and one in fifteen huge. Never: every monster is about its kind's usual size.",
+    monsterRespawn:
+      "Real minutes of play. At 0 the monsters a world starts with are all it has until it's counted out again (a change in the sliders above does that too).",
     animalsTown: "The most stray dogs and horses inside the settlement itself. Any more are put just outside it.",
     loreAnimals:
       "On: animals a lorebook places, and anyone's own dog or horse, appear even when their sort is at 0. Off: 0 means none at all.",
@@ -1577,6 +1579,11 @@ export function createHud(root, handlers) {
     "Now and then a monster is bigger than the rest of its kind, and once in a while one is huge. Size counts in a fight: a bigger one has more HP, hits harder and is worth more XP. Bats, wasps, dragons and people (bandits, witches, wizards) keep their usual size. A world's monsters are counted out again when this changes.",
   );
   choice("animalSizes", "How often", { off: "Never (all the usual size)", some: "Now and then", more: "Often" });
+  group(
+    "New monsters",
+    "Every so often the monsters out of sight go and others come in their place, so over time you meet every kind that's switched on, the rare ones too. Kinds not about yet are likelier to turn up. Nothing you can see goes, and nothing you're fighting, nothing a lorebook placed and nobody's own animal. The Monsters number above still says how many there are.",
+  );
+  slider("monsterRespawn", "New monsters every (minutes, 0 never)", 1, whole);
   group(
     "Lore and owned animals",
     "Animals a lorebook places (ww:monster:wolf:pack5), and anyone's own dog or horse, are extra to the numbers above.",

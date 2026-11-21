@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.37",
+          "date": "2026-11-20",
+          "notes": "- The Monsters slider is how many there are, whichever kinds are on: with only trolls switched on and the slider at 100, there are 100 trolls. With other kinds on, a rare kind is only less likely.\n- Ogres, trolls, minotaurs and dragons turn up more often: half as often as a common kind, instead of a fifth.\n- New monsters: every 10 minutes of play (Settings → Creatures → New monsters every; 0 for never) the monsters out of sight go and others come, with kinds not about yet likelier, so in time you meet every kind that's on. Nothing in sight goes, nor anything in a fight, placed by a lorebook or owned.",
+          "highlight": false
+        },
+        {
           "version": "0.7.36",
           "date": "2026-11-20",
           "notes": "- Bigger monsters: now and then a monster is bigger than the rest of its kind, and once in a while the first of a group is huge. The story calls it a big or a huge troll, ogre or goblin. A bigger one has more HP, hits harder and is worth more XP. Settings → Creatures → Bigger monsters sets how often: never, now and then (the default) or often.\n- The goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur each have a switch under Settings → Creatures → Kinds. They count toward the Monsters slider like the rest.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.18",
           "date": "2026-11-17",
           "notes": "- The Creatures sliders (stray dogs, farm animals, wild animals, wolves, monsters, the town's animals) each go up to 100 now. The counts are for the whole world, so a big map needs a high number to feel lived in.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.17",
-          "date": "2026-11-17",
-          "notes": "- Fixed: Settings showed a column of (i) buttons with nothing beside them. They belonged to the other sections' notes, which were hidden while their buttons were not. An (i) now goes and comes with what it explains.",
           "highlight": false
         }
       ]
