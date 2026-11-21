@@ -192,6 +192,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.27",
+          "date": "2026-11-20",
+          "notes": "- Four monsters of Wanderworld's own: goblins, and now and then an ogre, a troll or a minotaur, out in the country with the other monsters. They're built in code from simple shapes, so they need no download, and they walk, run and strike with the people's animations. Each has its own switch in Menu → Settings → Creatures, the SRD's numbers in a fight, and spoils of its own.\n- A goblin in your lore is now a goblin rather than a puglin (ww:monster:goblin:pack4). An orc is still a puglin.",
+          "highlight": false
+        },
+        {
           "version": "0.7.26",
           "date": "2026-11-17",
           "notes": "- \"Fights by turns\" is called turn-based combat everywhere: the Combat choice, its settings, Help and the buttons.\n- Inventory → Sheet: the turn's numbers read \"Each turn, you get\", with \"Move [9] Metres\".\n- The (i): a tap or a click opens its explanation. Hovering shows it as a tooltip and no longer opens it, which made it open and shut over and over.\n- The chat window no longer shows a spell or an ability twice: one that's on a number key is only its hotkey's button.",
@@ -303,12 +309,6 @@
           "version": "0.7.08",
           "date": "2026-11-16",
           "notes": "- Worn magic from the 5e SRD works by its name, like weapons and armour: a Ring or Cloak of Protection, Bracers of Defense, an Amulet of Health, Gauntlets of Ogre Power, a Headband of Intellect and the rest that change Armor Class, saving throws, an ability or spellcasting.\n- Potions heal by their dice: a Potion of Healing is 2d4+2, and any item whose description says \"+2d4+2 HP\" rolls it.\n- Beaten creatures that carry money have the ruleset's pocket treasure on them: coin, now and then a Potion of Healing, and seldom a magic thing. \"Creatures carry pocket treasure\" in Settings → Inventory → 5e rules turns it off.\n- The same setting as for weapons decides whether a description or a name comes first.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.07",
-          "date": "2026-11-16",
-          "notes": "- A persona whose card has a sheet for the Engine's 5e ruleset brings it into Wanderworld. Once in each world, your class, level, race, background, abilities, most HP, skills and the spells Wanderworld can play are set from it. You can change any of it afterwards, and Inventory → Sheet has a button to take it from the card again.\n- A companion whose character card has a 5e sheet fights as it says: their class, most HP and spells come from the card, unless you've chosen a class for them.\n- Settings → Inventory → 5e rules → \"Use a 5e sheet on a persona's or character's card\" turns it off.",
           "highlight": false
         }
       ]

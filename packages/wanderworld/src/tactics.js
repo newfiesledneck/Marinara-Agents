@@ -22,6 +22,10 @@ const ROLES = {
     ["melee", 55],
     ["ranged", 45],
   ],
+  goblin: [
+    ["melee", 60],
+    ["ranged", 40],
+  ],
   skeleton: [
     ["melee", 55],
     ["ranged", 45],

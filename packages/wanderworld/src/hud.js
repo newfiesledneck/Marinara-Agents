@@ -952,7 +952,7 @@ export function createHud(root, handlers) {
     cardSheets:
       "On: if a persona's or character's card has a 5e sheet (made in the Engine's persona or character editor), it's used here. For you, once in each world, it sets your class, level, race, background, abilities, max HP, the skills you're proficient in and the spells Wanderworld can play. You can change any of it afterwards, and Inventory → Sheet has a button to take it from the card again. For a companion, their class, max HP and spells come from their card unless you've chosen a class for them. Off: cards are left alone.",
     srdLoot:
-      "On: a beaten creature that would carry money (a bandit, a puglin, a skeleton, a witch, a wizard, an imp, a dragon) has pocket treasure as well as what you'd harvest: coin, now and then a Potion of Healing, and rarely, from the stronger ones, a magic item to wear. Off: only what the game's own lists give.",
+      "On: a beaten creature that would carry money (a bandit, a goblin, a puglin, a skeleton, a witch, a wizard, an imp, a troll, a minotaur, a dragon) has pocket treasure as well as what you'd harvest: coin, now and then a Potion of Healing, and rarely, from the stronger ones, a magic item to wear. Off: only what the game's own lists give.",
     moves:
       "On: more to do in a fight, on the turn bar and in Inventory → Sheet (each can go on a number key). Shove: your Athletics against the creature's, and it's pushed back and knocked down. Grapple: the same contest, and it's held where it is until it breaks free. Help: a companion's next attack has advantage. Hide: your Stealth against what the creatures near you notice; hidden, nothing comes for you and your next attack has advantage. Off-hand attack: with two light weapons equipped, a bonus action's blow with the other. Off: just Attack, Cast, Dash, Disengage and Dodge.",
     reactions:
@@ -960,7 +960,7 @@ export function createHud(root, handlers) {
     jumpByStrength:
       "On: how high you jump depends on your Strength, as in the SRD's high jump: about 0.9 metres at Strength 10, and higher with more. Off: everyone jumps the same.",
     rangedFoes:
-      "On: a creature the SRD gives a bow, a crossbow or spells uses them when you're out of its reach, in real-time and turn-based combat. A bandit shoots a light crossbow, a puglin and a skeleton a shortbow; a wizard casts Fire Bolt and Magic Missile, a witch Sacred Flame and Spiritual Weapon. Each is rolled against your AC or your saving throw, or a companion's AC. Off: they all have to close with you.",
+      "On: a creature the SRD gives a bow, a crossbow or spells uses them when you're out of its reach, in real-time and turn-based combat. A bandit shoots a light crossbow, a goblin, a puglin and a skeleton a shortbow, and an ogre throws javelins; a wizard casts Fire Bolt and Magic Missile, a witch Sacred Flame and Spiritual Weapon. Each is rolled against your AC or your saving throw, or a companion's AC. Off: they all have to close with you.",
     turnActions:
       "How many actions you have on each of your turns in turn-based combat. 0 leaves it to the rules: one (a fighter's Action Surge adds one, once between sleeps). Set a number to have that many whatever your class.",
     turnBonus: "How many bonus actions you have each turn. 0 leaves it to the rules: one.",
@@ -1019,7 +1019,7 @@ export function createHud(root, handlers) {
     animalsWild: "Deer, stags and foxes out in the country.",
     animalsHostile: "Wolves, alone and in packs of two to five. A pack of three counts as three.",
     animalsMonsters:
-      "Slimes, skeletons, giant spiders and rats, snakes, bats, wasps, frogs, imps, puglins, bandits, witches and wizards out in the country, and rarely a dragon overhead. Skeletons and bats only at night.",
+      "Slimes, skeletons, giant spiders and rats, snakes, bats, wasps, frogs, imps, puglins, goblins, bandits, witches and wizards out in the country, and rarely an ogre, a troll, a minotaur or a dragon overhead. Skeletons and bats only at night.",
     animalsTown: "The most stray dogs and horses inside the settlement itself. Any more are put just outside it.",
     loreAnimals:
       "On: animals a lorebook places, and anyone's own dog or horse, appear even when their sort is at 0. Off: 0 means none at all.",

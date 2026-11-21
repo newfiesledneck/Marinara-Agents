@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.26)
+## What it does now (0.7.27)
 
 ### The world
 
@@ -417,8 +417,8 @@ only walk about.
   in the country with the monsters and counted with them. Built from the people's own bodies and
   outfits; nobody's character, so not talked to, and no AI is used for them.
 - **Monsters:** slimes, skeletons, giant spiders, giant rats, snakes, bats, giant wasps, giant frogs,
-  imps and puglins (pig-goblins; the last two walk on two legs, with the people's animations), and
-  now and then a dragon high overhead, out in the
+  imps and puglins (pig-goblins), goblins, and now and then an ogre, a troll, a minotaur or a dragon
+  high overhead (everything on two legs walks with the people's animations), out in the
   country, alone or in twos and threes; skeletons and bats only at night. The Monsters slider says how
   many, each kind has its switch, and they act as "Hostile animals" says. A lorebook can place them:
   `ww:monster:slime:large:pack3` on a place's entry. Nothing fights back yet.
@@ -629,6 +629,9 @@ every roll, and no AI call is made in a real-time fight.
 - **Smarter fights**: each bandit, puglin or skeleton has a way of fighting of its own; archers and
   casters keep their distance and take cover; casters pick their spell. Companions fight by class.
   Things are said in a fight, and the AI can write them and choose creatures' moves in turn-based combat.
+- **Monsters of its own**: goblins, ogres, trolls and minotaurs, built in code from simple shapes
+  (`src/bestiary.js`), so they cost no download. They move with the people's animations and fight
+  by the SRD's numbers; the ogre, troll and minotaur are met one at a time, now and then.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.
@@ -836,7 +839,9 @@ still count, and come first.
   which animals a world has, where they go, and handing one to a rider (`main.js ride`, `dismount`).
   Monsters are animals of the `monsters` group. Those on two legs (`folk`: the imp and the puglin from
   `kit/fantasy/folk/`, and the bandit, witch and wizard, who are default people dressed for it) are
-  built by `people.js` and moved by the people's clips, with an animal's handles on them.
+  built by `people.js` and moved by the people's clips, with an animal's handles on them. The goblin,
+  ogre, troll and minotaur (`built`) are made in code by `src/bestiary.js`, from shapes bound to the
+  built-in person's skeleton (`figure.js figureFrom`), so they need no kit files.
 - `src/social.js` moves relationships on with time spent together and keeps the record of it;
   `src/memory.js` is each person's own memories; `src/household.js` the rules for the player's home
   (empty houses, moving, who's asked in and out, visits, furniture); `src/events.js` market days and
@@ -910,6 +915,8 @@ The gallows, pillory, cage, signposts and crystals are by iPoly3D (Medieval Tort
 and Crystal Pack on Poly Pizza), also CC0 1.0. Thank you, iPoly3D.
 
 The imp and the puglin are from Quaternius's Bestiary - Dungeon Monsters Kit, which is under the Quaternius Asset License (QAL) v1.0 (https://quaternius.com/license.html) and not CC0: free to use in a game, not to pass on as assets.
+
+The goblin, ogre, troll and minotaur are Wanderworld's own, built in code (`src/bestiary.js`).
 
 Credit required (CC-BY 3.0): Saddle by Poly by Google (https://poly.pizza/m/dSMm_V4sKNr), CC-BY 3.0
 (https://creativecommons.org/licenses/by/3.0/), modified: converted, resized and its texture shrunk. Its

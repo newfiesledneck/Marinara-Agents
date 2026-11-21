@@ -9,6 +9,7 @@
 // An animal is { object, update(dt, speed, { graze }), dispose(), kind, coat, height, back }: `object` faces
 // +z and stands on y = 0, in metres; `update` moves it for a frame in which it travelled at `speed`
 // metres a second; `back` is how high a rider sits (a horse, a donkey), in metres.
+import { createBuilt } from "./bestiary.js";
 import { createFolk, createOutlaw } from "./people.js";
 import {
   Bone,
@@ -115,6 +116,55 @@ export const ANIMALS = {
   // people's clips (people.js: createFolk), `folk` times the size it's made. Quaternius's Bestiary.)
   imp: { group: "monsters", walk: 1.3, gallop: 4.4, back: 0, seat: 0, timid: true, hostile: true, folk: 0.8 },
   puglin: { group: "monsters", walk: 1.1, gallop: 3.8, back: 0, seat: 0, timid: true, hostile: true, folk: 1 },
+  // (`built`: made in code by Wanderworld itself, bestiary.js, at its own size, and moving with the
+  // people's clips like the folk above.)
+  goblin: {
+    group: "monsters",
+    walk: 1.2,
+    gallop: 4.4,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    folk: 1,
+    built: true,
+  },
+  ogre: {
+    group: "monsters",
+    walk: 1.6,
+    gallop: 5.5,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    folk: 1,
+    built: true,
+    rare: true,
+  },
+  troll: {
+    group: "monsters",
+    walk: 1.5,
+    gallop: 5.5,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    folk: 1,
+    built: true,
+    rare: true,
+  },
+  minotaur: {
+    group: "monsters",
+    walk: 1.6,
+    gallop: 6.5,
+    back: 0,
+    seat: 0,
+    timid: true,
+    hostile: true,
+    folk: 1,
+    built: true,
+    rare: true,
+  },
 };
 
 /**
@@ -224,6 +274,10 @@ export const SORT_OF = {
   witch: "monsters",
   wizard: "monsters",
   puglin: "monsters",
+  goblin: "monsters",
+  ogre: "monsters",
+  troll: "monsters",
+  minotaur: "monsters",
 };
 /** How many of each sort a world has when nothing says otherwise, and the most the slider goes to. */
 // (`town`: the most of them that are inside the settlement itself; the rest are put outside it.)
@@ -255,6 +309,10 @@ export const SWITCHES = {
   witch: ["witch"],
   wizard: ["wizard"],
   puglin: ["puglin"],
+  goblin: ["goblin"],
+  ogre: ["ogre"],
+  troll: ["troll"],
+  minotaur: ["minotaur"],
 };
 
 /**
@@ -278,7 +336,7 @@ export function dogSizeOf(kind, scale = 1) {
   );
 }
 
-/** The kind of animal a word means ("wolves", "hound"), or null for one the game has no body for ("goblin"). */
+/** The kind of animal a word means ("wolves", "hound"), or null for one the game has no body for ("kraken"). */
 export function animalKind(word) {
   const plain = String(word ?? "")
     .toLowerCase()
@@ -294,7 +352,6 @@ export function animalKind(word) {
     ox: "bull",
     llama: "alpaca",
     pony: "horse",
-    goblin: "puglin",
     brigand: "bandit",
     robber: "bandit",
     outlaw: "bandit",
@@ -309,6 +366,7 @@ export function animalKind(word) {
     wyvern: "dragon",
     drake: "dragon",
     orc: "puglin",
+    ogress: "ogre",
     demon: "imp",
     devil: "imp",
   };
@@ -422,7 +480,8 @@ export async function createAnimal(name, wanted = null) {
   if (ANIMALS[kind].folk) {
     // One on the people's skeleton: a walking character, with an animal's handles on it.
     const outlaw = ANIMALS[kind].person ? await createOutlaw(kind) : null;
-    const body = outlaw?.person ?? (await createFolk(kind, ANIMALS[kind].folk));
+    const body =
+      outlaw?.person ?? (ANIMALS[kind].built ? createBuilt(kind) : await createFolk(kind, ANIMALS[kind].folk));
     const options = outlaw?.carry ? { carry: outlaw.carry } : {};
     let doing = null; // a gesture to make once, on the next frame (act)
     return {

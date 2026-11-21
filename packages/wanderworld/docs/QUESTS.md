@@ -341,6 +341,12 @@ Only creatures with both a 3D model and an SRD stat block (`packages/ruleset-5e-
 writes. What's in the kit now: wolf, slime, skeleton, spider, rat, snake, bat, wasp, frog, dragon, imp,
 puglin, and bandits, witches and wizards as people.
 
+**Built in code (0.7.27):** the goblin, ogre, troll and minotaur are made by `src/bestiary.js` from
+simple shapes bound to the built-in person's skeleton, so they walk, run and strike with the people's
+clips and need no kit files. More two-legged SRD creatures can be built the same way: hobgoblin, bugbear,
+gnoll, kobold, lizardfolk, ghoul, orc. Each is a recipe of proportions, a head and what it wears, checked
+in a viewer and revised until it looks right.
+
 **Already downloaded, not yet used** (`_planning/Wanderworld asset packs/Quaternius Assets`):
 
 | Model                      | Pack (licence)                                              | SRD stat block                 |
@@ -353,10 +359,10 @@ puglin, and bandits, witches and wizards as people.
 The Bestiary kit's free tier has only the imp and the puglin, which are in. The zombie and knight zips
 have no licence file; Quaternius released them as CC0, but check that before they ship.
 
-**Worth getting:** Quaternius's **Ultimate Monsters** pack, 50 animated monsters in glTF, CC0, free from
-the pack page (quaternius.com/packs/ultimatemonsters.html). Names confirmed so far include Ghost, Ghost
-Skull, Hywirl, Demon, Blue Demon, Orc, Yeti, Dino, Cactoro, Mushroom King, Mushnub and a green blob.
-Possible SRD fits, to check against the models once downloaded:
+**Downloaded 2026-11-20:** Quaternius's **Ultimate Monsters** pack, CC0 by its licence file: 50
+animated monsters in glTF (16 big, 17 blobs, 17 flying), each with Idle, Walk, Run, Punch, Weapon,
+HitReact, Death and a few more. Most are cartoon-cute, with big eyes, round shapes and bright colours,
+so few suit Wanderworld as they are. Possible SRD fits:
 
 - Ghost → Ghost, Specter or Wraith
 - the blobs → Gray Ooze, Ochre Jelly or Black Pudding (recoloured)
