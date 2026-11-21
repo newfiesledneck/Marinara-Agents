@@ -75,6 +75,10 @@ export const HAIRSTYLES = [
   ["afro", "Afro"],
   ["shaved", "Shaved"],
   ["mohawk", "Mohawk"],
+  ["slicked", "Slicked back"],
+  ["crop", "Crop"],
+  ["fringe", "Fringe"],
+  ["bob_angled", "Angled bob"],
   ["none", "None"],
 ];
 /** The older kit's file for a hairstyle: short hair is cut to each body's own head. (Older names too.) */
@@ -184,6 +188,16 @@ export function checkLook(raw) {
   const skin = raw.skinSet === 2 ? raw.skin : OLDER_SKIN[raw.skin];
   if (within(skin, SKIN_TONES.length)) Object.assign(look, { skin, skinSet: 2 });
   if (isColour(raw.skinTint)) look.skinTint = raw.skinTint;
+  // The base avatar's age, skin picture, brow and lash styles and eye picture (avatar.js).
+  if (SKINS.some(([kind]) => kind === raw.skin)) look.skin = raw.skin;
+  if (AGES.some(([age]) => age === raw.age)) look.age = raw.age;
+  for (const [field, count] of [
+    ["brows", BROWS],
+    ["lashes", LASHES],
+  ])
+    if (Number.isFinite(raw[field])) look[field] = Math.max(1, Math.min(count, Math.round(raw[field])));
+  if (raw.eyePicture === TINT || EYE_PICTURES.some(([picture]) => picture === raw.eyePicture))
+    look.eyePicture = raw.eyePicture;
   if (typeof raw.beard === "boolean") look.beard = raw.beard;
   // Which of the kit's two figures someone of the custom gender has (missing: either, by their name).
   if (raw.figure === "male" || raw.figure === "female") look.figure = raw.figure;
@@ -237,11 +251,15 @@ export function checkLook(raw) {
 //     colours: { skin, eyes, … },    each part's colour (0xRRGGBB): AVATAR_COLOURS
 //     underwear: { top, bottom },    a style of each (UNDERWEAR_TOPS, UNDERWEAR_BOTTOMS), or "none"
 //     clothes: [piece, …],           outfit pieces worn (the kit's avatar-outfits.json)
+//     age,                           "young", "middle" or "old" (AGES): shape keys and skins of its own
+//     skin,                          a skin picture (SKINS: MakeHuman's), or "custom": colours.skin
+//     brows, lashes,                 which style of each (1 … BROWS, 1 … LASHES)
+//     eyePicture,                    an eye picture (EYE_PICTURES), or "tint": the grey iris in colours.eyes
 //     preset }                       the name of the preset it began from
 //
-// with `height`, `hair`, `hairColour` and `hairTint` shared with the older kit's look above, and `skin`
-// and `skinTint` read as the skin's colour when `colours.skin` isn't set, so a look saved before keeps
-// its height, skin, hair and colours.
+// with `height`, `hair`, `hairColour` and `hairTint` shared with the older kit's look above, and a tone's
+// place (`skin` as a number) or `skinTint` read as a skin of one's own when `colours.skin` isn't set, so a
+// look saved before keeps its height, skin, hair and colours.
 
 /** The bodies: [value, label]. Anthro bodies (a wolf, a dragon: docs/AVATAR.md) go here when they're made. */
 export const BODIES = [
@@ -274,6 +292,38 @@ export const LIMBS = [
   ["legs", "Leg length", 0.85, 1.15, "Shorter or longer legs, no thicker. Longer legs stand taller."],
   ["head", "Head size", 0.9, 1.1, "A smaller or larger head (and its hair)."],
 ];
+
+// ── MakeHuman's system assets (CC0): ages, skins, eye pictures, brows and lashes ──
+/** Ages: [value, label]. All grown-ups; middle-aged and old have shape keys and skins of their own. */
+export const AGES = [
+  ["young", "Young adult"],
+  ["middle", "Middle-aged (about 50)"],
+  ["old", "Old (about 72)"],
+];
+/** Skins: [value, label]. MakeHuman's three skin pictures, each in every age, or the plain skin in a colour of one's own. */
+export const SKINS = [
+  ["caucasian", "Caucasian"],
+  ["african", "African"],
+  ["asian", "Asian"],
+  ["custom", "A colour of your own"],
+];
+/** Eye pictures: [value, label], in the order of the kit's avatar-eyes.webp (the packer's). "tint" is the
+ *  grey iris in the eye colour. (MakeHuman's "brown" reads reddish, so its "brownlight" is the brown.) */
+export const TINT = "tint";
+export const EYE_PICTURES = [
+  ["brownlight", "Brown"],
+  ["brown", "Red-brown"],
+  ["green", "Green"],
+  ["bluegreen", "Blue-green"],
+  ["blue", "Blue"],
+  ["lightblue", "Light blue"],
+  ["deepblue", "Deep blue"],
+  ["grey", "Grey"],
+  ["ice", "Ice"],
+];
+/** How many brow and lash styles the bodies have (eyebrows-01 … and eyelashes-01 …). */
+export const BROWS = 12;
+export const LASHES = 4;
 
 /** Eye colours: [hex, label]. */
 export const EYE_COLOURS = [
@@ -392,6 +442,10 @@ export const PRESET_FIELDS = [
   "skin",
   "skinSet",
   "skinTint",
+  "age",
+  "brows",
+  "lashes",
+  "eyePicture",
 ];
 /** What a preset carries of a look: the whole look, never which 3D model shows. */
 export const presetOf = (look) => {
@@ -449,6 +503,7 @@ export const BUILT_IN_PRESETS = [
     look: {
       body: "male",
       shape: { weight: 0.7, belly: 0.8, muscle: -0.2 },
+      age: "old",
       hairColour: 7,
       hair: "short",
       height: 0.95,

@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.45",
+          "date": "2026-11-20",
+          "notes": "- The built-in body gets MakeHuman's CC0 skins: young, middle-aged and old, each Caucasian, African or Asian, with an Age choice that also ages the face and body (adults only). Or keep a skin colour of your own.\n- Nine eye pictures besides the eye colour tint, and twelve eyebrow and four eyelash styles in the Look card. Townsfolk get varied ages, skins, brows and lashes, and lore words like \"old\" or \"middle-aged\" shape them.",
+          "highlight": false
+        },
+        {
           "version": "0.7.44",
           "date": "2026-11-20",
           "notes": "- Settings → People → Default skins with underwear (on to begin with): anyone with no underwear chosen wears the usual; off, the base skin shows unless underwear is chosen in the Look card.\n- More hair style names for the new bodies (bob, braid, curly, afro, shaved, mohawk), offered when the kit has them.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.26",
           "date": "2026-11-17",
           "notes": "- \"Fights by turns\" is called turn-based combat everywhere: the Combat choice, its settings, Help and the buttons.\n- Inventory → Sheet: the turn's numbers read \"Each turn, you get\", with \"Move [9] Metres\".\n- The (i): a tap or a click opens its explanation. Hovering shows it as a tooltip and no longer opens it, which made it open and shut over and over.\n- The chat window no longer shows a spell or an ability twice: one that's on a number key is only its hotkey's button.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.25",
-          "date": "2026-11-17",
-          "notes": "- Inventory → Sheet: each thing your class can call on now has what it does written under its button, so it can be read on a phone. With explanations folded away, it's behind an (i).\n- An (i) on a line of its own no longer has \"About this\" beside it.\n- The AI assistant reads much more of Help for a how-to question: the parts that match your question first, then the rest, up to 10,000 tokens (it was about 2,000, which covered only the first section). Settings → AI assistant → \"How much of Help it reads (tokens)\" sets it, from 1,000 to 20,000; all of Help is about 13,000. Questions about your world don't send Help at all.",
           "highlight": false
         }
       ]

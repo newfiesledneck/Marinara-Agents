@@ -124,9 +124,18 @@ const LOOK_WORDS = {
   "brown eyes": { colours: { eyes: 0x6b4a2a } },
   "grey eyes": { colours: { eyes: 0x7a8a9a } },
   "hazel eyes": { colours: { eyes: 0x8a6a3a } },
+  // Age (the base avatar's shape keys and skins of that age). ("years old" says nothing, so "30 years old"
+  // isn't old.)
+  young: { age: "young" },
+  "middle-aged": { age: "middle" },
+  old: { age: "old" },
+  elderly: { age: "old" },
+  "grey-haired": { age: "old", hairColour: 7 },
+  "gray-haired": { age: "old", hairColour: 7 },
+  "years old": {},
 };
 /** Every word for a look, for the instructions. */
-export const LOOK_WORD_LIST = Object.keys(LOOK_WORDS);
+export const LOOK_WORD_LIST = Object.keys(LOOK_WORDS).filter((word) => Object.keys(LOOK_WORDS[word]).length);
 
 /**
  * How someone looks from words: their keywords' ("looks tall", "looks red hair") and any plain text about
@@ -496,7 +505,9 @@ export function readKeyword(raw) {
   if (what === "animals")
     return lower === "none" ? ok("animals none") : bad("animals is none: no animals of the world's own there");
   if (what === "looks" || what === "look")
-    return LOOK_WORDS[lower] ? ok(`looks ${lower}`) : bad(`a look is one of: ${Object.keys(LOOK_WORDS).join(", ")}`);
+    return LOOK_WORD_LIST.includes(lower)
+      ? ok(`looks ${lower}`)
+      : bad(`a look is one of: ${LOOK_WORD_LIST.join(", ")}`);
   if (what === "body")
     return BODY_WORDS.includes(lower) ? ok(lower) : bad(`a body is one of: ${BODY_WORDS.join(", ")}`);
   if (what === "temperament")
@@ -640,7 +651,7 @@ export const KEYWORD_GUIDE = [
     group: "People",
     write: "ww:looks:tall, ww:looks:red hair, ww:looks:elf",
     on: "a character's entry",
-    does: `How their built-in body looks, when they have no 3D model: height (tall, short), build (slim, stocky, muscular, heavy…), pointed ears (elf, half-elf), hair (bald, long hair, red hair, blond…), skin (pale, tanned, dark skin) and eyes (blue eyes…). One word a key; their Look card comes first. All of them: ${LOOK_WORD_LIST.join(", ")}.`,
+    does: `How their built-in body looks, when they have no 3D model: height (tall, short), build (slim, stocky, muscular, heavy…), pointed ears (elf, half-elf), hair (bald, long hair, red hair, blond…), skin (pale, tanned, dark skin), eyes (blue eyes…) and age (young, middle-aged, old, elderly, grey-haired). One word a key; their Look card comes first. All of them: ${LOOK_WORD_LIST.join(", ")}.`,
   },
   {
     group: "People",
