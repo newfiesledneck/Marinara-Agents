@@ -5216,7 +5216,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.7.38",
+        "version": "0.7.39",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -5259,6 +5259,8 @@
               "kit/creatures/rigged-shambling_mound.json",
               "kit/creatures/rigged-shambling_mound.webp",
               "kit/creatures/wild.json",
+              "kit/fantasy/dungeon/index.json",
+              "kit/fantasy/dungeon/models.json",
               "kit/fantasy/folk/folk-bugbear.webp",
               "kit/fantasy/folk/folk-built-bugbear.json",
               "kit/fantasy/folk/folk-built-ghoul.json",
@@ -5406,8 +5408,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "6a67f39a820343a23423c103b72b196b442eb2d52a623264b1703dab2f027f7c",
-            "bytes": 3202597
+            "sha256": "e18685b8ab5fbb7957e46ca62b3ec4b4dbd8f6f72961095e8347dfc098f87cb1",
+            "bytes": 3226529
           },
           {
             "path": "server.mjs",
@@ -5498,6 +5500,16 @@
             "path": "kit/creatures/wild.json",
             "sha256": "9976382be078ab938caa5c08df6957c1ca5f2b0de22afa35bd489ffc85315510",
             "bytes": 809037
+          },
+          {
+            "path": "kit/fantasy/dungeon/index.json",
+            "sha256": "5f1f37496d9637183ee5379cf2b33a1a0ff96809b73e04d0ddb62f702df96ffd",
+            "bytes": 1690
+          },
+          {
+            "path": "kit/fantasy/dungeon/models.json",
+            "sha256": "c0c999fc6915da77cc745546ae4965f678a5b5002018c3207d00749557050159",
+            "bytes": 1081803
           },
           {
             "path": "kit/fantasy/folk/folk-bugbear.webp",
@@ -6192,9 +6204,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.7.38.zip",
-        "sha256": "4c24ad4b292cd7337b3bf05555951adeabeb0c086eb006c2badc251ee22feeae",
-        "bytes": 47382061
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.7.39.zip",
+        "sha256": "395f8d86f846677dd9cf3b827697e67714216abcb18b595b7ca8242e15d2a039",
+        "bytes": 48490179
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },

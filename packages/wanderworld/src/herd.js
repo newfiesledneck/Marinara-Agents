@@ -1030,7 +1030,7 @@ export function createHerd() {
           z: beast.z,
           hp: beast.hp,
           max: beast.max,
-          hostile: beast.angry || (ANIMALS[beast.kind].hostile && tempers[beast.kind] !== "tame"),
+          hostile: beast.angry || (ANIMALS[beast.kind].hostile && temperOf(beast) !== "tame"),
           fled: beast.temper === "timid", // (it has had enough, and runs)
           stunned: (beast.stunUntil ?? 0) > clock,
           room: (ANIMALS[beast.kind].back > 0 ? 0.75 : 0.45) * (beast.scale ?? 1),

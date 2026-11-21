@@ -277,6 +277,7 @@ export function buildZones(layout, seed) {
       id,
       kind: outpost.kind === "cave" ? "cave" : outpost.kind === "hamlet" ? "town" : "outpost",
       outpostKind: outpost.kind,
+      ...(outpost.deep ? { deep: outpost.deep } : {}),
       name,
       shape: {
         circle: {

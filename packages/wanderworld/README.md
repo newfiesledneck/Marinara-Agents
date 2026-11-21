@@ -37,7 +37,7 @@ A browser left open reads the Engine's saves again when you come back to it, and
 somewhere else since is loaded from there, so a phone and a computer stay in step. The newer save wins
 whole: don't play one world in two browsers at the same moment.
 
-## What it does now (0.7.38)
+## What it does now (0.7.39)
 
 ### The world
 
@@ -674,6 +674,53 @@ every roll, and no AI call is made in a real-time fight.
 
 Every number of days, minutes and cost above is a setting on the same page.
 
+### Factions and regions
+
+Factions come from lore: `ww:faction:Thieves Guild` on an entry makes it the faction's lore,
+`ww:member of:Thieves Guild` puts someone in it, and `ww:enemy of:The Crown` on a faction's entry makes
+the two enemies. All of this runs on the game's own rules. The only thing the AI gets is one sentence,
+and that can be switched off.
+
+- **Standing.** Journal → Factions shows how each faction regards you, from −100 to 100, in words:
+  Hated, Hostile, Wary, Neutral, Liked, Trusted, Honoured. It moves a little with what you do. An
+  errand for one of its people, monsters beaten on its land and trading at its vendors (once a day)
+  raise it. A blow at one of its guards lowers it, and beating one lowers it more. It moves at most 10
+  a day, and helping a faction lowers your standing with its enemies by a third as much. The slider
+  sets it by hand, and Lock keeps it where it is. It's saved with the world.
+- **What it changes**, each with its own switch in Settings → World → Factions:
+  - Prices at the faction's vendors (in its land, or where one of its people works): up to a fifth
+    more when you're Hated, a fifth less when you're Honoured, on top of haggling.
+  - While you're Hostile or Hated, its people won't talk to you.
+  - Its guards come for you, as hostile creatures do.
+  - Nowhere in its land counts as a safe place, not even its town. Without this, its guards keep to
+    the rule for towns in "Where people may confront you".
+  - With AI conversations on, one short sentence tells the AI how a speaker's faction regards you.
+- **Regions with a purpose.** Travelling off the map's edge makes a new region, and it can be made for
+  a purpose:
+  - a faction's walled town, with banners in its colour and guards on its square and its watchtower;
+  - a bandit stronghold, whose gate is a cave mouth in a hillside;
+  - a few outposts with watchtowers;
+  - a smaller town, or several hamlets;
+  - a ruin over a dungeon, or a hillside of caves.
+
+  `ww:region:east` on a faction's entry makes the region east of home its land. On any entry,
+  `ww:region:north-east:stronghold` or `ww:region:far north:ruin` give a region a purpose.
+  Journal → Factions can give the next region one way a purpose by hand, and quests will do the same.
+  Otherwise the world's seed decides, the same for the same world, giving a faction's land only to a
+  faction that has none yet. Once a region has a purpose it keeps it. Off (Settings → World → Factions
+  → New regions can have a purpose), every new region is countryside and hamlets.
+
+- **Entrances.** A stronghold's gate and the mouths of ruins and caves are cave mouths. Each one names
+  the deep place it leads to (`deep`: cave, cavern, dungeon or stronghold). What's inside comes with
+  the deep places.
+- **The map.** On a faction's land the region map has a border in its colour. Under it, Journal → Map
+  shows the regions round you that you've been to, plus any your lore or a quest told of (paler). Each
+  faction's land is in its colour, and a letter marks the other purposes.
+
+A faction's town has no townsfolk of its own yet: only its guards and any of its people your lore puts
+there. The guards wear the bandits' clothes until there's a guard model, and with bandits switched off
+in Settings → Creatures there are none.
+
 ### Lorebook keywords
 
 Wanderworld acts only on lorebook keys written `ww:<what>:<value>`, so an entry's ordinary trigger words
@@ -741,6 +788,14 @@ lists any it didn't understand, and why.
 | -------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------- |
 | `ww:settlement:city (hamlet, village, town, city)` | the entry keyed ww:world | The main settlement's size, where New world left it on Surprise me. (ww:town3 adds two hamlets.)        |
 | `ww:walls, ww:size:large, ww:season:winter`        | the entry keyed ww:world | Walls, the world's size (small, normal, large, huge, massive), and the season (winter lies under snow). |
+
+**Factions and regions**
+
+| Keyword                                                                           | On                | What it does                                                                                                                                                                                  |
+| --------------------------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ww:region:east, ww:region:far north, ww:region:north-east:stronghold`            | a faction's entry | That region is the faction's land (or, with a purpose after it, its stronghold or its outposts). `east` is the region east of home; `far north` or `north 2` is two away.                     |
+| `ww:region:west:ruin (faction, stronghold, outposts, town, hamlets, ruin, caves)` | any entry         | What that region is made for, when you first travel there: a bandit stronghold, a few outposts, a smaller town, several hamlets, a ruin over a dungeon, a hillside of caves. Kept once given. |
+| `ww:enemy of:The Crown`                                                           | a faction's entry | The two factions are enemies: helping one lowers your standing with the other a little.                                                                                                       |
 
 **Creatures**
 
@@ -908,6 +963,34 @@ Performance targets: about 30 fps on a mid-range phone and 60 on a desktop. The 
 1080p unless Settings says otherwise, nature and real lights follow the player, and fog hides the far
 edge. Readings by draw distance and tree density are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
+### Dungeons and strongholds
+
+`src/dungeon.js` makes the dungeon and stronghold levels of the deep places (docs/QUESTS.md section 8).
+`dungeonPlan(seed, depth, kind)` returns one level as plain data, in the level plan the deep places
+share with the caves and caverns: rooms, corridors, doorways, the kit pieces to place, colliders, torch
+lights, the way in, sometimes a way further down, and spawn spots tagged guard, boss, captive or wander.
+The same seed, depth and kind always give the same level.
+
+- A dungeon is a crypt (tombs and a pillared hall), a ruin (rubble, crates, sometimes a camp) or a vault
+  (guardrooms and a treasure room behind a door). Its end is the room farthest from the way in, where the
+  boss waits. Half the time a far wall has given way into natural rock, and that leads down to a cave.
+- A stronghold is a keep: a gatehouse, the hall, barracks, a store room, a gaol with two or three barred
+  cells, the leader's room behind a door, and a cellar whose trapdoor sometimes leads down to a cave.
+- Rooms and corridors are laid on a 4 m grid. Each room hangs off an earlier one by a straight corridor
+  one to four cells long, with an arch at each end. Walls, arches and the columns where walls meet come
+  from that grid, and furniture stands against the walls, clear of the doorways.
+- `buildDungeon(plan)` lays a plan out in a three.js Group: one InstancedMesh per model part, a few dozen
+  draw calls a level, with doors and bars as meshes of their own so they can be opened. It returns the
+  colliders as boxes for `world.js createCollider`. Lights are left to the caller.
+- The pieces are Quaternius's Updated Modular Dungeon, in `kit/fantasy/dungeon/` (one `models.json`,
+  about 1 MB, flat colours and no textures). Its 2 m floor, wall and stairs are drawn at twice their
+  size. Barrels, crates, beds and tables come from the props kit, and the rock where a wall has given way
+  from the nature kit.
+- A level stays under 650 pieces and 600,000 triangles (about 400 pieces and 500,000 triangles at most
+  so far), so a phone can draw it. `tests/wanderworld-dungeon.regression.mjs` checks this, and also that
+  every room, spawn and the way down can be walked to at the player's size, that doorways meet their
+  corridors and nothing stands in them, and that no two pieces stand in each other.
+
 ## Building and testing
 
 ```bash
@@ -933,7 +1016,7 @@ The buildings, props, nature, townsfolk and recorded animations are converted fr
 [Quaternius](https://quaternius.com), released under
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/): Medieval Village MegaKit,
 Fantasy Props MegaKit, Stylized Nature MegaKit, Universal Base Characters, Modular Character Outfits -
-Fantasy, Ultimate Animated Animals, Monster Pack Animated, Easy Animated Enemy Pack, Farm Buildings, Ultimate Modular Men, Ultimate Modular Women, and the Universal Animation Library and Universal Animation Library 2.
+Fantasy, Ultimate Animated Animals, Monster Pack Animated, Easy Animated Enemy Pack, Farm Buildings, Updated Modular Dungeon (the dungeons and strongholds), Ultimate Modular Men, Ultimate Modular Women, and the Universal Animation Library and Universal Animation Library 2.
 
 The gallows, pillory, cage, signposts and crystals are by iPoly3D (Medieval Torture Devices, Signs pack
 and Crystal Pack on Poly Pizza), also CC0 1.0. Thank you, iPoly3D.

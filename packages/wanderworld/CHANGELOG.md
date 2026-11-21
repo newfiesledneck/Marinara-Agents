@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.39 — 2026-11-20
+
+- Faction standing: from Hated to Honoured (−100 to 100), moving a little at a time with errands for a faction's people, trading with it and fighting its guards, at most 10 a day. Helping one faction costs a little with its enemies (ww:enemy of:). Journal → Factions shows each, with a slider and a lock.
+- Standing changes prices at a faction's vendors, and at Hostile its people won't talk, its guards fight and its land is no refuge. Each has its own switch under Settings → World → Factions, as has telling the AI the standing.
+- Regions with a purpose: travel can find a faction's walled town with its banners and guards, a stronghold's gate in a hillside, outposts, a smaller town, hamlets, a ruin or a hillside of caves, from lore (ww:region:east) or the world's seed, and kept once found. Journal → Map shows the ones you know.
+
 ## 0.7.38 — 2026-11-20
 
 - Six new monsters, modelled in Blender, each with a skeleton and movements of its own: a mimic that passes for a chest, an awakened shrub, a shambling mound, a grick, an otyugh and a roper that passes for a stalagmite. The mimic, the shrub and the roper lie in wait as what they pretend to be until they move or strike. The shambling mound, the otyugh and the roper are rare. Each fights by its SRD stat block, has its own switch under Settings → Creatures → Kinds and counts toward the Monsters slider.

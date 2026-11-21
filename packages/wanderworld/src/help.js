@@ -167,7 +167,7 @@ export const HELP = [
     title: "Settings, and where things are",
     lines: [
       "Menu → Settings is in sections, and a section with a lot in it has tabs of its own. Each setting has an (i) before its name: point at it to read what the setting does, or tap it to keep the line open. Display → On screen → Show explanations shows every line at once, with a line at the top of each section and each Journal tab saying what it's for. New world's lines each have an (i) too.",
-      "Display: graphics, what's shown on screen, sound. Controls: moving and the camera. World: time, weather, places, vendors. People: how they act around you, their relationships, their memory, and the genders of people the game or the AI makes up (male, female, and a custom one you name; lore, cards and your own choices always come first). Inventory: what you carry, your sheet, gathering, shops, combat and the 5e rules. Creatures: the animals and monsters, how many, which kinds, how they behave. AI: what the AI writes, scenes, pictures, connections. Token use: everything that affects what the AI costs, in one place.",
+      "Display: graphics, what's shown on screen, sound. Controls: moving and the camera. World: time, weather, places, factions, vendors. People: how they act around you, their relationships, their memory, and the genders of people the game or the AI makes up (male, female, and a custom one you name; lore, cards and your own choices always come first). Inventory: what you carry, your sheet, gathering, shops, combat and the 5e rules. Creatures: the animals and monsters, how many, which kinds, how they behave. AI: what the AI writes, scenes, pictures, connections. Token use: everything that affects what the AI costs, in one place.",
       "A setting indented under another only matters while that one is on, and is faded while it's off.",
       "Regenerate this world (Settings → World → Places) builds the world again, and asks what New world asks about the land: hills, mountains, a river, the kind of settlement and its layout, walls, the market, streets, the world's size, more settlements, farms, landmarks and places out in the country. Each starts as it is; change any of them and the map shows what you'd get. Your people, relationships, lore and names stay, moved to the same kind of place.",
       "Vendors, at least and at most: New world (the land step) and Regenerate have a row for each trade. At least 2 smiths: a second smithy is built. At most 1 apothecary: any more sell something else, or shut if nothing has room. Empty boxes leave the town as it comes. Trades you set by hand in Settings → World → Vendors are counted and never changed.",
@@ -270,6 +270,16 @@ export const HELP = [
     ],
   },
   {
+    title: "Factions and regions",
+    lines: [
+      "A faction comes from your lore: an entry keyed ww:faction:Thieves Guild is its lore, and ww:member of:Thieves Guild on someone's entry puts them in it. ww:enemy of:The Crown on a faction's entry makes the two enemies.",
+      "Journal → Factions shows how each faction regards you, from −100 to 100: Hated, Hostile, Wary, Neutral, Liked, Trusted, Honoured. It moves a little with what you do: an errand done for one of its people, monsters beaten on its land, trading at its vendors (once a day) all raise it; a blow at one of its guards lowers it, and beating one lowers it more. It moves at most 10 a day. Helping a faction lowers your standing with its enemies a little. The slider sets it by hand, and Lock keeps it there.",
+      "What it changes, each with its own switch in Settings → World → Factions: a faction's vendors charge up to a fifth more or less; while you're Hostile or Hated its people won't talk to you, its guards come for you, and nowhere in its land is safe, not even its town. With AI conversations on, one short sentence tells the AI how a speaker's faction regards you.",
+      "Travelling off the edge of the map makes a new region. It can be made for a purpose: a faction's walled town with its banners and guards, a bandit stronghold with its gate set into a hillside, a few outposts with watchtowers, a smaller town, several hamlets, a ruin over a dungeon, or a hillside of caves. ww:region:east on a faction's entry makes the region east of home its land (ww:region:far north, ww:region:north-east:stronghold, ww:region:west:ruin on any entry). Journal → Factions can give the next region one way a purpose by hand. Otherwise the world's seed chooses, the same every time, and once a region has a purpose it keeps it.",
+      "A stronghold's gate and the mouths of ruins and caves are entrances to deep places. Journal → Map shows the regions round you that you know of under the region's map, each faction's land in its colour, and the edge of the region map is in that colour when you're on its land.",
+    ],
+  },
+  {
     title: "The chat window and places",
     lines: [
       "\"Clear chat\", at the bottom of the chat window, empties it (it asks twice). What's cleared is no longer sent to the AI or to Illustrate as what was said and told. It doesn't touch what people remember, a conversation you're in, or the AI assistant's own chat.",
@@ -285,6 +295,14 @@ export const HELP = [
       "Setting memories right (Journal → Edit people): change a memory's words if it came out wrong, delete one with ✕, or tick it to pin it. A pinned memory is locked: nothing ever pushes it out, and only its age moves on. You can also write one yourself; it's pinned from the start.",
       'What people know: each person knows only what they saw, heard or were told. Someone new doesn\'t know what you said to others elsewhere, and what one of two listeners overheard stays theirs. People in sight also notice what you do (Settings → People → Memory → "Remember what you do, not only what you say").',
       'Gossip ("People tell each other about you", in Settings → People → Memory, off to begin with): people who spend time together tell each other what they saw or heard of you. It arrives as hearsay, isn\'t passed further, and what you whisper stays where you said it.',
+    ],
+  },
+  {
+    title: "Dungeons and strongholds",
+    lines: [
+      "Below ground there can be dungeons and strongholds as well as caves. A dungeon is a crypt, a ruin or a sealed vault: rooms and corridors of stone with torches on the walls. A crypt has tombs and a pillared hall, a ruin has rubble, crates and sometimes a camp, and a vault has guardrooms and a treasure room behind a door at the end. Doors and bars don't lock yet.",
+      "A stronghold is a bandit or faction keep: a gatehouse, a hall with a long table and banners, barracks with bunks, store rooms, a gaol with barred cells where captives are held, the leader's room behind a door, and a cellar.",
+      "Each one is built from the world's seed, so the same way down always leads to the same rooms. Guards keep to the hall and barracks, the leader or the dungeon's master waits in the last room, captives sit in the cells, and others wander. Sometimes there's a way further down: a dungeon's far wall that has given way into natural rock, or a trapdoor in a keep's cellar, both leading to a cave below.",
     ],
   },
   { title: "Lorebook keywords", keywords: true },
@@ -324,6 +342,7 @@ export const CREDITS = [
       "Stylized Nature MegaKit: the common, twisted, dead and pine trees with their bark and leaves, bushes and flowering bushes, ferns, clover, flowers, grasses, mushrooms, plants, pebbles, rocks and the rock path.",
       "Universal Base Characters and Modular Character Outfits - Fantasy: the townsfolk. The male and female bodies and heads, the peasant outfits and their colours, eyes, and the hair and beards.",
       "Farm Buildings: the barn and the windmill.",
+      "Updated Modular Dungeon: the dungeons and strongholds. Their floors, walls, arches, doors, cell bars, columns, stairs, wall torches and banners, pedestals, the trapdoor, skulls, cobwebs and the campfire.",
       SRD_CREDIT,
       "Medieval Torture Devices, Signs pack and Crystal Pack by iPoly3D (CC0, from Poly Pizza): the gallows, pillory and cage by a watchtower, signposts at inns and cottages, crystals among standing stones.",
       "Credit required (CC-BY 3.0, https://creativecommons.org/licenses/by/3.0/): Saddle by Poly by Google, https://poly.pizza/m/dSMm_V4sKNr, modified (converted, resized, its texture shrunk). Its maker has not endorsed Wanderworld.",
