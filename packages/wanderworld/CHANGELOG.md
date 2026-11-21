@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.43 — 2026-11-20
+
+- The built-in bodies, polished: a smooth jawline, closed lips, eyes with depth and a wet line, relaxed hands, and fine skin detail (pores, creases) in the texture rather than the shape.
+- Underwear as real garments with waistbands, hems and seams, in styles to choose top and bottom in the Look card: briefs, boxer-briefs and boxers for both; bikini, thong and boyshorts for the female body; a bra, a sports bra or a bralette; or none.
+
 ## 0.7.42 — 2026-11-20
 
 - Quests: from the noticeboard, "Any work going?" or lore (ww:quest). The game's own always work; the AI can write them too (off by default). Stages can lead into caves and other regions, with failure branches. Journal → Quests and a quest line.

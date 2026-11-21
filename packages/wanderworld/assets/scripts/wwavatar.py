@@ -390,3 +390,115 @@ def subdivide_region(co, quads, region):
             faces.append(poly)
             corners.append((f, weights))
     return apply, faces, corners
+
+
+# ── Garments: smooth fields cut into a mesh ──────────────────────────────────────────────────────────
+
+
+def smin(a, b, k):
+    """A smooth minimum of two fields (the intersection of two insides, its corner rounded over k)."""
+    h = np.clip(0.5 + 0.5 * (b - a) / k, 0.0, 1.0)
+    return b * (1 - h) + a * h - k * h * (1 - h)
+
+
+def smax(a, b, k):
+    """A smooth maximum (the union of two insides, its corner filled over k)."""
+    return -smin(-a, -b, k)
+
+
+def periodic(points, mirror=False):
+    """A smooth closed curve through (angle in degrees, value) points, as a function of angles in radians
+    (Catmull-Rom). With mirror=True the points give 0..180 degrees and the other half mirrors them."""
+    if mirror:
+        points = list(points) + [(-a, v) for a, v in points if 0 < a < 180]
+    a = np.radians([p[0] for p in points])
+    v = np.array([p[1] for p in points], dtype=np.float64)
+    order = np.argsort(a)
+    a, v = a[order], v[order]
+    A = np.concatenate([a[-2:] - 2 * np.pi, a, a[:2] + 2 * np.pi])
+    V = np.concatenate([v[-2:], v, v[:2]])
+
+    def f(t):
+        t = np.mod(np.asarray(t, dtype=np.float64) - A[2], 2 * np.pi) + A[2]
+        i = np.clip(np.searchsorted(A, t, side="right") - 1, 1, len(A) - 3)
+        t0, t1 = A[i], A[i + 1]
+        m0 = (V[i + 1] - V[i - 1]) / (A[i + 1] - A[i - 1])
+        m1 = (V[i + 2] - V[i]) / (A[i + 2] - A[i])
+        h = t1 - t0
+        s = (t - t0) / h
+        return (2 * s**3 - 3 * s**2 + 1) * V[i] + (s**3 - 2 * s**2 + s) * h * m0 + (-2 * s**3 + 3 * s**2) * V[i + 1] + (s**3 - s**2) * h * m1
+
+    return f
+
+
+def metric(field, step=0.001):
+    """A field divided by the length of its gradient, so near its zero it reads as a distance (metres)."""
+
+    def f(p):
+        p = np.asarray(p, dtype=np.float64)
+        v = field(p)
+        g = np.zeros_like(p)
+        for i in range(3):
+            d = np.zeros(3)
+            d[i] = step
+            g[:, i] = (field(p + d) - field(p - d)) / (2 * step)
+        return v / np.maximum(np.linalg.norm(g, axis=1), 0.05)
+
+    return f
+
+
+def polyline_distance(p, line):
+    """Each point's distance from a polyline (k, 3), and the distance along the line to its nearest point."""
+    best = np.full(len(p), np.inf)
+    where = np.zeros(len(p))
+    run = 0.0
+    for a, b in zip(line[:-1], line[1:]):
+        ab = b - a
+        L = float(np.linalg.norm(ab))
+        t = np.clip(((p - a) @ ab) / max(L * L, 1e-12), 0.0, 1.0)
+        d = np.linalg.norm(p - (a + np.outer(t, ab)), axis=1)
+        closer = d < best
+        best[closer] = d[closer]
+        where[closer] = run + t[closer] * L
+        run += L
+    return best, where
+
+
+def taubin(values, nbrs, rounds, mask=None, lam=0.5, mu=-0.53):
+    """Smoothing that doesn't shrink: a step towards the neighbours' average, then a slightly larger one
+    back, each round."""
+    v = values
+    for _ in range(rounds):
+        v = smooth_values(v, nbrs, 1, lam, mask)
+        v = smooth_values(v, nbrs, 1, mu, mask)
+    return v
+
+
+def chains(edges):
+    """Edges (pairs of vertex indices) joined into ordered runs of vertices (a closed run repeats its first)."""
+    nb = {}
+    for a, b in edges:
+        nb.setdefault(a, []).append(b)
+        nb.setdefault(b, []).append(a)
+    seen = set()
+    out = []
+    starts = [v for v in nb if len(nb[v]) != 2] + list(nb)
+    for s in starts:
+        if s in seen:
+            continue
+        run = [s]
+        seen.add(s)
+        prev, cur = None, s
+        while True:
+            nxt = [n for n in nb[cur] if n != prev and (n not in seen or (n == s and len(run) > 2))]
+            if not nxt:
+                break
+            n = nxt[0]
+            run.append(n)
+            if n == s:
+                break
+            seen.add(n)
+            prev, cur = cur, n
+        if len(run) > 1:
+            out.append(run)
+    return out
