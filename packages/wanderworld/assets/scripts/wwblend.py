@@ -311,10 +311,12 @@ class Model:
         rotation = Vector((0, 0, 1)).rotation_difference(Vector(axis).normalized())
         self._add_bm(self._placed(bm, scale, rotation, centre), colour, bone)
 
-    def leaf(self, base, tip, width, thickness, colour, bone, facing, bend=(0, 0, 0), notch=None, steps=10):
-        """A flat, pointed leaf shape from `base` to `tip` (an ear): widest a quarter of the way along,
-        `width` across at most, rounded at its rim, its broad side facing `facing`, its tip bent by
-        `bend` (growing towards the tip), and a nick cut in its upper edge at `notch` (0-1) if asked."""
+    def leaf(self, base, tip, width, thickness, colour, bone, facing, bend=(0, 0, 0), notch=None, steps=10, cup=0.0, inner=None):
+        """A pointed leaf shape from `base` to `tip` (an ear, a flap of cloth): widest a quarter of the way
+        along, `width` across at most, rounded at its rim, its broad side facing `facing`, its tip bent by
+        `bend` (growing towards the tip), and a nick cut in its upper edge at `notch` (0-1) if asked.
+        `cup` hollows its front into a bowl under a raised rim (an ear's depth), as a share of its width,
+        and `inner` colours the inside of the bowl."""
         base, tip, bend = Vector(base), Vector(tip), Vector(bend)
         along_ = (tip - base).normalized()
         length = (tip - base).length
@@ -330,23 +332,27 @@ class Model:
             if notch is not None and abs(u - notch) < 0.05:
                 half *= 0.62
             depth = thickness * (1 - 0.6 * u) / 2
+            hollow = normal * cup * half * (1 - u * 0.5)
             ring = [
-                centre + side * half,
-                centre + side * half * 0.55 + normal * depth,
-                centre - side * half * 0.55 + normal * depth,
-                centre - side * half,
-                centre - side * half * 0.55 - normal * depth,
-                centre + side * half * 0.55 - normal * depth,
+                centre + side * half + normal * depth,
+                centre + side * half * 0.62 + normal * depth - hollow,
+                centre - side * half * 0.62 + normal * depth - hollow,
+                centre - side * half + normal * depth,
+                centre - side * half * 0.62 - normal * depth - hollow * 0.7,
+                centre + side * half * 0.62 - normal * depth - hollow * 0.7,
             ]
             rings.append([bm.verts.new(v) for v in ring])
         point = bm.verts.new(tip + bend)
+        colours = [colour]
         bm.faces.new(list(reversed(rings[0])))
         for a, b in zip(rings, rings[1:]):
             for j in range(6):
                 bm.faces.new((a[j], a[(j + 1) % 6], b[(j + 1) % 6], b[j]))
+                colours.append(inner if inner is not None and j == 1 else colour)
         for j in range(6):
             bm.faces.new((rings[-1][j], rings[-1][(j + 1) % 6], point))
-        self._add_bm(bm, colour, bone)
+            colours.append(inner if inner is not None and j == 1 else colour)
+        self._add_bm(bm, colours if inner is not None else colour, bone)
 
     def strand(self, points, r0, r1, colour, bone, segments=5):
         """A tube along `points`, from radius r0 to r1 (a lock of hair, the end of a rope)."""
@@ -453,9 +459,10 @@ class Model:
             offset = len(verts)
             verts += part_verts
             weights += [{bone: 1.0}] * len(part_verts)
-            for f in part_faces:
+            # (A part's colour, or one for each of its faces.)
+            for n, f in enumerate(part_faces):
                 faces.append([i + offset for i in f])
-                colours.append(colour)
+                colours.append(colour[n] if isinstance(colour, list) else colour)
                 smooth.append(part_smooth)
                 kinds.append(1 if bone == "Head" else 2)
         mesh = bpy.data.meshes.new(self.name)

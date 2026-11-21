@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.7.33 — 2026-11-20
+
+- The goblin, polished: cupped ears with a raised rim and a pink hollow, a flatter lower lip instead of sausage-shaped lips, a waist that runs into its hips, smaller feet, and chest straps that ride over its muscles instead of through them.
+
 ## 0.7.32 — 2026-11-20
 
 - The goblin is remade from a second set of references: stockier and muscled, with a bigger head, wide ears, a scowl over red eyes, a broad nose and an underbite with fangs. It wears straps crossed on its chest, leather shoulder pads, bracers, a tattered red loincloth and wrapped shins. It's lighter too, about 12,500 vertices instead of 16,000.

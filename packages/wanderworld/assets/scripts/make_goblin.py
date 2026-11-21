@@ -37,10 +37,10 @@ p = {
     "arm": 0.36,
     "thick": 1.5,
     "chest": (0.12, 0.085),
-    "waist": (0.09, 0.07),
+    "waist": (0.1, 0.076),
     "hunch": 0.06,
     "hand": 1.9,
-    "foot": 1.8,
+    "foot": 1.5,
 }
 m = Model("goblin", resolution=0.0065, faces=6500)
 m.group("head", resolution=0.005, faces=5000, bone="Head")
@@ -90,8 +90,7 @@ for k in range(2):
 cap((0, hy + 0.012, hz + 0.094), (0, hy - 0.022, hz + 0.122), 0.014, shade(SKIN, 0.95), **H)
 ell((0, hy - 0.03, hz + 0.124), 0.03, 0.021, 0.024, shade(SKIN, 0.95), **H)
 cap((-0.05, hy - 0.06, hz + 0.098), (0.05, hy - 0.06, hz + 0.098), 0.008, 0x24120E, negative=True, **H)
-cap((-0.046, hy - 0.052, hz + 0.104), (0.046, hy - 0.052, hz + 0.104), 0.0055, LIPS, **H)
-cap((-0.048, hy - 0.072, hz + 0.11), (0.048, hy - 0.072, hz + 0.11), 0.0092, LIPS, **H)
+ell((0, hy - 0.073, hz + 0.104), 0.046, 0.01, 0.018, LIPS, **H)
 
 for sign in (1, -1):
     # Red eyes under the scowling brow.
@@ -102,9 +101,7 @@ for sign in (1, -1):
     # Wide ears standing out to the sides, pink inside; a nick out of the left.
     base, tip = at(sign * 0.088, hy + 0.012, hz - 0.012), at(sign * 0.29, hy + 0.045, hz - 0.045)
     facing = Vector((sign * 0.15, -1, 0.12)).normalized()
-    m.leaf(base, tip, 0.135, 0.013, SKIN, "Head", facing, bend=(0, 0.015, -0.025), notch=0.6 if sign > 0 else None, steps=8)
-    inner = at(sign * 0.098, hy + 0.014, hz - 0.006) + facing * 0.005
-    m.leaf(inner, inner + (tip - base) * 0.78, 0.085, 0.006, 0xC48A80, "Head", facing, bend=(0, 0.01, -0.018), steps=8)
+    m.leaf(base, tip, 0.135, 0.016, SKIN, "Head", facing, bend=(0, 0.015, -0.025), notch=0.6 if sign > 0 else None, steps=8, cup=0.38, inner=0xC48A80)
     # Big lower fangs standing up past the upper lip.
     root = at(sign * 0.036, hy - 0.071, hz + 0.11)
     m.cone(root, root + Vector((sign * 0.003, -0.004, 0.038)), 0.011, TEETH, "Head", segments=6)
@@ -112,9 +109,11 @@ for x in (-0.017, 0.0, 0.017):
     root = at(x, hy - 0.069, hz + 0.111)
     m.cone(root, root + Vector((0, -0.003, 0.016)), 0.0065, TEETH, "Head", segments=5)
 
-# ── The body: broad shoulders and chest, a muscled belly, thick forearms. ──
+# ── The body: broad shoulders and chest, a muscled belly, a waist that runs into the hips, thick
+# forearms. ──
+ell((0, hips + 0.05, 0.0), waist_x * 1.08, 0.06, waist_z * 1.05)
 for sign in (1, -1):
-    ell((sign * 0.05, chest_y + 0.075, hunch * 0.2 + chest_z * 0.75), 0.05, 0.035, 0.03)
+    ell((sign * 0.05, chest_y + 0.075, hunch * 0.2 + chest_z * 0.72), 0.05, 0.035, 0.026)
     ell((sign * (sx + 0.01), arm_y + 0.01, 0.0), 0.05, 0.045, 0.045)
     ell((sign * 0.06, arm_y + 0.025, hunch * 0.2), 0.05, 0.025, 0.04)
     elbow, wrist = p["arm"] * 0.52, p["arm"]
@@ -162,13 +161,14 @@ for sign in (1, -1):
             (sign * 0.07, hips + 0.05, -waist_z * 1.1),
             (sign * -0.01, chest_y + 0.02, -chest_z * 1.05 + hunch * 0.15),
             (sign * -0.07, arm_y + 0.03, 0.0),
-            (sign * -0.05, arm_y + 0.01, front * 0.92),
-            (0, chest_y + 0.05, front * 1.04),
-            (sign * 0.06, hips + 0.05, waist_z * 1.18),
+            (sign * -0.05, arm_y + 0.012, front * 1.08),
+            (sign * -0.02, chest_y + 0.075, front * 1.2),
+            (0, chest_y + 0.045, front * 1.16),
+            (sign * 0.06, hips + 0.05, waist_z * 1.24),
         ],
         lambda q: "spine_03" if q.z > chest_y else "spine_01",
     )
-m.box(at(0, chest_y + 0.05, front * 1.08), (0.028, 0.008, 0.028), METAL, "spine_03", Quaternion((0, 1, 0), math.pi / 4))
+m.box(at(0, chest_y + 0.045, front * 1.2), (0.028, 0.008, 0.028), METAL, "spine_03", Quaternion((0, 1, 0), math.pi / 4))
 for side, sign in (("l", 1), ("r", -1)):
     # A leather pad on each shoulder with a bone spike.
     pad = at(sign * (sx + 0.012), arm_y + 0.032, 0.0)
@@ -180,8 +180,6 @@ for side, sign in (("l", 1), ("r", -1)):
     # Wraps round the shins and over the feet.
     for k in range(4):
         m.ring(at(sign * hx, 0.07 + k * 0.03, 0.004), 0.034 - k * 0.001, 0.007, shade(0x8A7A5A, 1 - 0.05 * (k % 2)), f"calf_{side}", segments=12)
-    f = b["f"]
-    m.ring(at(sign * hx, 0.04 * f, 0.07 * f), 1, 0.14, shade(0x8A7A5A, 0.9), f"foot_{side}", scale=(0.058 * f, 0.03, 0.046 * f), axis=(0, 1, 0), segments=12)
 
 # ── The scimitar: a wrapped grip and pommel, a short guard, a curved blade, darker along its back. ──
 k = 0.72
