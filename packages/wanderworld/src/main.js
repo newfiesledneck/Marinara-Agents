@@ -15125,6 +15125,9 @@ function frame(time) {
   }
 }
 
+/** Sound may start once a key is pressed in the game (browsers wait for one). */
+const unlockSound = () => core.sound.unlock();
+
 function attach(element) {
   core.element = element;
   if (!core.store) {
@@ -15463,7 +15466,7 @@ function attach(element) {
   core.input.onRunToggle((on) => core.hud?.setRun(on)); // (Ctrl: the Run button shows it)
   core.input.setKeys(core.settings?.keys ?? "");
   core.hud.layer.prepend(core.input.stickElement); // under the windows and panels
-  core.element.addEventListener("keydown", () => core.sound.unlock());
+  core.element.addEventListener("keydown", unlockSound); // (one function, so attaching again doesn't add another)
 
   if (!ensureRenderer()) {
     core.hud.setStatus(core.failed);

@@ -1695,6 +1695,10 @@ export function createHud(root, handlers) {
           stop();
           control.textContent = "Press a key…";
           listening = (event) => {
+            // (A key pressed elsewhere, once the panel is closed or the game has left the page, isn't
+            // taken: the wait just ends.)
+            if (!list.isConnected || !layer.contains(event.target))
+              return void (list.isConnected ? draw(keyBinds) : stop());
             event.preventDefault();
             event.stopImmediatePropagation();
             const key = String(event.key).toLowerCase();

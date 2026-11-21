@@ -37,6 +37,7 @@ import {
   USUAL_HAIR_COLOURS,
 } from "./looks.js";
 import { hashString, rng } from "./world.js";
+import { forget } from "./kit.js";
 
 // The bodies (skeletons, heads, hair, skin) are any world's, in kit/generic/people, one file for them
 // all (bodies.json); the outfits and their cloth are the medieval one's, in kit/fantasy/outfits. A file's
@@ -110,10 +111,12 @@ export function load(name) {
   if (!files.has(name)) {
     files.set(
       name,
-      fetch(urlOf(name)).then((response) => {
-        if (!response.ok) throw new Error(`GET ${name} → ${response.status}`);
-        return response.json();
-      }),
+      fetch(urlOf(name))
+        .then((response) => {
+          if (!response.ok) throw new Error(`GET ${name} → ${response.status}`);
+          return response.json();
+        })
+        .catch((error) => forget(files, name, error)),
     );
   }
   return files.get(name);
@@ -443,8 +446,6 @@ const OUTLAWS = {
     }),
   },
 };
-/** The kinds of outlaw there are. */
-export const OUTLAW_KINDS = Object.keys(OUTLAWS);
 
 /**
  * An outlaw of `kind` (a key of OUTLAWS), no two quite alike, as a walking character with `carry` (what's

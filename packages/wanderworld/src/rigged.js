@@ -16,6 +16,7 @@ import {
   TextureLoader,
 } from "three";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { forget } from "./kit.js";
 import { parseGlb } from "./models.js";
 
 const BASE = "/api/capability-packages/wanderworld/assets/kit/creatures/";
@@ -70,7 +71,7 @@ function source(kind, draw = {}) {
           node.geometry.userData.shared = true;
         });
         return { scene: gltf.scene, clips: gltf.animations, height: data.height };
-      })(),
+      })().catch((error) => forget(kinds, kind, error)),
     );
   }
   return kinds.get(kind);

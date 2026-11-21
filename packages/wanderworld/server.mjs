@@ -1908,7 +1908,8 @@ export async function activate(context) {
   const scenesOn = typeof api.registerSceneOrigin === "function";
   const callLog = createCallLog();
   // A model's prices, from its connection's model list as the Engine serves it to its own model picker.
-  // Read at most once an hour for each model, and never waited for by a reply.
+  // Read at most once an hour for each model (a list that couldn't be read is asked for again next time),
+  // never waited for by a reply, and only the last hundred models' are kept.
   const prices = new Map();
   const priceOf = (connectionId, modelId) => {
     const key = `${connectionId}|${modelId}`;
@@ -1916,8 +1917,13 @@ export async function activate(context) {
     if (held && Date.now() - held.at < 3600000) return held.price;
     const price = engineFetch(`/api/connections/${encodeURIComponent(connectionId)}/models`, { method: "GET" })
       .then((body) => (Array.isArray(body?.models) ? body.models : []).find((row) => row?.id === modelId)?.pricing ?? null)
-      .catch(() => null);
+      .catch(() => {
+        if (prices.get(key)?.price === price) prices.delete(key);
+        return null;
+      });
+    prices.delete(key); // (so it's the newest)
     prices.set(key, { at: Date.now(), price });
+    for (const old of prices.keys()) if (prices.size > 100) prices.delete(old);
     return price;
   };
 

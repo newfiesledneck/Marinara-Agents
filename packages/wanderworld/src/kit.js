@@ -39,13 +39,21 @@ function loadJson(path) {
   if (!files.has(path)) {
     files.set(
       path,
-      fetch(`${BASE}${path}`).then((response) => {
-        if (!response.ok) throw new Error(`GET kit/${path} → ${response.status}`);
-        return response.json();
-      }),
+      fetch(`${BASE}${path}`)
+        .then((response) => {
+          if (!response.ok) throw new Error(`GET kit/${path} → ${response.status}`);
+          return response.json();
+        })
+        .catch((error) => forget(files, path, error)),
     );
   }
   return files.get(path);
+}
+
+/** A load that failed is let go, so the next ask tries again (a dropped connection isn't for good). */
+export function forget(cache, key, error) {
+  cache.delete(key);
+  throw error;
 }
 
 function texture(set, name) {
@@ -107,6 +115,7 @@ function part(set, mesh) {
 /** A kit texture for tiling across the ground (its own copy, repeating; the image is shared). */
 export function kitTexture(set, name) {
   const map = texture(set, name).clone();
+  map.userData.shared = false; // (the copy is the world's own, let go with it; the picture stays shared)
   map.wrapS = map.wrapT = RepeatWrapping;
   return map;
 }
@@ -117,11 +126,13 @@ export function kitModel(set, name) {
   if (!models.has(key)) {
     models.set(
       key,
-      loadJson(`${KIT_DIRS[set]}/models.json`).then((file) => {
-        const data = file.models?.[name];
-        if (!data) throw new Error(`kit/${KIT_DIRS[set]}/models.json has no ${name}`);
-        return data.meshes.map((mesh) => part(set, mesh));
-      }),
+      loadJson(`${KIT_DIRS[set]}/models.json`)
+        .then((file) => {
+          const data = file.models?.[name];
+          if (!data) throw new Error(`kit/${KIT_DIRS[set]}/models.json has no ${name}`);
+          return data.meshes.map((mesh) => part(set, mesh));
+        })
+        .catch((error) => forget(models, key, error)),
     );
   }
   return models.get(key);

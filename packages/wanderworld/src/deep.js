@@ -53,7 +53,7 @@ import { cavePlan, cavernPlan, MAX_DEPTH, openAt } from "./deepcave.js";
 import { buildDungeon, dungeonPlan } from "./dungeon.js";
 import { kitModel, kitModels } from "./kit.js";
 import { SRD_CREATURES } from "./srd.js";
-import { createCollider, hashString, rng } from "./world.js";
+import { createCollider, disposeOwn, hashString, rng } from "./world.js";
 
 const NATURAL = new Set(["cave", "cavern"]);
 const DRY = { depth: 0, level: 0 };
@@ -479,8 +479,7 @@ export function createDeep(plan) {
       gone = true;
       scene.traverse((object) => {
         // Kit geometry is shared (kit.js keeps it); this level's own copies of its materials aren't.
-        if (!object.geometry?.userData.shared) object.geometry?.dispose();
-        if (!object.material?.userData?.shared) object.material?.dispose?.();
+        disposeOwn(object);
         if (object.isInstancedMesh) object.dispose();
       });
     },
