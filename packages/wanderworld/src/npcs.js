@@ -1844,6 +1844,10 @@ export function createCrowd() {
       }
     },
     /** Whether townsfolk without a 3D model are the base avatar (true) or the older kit's people. */
+    /** Everyone with no model of their own dressed again (after a setting that changes how they look). */
+    redress() {
+      for (const person of people.values()) if (!person.hasModel && dressPeople) void loadModel(person);
+    },
     setNewBodies(on) {
       if (on === newBodies) return;
       newBodies = on;

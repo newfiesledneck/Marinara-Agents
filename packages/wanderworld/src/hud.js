@@ -1222,6 +1222,8 @@ export function createHud(root, handlers) {
     buildings: "On: detailed buildings. Off: simple boxes.",
     people:
       "How characters with no 3D model of their own look. Detailed: you are the base avatar (your Look card shapes it), and townsfolk are too, or are dressed from the Quaternius kit (Settings → People → Townsfolk use the new bodies). Simple: everyone is a plain low-poly person, the lightest of all.",
+    underwearByDefault:
+      "On: anyone whose Look card leaves underwear unchosen wears the usual (a bra and briefs, or briefs). Off: the base skin shows as it is unless underwear is chosen in their Look card. A choice made by hand always wins; an outfit covering it hides it either way.",
     newBodies:
       'On: townsfolk with no 3D model of their own are the new base bodies, each shaped from their name within an everyday range, and from their lore: "ww:looks:tall", "ww:looks:red hair", "ww:looks:elf" for pointed ears. Their Look card changes any of it. Off: they are dressed from the older Quaternius kit, which is lighter on a slow phone. You are the new body either way.',
     animation: "Recorded: motion from the animation library. Built-in: a simple hand-made walk.",
@@ -1805,6 +1807,7 @@ export function createHud(root, handlers) {
     off: "Nowhere",
   });
   toggle("newBodies", "Townsfolk use the new bodies");
+  toggle("underwearByDefault", "Default skins with underwear");
   choice("names", "Names over people", {
     all: "Show all names",
     known: "Only people I know",

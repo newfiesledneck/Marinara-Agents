@@ -155,6 +155,7 @@ export const HELP = [
   {
     title: "Your look: the built-in body",
     lines: [
+      'Underwear: each body has underwear styles to choose, top and bottom, in the Look card. Menu → Settings → People → "Default skins with underwear" (on to begin with) dresses anyone who has none chosen in the usual: a bra and briefs, or briefs. Off, the base skin shows unless underwear is chosen. A choice made by hand always wins.',
       "Without a 3D model of your own you are Wanderworld's own body, male or female, made in Blender. The Look button beside your persona (or Look on anyone in town) opens its card, with a small turning picture of them at the top. Each part folds away: Presets, Body, Build, Face, Colours, Underwear and Hair.",
       "Build has height, weight, muscle, chest, hips, waist, belly, shoulders and neck, and arm length, leg length and head size. Face has the jaw, cheekbones, nose, eyes and pointed ears. Each slider's middle is an everyday person; drag one and the picture follows, let go and it's set. Anything you never touch comes from their name, so everyone in town looks a little different.",
       "Colours: skin, eyes, lips, nails and brows, each from a list or a colour of your own. Underwear: a top and a bottom, or none, and their colour. An outfit piece covering it hides it.",

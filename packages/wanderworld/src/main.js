@@ -63,7 +63,7 @@ import {
 import { lookChoices, setGenderShares } from "./people.js";
 import { checkLook, mergeLooks } from "./looks.js";
 // ── The base avatar (avatar.js): the player's own body, and the townsfolk's ──
-import { avatarChoices, avatarLook, createAvatar } from "./avatar.js";
+import { avatarChoices, avatarLook, createAvatar, setUnderwearByDefault } from "./avatar.js";
 import { lookFromWords } from "./keywords.js";
 import { approachAngle, createCrowd, MAX_PEOPLE } from "./npcs.js";
 import { afloatAt, createHerd, MONSTER_SIZES } from "./herd.js";
@@ -656,6 +656,7 @@ function applySettings() {
   else core.crowd.setNamesVisible(settings.names !== "none");
   core.crowd.setDressed(settings.people === "kit");
   core.crowd.setNewBodies(settings.newBodies); // (avatar.js, or the older kit)
+  setUnderwearByDefault(settings.underwearByDefault);
   core.sound.setEnabled(settings.sound);
   core.sound.setVolume(settings.volume);
   core.hud?.setSettings(settings, gendersNow().name);
@@ -667,6 +668,11 @@ function changeSetting(name, value) {
   if (checked === undefined) return;
   core.settings = { ...core.settings, [name]: checked };
   if (name === "people") void choosePersona(core.personaId); // redress the player too
+  if (name === "underwearByDefault") {
+    setUnderwearByDefault(value);
+    core.crowd.redress();
+    void choosePersona(core.personaId, true);
+  }
   if (["nature", "props", "buildings"].includes(name) && core.world) buildWorld(core.seed, currentPlace()); // redrawn
   // How many animals, or which kinds: the world's are counted out again, once the slider has stopped.
   if (/^animal|^loreAnimals$/u.test(name) && core.world) {

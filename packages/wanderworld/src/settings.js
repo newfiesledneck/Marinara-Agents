@@ -55,6 +55,8 @@ export const SETTINGS = {
   /** Townsfolk without a 3D model are the base avatar, shaped from their name and lore; off, they're dressed
    *  from the Quaternius characters, lighter on a slow phone. (You are the base avatar either way.) */
   newBodies: { value: true },
+  /** Someone with no underwear chosen wears the usual (avatar.js setUnderwearByDefault). */
+  underwearByDefault: { value: true },
   /** The player's own looks to start a Look card from (looks.js checkPresets): [{ name, look }]. Kept with the
    *  game's settings, so they're there in every world and every browser. */
   lookPresets: { value: [], check: checkPresets },

@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.44",
+          "date": "2026-11-20",
+          "notes": "- Settings → People → Default skins with underwear (on to begin with): anyone with no underwear chosen wears the usual; off, the base skin shows unless underwear is chosen in the Look card.\n- More hair style names for the new bodies (bob, braid, curly, afro, shaved, mohawk), offered when the kit has them.",
+          "highlight": false
+        },
+        {
           "version": "0.7.43",
           "date": "2026-11-20",
           "notes": "- The built-in bodies, polished: a smooth jawline, closed lips, eyes with depth and a wet line, relaxed hands, and fine skin detail (pores, creases) in the texture rather than the shape.\n- Underwear as real garments with waistbands, hems and seams, in styles to choose top and bottom in the Look card: briefs, boxer-briefs and boxers for both; bikini, thong and boyshorts for the female body; a bra, a sports bra or a bralette; or none.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.25",
           "date": "2026-11-17",
           "notes": "- Inventory → Sheet: each thing your class can call on now has what it does written under its button, so it can be read on a phone. With explanations folded away, it's behind an (i).\n- An (i) on a line of its own no longer has \"About this\" beside it.\n- The AI assistant reads much more of Help for a how-to question: the parts that match your question first, then the rest, up to 10,000 tokens (it was about 2,000, which covered only the first section). Settings → AI assistant → \"How much of Help it reads (tokens)\" sets it, from 1,000 to 20,000; all of Help is about 13,000. Questions about your world don't send Help at all.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.24",
-          "date": "2026-11-17",
-          "notes": "- The text in Wanderworld's menus is rewritten to be shorter and plainer: setting labels and their (i) explanations, buttons, notes, notices and the item and keyword references. Explanations say what On does and what Off does.\n- Help is reorganised. The long fighting section is in short parts, and new sections cover your sheet, items and money; gathering, crafting and shops; fighting; the chat window and places; and what people remember.\n- Help now names settings and places as the menus show them.\n- Fixed text that was out of date: a note said there was no fighting yet, and the SRD spell list was said to stop at level 3.",
           "highlight": false
         }
       ]

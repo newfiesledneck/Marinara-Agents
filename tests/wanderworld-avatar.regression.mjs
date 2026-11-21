@@ -125,8 +125,9 @@ for (const sex of ["male", "female"]) {
   assert.ok(bone(person, "thigh_l").x > bone(person, "thigh_r").x, `the ${sex} body faces +z`);
   assert.ok(bone(person, "hand_l").y < bone(person, "upperarm_l").y - 0.3, `the ${sex} body's arms hang at rest`);
   let draws = 0;
+  // (The body itself, not its hair: a kit with hair adds a draw or two.)
   person.object.traverse((object) => {
-    if (object.isSkinnedMesh) draws += object.geometry.groups.length || 1;
+    if (object.isSkinnedMesh && object.name === "body") draws += object.geometry.groups.length || 1;
   });
   assert.ok(draws <= 3, `the ${sex} body is a few draws (${draws})`);
   // It walks: the legs swing.
@@ -186,6 +187,24 @@ for (const sex of ["male", "female"]) {
     bodyMesh(long) === null || !bodyMesh(long).geometry.attributes.uv,
     "letting go keeps the shared data for the rest",
   );
+}
+
+// ── Default skins with underwear (Settings → People): off, nobody wears any unless it's chosen ──
+{
+  const { setUnderwearByDefault } = await import("../packages/wanderworld/src/avatar.js");
+  setUnderwearByDefault(false);
+  assert.deepEqual(
+    avatarLook("Rowan", "female", {}).underwear,
+    { top: "none", bottom: "none" },
+    "off: no underwear unless chosen",
+  );
+  assert.deepEqual(
+    avatarLook("Rowan", "female", { underwear: { top: "bralette" } }).underwear.top,
+    "bralette",
+    "a choice made by hand still wins",
+  );
+  setUnderwearByDefault(true);
+  assert.deepEqual(avatarLook("Rowan", "female", {}).underwear, { top: "bra", bottom: "briefs" }, "on: the usual");
 }
 
 // ── Underwear, and what an outfit piece hides ───────────────────────────────
