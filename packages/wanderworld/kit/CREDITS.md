@@ -22,8 +22,8 @@ licence file says so). No credit is required; this note is a courtesy.
 
 ## Made in Blender by ThatOneCan
 
-`fantasy/folk/folk-built.json` and its textures (`folk-goblin.webp` and the like): the goblin, modelled
-in Blender by ThatOneCan with the scripts in `packages/wanderworld/assets/scripts/` and packed by
+`fantasy/folk/folk-built-<name>.json` and their textures (`folk-<name>.webp`): the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur,
+modelled in Blender by ThatOneCan with the scripts in `packages/wanderworld/assets/scripts/` and packed by
 `scripts/build-wanderworld-people.mjs --bestiary`. The models themselves are in
 `packages/wanderworld/assets/models/`.
 

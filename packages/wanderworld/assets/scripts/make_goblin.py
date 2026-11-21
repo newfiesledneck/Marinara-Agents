@@ -41,11 +41,12 @@ p = {
     "hunch": 0.06,
     "hand": 1.9,
     "foot": 1.5,
+    "soft_toes": True,
 }
 m = Model("goblin", resolution=0.0065, faces=6500)
 m.group("head", resolution=0.005, faces=5000, bone="Head")
 m.rig(humanoid_joints(p))
-b = humanoid_body(m, p, {"skin": SKIN, "legs": SKIN, "shins": LEATHER, "nails": 0x3A3428})
+b = humanoid_body(m, p, {"skin": SKIN, "legs": SKIN, "nails": 0x3A3428})
 s, t, arm_y, sx, hx, chest_y = b["s"], b["t"], b["arm_y"], b["sx"], b["hx"], b["chest_y"]
 hips = p["leg"]
 (chest_x, chest_z), (waist_x, waist_z) = p["chest"], p["waist"]
@@ -99,9 +100,9 @@ for sign in (1, -1):
     m.sphere(eye + Vector((sign * 0.001, -0.012, 0)), (0.006, 0.003, 0.0065), 0x140A06, "Head", segments=8, rings=6)
     m.sphere(eye + Vector((sign * 0.004, -0.0135, 0.004)), (0.002, 0.0012, 0.002), 0xFFF0DC, "Head", segments=6, rings=4)
     # Wide ears standing out to the sides, pink inside; a nick out of the left.
-    base, tip = at(sign * 0.088, hy + 0.012, hz - 0.012), at(sign * 0.29, hy + 0.045, hz - 0.045)
-    facing = Vector((sign * 0.15, -1, 0.12)).normalized()
-    m.leaf(base, tip, 0.135, 0.016, SKIN, "Head", facing, bend=(0, 0.015, -0.025), notch=0.6 if sign > 0 else None, steps=8, cup=0.38, inner=0xC48A80)
+    base, tip = at(sign * 0.088, hy + 0.014, hz - 0.016), at(sign * 0.235, hy + 0.072, hz - 0.095)
+    facing = Vector((sign * 0.35, -1, 0.3)).normalized()
+    m.leaf(base, tip, 0.112, 0.016, SKIN, "Head", facing, bend=(0, 0.012, 0.022), notch=0.6 if sign > 0 else None, steps=8, cup=0.38, inner=0xC48A80)
     # Big lower fangs standing up past the upper lip.
     root = at(sign * 0.036, hy - 0.071, hz + 0.11)
     m.cone(root, root + Vector((sign * 0.003, -0.004, 0.038)), 0.011, TEETH, "Head", segments=6)
@@ -159,9 +160,11 @@ for sign in (1, -1):
     strap(
         [
             (sign * 0.07, hips + 0.05, -waist_z * 1.1),
-            (sign * -0.01, chest_y + 0.02, -chest_z * 1.05 + hunch * 0.15),
-            (sign * -0.07, arm_y + 0.03, 0.0),
-            (sign * -0.05, arm_y + 0.012, front * 1.08),
+            (sign * -0.01, chest_y + 0.02, -chest_z * 1.12 + hunch * 0.15),
+            (sign * -0.05, arm_y + 0.04, -chest_z * 0.9),
+            (sign * -0.07, arm_y + 0.066, -0.01),
+            (sign * -0.055, arm_y + 0.045, front * 0.95),
+            (sign * -0.04, arm_y + 0.012, front * 1.14),
             (sign * -0.02, chest_y + 0.075, front * 1.2),
             (0, chest_y + 0.045, front * 1.16),
             (sign * 0.06, hips + 0.05, waist_z * 1.24),
@@ -178,8 +181,10 @@ for side, sign in (("l", 1), ("r", -1)):
     m.tube(at(sign * (sx + elbow + 0.04), arm_y, 0), at(sign * (sx + wrist - 0.01), arm_y, 0), 0.04, 0.033, LEATHER, f"lowerarm_{side}", segments=10)
     m.ring(at(sign * (sx + elbow + 0.1), arm_y, 0), 0.037, 0.005, STRAP, f"lowerarm_{side}", axis=(1, 0, 0), segments=12)
     # Wraps round the shins and over the feet.
-    for k in range(4):
-        m.ring(at(sign * hx, 0.07 + k * 0.03, 0.004), 0.034 - k * 0.001, 0.007, shade(0x8A7A5A, 1 - 0.05 * (k % 2)), f"calf_{side}", segments=12)
+    m.tube(at(sign * hx, 0.055, 0.0), at(sign * hx, b["knee"] - 0.03, -0.004), 0.031, 0.037, 0x8A7A5A, f"calf_{side}", segments=12)
+    for k in range(3):
+        y = 0.075 + k * 0.035
+        m.ring(at(sign * hx, y, -0.002), 0.032 + k * 0.002, 0.0045, STRAP, f"calf_{side}", segments=12)
 
 # ── The scimitar: a wrapped grip and pommel, a short guard, a curved blade, darker along its back. ──
 k = 0.72

@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.34 — 2026-11-20
+
+- All ten other monsters are now models made in Blender, each modelled from reference descriptions: the hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, each with its own baked texture, face, gear and weapon. They still move with the people's animations. The shapes built in code stay only as a fallback.
+- The goblin, polished: its harness goes over its shoulders, its ears sweep back and up, its fingers join its palms, its toes are part of its feet, and its shins are wrapped.
+- Each creature's model is a file of its own, so a world fetches only the ones it has. Credits name ThatOneCan as the maker of all eleven.
+
 ## 0.7.33 — 2026-11-20
 
 - The goblin, polished: cupped ears with a raised rim and a pink hollow, a flatter lower lip instead of sausage-shaped lips, a waist that runs into its hips, smaller feet, and chest straps that ride over its muscles instead of through them.

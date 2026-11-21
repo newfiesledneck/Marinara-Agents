@@ -798,16 +798,16 @@ def humanoid_body(m, p, c):
         m.ball(at(x(elbow + p["arm"] * 0.1), arm_y, 0), 0.044 * t, c.get("forearms", skin))
         m.capsule(at(x(elbow), arm_y, 0), at(x(wrist), arm_y, 0), 0.033 * t, c.get("forearms", skin))
         # A palm, and fingers and a thumb as hard parts (too fine for metaballs), with claws if it has them.
-        ell(at(x(wrist + 0.045 * h), arm_y, 0), (0.05 * h, 0.022 * h, 0.042 * h), skin)
+        ell(at(x(wrist + 0.05 * h), arm_y, 0), (0.06 * h, 0.024 * h, 0.046 * h), skin)
         bone = f"hand_{side}"
         # (`fingers`: how long they are, against a person's; long ones curl at a second knuckle.)
         reach = p.get("fingers", 1.0)
         for i in range(4):
             z = (i - 1.5) * 0.022 * h
-            base = at(x(wrist + 0.075 * h), arm_y - 0.004 * h, z)
+            base = at(x(wrist + 0.06 * h), arm_y - 0.004 * h, z)
             knuckle = at(x(wrist + (0.075 + 0.045 * reach) * h), arm_y - 0.012 * h, z * 1.08)
             tip = knuckle + Vector((sign * 0.035 * reach * h, 0, -0.022 * reach * h))
-            m.tube(base, knuckle, 0.012 * h, 0.01 * h, skin, bone, segments=6)
+            m.tube(base, knuckle, 0.0135 * h, 0.0105 * h, skin, bone, segments=6)
             m.sphere(knuckle, (0.0105 * h,) * 3, skin, bone, segments=6, rings=4)
             m.tube(knuckle, tip, 0.01 * h, 0.0075 * h, skin, bone, segments=6)
             m.sphere(tip, (0.0075 * h,) * 3, skin, bone, segments=6, rings=4)
@@ -832,6 +832,11 @@ def humanoid_body(m, p, c):
                 tx = sign * hx + (toe - 1) * 0.03 * f
                 root = at(tx, 0.024 * f, 0.12 * f)
                 tip = at(tx * 1.03, 0.014 * f, (0.12 + 0.04 * length) * f)
+                if p.get("soft_toes"):
+                    # (Part of the foot's own skin, so they join it smoothly.)
+                    m.capsule(at(tx, 0.026 * f, 0.09 * f), tip, 0.017 * f, feet)
+                    m.sphere(tip + Vector((0, -0.004 * f, 0.004 * f)), (0.008 * f, 0.004 * f, 0.004 * f), c.get("nails", 0x2A2420), f"ball_{side}", segments=6, rings=4)
+                    continue
                 m.sphere(root, (0.018 * f,) * 3, feet, f"ball_{side}", segments=6, rings=4)
                 m.tube(root, tip, 0.016 * f, 0.012 * f, feet, f"ball_{side}", segments=6)
                 m.sphere(tip, (0.012 * f,) * 3, feet, f"ball_{side}", segments=6, rings=4)

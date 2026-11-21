@@ -12,14 +12,14 @@ older code-made monsters; it stays as the fallback for any kind without a Blende
 
 ### Where things go
 
-| Path                                | What                                                              | In git |
-| ----------------------------------- | ----------------------------------------------------------------- | ------ |
-| `assets/scripts/make_<name>.py`     | One Blender (`bpy`) script per model                              | yes    |
-| `assets/scripts/wwblend.py`         | What the scripts share: the rig, the body, the palette, export    | yes    |
-| `assets/models/<name>.glb`          | The model: mesh, materials, normals, rig, weights and its actions | yes    |
-| `assets/build/<name>.blend`         | A debug copy to open in Blender                                   | no     |
-| `kit/fantasy/folk/folk-built.json`  | The models as the game loads them (generated)                     | yes    |
-| `kit/fantasy/folk/folk-<name>.webp` | Each model's texture (generated)                                  | yes    |
+| Path                                      | What                                                              | In git |
+| ----------------------------------------- | ----------------------------------------------------------------- | ------ |
+| `assets/scripts/make_<name>.py`           | One Blender (`bpy`) script per model                              | yes    |
+| `assets/scripts/wwblend.py`               | What the scripts share: the rig, the body, the palette, export    | yes    |
+| `assets/models/<name>.glb`                | The model: mesh, materials, normals, rig, weights and its actions | yes    |
+| `assets/build/<name>.blend`               | A debug copy to open in Blender                                   | no     |
+| `kit/fantasy/folk/folk-built-<name>.json` | The models as the game loads them, a file each (generated)        | yes    |
+| `kit/fantasy/folk/folk-<name>.webp`       | Each model's texture (generated)                                  | yes    |
 
 ### Rules for a script
 
