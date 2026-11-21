@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Converts static models (trees, rocks, plants, props) from Quaternius's CC0 packs into Wanderworld's kit:
-// packages/wanderworld/kit/<set>/*.json meshes and *.webp textures, served as package assets and loaded
+// packages/wanderworld/kit/<set>/models.pack.png meshes (scripts/wanderworld-packed.mjs) and *.webp textures, served as package assets and loaded
 // by src/kit.js. Each model's node transforms are baked in, its meshes grouped by material, positions
 // and texture coordinates quantized within their boxes.
 //
@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Matrix3, Matrix4, Quaternion, Vector3 } from "three";
+import { MODEL_KINDS, writePacked } from "./wanderworld-packed.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FFMPEG = process.env.FFMPEG || "ffmpeg";
@@ -24,7 +25,7 @@ const GLB_IMAGES = join(tmpdir(), "wanderworld-kit-glb");
 /**
  * What each set takes from its pack: where it goes in the kit (`dir`: by setting, "generic" for what any
  * world has, "fantasy" for the medieval one; src/kit.js has the same), model files, and the size each
- * texture is shrunk to. A set's models go in one file, models.json (a package may list only so many
+ * texture is shrunk to. A set's models go in one file, models.pack.png (a package may list only so many
  * files, and a world loads nearly all of a set anyway). To drop or swap a model, change its list and run
  * the script again.
  */
@@ -615,7 +616,7 @@ async function main() {
       join(out, `${textureName(image)}.webp`),
     ]);
   }
-  writeFileSync(join(out, "models.json"), JSON.stringify({ models }));
+  writePacked(join(out, "models.pack.png"), { models }, MODEL_KINDS);
   writeFileSync(join(out, "index.json"), JSON.stringify(index, null, 2));
   console.log(`wrote ${out}: ${Object.keys(index.models).length} models, ${images.size} textures`);
   for (const [name, info] of Object.entries(index.models))

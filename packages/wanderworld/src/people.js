@@ -38,9 +38,10 @@ import {
 } from "./looks.js";
 import { hashString, rng } from "./world.js";
 import { addDistant, drawDistant, forget } from "./kit.js";
+import { arrayOf, fetchKit, pictureTexture } from "./packed.js";
 
 // The bodies (skeletons, heads, hair, skin) are any world's, in kit/generic/people, one file for them
-// all (bodies.json); the outfits and their cloth are the medieval one's, in kit/fantasy/outfits. A file's
+// all (bodies.pack.png); the outfits and their cloth are the medieval one's, in kit/fantasy/outfits. A file's
 // name says which it is.
 const KIT = "/api/capability-packages/wanderworld/assets/kit/";
 const BODY_FILE = /^(?:index|bodies|eyes|hair-|head-|plain-head-|plain-skin-|skin-)/u;
@@ -106,26 +107,24 @@ const files = new Map();
 const textures = new Map();
 const loader = new TextureLoader();
 
-/** A kit file (JSON), fetched once and shared. */
+/** A kit file (packed, or JSON: packed.js), fetched once and shared. */
 export function load(name) {
-  if (!files.has(name)) {
+  if (!files.has(name))
     files.set(
       name,
-      fetch(urlOf(name))
-        .then((response) => {
-          if (!response.ok) throw new Error(`GET ${name} → ${response.status}`);
-          return response.json();
-        })
-        .catch((error) => forget(files, name, error)),
+      fetchKit(urlOf(name), name).catch((error) => forget(files, name, error)),
     );
-  }
   return files.get(name);
 }
 
-/** A kit texture, loaded once and shared by everyone (never disposed with a person). */
-export function texture(name) {
+/**
+ * A kit texture, loaded once and shared by everyone (never disposed with a person): the .webp of that name,
+ * or the picture of that name in `pictures` (a bundle's, packed.js).
+ */
+export function texture(name, pictures = null) {
   if (!textures.has(name)) {
-    const map = loader.load(urlOf(`${name}.webp`));
+    const packed = pictures?.find((picture) => picture.name === name)?.webp;
+    const map = packed ? pictureTexture(packed) : loader.load(urlOf(`${name}.webp`));
     map.flipY = false; // glTF texture coordinates
     map.colorSpace = SRGBColorSpace;
     map.userData.shared = true;
@@ -134,12 +133,8 @@ export function texture(name) {
   return textures.get(name);
 }
 
-const bytes = (base64) => Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
-/** A packed array (base64) as a typed array of `Type`. */
-export const view = (Type, base64) => {
-  const raw = bytes(base64);
-  return new Type(raw.buffer, raw.byteOffset, raw.byteLength / Type.BYTES_PER_ELEMENT);
-};
+/** A packed array (packed.js: base64 in a JSON file) as a typed array of `Type`. */
+export const view = arrayOf;
 
 /** One packed mesh as geometry (positions back from their int16 box, normals from int8, uvs from uint16). */
 export function geometryOf(mesh) {
@@ -301,16 +296,16 @@ export async function createPerson(name, build = "auto", chosen = {}) {
   const parts = [`skeleton-${look.sex}`, ...look.parts, `head-${look.sex}`];
   if (look.hair !== "none") parts.push(`hair-${HAIR_FILE(look.hair, look.sex)}`);
   if (look.beard) parts.push("hair-beard");
-  // An outfit's pieces come in one file ("male-ranger.json": { pieces: { top, arms, … } }); a part named
+  // An outfit's pieces come in one file ("male-ranger.pack.png": { pieces: { top, arms, … } }); a part named
   // "male-ranger-top" is that file's top.
   const [body, ...rest] = await Promise.all(
     parts.map((part) => {
       const piece = /^(male|female)-([a-z]+)-([a-z]+)$/u.exec(part);
       const whole = piece && !part.startsWith("hair-") && !part.startsWith("head-") && !part.startsWith("skeleton-");
-      // (A piece left off is the bare body's there; that, and every head, hair and skeleton, is in bodies.json.)
-      if (!whole) return load("bodies.json").then((file) => file.parts[part]);
-      if (piece[2] === "none") return load("bodies.json").then((file) => file.bare[piece[1]].pieces[piece[3]]);
-      return load(`${piece[1]}-${piece[2]}.json`).then((file) => file.pieces[piece[3]]);
+      // (A piece left off is the bare body's there; that, and every head, hair and skeleton, is in bodies.pack.png.)
+      if (!whole) return load("bodies.pack.png").then((file) => file.parts[part]);
+      if (piece[2] === "none") return load("bodies.pack.png").then((file) => file.bare[piece[1]].pieces[piece[3]]);
+      return load(`${piece[1]}-${piece[2]}.pack.png`).then((file) => file.pieces[piece[3]]);
     }),
   );
 
@@ -473,13 +468,17 @@ export async function createOutlaw(kind) {
  * made. Rejects if the kit hasn't got it.
  */
 export async function createFolk(kind, scale = 1, style = null) {
-  // (The Bestiary's in folk.json; those made in Blender, packages/wanderworld/assets, a file each.)
-  const body =
-    (await load("folk.json")).folk[kind] ??
-    (await load(`folk-built-${kind}.json`).catch(() => ({ folk: {} }))).folk[kind];
+  // (The Bestiary's in folk.pack.png; those made in Blender, packages/wanderworld/assets, in a file a
+  // family, folk-built-index.json saying which. Each file has its models' textures in it.)
+  let file = await load("folk.pack.png");
+  if (!file.folk[kind]) {
+    const bundle = (await load("folk-built-index.json").catch(() => ({})))[kind];
+    file = bundle ? await load(`${bundle}.pack.png`) : file;
+  }
+  const body = file.folk[kind];
   if (!body) throw new Error(`The kit has no ${kind}`);
   const { root, bones } = rigOf(body);
-  const map = texture(`folk-${kind}`);
+  const map = texture(`folk-${kind}`, file.pictures);
   const material = new MeshLambertMaterial({ map });
   // (`style`: see-through, { opacity }, a ghost; or glowing, { glow, strength }, a fire giant's hair.)
   if (style?.opacity !== undefined)

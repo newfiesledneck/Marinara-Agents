@@ -9,6 +9,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Box3, Vector3 } from "three";
+import { unpack } from "../packages/wanderworld/src/packed.js";
 
 const kitRoot = join(dirname(fileURLToPath(import.meta.url)), "../packages/wanderworld/kit");
 const kit = join(kitRoot, "generic/people"); // the bodies; the outfits are in fantasy/outfits
@@ -81,7 +82,7 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
   const { checkLook, COLOUR_FIELD, EXTRAS, HAIR_COLOURS, OUTFITS, PIECES, SKIN_TONES } =
     await import("../packages/wanderworld/src/looks.js");
   const kitFiles = new Set([...(await readdir(kit)), ...(await readdir(join(kitRoot, "fantasy/outfits")))]);
-  const bodies = JSON.parse(await readFile(join(kit, "bodies.json"), "utf8"));
+  const bodies = await unpack(await readFile(join(kit, "bodies.pack.png")));
   // Every outfit, colour and piece on the menus is in the kit, for both bodies.
   for (const sex of ["male", "female"]) {
     assert.ok(bodies.parts[`skeleton-${sex}`] && bodies.parts[`head-${sex}`], `the ${sex} skeleton and head`);
@@ -91,7 +92,7 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
       assert.ok(packed, `the kit has the ${sex} ${outfit} outfit`);
       assert.deepEqual([...packed.colourways].sort(), colours.map(([name]) => name).sort(), `${outfit}'s colours`);
       for (const [name] of colours) assert.ok(kitFiles.has(`${name}.webp`), `the ${name} cloth`);
-      assert.ok(kitFiles.has(`${sex}-${outfit}.json`), `the ${sex} ${outfit} outfit's pieces`);
+      assert.ok(kitFiles.has(`${sex}-${outfit}.pack.png`), `the ${sex} ${outfit} outfit's pieces`);
       for (const [piece] of PIECES)
         assert.ok(index.sexes[sex].pieces[piece].includes(outfit), `${sex} ${outfit} ${piece}`);
     }
@@ -296,7 +297,7 @@ assert.ok(looks.size >= 5, `different names look different (${looks.size} looks 
   globalThis.fetch = async () => {
     asked += 1;
     if (asked === 1) throw new Error("offline");
-    return { ok: true, json: async () => ({ fine: true }) };
+    return new Response(JSON.stringify({ fine: true }));
   };
   try {
     await assert.rejects(load("retry-test.json"), /offline/u);

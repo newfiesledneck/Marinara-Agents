@@ -228,7 +228,9 @@ function morphsOf(mesh, offset = 0) {
   const out = {};
   for (const [key, packed] of Object.entries(mesh.morphs ?? {})) {
     const ids = Uint32Array.from(view(mesh.count > 65535 ? Uint32Array : Uint16Array, packed.ids), (id) => id + offset);
-    const delta = Float32Array.from(view(Int16Array, packed.delta), (value, i) => (value / 32767) * packed.d[i % 3]);
+    // (Moves in `q` steps of `d`: scripts/build-wanderworld-people.mjs packMesh.)
+    const q = packed.q ?? 32767;
+    const delta = Float32Array.from(view(Int16Array, packed.delta), (value, i) => (value / q) * packed.d[i % 3]);
     const normal = Float32Array.from(view(Int8Array, packed.normal), (value, i) => (value / 127) * packed.n[i % 3]);
     out[key] = { ids, delta, normal };
   }
@@ -272,7 +274,7 @@ const bodies = new Map();
  */
 function bodyKit(sex) {
   if (!bodies.has(sex)) {
-    const made = load(`avatar-${sex}.json`).then((file) => {
+    const made = load(`avatar-${sex}.pack.png`).then((file) => {
       // (Opaque parts first, then the cut-out ones; within each, a texture's parts together.)
       const order = file.meshes
         .map((mesh, i) => ({ mesh, i }))
@@ -478,8 +480,8 @@ function partMeshes(key, part) {
 /** Which hair styles, underwear and outfit pieces the kit has for `sex`: what the Look card offers. */
 export async function avatarChoices(sex) {
   const kit = await bodyKit(sex);
-  const hair = await load("avatar-hair.json").catch(() => null);
-  const outfits = await load("avatar-outfits.json").catch(() => null);
+  const hair = await load("avatar-hair.pack.png").catch(() => null);
+  const outfits = await load("avatar-outfits.pack.png").catch(() => null);
   return {
     tops: kit.tops,
     bottoms: kit.bottoms,
@@ -505,8 +507,8 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   const sex = filled.body;
   const [kit, hairFile, outfitFile] = await Promise.all([
     bodyKit(sex),
-    filled.hair === BARE ? null : load("avatar-hair.json").catch(() => null),
-    filled.clothes.length ? load("avatar-outfits.json").catch(() => null) : null,
+    filled.hair === BARE ? null : load("avatar-hair.pack.png").catch(() => null),
+    filled.clothes.length ? load("avatar-outfits.pack.png").catch(() => null) : null,
   ]);
   const { root, bones } = rigOf(kit.file);
   const weights = keyWeights(filled, sex);

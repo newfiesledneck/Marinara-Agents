@@ -7,6 +7,7 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { unpack } from "../packages/wanderworld/src/packed.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Box3, Vector3 } from "three";
@@ -53,7 +54,7 @@ const KEYS = [
 const PARTS = ["skin", "underwear", "eye_white", "iris", "eyebrows", "eyelashes", "lips", "nails"];
 const files = {};
 for (const sex of ["male", "female"]) {
-  const file = JSON.parse(await readFile(join(kitRoot, `generic/avatar/avatar-${sex}.json`), "utf8"));
+  const file = await unpack(await readFile(join(kitRoot, `generic/avatar/avatar-${sex}.pack.png`)));
   files[sex] = file;
   assert.match(file.source, /MakeHuman \(CC0\)/u, "the kit says where the body is from");
   const own = [...KEYS, sex === "female" ? "bust" : "chest"];
@@ -83,10 +84,19 @@ for (const sex of ["male", "female"]) {
     );
 }
 
-// An outfit piece, made up here from the body's nails (the kit has none yet), to wear below.
+// An outfit piece, made up here from the body's nails (the kit has none yet), to wear below. It's a plain
+// JSON file with base64 arrays, as the kit's files were before they were packed: both still load.
 {
-  const nails = files.male.meshes.find((mesh) => mesh.part === "nails");
-  extra.set("fantasy/avatar/avatar-outfits.json", {
+  const base64 = (value) =>
+    value instanceof Uint8Array
+      ? Buffer.from(value).toString("base64")
+      : Array.isArray(value)
+        ? value.map(base64)
+        : value && typeof value === "object"
+          ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, base64(item)]))
+          : value;
+  const nails = base64(files.male.meshes.find((mesh) => mesh.part === "nails"));
+  extra.set("fantasy/avatar/avatar-outfits.pack.png", {
     pieces: {
       vest: {
         hides: ["torso", "underwear"],

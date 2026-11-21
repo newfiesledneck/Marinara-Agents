@@ -250,7 +250,7 @@ export function checkLook(raw) {
 //     limbs: { arms, legs, head },   arm and leg length and head size, as a share of the usual
 //     colours: { skin, eyes, … },    each part's colour (0xRRGGBB): AVATAR_COLOURS
 //     underwear: { top, bottom },    a style of each (UNDERWEAR_TOPS, UNDERWEAR_BOTTOMS), or "none"
-//     clothes: [piece, …],           outfit pieces worn (the kit's avatar-outfits.json)
+//     clothes: [piece, …],           outfit pieces worn (the kit's avatar-outfits.pack.png)
 //     age,                           "young", "middle" or "old" (AGES): shape keys and skins of its own
 //     skin,                          a skin picture (SKINS: MakeHuman's), or "custom": colours.skin
 //     brows, lashes,                 which style of each (1 … BROWS, 1 … LASHES)

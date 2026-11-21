@@ -399,8 +399,8 @@ export const HELP = [
 
 /**
  * Every model made in Blender by ThatOneCan, by where it is: `folk` on the people's skeleton
- * (kit/fantasy/folk/folk-built-<name>.json), `rigged` with a skeleton of its own
- * (kit/creatures/rigged-<name>.json). The one list the credits come from: Help's lines below are made
+ * (kit/fantasy/folk/folk-built-<family>.pack.png), `rigged` with a skeleton of its own
+ * (kit/creatures/rigged-<family>.pack.png). The one list the credits come from: Help's lines below are made
  * from it, and wanderworld-help.regression.mjs checks the kit, the README and kit/CREDITS.md against it.
  */
 export const BLENDER_MODELS = {

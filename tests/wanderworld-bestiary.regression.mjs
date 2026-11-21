@@ -12,6 +12,7 @@ import { ANIMALS, animalKind, SORT_OF, SWITCHES } from "../packages/wanderworld/
 import { BESTIARY, createBuilt } from "../packages/wanderworld/src/bestiary.js";
 import { PACK } from "../packages/wanderworld/src/pack.js";
 import { SRD_CREATURES } from "../packages/wanderworld/src/srd.js";
+import { unpack } from "../packages/wanderworld/src/packed.js";
 
 const meshOf = (body) => {
   let mesh = null;
@@ -100,10 +101,8 @@ for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", 
 {
   const pkg = join(dirname(fileURLToPath(import.meta.url)), "../packages/wanderworld");
   // (The avatar and anthro bodies are packed apart; a creature with a skeleton of its own goes to
-  // kit/creatures/rigged-<name>.json instead, which the animals suite checks.)
-  const rigged = readdirSync(join(pkg, "kit/creatures"))
-    .filter((name) => /^rigged-.+\.json$/u.test(name))
-    .map((name) => name.slice(7, -5));
+  // kit/creatures/rigged-<family>.pack.png instead, which the animals suite checks.)
+  const rigged = Object.keys(JSON.parse(readFileSync(join(pkg, "kit/creatures/rigged-index.json"), "utf8")));
   // (Only the committed ones: a model still being made, not yet in git, isn't packed yet.)
   let tracked = null;
   try {
@@ -122,9 +121,16 @@ for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", 
     .filter((name) => !rigged.includes(name));
   assert.ok(models.includes("goblin"), "the goblin is made in Blender");
   const folk = join(pkg, "kit/fantasy/folk");
+  // (In a file a family, folk-built-index.json saying which, with each model's texture in it.)
   const built = {};
-  for (const name of readdirSync(folk).filter((file) => /^folk-built-.+\.json$/u.test(file)))
-    Object.assign(built, JSON.parse(readFileSync(join(folk, name), "utf8")).folk);
+  const pictures = new Set();
+  const bundles = JSON.parse(readFileSync(join(folk, "folk-built-index.json"), "utf8"));
+  for (const bundle of new Set(Object.values(bundles))) {
+    const file = await unpack(readFileSync(join(folk, `${bundle}.pack.png`)));
+    Object.assign(built, file.folk);
+    for (const picture of file.pictures) if (picture.webp.length > 1000) pictures.add(picture.name);
+    for (const kind of Object.keys(file.folk)) assert.equal(bundles[kind], bundle, `the index finds the ${kind}`);
+  }
   assert.deepEqual(Object.keys(built).sort(), models.sort(), "the kit has every model and only those");
   // (The ones made only in Blender, with no code-built shape to fall back on, and how tall each stands.)
   const MADE_HEIGHT = {
@@ -144,7 +150,7 @@ for (const kind of ["goblin", "hobgoblin", "bugbear", "orc", "gnoll", "kobold", 
       assert.ok(body.skeleton.names.includes(bone), `the ${kind} has the people's ${bone}`);
     const [low, high] = HEIGHT[kind] ?? MADE_HEIGHT[kind];
     assert.ok(body.height >= low && body.height <= high, `the ${kind} model is ${body.height} m tall`);
-    assert.ok(existsSync(join(folk, `folk-${kind}.webp`)), `the ${kind}'s palette texture`);
+    assert.ok(pictures.has(`folk-${kind}`), `the ${kind}'s palette texture`);
     // Cheap enough for a crowd (AGENTS.md rule 5): up to about 35,000 vertices close up, and a distant
     // version of about 7,000 vertices' worth of triangles (no more than 10,000) over the same vertices.
     const vertices = body.meshes.reduce((sum, mesh) => sum + mesh.count, 0);
