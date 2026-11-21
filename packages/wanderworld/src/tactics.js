@@ -26,6 +26,18 @@ const ROLES = {
     ["melee", 60],
     ["ranged", 40],
   ],
+  hobgoblin: [
+    ["melee", 65],
+    ["ranged", 35],
+  ],
+  gnoll: [
+    ["melee", 60],
+    ["ranged", 40],
+  ],
+  kobold: [
+    ["melee", 55],
+    ["ranged", 45],
+  ],
   skeleton: [
     ["melee", 55],
     ["ranged", 45],

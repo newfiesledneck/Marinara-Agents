@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.28",
+          "date": "2026-11-20",
+          "notes": "- Seven more monsters of Wanderworld's own: hobgoblins in mail with sword and shield, bugbears with morningstars, orcs with greataxes, gnolls with spears, kobolds with daggers, lizardfolk with clubs and spiked shields, and ghouls, who come out at night. Each has its own switch in Menu → Settings → Creatures and the SRD's numbers in a fight.\n- The goblin, ogre and minotaur now carry their weapons: a scimitar, a spiked club and a double axe. A monster's weapon swings with its arm.\n- An orc in your lore is now an orc rather than a puglin, and lizardmen are lizardfolk.",
+          "highlight": false
+        },
+        {
           "version": "0.7.27",
           "date": "2026-11-20",
           "notes": "- Four monsters of Wanderworld's own: goblins, and now and then an ogre, a troll or a minotaur, out in the country with the other monsters. They're built in code from simple shapes, so they need no download, and they walk, run and strike with the people's animations. Each has its own switch in Menu → Settings → Creatures, the SRD's numbers in a fight, and spoils of its own.\n- A goblin in your lore is now a goblin rather than a puglin (ww:monster:goblin:pack4). An orc is still a puglin.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.09",
           "date": "2026-11-16",
           "notes": "- More to do in a fight, on the bar by turns, in Inventory → Sheet and on number keys: Shove (pushed back and knocked down), Grapple (held where it is), Help (a companion's next attack has advantage), Hide (your Stealth against what they notice) and an Off-hand attack with two light weapons.\n- Shield and Counterspell can be added to your sheet. They cast themselves: Shield when +5 AC would turn a blow, Counterspell when a creature casts at you.\n- The SRD's one feat, Grappler, is in the Sheet tab.\n- Swimming, a swing is at a disadvantage unless it's a dagger, javelin, shortsword, spear or trident.\n- A setting has jump height go by Strength (off to begin with).\n- Each has a switch in Settings → Inventory → 5e rules.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.08",
-          "date": "2026-11-16",
-          "notes": "- Worn magic from the 5e SRD works by its name, like weapons and armour: a Ring or Cloak of Protection, Bracers of Defense, an Amulet of Health, Gauntlets of Ogre Power, a Headband of Intellect and the rest that change Armor Class, saving throws, an ability or spellcasting.\n- Potions heal by their dice: a Potion of Healing is 2d4+2, and any item whose description says \"+2d4+2 HP\" rolls it.\n- Beaten creatures that carry money have the ruleset's pocket treasure on them: coin, now and then a Potion of Healing, and seldom a magic thing. \"Creatures carry pocket treasure\" in Settings → Inventory → 5e rules turns it off.\n- The same setting as for weapons decides whether a description or a name comes first.",
           "highlight": false
         }
       ]

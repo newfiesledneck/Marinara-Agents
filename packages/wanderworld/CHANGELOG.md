@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.28 — 2026-11-20
+
+- Seven more monsters of Wanderworld's own: hobgoblins in mail with sword and shield, bugbears with morningstars, orcs with greataxes, gnolls with spears, kobolds with daggers, lizardfolk with clubs and spiked shields, and ghouls, who come out at night. Each has its own switch in Menu → Settings → Creatures and the SRD's numbers in a fight.
+- The goblin, ogre and minotaur now carry their weapons: a scimitar, a spiked club and a double axe. A monster's weapon swings with its arm.
+- An orc in your lore is now an orc rather than a puglin, and lizardmen are lizardfolk.
+
 ## 0.7.27 — 2026-11-20
 
 - Four monsters of Wanderworld's own: goblins, and now and then an ogre, a troll or a minotaur, out in the country with the other monsters. They're built in code from simple shapes, so they need no download, and they walk, run and strike with the people's animations. Each has its own switch in Menu → Settings → Creatures, the SRD's numbers in a fight, and spoils of its own.

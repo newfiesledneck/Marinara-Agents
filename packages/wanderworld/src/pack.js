@@ -523,6 +523,13 @@ const FOES = {
   ogre: { hp: 59, ac: 11, attack: 6, damage: "2d8+4", xp: 110, verb: "swings" },
   troll: { hp: 84, ac: 15, attack: 7, damage: "2d6+4", xp: 300, verb: "claws" },
   minotaur: { hp: 76, ac: 14, attack: 6, damage: "2d12+4", xp: 170, verb: "swings" },
+  hobgoblin: { hp: 11, ac: 18, attack: 3, damage: "1d8+1", xp: 25, verb: "slashes" },
+  bugbear: { hp: 27, ac: 16, attack: 4, damage: "2d8+2", xp: 50, verb: "swings" },
+  gnoll: { hp: 22, ac: 15, attack: 4, damage: "1d6+2", xp: 25, verb: "thrusts" },
+  kobold: { hp: 5, ac: 12, attack: 4, damage: "1d4+2", xp: 6, verb: "stabs" },
+  lizardfolk: { hp: 22, ac: 15, attack: 4, damage: "1d6+2", xp: 25, verb: "swings" },
+  ghoul: { hp: 22, ac: 12, attack: 4, damage: "2d4+2", xp: 50, verb: "claws" },
+  orc: { hp: 15, ac: 13, attack: 5, damage: "1d12+3", xp: 25, verb: "swings" },
 };
 /**
  * What's had from each creature once it's beaten (combat.js spoilsOf): an animal is harvested, a person
@@ -587,6 +594,19 @@ const SPOILS = {
   ogre: { items: [{ name: "Ogre tooth", description: "A tooth the size of a thumb.", chance: 0.7 }], coins: [5, 30] },
   troll: { items: [{ name: "Troll claw", description: "A black, hooked claw.", chance: 0.7 }], coins: [0, 10] },
   minotaur: { items: [{ name: "Minotaur horn", description: "A long, pale horn.", quantity: [1, 2] }], coins: [5, 25] },
+  hobgoblin: {
+    items: [{ name: "War band badge", description: "A red cloth badge with a black mark.", chance: 0.5 }],
+    coins: [2, 15],
+  },
+  bugbear: { items: [{ name: "Bugbear pelt", description: "A coarse brown hide.", chance: 0.6 }], coins: [1, 10] },
+  gnoll: { items: [{ name: "Gnoll fang", description: "A long, yellowed fang.", chance: 0.7 }], coins: [0, 8] },
+  kobold: { items: [{ name: "Kobold scale", description: "A small rust-red scale.", chance: 0.6 }], coins: [0, 4] },
+  lizardfolk: {
+    items: [{ name: "Lizardfolk scale", description: "A green scale as big as a coin.", chance: 0.6 }],
+    coins: [0, 5],
+  },
+  ghoul: { items: [{ name: "Grave dust", description: "A pinch of grey dust.", chance: 0.5 }], coins: [0, 6] },
+  orc: { items: [{ name: "Orc tusk", description: "A heavy, chipped tusk.", chance: 0.7 }], coins: [2, 12] },
   bandit: {
     items: [{ name: "Knife", description: "A plain belt knife. [Weapon: 1d4 damage]", chance: 0.5 }],
     coins: [2, 12],
@@ -719,6 +739,13 @@ const ANIMALS = {
   ogre: "the ogre",
   troll: "the troll",
   minotaur: "the minotaur",
+  hobgoblin: "the hobgoblin",
+  bugbear: "the bugbear",
+  gnoll: "the gnoll",
+  kobold: "the kobold",
+  lizardfolk: "the lizardfolk",
+  ghoul: "the ghoul",
+  orc: "the orc",
 };
 
 /**
