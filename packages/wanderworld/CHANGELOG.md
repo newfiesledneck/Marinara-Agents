@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.27 — 2026-11-20
+
+- Four monsters of Wanderworld's own: goblins, and now and then an ogre, a troll or a minotaur, out in the country with the other monsters. They're built in code from simple shapes, so they need no download, and they walk, run and strike with the people's animations. Each has its own switch in Menu → Settings → Creatures, the SRD's numbers in a fight, and spoils of its own.
+- A goblin in your lore is now a goblin rather than a puglin (ww:monster:goblin:pack4). An orc is still a puglin.
+
 ## 0.7.26 — 2026-11-17
 
 - "Fights by turns" is called turn-based combat everywhere: the Combat choice, its settings, Help and the buttons.

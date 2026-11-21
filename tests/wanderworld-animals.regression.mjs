@@ -45,10 +45,13 @@ assert.deepEqual(
 );
 // The ones on the people's skeleton (the imp, the puglin) are in the folk kit instead, each with every
 // bone the people's clips move and a texture; people.js builds them (the people suite covers that path).
+// The ones built in code (`built`) have no kit files: the bestiary suite covers them.
 {
   const folkDir = join(kit, "../fantasy/folk");
   const folk = JSON.parse(await readFile(join(folkDir, "folk.json"), "utf8")).folk;
-  for (const [kind, facts] of Object.entries(ANIMALS).filter(([, facts]) => facts.folk && !facts.person)) {
+  for (const [kind, facts] of Object.entries(ANIMALS).filter(
+    ([, facts]) => facts.folk && !facts.person && !facts.built,
+  )) {
     assert.ok(PACK.animals[kind], `the pack has words for the ${kind}`);
     assert.ok(facts.gallop > facts.walk && facts.walk > 0 && facts.hostile, `the ${kind} is a monster that runs`);
     const body = folk[kind];
@@ -69,7 +72,7 @@ for (const [kind, facts] of Object.entries(ANIMALS)) {
       folk.object.updateMatrixWorld(true);
       const box = new Box3().setFromObject(folk.object, true);
       assert.ok(
-        Number.isFinite(box.max.y) && box.max.y > 0.4 && box.max.y < 2.4,
+        Number.isFinite(box.max.y) && box.max.y > 0.4 && box.max.y < (facts.built ? 3.2 : 2.4),
         `the ${kind} keeps its shape at ${speed}`,
       );
     }
@@ -338,7 +341,7 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
     const asked = [
       { id: "place:0:forest1:wolf", kind: "wolf", scale: 1.25, sized: true, count: 5, at: spot },
       { id: "place:1:world:deer", kind: "deer", scale: 1, sized: false, count: 0, at: null },
-      { id: "place:2:world:goblin", kind: "goblin", scale: 1, sized: false, count: 3, at: null },
+      { id: "place:2:world:kraken", kind: "kraken", scale: 1, sized: false, count: 3, at: null },
     ];
     herd.setSpawns(asked);
     herd.setSpawns(asked);
@@ -453,7 +456,7 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
     [
       "wolf",
       "husky",
-      "puglin",
+      "goblin",
       "horse",
       "deer",
       "slime",
@@ -549,6 +552,10 @@ assert.ok(new Set(horseCoats).size >= 3, `horses come in a mix of coats (${[...n
       "dragon",
       "imp",
       "puglin",
+      "goblin",
+      "ogre",
+      "troll",
+      "minotaur",
       "bandit",
       "witch",
       "wizard",

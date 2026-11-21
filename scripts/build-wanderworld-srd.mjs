@@ -235,6 +235,10 @@ const CREATURE_OF = {
   wizard: "mage",
   imp: "imp",
   puglin: "goblin",
+  goblin: "goblin",
+  ogre: "ogre",
+  troll: "troll",
+  minotaur: "minotaur",
 };
 /** A dice expression's average, rounded down, as the SRD gives a creature's hit points ("2d8+2" is 11). */
 const average = (dice) => {

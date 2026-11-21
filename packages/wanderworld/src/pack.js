@@ -519,6 +519,10 @@ const FOES = {
   wizard: { hp: 16, ac: 12, attack: 4, damage: "1d10", xp: 30, verb: "lashes out" },
   imp: { hp: 8, ac: 13, attack: 4, damage: "1d4+2", xp: 12, verb: "claws" },
   puglin: { hp: 9, ac: 12, attack: 3, damage: "1d6+1", xp: 12, verb: "swings" },
+  goblin: { hp: 7, ac: 15, attack: 4, damage: "1d6+2", xp: 12, verb: "slashes" },
+  ogre: { hp: 59, ac: 11, attack: 6, damage: "2d8+4", xp: 110, verb: "swings" },
+  troll: { hp: 84, ac: 15, attack: 7, damage: "2d6+4", xp: 300, verb: "claws" },
+  minotaur: { hp: 76, ac: 14, attack: 6, damage: "2d12+4", xp: 170, verb: "swings" },
 };
 /**
  * What's had from each creature once it's beaten (combat.js spoilsOf): an animal is harvested, a person
@@ -576,6 +580,13 @@ const SPOILS = {
   },
   imp: { items: [{ name: "Imp horn", description: "A small curled horn.", chance: 0.7 }], coins: [0, 5] },
   puglin: { items: [{ name: "Tusk", description: "A yellowed tusk.", chance: 0.7 }], coins: [0, 6] },
+  goblin: {
+    items: [{ name: "Goblin charm", description: "Beads and teeth on a knotted string.", chance: 0.5 }],
+    coins: [0, 6],
+  },
+  ogre: { items: [{ name: "Ogre tooth", description: "A tooth the size of a thumb.", chance: 0.7 }], coins: [5, 30] },
+  troll: { items: [{ name: "Troll claw", description: "A black, hooked claw.", chance: 0.7 }], coins: [0, 10] },
+  minotaur: { items: [{ name: "Minotaur horn", description: "A long, pale horn.", quantity: [1, 2] }], coins: [5, 25] },
   bandit: {
     items: [{ name: "Knife", description: "A plain belt knife. [Weapon: 1d4 damage]", chance: 0.5 }],
     coins: [2, 12],
@@ -704,6 +715,10 @@ const ANIMALS = {
   witch: "the witch",
   wizard: "the wizard",
   puglin: "the puglin",
+  goblin: "the goblin",
+  ogre: "the ogre",
+  troll: "the troll",
+  minotaur: "the minotaur",
 };
 
 /**

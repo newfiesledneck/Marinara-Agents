@@ -57,10 +57,10 @@ function bound(geometry, hex, boneIndex) {
 }
 
 /** An ellipsoid with radii (rx, ry, rz) centred at (x, y, z). */
-const blob = (rx, ry, rz, x, y, z) => new SphereGeometry(1, 12, 8).scale(rx, ry, rz).translate(x, y, z);
+export const blob = (rx, ry, rz, x, y, z) => new SphereGeometry(1, 12, 8).scale(rx, ry, rz).translate(x, y, z);
 
 /** A capsule of `radius` from point a to point b. */
-function capsule(radius, a, b) {
+export function capsule(radius, a, b) {
   const from = new Vector3(...a);
   const to = new Vector3(...b);
   const direction = to.clone().sub(from);
@@ -211,7 +211,20 @@ function partsFor(look) {
 /** The built-in person for `name`, walking like any other humanoid. */
 export function createFigure(name = "") {
   const look = lookFor(name);
-  const joints = jointsFor(look);
+  // A head a touch larger than life reads better from the camera's distance; it grows from the chin.
+  const parts = partsFor(look).map(([bone, hex, part]) => {
+    if (bone === "head") part.translate(0, -CHIN, 0).scale(HEAD, HEAD, HEAD).translate(0, CHIN, 0);
+    return [bone, hex, part];
+  });
+  return figureFrom(jointsFor(look), parts, { height: look.height, seed: look.seed });
+}
+
+/**
+ * A walking body from `joints` (a T-pose facing +z: [bone, parent, x, y, z] in metres, humanoid bone
+ * names) and `parts` ([bone, colour, geometry], each bound wholly to its bone), scaled by `height`.
+ * The built-in person, and the monsters built in code (bestiary.js).
+ */
+export function figureFrom(joints, parts, { height = 1, seed } = {}) {
   const bones = {};
   const list = [];
   for (const [boneName, parent, x, y, z] of joints) {
@@ -224,13 +237,7 @@ export function createFigure(name = "") {
     list.push(bone);
   }
   const index = new Map(list.map((bone, i) => [bone.name, i]));
-  const geometry = mergeGeometries(
-    partsFor(look).map(([bone, hex, part]) => {
-      // A head a touch larger than life reads better from the camera's distance; it grows from the chin.
-      if (bone === "head") part.translate(0, -CHIN, 0).scale(HEAD, HEAD, HEAD).translate(0, CHIN, 0);
-      return bound(part, hex, index.get(bone));
-    }),
-  );
+  const geometry = mergeGeometries(parts.map(([bone, hex, part]) => bound(part, hex, index.get(bone))));
   const mesh = new SkinnedMesh(geometry, new MeshLambertMaterial({ vertexColors: true, side: DoubleSide }));
   mesh.frustumCulled = false; // a skinned mesh's bounds don't follow the pose
   mesh.add(bones.hips);
@@ -241,7 +248,7 @@ export function createFigure(name = "") {
   mesh.bind(new Skeleton(list));
   const humanoid = new VRMHumanoid(Object.fromEntries(list.map((bone) => [bone.name, { node: bone }])));
   rig.add(humanoid.normalizedHumanBonesRoot);
-  rig.scale.setScalar(look.height);
+  rig.scale.setScalar(height);
 
   const object = new Group();
   object.add(rig);
@@ -250,6 +257,6 @@ export function createFigure(name = "") {
     humanoid,
     afterPose: () => humanoid.update(),
     dispose: () => disposeTree(object),
-    seed: look.seed,
+    seed,
   });
 }
