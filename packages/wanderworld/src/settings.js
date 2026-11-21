@@ -3,6 +3,7 @@
 // part is there (store.js), and those win: they're the same in every browser. Graphics, controls, sound
 // and what's shown on screen stay each device's own. Every value is checked on the way in, so a damaged
 // or old saved copy falls back to the defaults instead of breaking the game.
+import { checkPresets } from "./looks.js";
 
 const KEY = "wanderworld.settings";
 
@@ -48,9 +49,15 @@ export const SETTINGS = {
   deepCreatures: { value: true },
   /** Buildings assembled from the village kit; off keeps the simple ones. */
   buildings: { value: true },
-  /** People without a 3D model: "kit" dresses them from the Quaternius characters; "simple" uses the
-   *  built-in low-poly person (lighter on slow devices). */
+  /** People without a 3D model: "kit" is the base avatar (avatar.js) for you and the people in town (or the
+   *  Quaternius characters, `newBodies` off); "simple" the built-in low-poly person (lighter on slow devices). */
   people: { value: "kit", options: ["kit", "simple"] },
+  /** Townsfolk without a 3D model are the base avatar, shaped from their name and lore; off, they're dressed
+   *  from the Quaternius characters, lighter on a slow phone. (You are the base avatar either way.) */
+  newBodies: { value: true },
+  /** The player's own looks to start a Look card from (looks.js checkPresets): [{ name, look }]. Kept with the
+   *  game's settings, so they're there in every world and every browser. */
+  lookPresets: { value: [], check: checkPresets },
   /** "recorded" plays the Universal Animation Library clips; "builtin" the hand-made motion. */
   animation: { value: "recorded", options: ["recorded", "builtin"] },
   /** Your walking and running speed, as a multiple. */
@@ -428,6 +435,7 @@ export const DEVICE_SETTINGS = new Set([
   "props",
   "buildings",
   "people",
+  "newBodies",
   "animation",
   "lookSpeed",
   "invertLook",
@@ -458,6 +466,7 @@ export const frameLimitOf = (settings, painting) =>
 export function checkSetting(name, value) {
   const setting = SETTINGS[name];
   if (!setting) return undefined;
+  if (setting.check) return setting.check(value);
   if (setting.text) return typeof value === "string" ? value.trim().slice(0, 120) : setting.value;
   if (setting.options) return setting.options.includes(value) ? value : setting.value;
   if (typeof setting.value === "boolean") return typeof value === "boolean" ? value : setting.value;

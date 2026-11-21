@@ -10,6 +10,7 @@ import { blobShadow } from "./character.js";
 import { createFigure } from "./figure.js";
 import { BUILT_IN, findModel, loadModelCharacter } from "./models.js";
 import { createPerson } from "./people.js";
+import { createAvatar } from "./avatar.js";
 import { tagColourOf } from "./relationships.js";
 import { fill, greetingFor, moodOf, pickExchange } from "./dialogue.js";
 import { hashString, heightAt, onBridgeAt, rng, waterAt } from "./world.js";
@@ -115,6 +116,7 @@ export function createCrowd() {
   let namesVisible = true;
   let shadowsVisible = true;
   let dressPeople = true; // people without a model get a kit person (people.js), else the simple figure
+  let newBodies = true; // and that kit person is the base avatar (avatar.js), else the older Quaternius one
   let clock = 0;
   let viewNow = null; // the last frame's view, for steps that speak
   // How one person sees another (relationships.js feeling()): { kind, level, warmth }. "player" is the
@@ -223,9 +225,15 @@ export function createCrowd() {
     person.hasModel = !!model;
     if (!model && !dressPeople && !builtIn) return;
     try {
+      // (The base avatar, or the older kit when it can't load or it's switched off: Settings → People.)
       const character = model
         ? await loadModelCharacter(model)
-        : await createPerson(person.name, person.body, person.look);
+        : newBodies
+          ? await createAvatar(person.look, person.name, person.body).catch((error) => {
+              console.warn(`[wanderworld] the base avatar failed to load for ${person.name}`, error);
+              return createPerson(person.name, person.body, person.look);
+            })
+          : await createPerson(person.name, person.body, person.look);
       if (people.get(person.id) !== person) {
         character.dispose();
         return;
@@ -1834,6 +1842,12 @@ export function createCrowd() {
         if (dressed) void loadModel(person);
         else setBody(person, createFigure(person.name));
       }
+    },
+    /** Whether townsfolk without a 3D model are the base avatar (true) or the older kit's people. */
+    setNewBodies(on) {
+      if (on === newBodies) return;
+      newBodies = on;
+      for (const person of people.values()) if (!person.hasModel && dressPeople) void loadModel(person);
     },
     setShadows(visible) {
       shadowsVisible = visible;

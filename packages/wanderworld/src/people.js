@@ -44,8 +44,17 @@ import { hashString, rng } from "./world.js";
 const KIT = "/api/capability-packages/wanderworld/assets/kit/";
 const BODY_FILE = /^(?:index|bodies|eyes|hair-|head-|plain-head-|plain-skin-|skin-)/u;
 const FOLK_FILE = /^folk[-.]/u; // the monsters on the people's skeleton (the imp, the puglin)
+// (The base avatar, avatar.js: its bodies and hair are any world's, its outfit pieces the medieval one's.)
 const dirOf = (name) =>
-  FOLK_FILE.test(name) ? "fantasy/folk" : BODY_FILE.test(name) ? "generic/people" : "fantasy/outfits";
+  name.startsWith("avatar-outfit")
+    ? "fantasy/avatar"
+    : name.startsWith("avatar-")
+      ? "generic/avatar"
+      : FOLK_FILE.test(name)
+        ? "fantasy/folk"
+        : BODY_FILE.test(name)
+          ? "generic/people"
+          : "fantasy/outfits";
 const urlOf = (name) => `${KIT}${dirOf(name)}/${name}`;
 
 /** The pack's (Unreal mannequin) bone for each humanoid bone. */
@@ -96,7 +105,8 @@ const files = new Map();
 const textures = new Map();
 const loader = new TextureLoader();
 
-function load(name) {
+/** A kit file (JSON), fetched once and shared. */
+export function load(name) {
   if (!files.has(name)) {
     files.set(
       name,
@@ -110,7 +120,7 @@ function load(name) {
 }
 
 /** A kit texture, loaded once and shared by everyone (never disposed with a person). */
-function texture(name) {
+export function texture(name) {
   if (!textures.has(name)) {
     const map = loader.load(urlOf(`${name}.webp`));
     map.flipY = false; // glTF texture coordinates
@@ -122,13 +132,14 @@ function texture(name) {
 }
 
 const bytes = (base64) => Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
-const view = (Type, base64) => {
+/** A packed array (base64) as a typed array of `Type`. */
+export const view = (Type, base64) => {
   const raw = bytes(base64);
   return new Type(raw.buffer, raw.byteOffset, raw.byteLength / Type.BYTES_PER_ELEMENT);
 };
 
 /** One packed mesh as geometry (positions back from their int16 box, normals from int8, uvs from uint16). */
-function geometryOf(mesh) {
+export function geometryOf(mesh) {
   const quantized = view(Int16Array, mesh.position);
   const position = new Float32Array(quantized.length);
   for (let i = 0; i < quantized.length; i++) {
@@ -146,13 +157,15 @@ function geometryOf(mesh) {
   geometry.setAttribute("normal", new BufferAttribute(normal, 3));
   if (uv) geometry.setAttribute("uv", new BufferAttribute(uv, 2));
   geometry.setAttribute("skinIndex", new Uint16BufferAttribute(Uint16Array.from(view(Uint8Array, mesh.joints)), 4));
-  geometry.setAttribute(
-    "skinWeight",
-    new BufferAttribute(
-      Float32Array.from(view(Uint8Array, mesh.weights), (value) => value / 255),
-      4,
-    ),
-  );
+  // Each vertex's four weights made to add up to one again: rounded to bytes they can be a few 255ths
+  // out, and skinning doesn't put that right, so the vertex is drawn that much nearer the body's origin
+  // (millimetres, enough for skin to show through clothes lying close on it).
+  const weights = Float32Array.from(view(Uint8Array, mesh.weights));
+  for (let at = 0; at < weights.length; at += 4) {
+    const total = weights[at] + weights[at + 1] + weights[at + 2] + weights[at + 3] || 1;
+    for (let c = 0; c < 4; c++) weights[at + c] /= total;
+  }
+  geometry.setAttribute("skinWeight", new BufferAttribute(weights, 4));
   geometry.setIndex(new BufferAttribute(mesh.wide ? view(Uint32Array, mesh.index) : view(Uint16Array, mesh.index), 1));
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
@@ -175,18 +188,27 @@ export function setGenderShares(next) {
   shares = male + female + custom > 0 ? { male, female, custom } : { male: 50, female: 50, custom: 0 };
 }
 
+/**
+ * Someone's gender and which body they have ("male" or "female"), `random` being their name's own rolls:
+ * the gender chosen in the People menu, or else one from the name (by the shares set, from the name's own
+ * roll, so the same person is always the same). The body is the look's own (`body`), else the gender's,
+ * else (the third gender) the figure chosen for them or either, by name. The kit's people and the base
+ * avatar (avatar.js) both have the body this gives.
+ */
+export function sexFor(name, gender = "auto", chosen = {}, random = rng(hashString(`${name || "wanderer"}:kit`))) {
+  const roll = random() * (shares.male + shares.female + shares.custom);
+  const fromName = roll < shares.male ? "male" : roll < shares.male + shares.female ? "female" : "custom";
+  const own = gender === "male" || gender === "female" || gender === "custom" ? gender : fromName;
+  const either = random() < 0.5 ? "male" : "female";
+  const figure = chosen.figure === "male" || chosen.figure === "female" ? chosen.figure : either;
+  const body = chosen.body === "male" || chosen.body === "female" ? chosen.body : null;
+  return { gender: own, sex: body ?? (own === "custom" ? figure : own) };
+}
+
 export function lookFor(name, index, body = "auto", chosen = {}) {
   const random = rng(hashString(`${name || "wanderer"}:kit`));
   const pick = (list) => list[Math.floor(random() * list.length)];
-  // The body chosen in the People menu (later: from the character card), or else one from the name.
-  // (Left to chance: by the shares set, from the name's own roll, so the same person is always the same.)
-  const roll = random() * (shares.male + shares.female + shares.custom);
-  const fromName = roll < shares.male ? "male" : roll < shares.male + shares.female ? "female" : "custom";
-  const gender = body === "male" || body === "female" || body === "custom" ? body : fromName;
-  // The figure is one of the kit's two; someone of the third gender has either, or the one chosen for them.
-  const either = random() < 0.5 ? "male" : "female";
-  const figure = chosen.figure === "male" || chosen.figure === "female" ? chosen.figure : either;
-  const sex = gender === "custom" ? figure : gender;
+  const { gender, sex } = sexFor(name, body, chosen, random);
   const outfits = index.sexes[sex].outfits;
   const has = (kind) => outfits.some((entry) => entry.name === `${sex}-${kind}`);
   const coloursOf = (kind) => outfits.find((entry) => entry.name === `${sex}-${kind}`)?.colourways ?? [];
@@ -322,7 +344,7 @@ export async function createPerson(name, build = "auto", chosen = {}) {
 }
 
 /** A body's skeleton in bind pose (each joint's world matrix is its inverse bind matrix inverted): { root, bones }. */
-function rigOf(body) {
+export function rigOf(body) {
   const root = new Group();
   const bones = new Map();
   const worlds = body.skeleton.names.map((jointName) => {
@@ -345,11 +367,26 @@ function rigOf(body) {
   return { root, bones };
 }
 
+/**
+ * A part's skeleton: its joints on the body's bones, with its own inverse bind matrices (or `fallback`'s, a
+ * body's, for a part that has none: one hung on a bone). `stretch` (joint name → Matrix4) reshapes a bone's
+ * own vertices in its own space without its children (avatar.js: longer arms, a bigger head).
+ */
+export function skeletonFor(root, bones, part, stretch = null, fallback = null) {
+  const partBones = part.joints.map((jointName) => bones.get(jointName) ?? root);
+  const inverses = part.joints.map((jointName, i) => {
+    const inverse = part.inverseBind
+      ? new Matrix4().fromArray(part.inverseBind, i * 16)
+      : new Matrix4().fromArray(fallback.inverseBind, Math.max(0, fallback.joints.indexOf(jointName)) * 16);
+    const reshape = stretch?.get(jointName);
+    return reshape ? inverse.premultiply(reshape) : inverse;
+  });
+  return new Skeleton(partBones, inverses);
+}
+
 /** A part's meshes, skinned to the skeleton's bones; `materialOf(mesh)` is each one's material. */
 function skinOnto(root, bones, part, materialOf) {
-  const partBones = part.joints.map((jointName) => bones.get(jointName) ?? root);
-  const inverses = part.joints.map((_, i) => new Matrix4().fromArray(part.inverseBind, i * 16));
-  const skeleton = new Skeleton(partBones, inverses);
+  const skeleton = skeletonFor(root, bones, part);
   for (const mesh of part.meshes) {
     const skinned = new SkinnedMesh(geometryOf(mesh), materialOf(mesh));
     skinned.frustumCulled = false;
@@ -359,7 +396,7 @@ function skinOnto(root, bones, part, materialOf) {
 }
 
 /** The skeleton's bone for each humanoid bone it has (`map`: the pack's bone for each). */
-function humanoidNodes(bones, map = BONES) {
+export function humanoidNodes(bones, map = BONES) {
   const nodes = {};
   for (const [humanoid, jointName] of Object.entries(map))
     if (bones.has(jointName)) nodes[humanoid] = bones.get(jointName);

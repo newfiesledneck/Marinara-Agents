@@ -3,6 +3,7 @@
 // creature is like. Keywords are the keys written "ww: …" (main.js `wanderKeys`), given here without the
 // prefix. Each is one short thing: several of a kind are several keywords ("drops gold", "drops pelt").
 import { readRegion } from "./factions.js";
+import { checkLook, mergeLooks } from "./looks.js";
 import { relationOf } from "./relationships.js";
 import { scheduleFromWords } from "./schedules.js";
 import { loreName, NEEDED_KINDS, placeTargets, plainWord } from "./zones.js";
@@ -65,6 +66,89 @@ export function traitsFromWords(words) {
   for (const word of words)
     for (const [trait, level] of Object.entries(TRAIT_WORDS[clean(word).toLowerCase()] ?? {})) out[trait] ??= level;
   return out;
+}
+
+/**
+ * Words for how someone looks, for the base avatar (avatar.js): "ww:looks:tall", "ww:looks:red hair", and
+ * the same words in what's written of a person the world made (their appearance). Each is part of a look
+ * (looks.js); what's chosen in their Look card comes first, and their name fills in the rest.
+ */
+const LOOK_WORDS = {
+  tall: { height: 1.08 },
+  "very tall": { height: 1.12 },
+  short: { height: 0.92 },
+  "very short": { height: 0.88 },
+  slim: { shape: { weight: -0.5 } },
+  slender: { shape: { weight: -0.5 } },
+  thin: { shape: { weight: -0.6 } },
+  skinny: { shape: { weight: -0.8 } },
+  lean: { shape: { weight: -0.4, muscle: 0.3 } },
+  heavy: { shape: { weight: 0.7 } },
+  plump: { shape: { weight: 0.6, belly: 0.4 } },
+  stout: { shape: { weight: 0.6, belly: 0.4, muscle: 0.2 } },
+  portly: { shape: { weight: 0.7, belly: 0.8 } },
+  fat: { shape: { weight: 0.9, belly: 0.6 } },
+  stocky: { shape: { weight: 0.4, muscle: 0.4, shoulders: 0.4, neck: 0.4 }, limbs: { legs: 0.94 } },
+  muscular: { shape: { muscle: 0.8, shoulders: 0.5 } },
+  brawny: { shape: { muscle: 0.8, shoulders: 0.6, neck: 0.5 } },
+  burly: { shape: { weight: 0.4, muscle: 0.7, shoulders: 0.6 } },
+  broad: { shape: { shoulders: 0.7 } },
+  curvy: { shape: { hips: 0.7, chest: 0.5, waist: -0.3 } },
+  elf: { shape: { ears: 1 } },
+  elven: { shape: { ears: 1 } },
+  elvish: { shape: { ears: 1 } },
+  "half-elf": { shape: { ears: 0.6 } },
+  "pointed ears": { shape: { ears: 1 } },
+  bald: { hair: "none" },
+  "short hair": { hair: "short" },
+  "long hair": { hair: "long" },
+  ponytail: { hair: "ponytail" },
+  buns: { hair: "buns" },
+  "dark hair": { hairColour: 0 },
+  "brown hair": { hairColour: 1 },
+  auburn: { hairColour: 2 },
+  blond: { hairColour: 4 },
+  blonde: { hairColour: 4 },
+  "black hair": { hairColour: 5 },
+  "red hair": { hairColour: 6 },
+  redhead: { hairColour: 6 },
+  ginger: { hairColour: 6 },
+  "grey hair": { hairColour: 7 },
+  "gray hair": { hairColour: 7 },
+  "white hair": { hairColour: 8 },
+  pale: { skin: 0, skinSet: 2 },
+  tanned: { skin: 5, skinSet: 2 },
+  "dark skin": { skin: 10, skinSet: 2 },
+  "blue eyes": { colours: { eyes: 0x3f6f8a } },
+  "green eyes": { colours: { eyes: 0x4f7a3f } },
+  "brown eyes": { colours: { eyes: 0x6b4a2a } },
+  "grey eyes": { colours: { eyes: 0x7a8a9a } },
+  "hazel eyes": { colours: { eyes: 0x8a6a3a } },
+};
+/** Every word for a look, for the instructions. */
+export const LOOK_WORD_LIST = Object.keys(LOOK_WORDS);
+
+/**
+ * How someone looks from words: their keywords' ("looks tall", "looks red hair") and any plain text about
+ * them (an appearance written for them). Longer phrases first, so "short hair" isn't also "short". No AI
+ * call. A checked look (looks.js), {} when nothing says.
+ */
+export function lookFromWords(words) {
+  let text = ` ${(Array.isArray(words) ? words : [words])
+    .map((word) =>
+      clean(word)
+        .toLowerCase()
+        .replace(/^looks? /u, ""),
+    )
+    .join(" | ")} `;
+  let look = {};
+  for (const phrase of Object.keys(LOOK_WORDS).sort((a, b) => b.length - a.length)) {
+    const found = new RegExp(String.raw`(?<![\p{L}-])${phrase}(?![\p{L}-])`, "u");
+    if (!found.test(text)) continue;
+    text = text.replace(found, " ");
+    look = mergeLooks(LOOK_WORDS[phrase], look); // (the first word for a thing wins)
+  }
+  return checkLook(look);
 }
 
 /** How someone acts toward the player, whatever they feel: the keyword, and what it's kept as. */
@@ -407,6 +491,8 @@ export function readKeyword(raw) {
   // A place the world's own animals keep out of: "ww:animals:none".
   if (what === "animals")
     return lower === "none" ? ok("animals none") : bad("animals is none: no animals of the world's own there");
+  if (what === "looks" || what === "look")
+    return LOOK_WORDS[lower] ? ok(`looks ${lower}`) : bad(`a look is one of: ${Object.keys(LOOK_WORDS).join(", ")}`);
   if (what === "body")
     return BODY_WORDS.includes(lower) ? ok(lower) : bad(`a body is one of: ${BODY_WORDS.join(", ")}`);
   if (what === "temperament")
@@ -545,6 +631,12 @@ export const KEYWORD_GUIDE = [
     write: "ww:body:woman (or man)",
     on: "a character's entry",
     does: "Their body, when they have no 3D model.",
+  },
+  {
+    group: "People",
+    write: "ww:looks:tall, ww:looks:red hair, ww:looks:elf",
+    on: "a character's entry",
+    does: `How their built-in body looks, when they have no 3D model: height (tall, short), build (slim, stocky, muscular, heavy…), pointed ears (elf, half-elf), hair (bald, long hair, red hair, blond…), skin (pale, tanned, dark skin) and eyes (blue eyes…). One word a key; their Look card comes first. All of them: ${LOOK_WORD_LIST.join(", ")}.`,
   },
   {
     group: "People",

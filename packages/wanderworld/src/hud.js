@@ -8,7 +8,30 @@ import { createIllustrateWindow, floatingFrame } from "./illustrate.js";
 import { createPersonEditor } from "./person.js";
 import { CREDITS, HELP, KEYWORD_GUIDE, keywordGroups } from "./help.js";
 import { makeFloating } from "./floating.js";
-import { BARE, COLOUR_FIELD, EXTRAS, HAIR_COLOURS, HAIRSTYLES, HEIGHTS, OUTFITS, PIECES, SKIN_TONES } from "./looks.js";
+import {
+  AVATAR_COLOURS,
+  BARE,
+  BODIES,
+  BUILT_IN_PRESETS,
+  checkPresets,
+  COLOUR_FIELD,
+  EXTRAS,
+  FACE,
+  HAIR_COLOURS,
+  HAIRSTYLES,
+  HEIGHTS,
+  LIMBS,
+  OUTFITS,
+  PIECES,
+  PRESET_FIELDS,
+  presetFile,
+  readPresetFile,
+  SHAPES,
+  SKIN_TONES,
+  UNDERWEAR_BOTTOMS,
+  UNDERWEAR_TOPS,
+} from "./looks.js";
+import { createPreview } from "./preview.js";
 import { SPEECH_HELP } from "./interactions.js";
 import { mapCanvas, randomSeed } from "./map.js";
 import { SETTINGS } from "./settings.js";
@@ -212,9 +235,12 @@ export function createHud(root, handlers) {
 
   // The Look card: what someone without a 3D model wears and looks like. Every change shows at once.
   let lookCard = null;
+  let lookPreview = null; // the base avatar turning at the top of the card (preview.js)
   const closeLook = () => {
     lookCard?.remove();
     lookCard = null;
+    lookPreview?.dispose();
+    lookPreview = null;
   };
   async function openLook(id) {
     closeLook();
@@ -230,6 +256,40 @@ export function createHud(root, handlers) {
     let pets = info.pets;
     let picking = null; // which colour of one's own is being picked ("tint:top", "hairTint", "skinTint")
     let draft = null; // the colour in the picker, as { h, s, l }, until it's used or cancelled
+    // The base avatar (avatar.js): how it looks now (filled in), what its kit offers, the player's presets,
+    // which sections are open, and the preview, made again for each change (the latest wins).
+    let avatar = info.avatar;
+    let presets = avatar?.presets ?? [];
+    const opened = new Set(["Body"]);
+    let presetNote = "";
+    lookPreview = avatar && handlers.previewAvatar ? createPreview() : null;
+    let previewAsk = 0;
+    let previewTimer = null;
+    const showPreview = (look) => {
+      if (!lookPreview) return;
+      const ask = ++previewAsk;
+      const preview = lookPreview;
+      handlers
+        .previewAvatar(id, look)
+        .then((figure) => {
+          if (ask === previewAsk && preview === lookPreview) preview.show(figure);
+          else figure.dispose();
+        })
+        .catch((error) => console.warn("[wanderworld] the preview couldn't be made", error));
+    };
+    // While a slider is dragged: the preview follows, a few times a second; the look is set when it's let go.
+    const previewSoon = (look) => {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(() => showPreview(look), 120);
+    };
+    showPreview(chosen);
+    const refresh = (next) => {
+      if (!next || lookCard !== card) return;
+      now = next.now;
+      avatar = next.avatar ?? avatar;
+      pets = next.pets;
+      card.replaceChildren(...draw());
+    };
     const draw = () => {
       const title = document.createElement("div");
       title.style.cssText = "font-weight:700;font-size:14px;";
@@ -239,20 +299,79 @@ export function createHud(root, handlers) {
       const ownModel = info.models?.kinds.length > 0 && chosen.avatar !== "builtin";
       note.textContent = ownModel
         ? "Their card's 3D model is what's shown. The rest of this look is for the built-in person."
-        : "The built-in person, dressed as below. Changes show at once and are kept with this world.";
+        : "The built-in person, shaped and dressed as below. Changes show at once and are kept with this world.";
       const rows = [title, note];
+      if (lookPreview) rows.push(lookPreview.element);
       // `patch`: the choices to make; one given as undefined is unmade (back to how the name has it).
       const set = (patch) => {
         chosen = { ...chosen, ...patch };
         if ("skin" in patch) chosen.skinSet = 2; // (looks.js: which list its number is from)
         for (const key of Object.keys(chosen)) if (chosen[key] === undefined) delete chosen[key];
         handlers.onSetLook(id, chosen);
-        void handlers.lookOf(id).then((next) => {
-          if (!next || lookCard !== card) return;
-          now = next.now;
-          card.replaceChildren(...draw());
-        });
+        showPreview(chosen);
+        void handlers.lookOf(id).then(refresh);
       };
+      // A group of controls that folds away (it stays as it was left while the card is open).
+      const section = (name, build) => {
+        const start = rows.length;
+        build();
+        const inside = rows.splice(start);
+        if (!inside.length) return;
+        const fold = document.createElement("details");
+        fold.open = opened.has(name);
+        fold.addEventListener("toggle", () => (fold.open ? opened.add(name) : opened.delete(name)));
+        fold.style.cssText = "border-top:1px solid rgba(59,42,24,0.25);padding-top:2px;";
+        const head = document.createElement("summary");
+        head.textContent = name;
+        head.style.cssText = "font:700 14px system-ui,sans-serif;padding:10px 2px;min-height:24px;cursor:pointer;";
+        const body = document.createElement("div");
+        body.style.cssText = "display:flex;flex-direction:column;gap:8px;padding-bottom:8px;";
+        body.append(...inside);
+        fold.append(head, body);
+        rows.push(fold);
+      };
+      // A line under a section's title or a control, saying what it does.
+      const says = (text) => {
+        const line = document.createElement("div");
+        line.style.cssText = "font-size:11px;opacity:0.75;line-height:1.3;";
+        line.textContent = text;
+        rows.push(line);
+      };
+      // A slider for the base avatar: its name and value, then the slider across the card, then what it
+      // changes. Dragged, the preview follows; let go, it's set.
+      const slider = (label, what, value, [least, most, step], shown, onLive, onSet) => {
+        const block = document.createElement("div");
+        block.style.cssText = "display:flex;flex-direction:column;gap:2px;font-size:13px;";
+        const head = document.createElement("div");
+        head.style.cssText = "display:flex;justify-content:space-between;gap:8px;";
+        const name = document.createElement("span");
+        name.textContent = label;
+        const number = document.createElement("span");
+        number.style.cssText = "font:12px ui-monospace,monospace;opacity:0.8;";
+        number.textContent = shown(value);
+        head.append(name, number);
+        const range = document.createElement("input");
+        range.type = "range";
+        range.min = String(least);
+        range.max = String(most);
+        range.step = String(step);
+        range.value = String(value);
+        range.title = what;
+        range.setAttribute("aria-label", label);
+        range.style.cssText = "width:100%;min-height:32px;margin:0;";
+        range.addEventListener("input", () => {
+          number.textContent = shown(Number(range.value));
+          onLive(Number(range.value));
+        });
+        range.addEventListener("change", () => onSet(Number(range.value)));
+        const hint = document.createElement("div");
+        hint.style.cssText = "font-size:11px;opacity:0.7;line-height:1.3;";
+        hint.textContent = what;
+        block.append(head, range, hint);
+        rows.push(block);
+      };
+      const signed = (value) => (value > 0 ? `+${value.toFixed(2)}` : value.toFixed(2));
+      const share = (value) => `${Math.round(value * 100)}%`;
       const row = (label, control) => {
         // (Not a <label>: a row may hold a second control, the square for a colour of one's own.)
         const line = document.createElement("div");
@@ -298,34 +417,6 @@ export function createHud(root, handlers) {
           (value) => value || undefined,
         );
       }
-      // Their gender (what the People menu's picker sets; Auto leaves it to their name and the world's
-      // shares), and for the custom gender which of the two figures they have.
-      const gender = bodyPicker((value) => {
-        info.body = value;
-        handlers.onSetBody(id, value);
-        void handlers.lookOf(id).then((next) => {
-          if (!next || lookCard !== card) return;
-          now = next.now;
-          card.replaceChildren(...draw());
-        });
-      });
-      gender.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
-      gender.setAttribute("aria-label", "Gender");
-      gender.title = "Their gender, and so the body of the built-in person";
-      gender.value = info.body ?? "auto";
-      row("Gender", gender);
-      if (now.gender === "custom")
-        pick(
-          "Figure",
-          "figure",
-          [
-            ["", "Either (by their name)"],
-            ["male", "Male figure"],
-            ["female", "Female figure"],
-          ],
-          chosen.figure ?? "",
-          (value) => value || undefined,
-        );
       const hex = (value) => `#${value.toString(16).padStart(6, "0")}`;
       const outfitNames = now.outfits.map((name) => [name, OUTFITS[name].label]);
       // A colour of your own, for a piece, the hair or the skin: a small square beside its row opens the
@@ -425,228 +516,518 @@ export function createHud(root, handlers) {
           () => setTint(piece, null),
         );
       };
-      // A whole outfit: choosing one puts every piece back to it.
-      pick("Outfit", "outfit", outfitNames, now.outfit, (text) => text, {
-        top: undefined,
-        arms: undefined,
-        legs: undefined,
-        feet: undefined,
-        hood: undefined,
-        pauldrons: undefined,
-      });
-      // Its pieces, each from any outfit and in a colour of its own if you like; the ranger's hood and
-      // pauldrons on or off.
-      for (const [piece, label] of PIECES) {
-        pick(label, piece, [...outfitNames, [BARE, "None"]], now[piece]);
-        // (A piece left off is skin: its colour is the skin's.)
-        if (now[piece] !== BARE) tintRow(piece, label);
-      }
-      for (const [extra, label] of EXTRAS) {
-        pick(
-          label,
-          extra,
-          [
-            ["yes", "On"],
-            ["no", "Off"],
-          ],
-          now[extra] ? "yes" : "no",
-          (text) => text === "yes",
-        );
-        if (now[extra]) tintRow(extra, label);
-      }
-      // Each outfit's cloth has its own colours: only those with a piece on show.
-      for (const kind of now.worn) {
-        const field = COLOUR_FIELD[kind];
-        pick(now.worn.length > 1 ? `${OUTFITS[kind].label} cloth` : "Cloth", field, OUTFITS[kind].colours, now[field]);
-      }
-      pick(
-        "Hair",
-        "hair",
-        HAIRSTYLES.map(([style, text]) => [style, text]),
-        now.hair,
-      );
-      // Hair and skin: one from the list, or a colour of your own.
-      const listOrOwn = (label, list, at, own, key, ownKey) => {
+      // ── The base avatar (avatar.js): presets, body, build, face, colours, underwear, hair, clothes ──
+      const shape = avatar?.now;
+      // A colour from a list, or one of your own (the square beside it opens the picker under it).
+      const colourRow = (label, what, list, colour, key, onSet) => {
         const select = document.createElement("select");
         select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
         select.setAttribute("aria-label", label);
-        for (const [value, text] of [...list.map((name, i) => [String(i), name]), ["own", "Your own…"]]) {
+        select.title = what;
+        const inList = list.findIndex(([value]) => value === colour);
+        for (const [value, text] of [...list.map(([value, name]) => [String(value), name]), ["own", "Your own…"]]) {
           const item = document.createElement("option");
           item.value = value;
           item.textContent = text;
           select.append(item);
         }
-        select.value = own === null ? String(at) : "own";
+        select.value = inList >= 0 ? String(list[inList][0]) : "own";
         select.addEventListener("change", () => {
-          if (select.value === "own") {
-            // Nothing changes yet: the picker opens, and its button sets the colour.
-            picking = ownKey;
-            draft = null;
-            card.replaceChildren(...draw());
-          } else set({ [key]: Number(select.value), [ownKey]: undefined });
+          if (select.value !== "own")
+            return onSet(
+              Number(select.value),
+              list.findIndex(([value]) => String(value) === select.value),
+            );
+          picking = key;
+          draft = null;
+          card.replaceChildren(...draw());
         });
         row(label, select);
-        if (own !== null) rows[rows.length - 1].append(square(ownKey, own, `Change your own ${label.toLowerCase()}`));
-        picker(ownKey, own, (colour) => set({ [ownKey]: colour }));
+        rows.at(-1).append(square(key, colour, `Your own colour for the ${label.toLowerCase()}`));
+        says(what);
+        picker(key, colour, (picked) => onSet(picked, -1));
       };
-      listOrOwn(
-        "Hair colour",
-        HAIR_COLOURS.map(([, name]) => name),
-        now.hairColour,
-        now.hairTint,
-        "hairColour",
-        "hairTint",
-      );
-      listOrOwn(
-        "Skin",
-        SKIN_TONES.map(([, name]) => name),
-        now.skin,
-        now.skinTint,
-        "skin",
-        "skinTint",
-      );
-      if (now.sex === "male") {
-        pick(
-          "Beard",
-          "beard",
-          [
-            ["yes", "Bearded"],
-            ["no", "Clean-shaven"],
-          ],
-          now.beard ? "yes" : "no",
-          (text) => text === "yes",
-        );
+      if (shape) {
+        // Presets: start from one (your own or a ready-made one), or keep this look as one.
+        section("Presets", () => {
+          says(
+            "Start from a saved look, or save this one. Your presets are kept with your settings, so they're in every world.",
+          );
+          const choose = document.createElement("select");
+          choose.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+          choose.setAttribute("aria-label", "Start from a preset");
+          const groups = [
+            ["Your presets", presets.map((preset, i) => [`own:${i}`, preset.name])],
+            ["Ready-made", BUILT_IN_PRESETS.map((preset, i) => [`built:${i}`, preset.name])],
+          ];
+          choose.append(new Option(chosen.preset ? `From: ${chosen.preset}` : "Choose one…", ""));
+          for (const [label, options] of groups) {
+            if (!options.length) continue;
+            const group = document.createElement("optgroup");
+            group.label = label;
+            for (const [value, text] of options) group.append(new Option(text, value));
+            choose.append(group);
+          }
+          const presetAt = (value) =>
+            value.startsWith("own:") ? presets[Number(value.slice(4))] : BUILT_IN_PRESETS[Number(value.slice(6))];
+          choose.addEventListener("change", () => {
+            const preset = presetAt(choose.value);
+            if (!preset) return;
+            // The preset's choices in place of the base avatar's own; which of the card's 3D models shows stays.
+            const cleared = Object.fromEntries(PRESET_FIELDS.map((field) => [field, undefined]));
+            presetNote = "";
+            set({ ...cleared, ...preset.look, preset: preset.name });
+          });
+          row("Start from", choose);
+          const name = document.createElement("input");
+          name.maxLength = 40;
+          name.placeholder = "A name for this look";
+          name.value = chosen.preset ?? "";
+          name.style.cssText =
+            "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;box-sizing:border-box;";
+          name.setAttribute("aria-label", "Preset name");
+          row("Name", name);
+          const keep = (list, note) => {
+            presets = checkPresets(list);
+            handlers.onSetting("lookPresets", presets);
+            presetNote = note;
+            card.replaceChildren(...draw());
+          };
+          const actions = document.createElement("div");
+          actions.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+          const save = button("Save as preset", "Keep this look as a preset of your own", () => {
+            const called = name.value.trim() || `${info.name || "A"} look`;
+            keep(
+              [{ name: called, look: chosen }, ...presets.filter((preset) => preset.name !== called)],
+              `Saved "${called}".`,
+            );
+          });
+          const chosenOwn = presets.find((preset) => preset.name === chosen.preset);
+          const remove = button("Delete preset", "Forget the preset this look began from", () =>
+            keep(
+              presets.filter((preset) => preset !== chosenOwn),
+              `Deleted "${chosenOwn.name}".`,
+            ),
+          );
+          remove.disabled = !chosenOwn;
+          const exported = button("Export", "Save this look as a small file, to keep or pass on", () => {
+            const called = name.value.trim() || chosen.preset || `${info.name || "A"} look`;
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(
+              new Blob([presetFile({ name: called, look: chosen })], { type: "application/json" }),
+            );
+            link.download = `${called.replace(/[^\w -]+/gu, "").trim() || "look"}.json`;
+            document.body.append(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+          });
+          const file = document.createElement("input");
+          file.type = "file";
+          file.accept = ".json,application/json";
+          file.style.display = "none";
+          file.addEventListener("change", async () => {
+            const read = file.files?.[0] ? readPresetFile(await file.files[0].text()) : null;
+            if (!read) {
+              presetNote = "That file isn't a Wanderworld look.";
+              card.replaceChildren(...draw());
+              return;
+            }
+            let called = read.name;
+            for (let n = 2; presets.some((preset) => preset.name === called); n++) called = `${read.name} (${n})`;
+            keep([{ name: called, look: read.look }, ...presets], `Imported "${called}": choose it under Start from.`);
+          });
+          const imported = button("Import", "Add a look saved as a file to your presets", () => file.click());
+          for (const control of [save, remove, exported, imported])
+            control.style.cssText += "flex:1;padding:8px 6px;font-size:12px;";
+          actions.append(save, remove, exported, imported, file);
+          rows.push(actions);
+          if (presetNote) says(presetNote);
+        });
+        // Body: their gender (what the People menu's picker sets; Auto leaves it to their name and the
+        // world's shares), and the body, which follows the gender unless one is chosen here.
+        section("Body", () => {
+          const gender = bodyPicker((value) => {
+            info.body = value;
+            handlers.onSetBody(id, value);
+            showPreview(chosen);
+            void handlers.lookOf(id).then(refresh);
+          });
+          gender.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+          gender.setAttribute("aria-label", "Gender");
+          gender.title = "Their gender: how they're spoken of, and the body unless one is chosen below";
+          gender.value = info.body ?? "auto";
+          row("Gender", gender);
+          says("How they're spoken of, and which body they have unless one is chosen below.");
+          const body = document.createElement("select");
+          body.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+          body.setAttribute("aria-label", "Body");
+          body.append(new Option(`As their gender (${shape.body === "female" ? "female" : "male"})`, ""));
+          for (const [value, text] of BODIES) body.append(new Option(text, value));
+          // (Anthro bodies, a wolf or a dragon, go here when they're made: docs/AVATAR.md.)
+          const later = new Option("Anthro bodies (coming later)", "anthro");
+          later.disabled = true;
+          body.append(later);
+          body.value = chosen.body ?? "";
+          body.addEventListener("change", () => set({ body: body.value || undefined, figure: undefined }));
+          row("Body", body);
+          says("Which model they are: the male or the female body. Anthro bodies come later.");
+        });
+        // Build and face: shape keys, and the bones' lengths.
+        const shapeSlider = ([key, label, least, most, what]) => {
+          const set1 = (value) => ({ shape: { ...chosen.shape, [key]: value } });
+          slider(
+            key === "chest" && shape.body === "female" ? "Bust" : label,
+            what,
+            shape.shape[key],
+            [least, most, 0.05],
+            signed,
+            (value) => previewSoon({ ...chosen, ...set1(value) }),
+            (value) => set(set1(value)),
+          );
+        };
+        section("Build", () => {
+          says("Each slider's middle is an everyday person; anything you don't move comes from their name.");
+          slider(
+            "Height",
+            "Shorter or taller, all of them at once.",
+            shape.height,
+            [HEIGHTS[0], HEIGHTS[1], 0.01],
+            share,
+            (value) => previewSoon({ ...chosen, height: value }),
+            (value) => set({ height: value }),
+          );
+          for (const entry of SHAPES) shapeSlider(entry);
+          for (const [key, label, least, most, what] of LIMBS) {
+            const set1 = (value) => ({ limbs: { ...chosen.limbs, [key]: value } });
+            slider(
+              label,
+              what,
+              shape.limbs[key],
+              [least, most, 0.01],
+              share,
+              (value) => previewSoon({ ...chosen, ...set1(value) }),
+              (value) => set(set1(value)),
+            );
+          }
+        });
+        section("Face", () => {
+          for (const entry of FACE) shapeSlider(entry);
+        });
+        // Colours: each part from its list or a colour of one's own. (The skin is the older kit's too.)
+        section("Colours", () => {
+          for (const [part, label, list, what] of AVATAR_COLOURS) {
+            if (part === "underwear") continue; // (with the underwear, below)
+            colourRow(label, what, list, shape.colours[part], `colour:${part}`, (colour) =>
+              part === "skin"
+                ? set({ skinTint: colour, skin: undefined, colours: { ...chosen.colours, skin: undefined } })
+                : set({ colours: { ...chosen.colours, [part]: colour } }),
+            );
+          }
+        });
+        // Underwear: a top and a bottom of the styles this body has, or none, and its colour.
+        section("Underwear", () => {
+          says("What's worn under the outfit; an outfit covering it hides it.");
+          const styles = (list, have) => [[BARE, "None"], ...list.filter(([style]) => (have ?? []).includes(style))];
+          for (const [field, label, list] of [
+            ["top", "Top", UNDERWEAR_TOPS],
+            ["bottom", "Bottom", UNDERWEAR_BOTTOMS],
+          ]) {
+            const select = document.createElement("select");
+            select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+            select.setAttribute("aria-label", `Underwear ${label.toLowerCase()}`);
+            for (const [value, text] of styles(list, avatar.choices?.[field === "top" ? "tops" : "bottoms"]))
+              select.append(new Option(text, value));
+            select.value = shape.underwear[field];
+            select.addEventListener("change", () => set({ underwear: { ...chosen.underwear, [field]: select.value } }));
+            row(label, select);
+          }
+          const [, label, list, what] = AVATAR_COLOURS.find(([part]) => part === "underwear");
+          colourRow(`${label} colour`, what, list, shape.colours.underwear, "colour:underwear", (colour) =>
+            set({ colours: { ...chosen.colours, underwear: colour } }),
+          );
+        });
+        // Hair: the style and its colour (the older kit's people wear the same).
+        section("Hair", () => {
+          const style = document.createElement("select");
+          style.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+          style.setAttribute("aria-label", "Hair style");
+          for (const [value, text] of HAIRSTYLES) style.append(new Option(text, value));
+          style.value = shape.hair;
+          style.addEventListener("change", () => set({ hair: style.value }));
+          row("Style", style);
+          says(
+            (avatar.choices?.hair ?? []).length > 1
+              ? "The hair style. None is bald."
+              : "The hair style. None is bald. (The new bodies' hair is still being made: they're bald until it comes.)",
+          );
+          colourRow(
+            "Colour",
+            "The hair's colour (the brows follow it unless they have their own).",
+            HAIR_COLOURS,
+            shape.hairColour,
+            "hairTint",
+            (colour, at) => (at >= 0 ? set({ hairColour: at, hairTint: undefined }) : set({ hairTint: colour })),
+          );
+        });
+        // Clothes: the outfit pieces the kit has for this body, each on or off.
+        if (avatar.choices?.clothes?.length)
+          section("Clothes", () => {
+            says("Outfit pieces, each on or off. A piece hides the skin and underwear it covers.");
+            for (const piece of avatar.choices.clothes) {
+              const box = document.createElement("input");
+              box.type = "checkbox";
+              box.checked = shape.clothes.includes(piece);
+              box.style.cssText = "width:22px;height:22px;flex:0 0 auto;";
+              box.addEventListener("change", () => {
+                const clothes = box.checked
+                  ? [...shape.clothes, piece]
+                  : shape.clothes.filter((worn) => worn !== piece);
+                set({ clothes: clothes.length ? clothes : [] });
+              });
+              row(
+                piece.replace(/_/gu, " ").replace(/^./u, (first) => first.toUpperCase()),
+                box,
+              );
+            }
+          });
       }
-      const height = document.createElement("input");
-      height.type = "range";
-      height.min = String(HEIGHTS[0]);
-      height.max = String(HEIGHTS[1]);
-      height.step = "0.02";
-      height.value = String(now.height);
-      height.setAttribute("aria-label", "Height");
-      height.addEventListener("change", () => set({ height: Number(height.value) }));
-      row("Height", height);
-      // Their animals: a dog for anyone, and a horse of your own. Each is with them, or kept at home.
-      if (pets) {
-        const choose = (label, options, value, onChange) => {
+      // The older kit's people (Quaternius): what they wear, for townsfolk with Settings → People →
+      // "Townsfolk use the new bodies" off, or when the new bodies can't be loaded.
+      section(shape ? "Older kit's clothes" : "Clothes", () => {
+        if (shape)
+          says('For townsfolk dressed from the older kit: Settings → People → "Townsfolk use the new bodies" off.');
+        // A whole outfit: choosing one puts every piece back to it.
+        pick("Outfit", "outfit", outfitNames, now.outfit, (text) => text, {
+          top: undefined,
+          arms: undefined,
+          legs: undefined,
+          feet: undefined,
+          hood: undefined,
+          pauldrons: undefined,
+        });
+        // Its pieces, each from any outfit and in a colour of its own if you like; the ranger's hood and
+        // pauldrons on or off.
+        for (const [piece, label] of PIECES) {
+          pick(label, piece, [...outfitNames, [BARE, "None"]], now[piece]);
+          // (A piece left off is skin: its colour is the skin's.)
+          if (now[piece] !== BARE) tintRow(piece, label);
+        }
+        for (const [extra, label] of EXTRAS) {
+          pick(
+            label,
+            extra,
+            [
+              ["yes", "On"],
+              ["no", "Off"],
+            ],
+            now[extra] ? "yes" : "no",
+            (text) => text === "yes",
+          );
+          if (now[extra]) tintRow(extra, label);
+        }
+        // Each outfit's cloth has its own colours: only those with a piece on show.
+        for (const kind of now.worn) {
+          const field = COLOUR_FIELD[kind];
+          pick(
+            now.worn.length > 1 ? `${OUTFITS[kind].label} cloth` : "Cloth",
+            field,
+            OUTFITS[kind].colours,
+            now[field],
+          );
+        }
+        // (Hair, skin and height are the base avatar's sections' when there are any: the older kit wears the same.)
+        if (!shape)
+          pick(
+            "Hair",
+            "hair",
+            HAIRSTYLES.map(([style, text]) => [style, text]),
+            now.hair,
+          );
+        // Hair and skin: one from the list, or a colour of your own.
+        const listOrOwn = (label, list, at, own, key, ownKey) => {
           const select = document.createElement("select");
           select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
           select.setAttribute("aria-label", label);
-          for (const [option, text] of options) {
+          for (const [value, text] of [...list.map((name, i) => [String(i), name]), ["own", "Your own…"]]) {
             const item = document.createElement("option");
-            item.value = option;
+            item.value = value;
             item.textContent = text;
             select.append(item);
           }
-          select.value = value;
+          select.value = own === null ? String(at) : "own";
           select.addEventListener("change", () => {
-            handlers.onSetPet(id, ...onChange(select.value));
-            void handlers.lookOf(id).then((next) => {
-              if (!next || lookCard !== card) return;
-              pets = next.pets;
+            if (select.value === "own") {
+              // Nothing changes yet: the picker opens, and its button sets the colour.
+              picking = ownKey;
+              draft = null;
               card.replaceChildren(...draw());
-            });
+            } else set({ [key]: Number(select.value), [ownKey]: undefined });
           });
           row(label, select);
+          if (own !== null) rows[rows.length - 1].append(square(ownKey, own, `Change your own ${label.toLowerCase()}`));
+          picker(ownKey, own, (colour) => set({ [ownKey]: colour }));
         };
-        const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
-        // How big it is: the nearest of the three to what it is now (a keyword may have made it bigger).
-        const SIZES = [
-          ["0.82", "Small"],
-          ["1", "Usual"],
-          ["1.25", "Large"],
-          ["1.5", "Huge"],
-        ];
-        const sizing = (label, role, pet) =>
-          choose(
-            label,
-            SIZES,
-            SIZES.reduce(
-              (best, [value]) =>
-                Math.abs(Number(value) - (pet.scale ?? 1)) < Math.abs(Number(best) - (pet.scale ?? 1)) ? value : best,
-              "1",
-            ),
-            (value) => [role, { ...pet, lore: undefined, scale: Number(value) }],
+        if (!shape)
+          listOrOwn(
+            "Hair colour",
+            HAIR_COLOURS.map(([, name]) => name),
+            now.hairColour,
+            now.hairTint,
+            "hairColour",
+            "hairTint",
           );
-        // Its name: said in place of "your dog" wherever it's spoken of.
-        const naming = (label, role, pet) => {
-          const name = document.createElement("input");
-          name.maxLength = 30;
-          name.value = pet.name ?? "";
-          name.placeholder = "A name (optional)";
-          name.style.cssText =
-            "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;box-sizing:border-box;";
-          name.setAttribute("aria-label", label);
-          name.addEventListener("change", () => {
-            handlers.onSetPet(id, role, { ...pet, lore: undefined, name: name.value.trim() || undefined });
-            void handlers.lookOf(id).then((next) => {
-              if (!next || lookCard !== card) return;
-              pets = next.pets;
-              card.replaceChildren(...draw());
+        if (!shape)
+          listOrOwn(
+            "Skin",
+            SKIN_TONES.map(([, name]) => name),
+            now.skin,
+            now.skinTint,
+            "skin",
+            "skinTint",
+          );
+        if (now.sex === "male") {
+          pick(
+            "Beard",
+            "beard",
+            [
+              ["yes", "Bearded"],
+              ["no", "Clean-shaven"],
+            ],
+            now.beard ? "yes" : "no",
+            (text) => text === "yes",
+          );
+        }
+        const height = document.createElement("input");
+        height.type = "range";
+        height.min = String(HEIGHTS[0]);
+        height.max = String(HEIGHTS[1]);
+        height.step = "0.02";
+        height.value = String(now.height);
+        height.setAttribute("aria-label", "Height");
+        height.addEventListener("change", () => set({ height: Number(height.value) }));
+        if (!shape) row("Height", height);
+      });
+      // Their animals: a dog for anyone, and a horse of your own. Each is with them, or kept at home.
+      section("Animals", () => {
+        if (pets) {
+          const choose = (label, options, value, onChange) => {
+            const select = document.createElement("select");
+            select.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
+            select.setAttribute("aria-label", label);
+            for (const [option, text] of options) {
+              const item = document.createElement("option");
+              item.value = option;
+              item.textContent = text;
+              select.append(item);
+            }
+            select.value = value;
+            select.addEventListener("change", () => {
+              handlers.onSetPet(id, ...onChange(select.value));
+              void handlers.lookOf(id).then((next) => {
+                if (!next || lookCard !== card) return;
+                pets = next.pets;
+                card.replaceChildren(...draw());
+              });
             });
-          });
-          row(label, name);
-        };
-        const where = [
-          ["out", pets.mine ? "With you" : "With them"],
-          ["home", "At home"],
-        ];
-        const dog = pets.dog;
-        choose(
-          "Dog",
-          [
-            ["", "None"],
-            ["owned", "Owned"],
-          ],
-          dog ? "owned" : "",
-          (owned) => ["dog", owned ? { size: "medium", coat: pets.dogCoats[0][0], out: true } : null],
-        );
-        if (dog) {
+            row(label, select);
+          };
+          const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+          // How big it is: the nearest of the three to what it is now (a keyword may have made it bigger).
+          const SIZES = [
+            ["0.82", "Small"],
+            ["1", "Usual"],
+            ["1.25", "Large"],
+            ["1.5", "Huge"],
+          ];
+          const sizing = (label, role, pet) =>
+            choose(
+              label,
+              SIZES,
+              SIZES.reduce(
+                (best, [value]) =>
+                  Math.abs(Number(value) - (pet.scale ?? 1)) < Math.abs(Number(best) - (pet.scale ?? 1)) ? value : best,
+                "1",
+              ),
+              (value) => [role, { ...pet, lore: undefined, scale: Number(value) }],
+            );
+          // Its name: said in place of "your dog" wherever it's spoken of.
+          const naming = (label, role, pet) => {
+            const name = document.createElement("input");
+            name.maxLength = 30;
+            name.value = pet.name ?? "";
+            name.placeholder = "A name (optional)";
+            name.style.cssText =
+              "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;box-sizing:border-box;";
+            name.setAttribute("aria-label", label);
+            name.addEventListener("change", () => {
+              handlers.onSetPet(id, role, { ...pet, lore: undefined, name: name.value.trim() || undefined });
+              void handlers.lookOf(id).then((next) => {
+                if (!next || lookCard !== card) return;
+                pets = next.pets;
+                card.replaceChildren(...draw());
+              });
+            });
+            row(label, name);
+          };
+          const where = [
+            ["out", pets.mine ? "With you" : "With them"],
+            ["home", "At home"],
+          ];
+          const dog = pets.dog;
           choose(
-            "Dog's coat",
-            pets.dogCoats.map(([coat, word]) => [coat, capital(word)]),
-            dog.coat,
-            (coat) => ["dog", { ...dog, lore: undefined, coat }],
+            "Dog",
+            [
+              ["", "None"],
+              ["owned", "Owned"],
+            ],
+            dog ? "owned" : "",
+            (owned) => ["dog", owned ? { size: "medium", coat: pets.dogCoats[0][0], out: true } : null],
           );
-          // (Small and medium are the small dog's body, the rest the big dog's; huge and massive can be ridden.)
-          choose("Dog's size", pets.dogSizes, dog.size, (size) => [
-            "dog",
-            { ...dog, lore: undefined, kind: undefined, scale: undefined, size },
-          ]);
-          naming("Dog's name", "dog", dog);
-          choose("Dog is", where, dog.out !== false ? "out" : "home", (at) => [
-            "dog",
-            { ...dog, lore: undefined, out: at === "out" },
-          ]);
-        }
-        {
-          const horse = pets.horse;
-          choose(
-            "Horse",
-            [["", "None"], ...pets.horses.map(([coat, word]) => [coat, capital(word)])],
-            horse?.coat ?? "",
-            (coat) => ["horse", coat ? { ...horse, lore: undefined, coat, out: horse?.out !== false } : null],
-          );
-          if (horse) sizing("Horse's size", "horse", horse);
-          if (horse) naming("Horse's name", "horse", horse);
-          if (horse)
-            choose("Horse is", where, horse.out !== false ? "out" : "home", (at) => [
-              "horse",
-              { ...horse, lore: undefined, out: at === "out" },
+          if (dog) {
+            choose(
+              "Dog's coat",
+              pets.dogCoats.map(([coat, word]) => [coat, capital(word)]),
+              dog.coat,
+              (coat) => ["dog", { ...dog, lore: undefined, coat }],
+            );
+            // (Small and medium are the small dog's body, the rest the big dog's; huge and massive can be ridden.)
+            choose("Dog's size", pets.dogSizes, dog.size, (size) => [
+              "dog",
+              { ...dog, lore: undefined, kind: undefined, scale: undefined, size },
             ]);
+            naming("Dog's name", "dog", dog);
+            choose("Dog is", where, dog.out !== false ? "out" : "home", (at) => [
+              "dog",
+              { ...dog, lore: undefined, out: at === "out" },
+            ]);
+          }
+          {
+            const horse = pets.horse;
+            choose(
+              "Horse",
+              [["", "None"], ...pets.horses.map(([coat, word]) => [coat, capital(word)])],
+              horse?.coat ?? "",
+              (coat) => ["horse", coat ? { ...horse, lore: undefined, coat, out: horse?.out !== false } : null],
+            );
+            if (horse) sizing("Horse's size", "horse", horse);
+            if (horse) naming("Horse's name", "horse", horse);
+            if (horse)
+              choose("Horse is", where, horse.out !== false ? "out" : "home", (at) => [
+                "horse",
+                { ...horse, lore: undefined, out: at === "out" },
+              ]);
+          }
         }
-      }
+      });
       const buttons = document.createElement("div");
       buttons.style.cssText = "display:flex;gap:8px;";
       const reset = button("Reset", "Forget these choices: back to the look their name gives", () => {
         picking = null;
         chosen = {};
         handlers.onSetLook(id, null);
-        void handlers.lookOf(id).then((next) => {
-          if (!next || lookCard !== card) return;
-          now = next.now;
-          card.replaceChildren(...draw());
-        });
+        showPreview({});
+        void handlers.lookOf(id).then(refresh);
       });
       const done = button("Done", "Close", closeLook);
       for (const control of [reset, done]) control.style.cssText += "flex:1;padding:8px 10px;";
@@ -834,7 +1215,10 @@ export function createHud(root, handlers) {
     nature: "On: detailed trees and plants. Off: simple shapes, which is faster.",
     props: "On: detailed barrels, crates, benches and stalls. Off: simple shapes.",
     buildings: "On: detailed buildings. Off: simple boxes.",
-    people: "How characters with no 3D model of their own look.",
+    people:
+      "How characters with no 3D model of their own look. Detailed: you are the base avatar (your Look card shapes it), and townsfolk are too, or are dressed from the Quaternius kit (Settings → People → Townsfolk use the new bodies). Simple: everyone is a plain low-poly person, the lightest of all.",
+    newBodies:
+      'On: townsfolk with no 3D model of their own are the new base bodies, each shaped from their name within an everyday range, and from their lore: "ww:looks:tall", "ww:looks:red hair", "ww:looks:elf" for pointed ears. Their Look card changes any of it. Off: they are dressed from the older Quaternius kit, which is lighter on a slow phone. You are the new body either way.',
     animation: "Recorded: motion from the animation library. Built-in: a simple hand-made walk.",
     walkSpeed: "How fast you walk.",
     runSpeed: "How fast you run (hold Shift).",
@@ -1231,7 +1615,7 @@ export function createHud(root, handlers) {
   );
   toggle("props", "Detailed furniture and props");
   toggle("buildings", "Detailed buildings");
-  choice("people", "People without a model", { kit: "Dressed (Quaternius)", simple: "Simple" });
+  choice("people", "People without a model", { kit: "Detailed", simple: "Simple" });
   choice("animation", "Animation", { recorded: "Recorded (Quaternius)", builtin: "Built-in" });
   at("Display", "On screen");
   choice("textSize", "Text size", { 0.85: "Small", 1: "Normal", 1.15: "Large", 1.3: "Larger", 1.5: "Largest" });
@@ -1392,6 +1776,7 @@ export function createHud(root, handlers) {
     outsideSafe: "Outside safe places",
     off: "Nowhere",
   });
+  toggle("newBodies", "Townsfolk use the new bodies");
   choice("names", "Names over people", {
     all: "Show all names",
     known: "Only people I know",
