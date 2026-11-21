@@ -75,6 +75,10 @@ export const HAIRSTYLES = [
   ["afro", "Afro"],
   ["shaved", "Shaved"],
   ["mohawk", "Mohawk"],
+  ["slicked", "Slicked back"],
+  ["crop", "Crop"],
+  ["fringe", "Fringe"],
+  ["bob_angled", "Angled bob"],
   ["none", "None"],
 ];
 /** The older kit's file for a hairstyle: short hair is cut to each body's own head. (Older names too.) */
