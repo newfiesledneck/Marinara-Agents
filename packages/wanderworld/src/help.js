@@ -270,6 +270,15 @@ export const HELP = [
     ],
   },
   {
+    title: "Holds and throws",
+    lines: [
+      "Some creatures catch hold of you or a companion, as the 5e SRD has them: a roper's tendril from up to 15 metres off, which then reels you in 7.5 metres at a time; an otyugh's tentacle; a giant frog's bite and a mimic's pseudopod; and a shambling mound that lands both its slams engulfs you (blinded and restrained, with a DC 14 Constitution save every few seconds or 2d8 + 4 more). Held, you can't walk away and you stay where it holds you. A bar at the top says what holds you and its escape DC, the SRD's own (the roper's 15, the otyugh's 13, the mound's 14, the frog's 11).",
+      "To break free, press Break free, or push hard on the move keys for a second: each try is a d20 with the better of your Athletics and your Acrobatics against the escape DC (a roper's hold puts Strength at a disadvantage). By turns, a try is your action (Break free on the bar). Companions try on their own turns. A hold ends when the creature is beaten, knocked back (a Shove, Thunderwave), stunned or runs, or after a minute when it lets go.",
+      "Two rules here are Wanderworld's own, not the SRD's. Vines: an awakened shrub's blow, and a shambling mound's slam that doesn't engulf you, can catch your legs, restrained for about eight seconds (a turn by turns), escape DC 10. Throws: something Large or bigger with a Strength of 18 or more (an ogre, a troll, a minotaur, and giants) now and then grabs someone Medium or smaller and throws them a few metres, further the bigger and stronger it is. A Strength or Dexterity save, the better, against 8 + its proficiency + its Strength modifier avoids it. You land prone, take 1d6 falling damage for every 3 metres and get up; nobody is thrown through a wall, a tree or a rock, into deep water, or at all where fights are kept out (towns, unless fights are allowed anywhere).",
+      'Each has its own switch in Settings → Inventory → 5e rules, under "Creatures use their special attacks", all on to begin with: "Creatures grab and hold", "Vines catch your legs" and "Giants grab and throw". With fights off, or that switch off, nothing grabs or throws. Holds need "Conditions can land on you" too; with "Creatures grab and hold" off, a frog\'s or a mimic\'s grab is the plain Grappled condition you shake off by yourself. By turns, "grapple" and "throw" are among the moves the rules or the AI choose from for a creature that has them. In a narrated moment, who is held or thrown is in the lines the AI tells.',
+    ],
+  },
+  {
     title: "Factions and regions",
     lines: [
       "A faction comes from your lore: an entry keyed ww:faction:Thieves Guild is its lore, and ww:member of:Thieves Guild on someone's entry puts them in it. ww:enemy of:The Crown on a faction's entry makes the two enemies.",
