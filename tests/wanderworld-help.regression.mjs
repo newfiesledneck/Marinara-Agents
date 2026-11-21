@@ -38,13 +38,10 @@ assert.ok(helpFor("", 1e9).length < 100000);
   const { readdirSync, readFileSync } = await import("node:fs");
   const { BLENDER_MODELS, CREDITS, MAKEHUMAN_CREDIT, namesOf } = await import("../packages/wanderworld/src/help.js");
   const pkg = new URL("../packages/wanderworld/", import.meta.url);
-  const kitNames = (folder, pattern) =>
-    readdirSync(new URL(folder, pkg))
-      .map((name) => pattern.exec(name)?.[1])
-      .filter(Boolean)
-      .sort();
-  assert.deepEqual([...BLENDER_MODELS.folk].sort(), kitNames("kit/fantasy/folk/", /^folk-built-(.+)\.json$/u));
-  assert.deepEqual([...BLENDER_MODELS.rigged].sort(), kitNames("kit/creatures/", /^rigged-(.+)\.json$/u));
+  // (Each folder's index of its bundles names every model in them.)
+  const kitNames = (index) => Object.keys(JSON.parse(readFileSync(new URL(index, pkg), "utf8"))).sort();
+  assert.deepEqual([...BLENDER_MODELS.folk].sort(), kitNames("kit/fantasy/folk/folk-built-index.json"));
+  assert.deepEqual([...BLENDER_MODELS.rigged].sort(), kitNames("kit/creatures/rigged-index.json"));
   const flat = (text) => text.replace(/\s+/gu, " ");
   const help = flat(CREDITS.flatMap((part) => part.lines).join(" "));
   for (const [where, text] of [

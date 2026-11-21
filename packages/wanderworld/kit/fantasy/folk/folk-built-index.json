@@ -1,0 +1,22 @@
+{
+  "bugbear": "folk-built-humanoids",
+  "earth_elemental": "folk-built-brutes",
+  "fire_giant": "folk-built-giants",
+  "frost_giant": "folk-built-giants",
+  "ghost": "folk-built-undead",
+  "ghoul": "folk-built-undead",
+  "gnoll": "folk-built-humanoids",
+  "goblin": "folk-built-humanoids",
+  "hill_giant": "folk-built-giants",
+  "hobgoblin": "folk-built-humanoids",
+  "kobold": "folk-built-humanoids",
+  "lizardfolk": "folk-built-humanoids",
+  "minotaur": "folk-built-brutes",
+  "ogre": "folk-built-brutes",
+  "orc": "folk-built-humanoids",
+  "skeleton": "folk-built-undead",
+  "specter": "folk-built-undead",
+  "stone_giant": "folk-built-giants",
+  "troll": "folk-built-brutes",
+  "zombie": "folk-built-undead"
+}

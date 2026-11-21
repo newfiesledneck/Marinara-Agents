@@ -23,6 +23,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MeshoptSimplifier } from "three/examples/jsm/libs/meshopt_simplifier.module.js";
+import { MESH_KINDS, RIGGED_KINDS, writePacked } from "./wanderworld-packed.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 await MeshoptSimplifier.ready;
@@ -195,6 +196,10 @@ function skinnedPrimitives(gltf) {
 // ── Packing: quantized arrays as base64 ──
 
 const b64 = (typed) => Buffer.from(typed.buffer, typed.byteOffset, typed.byteLength).toString("base64");
+// A shape key's moves in fewer steps than int16 holds (packMesh), which packs smaller and is still far
+// finer than can be seen (src/avatar.js morphsOf reads `q`). (Its normals keep int8's: fewer turned the
+// shading by a degree or two in places.)
+const MORPH_STEPS = 511;
 
 /** One mesh, quantized: positions int16 within its box, normals int8, uvs uint16 (0…1, wrapped), joint
  *  indices uint8 into the part's joint list, weights uint8. `keep(triangle)` can drop triangles. With
@@ -246,7 +251,8 @@ function packMesh(primitive, texture, jointIndex, keep = () => true, share = 1) 
   for (const [v, n] of remap) for (let c = 0; c < 3; c++) places[n * 3 + c] = p[v * 3 + c];
   const far = distantIndex(index, places, share, index.constructor);
   // Shape keys (glTF morph targets), each only where it moves anything: the vertices (uint16 or uint32),
-  // their moves (int16 within ±`d`, a scale per axis) and normals' changes (int8 within ±`n`).
+  // their moves (int16 in ±MORPH_STEPS steps of `d`, a scale per axis, saying its steps in `q`: within
+  // 0.06 mm for a key moving 6 cm) and normals' changes (int8 within ±`n`).
   const morphs = {};
   (primitive.targets ?? []).forEach((target, k) => {
     const moved = [];
@@ -269,7 +275,7 @@ function packMesh(primitive, texture, jointIndex, keep = () => true, share = 1) 
     moved.forEach(([v, n], i) => {
       ids[i] = n;
       for (let c = 0; c < 3; c++) {
-        delta[i * 3 + c] = Math.round((target.position.values[v * 3 + c] / (d[c] || 1)) * 32767);
+        delta[i * 3 + c] = Math.round((target.position.values[v * 3 + c] / (d[c] || 1)) * MORPH_STEPS);
         normalDelta[i * 3 + c] = Math.round(((target.normal?.values[v * 3 + c] ?? 0) / (ns[c] || 1)) * 127);
       }
     });
@@ -279,6 +285,7 @@ function packMesh(primitive, texture, jointIndex, keep = () => true, share = 1) 
       delta: b64(delta),
       n: ns.map((value) => Number(value.toPrecision(6))),
       normal: b64(normalDelta),
+      q: MORPH_STEPS,
     };
   });
   return {
@@ -463,15 +470,16 @@ function toneOf(name, uvs = null) {
 
 /**
  * The monsters that stand on the people's skeleton (Quaternius's Bestiary - Dungeon Monsters Kit: the imp
- * and the puglin), each as one part with its skeleton, into kit/fantasy/folk/folk.json with a texture
- * each. They have no animations of their own: the game moves them with the people's.
+ * and the puglin), each as one part with its skeleton, into kit/fantasy/folk/folk.pack.png with a texture
+ * each in it (`pictures`). They have no animations of their own: the game moves them with the people's.
  */
 function folk(dir) {
   const out = join(KIT, "fantasy/folk");
   mkdirSync(out, { recursive: true });
   // (Only its own files: the folder also holds the Blender-made ones, `bestiary` below.)
-  for (const name of ["folk.json", "folk-imp.webp", "folk-puglin.webp"]) rmSync(join(out, name), { force: true });
-  const all = { source: "Bestiary - Dungeon Monsters Kit by Quaternius", folk: {} };
+  for (const name of ["folk.json", "folk.pack.png", "folk-imp.webp", "folk-puglin.webp"])
+    rmSync(join(out, name), { force: true });
+  const all = { source: "Bestiary - Dungeon Monsters Kit by Quaternius", folk: {}, pictures: [] };
   for (const [name, file] of [
     ["imp", "Imp.glb"],
     ["puglin", "Puglin.glb"],
@@ -480,19 +488,7 @@ function folk(dir) {
     const primitives = skinnedPrimitives(gltf);
     const png = join(out, `${name}.png`);
     writeFileSync(png, gltf.imageOf(primitives[0].texture));
-    execFileSync(FFMPEG, [
-      "-v",
-      "error",
-      "-y",
-      "-i",
-      png,
-      "-vf",
-      `scale=${TEXTURE_SIZE}:${TEXTURE_SIZE}`,
-      "-quality",
-      "82",
-      join(out, `folk-${name}.webp`),
-    ]);
-    rmSync(png);
+    all.pictures.push({ name: `folk-${name}`, webp: webp(png, 82, ["-vf", `scale=${TEXTURE_SIZE}:${TEXTURE_SIZE}`]) });
     let top = 0;
     for (const primitive of primitives)
       for (let i = 1; i < primitive.position.values.length; i += 3) top = Math.max(top, primitive.position.values[i]);
@@ -501,30 +497,53 @@ function folk(dir) {
       ...packPart(primitives, { texture: () => `folk-${name}`, skeleton: skeletonOf(gltf) }),
     };
   }
-  writeFileSync(join(out, "folk.json"), JSON.stringify(all));
+  writePacked(join(out, "folk.pack.png"), all, MESH_KINDS);
   console.log(`wrote ${out}`);
+}
+
+/**
+ * Which bundle each Blender-made model goes in (a package may list at most 256 files, so they share files
+ * by family, and a world fetches only the families it has). A model not named here goes in "others".
+ */
+const FAMILIES = {
+  folk: {
+    giants: ["hill_giant", "stone_giant", "frost_giant", "fire_giant"],
+    undead: ["skeleton", "zombie", "ghoul", "ghost", "specter"],
+    humanoids: ["goblin", "hobgoblin", "bugbear", "orc", "kobold", "gnoll", "lizardfolk"],
+    brutes: ["ogre", "troll", "minotaur", "earth_elemental"],
+  },
+  rigged: {
+    elementals: ["air_elemental", "fire_elemental", "water_elemental"],
+    plants: ["awakened_shrub", "shambling_mound"],
+    dungeon: ["mimic", "roper", "grick", "gelatinous_cube", "otyugh", "basilisk"],
+  },
+};
+const familyOf = (kind, name) =>
+  Object.keys(FAMILIES[kind]).find((family) => FAMILIES[kind][family].includes(name)) ?? "others";
+
+/** A picture (a file, removed after) as WebP bytes in base64 (ffmpeg at `quality`), for a bundle's `pictures`. */
+function webp(png, quality, filters = []) {
+  const out = `${png.slice(0, -4)}.webp`;
+  execFileSync(FFMPEG, ["-v", "error", "-y", "-i", png, ...filters, "-quality", String(quality), out]);
+  const bytes = readFileSync(out);
+  rmSync(png);
+  rmSync(out);
+  return bytes.toString("base64");
 }
 
 /**
  * The monsters made in Blender (packages/wanderworld/assets/scripts/make_*.py, each a .glb in
  * assets/models/ on the people's skeleton, with one texture of its own), into
- * kit/fantasy/folk/folk-built-<name>.json with a texture each (folk-<name>.webp): a file each, so the game
- * fetches only the creatures a world has. The game moves them with the people's animations, as it does the imp and the puglin; their
- * own actions stay in the .glb for anyone using the model elsewhere.
+ * kit/fantasy/folk/folk-built-<family>.pack.png (FAMILIES), each model's texture in it (`pictures`), and
+ * folk-built-index.json saying which file has which. The game moves them with the people's animations, as
+ * it does the imp and the puglin; their own actions stay in the .glb for anyone using the model elsewhere.
+ * Those with a skeleton of their own go to kit/creatures the same way (rigged).
  */
 function bestiary(only = []) {
   const dir = join(ROOT, "packages/wanderworld/assets/models");
   const out = join(KIT, "fantasy/folk");
   mkdirSync(out, { recursive: true });
   const creatures = join(KIT, "creatures");
-  // (Named ones only, when some are named: the rest of the kit is left as it is, so a model still being
-  // made beside them isn't packed half done.)
-  if (!only.length) {
-    for (const old of readdirSync(out).filter((name) => /^folk-built/u.test(name))) rmSync(join(out, old));
-    for (const old of readdirSync(creatures).filter((name) => /^rigged-/u.test(name))) rmSync(join(creatures, old));
-  }
-  let count = 0;
-  let own = 0;
   // (Only the models in git, as the bestiary test counts them: one saved but not committed may be half done.)
   let tracked = null;
   try {
@@ -536,33 +555,54 @@ function bestiary(only = []) {
   } catch {
     // (no git: every model there counts)
   }
-  for (const file of readdirSync(dir)
+  const files = readdirSync(dir)
     .filter((name) => name.endsWith(".glb") && !/^(?:avatar|anthro|outfit)-|^giant-base/u.test(name))
-    .filter((name) => !only.length || only.includes(name.slice(0, -4)))
     .filter((name) => {
       if (!tracked || tracked.has(name)) return true;
       console.warn(`left out ${name}: it isn't in git yet`);
       return false;
     })
-    .sort()) {
+    .sort();
+  const kindOf = (file) => {
+    const bones = skeletonOf(readGltf(join(dir, file))).names;
+    return bones.includes("pelvis") && bones.includes("hand_r") ? "folk" : "rigged";
+  };
+  const kinds = new Map(files.map((file) => [file, kindOf(file)]));
+  // (Named ones only, when some are named: those families are packed again, and the rest of the kit is
+  // left as it is, so a model still being made beside them isn't packed half done.)
+  const families = new Set(
+    files
+      .filter((file) => only.includes(file.slice(0, -4)))
+      .map((file) => `${kinds.get(file)}:${familyOf(kinds.get(file), file.slice(0, -4))}`),
+  );
+  const wanted = (file) =>
+    !only.length || families.has(`${kinds.get(file)}:${familyOf(kinds.get(file), file.slice(0, -4))}`);
+  if (!only.length) {
+    for (const old of readdirSync(out).filter((name) => /^folk-built/u.test(name))) rmSync(join(out, old));
+    for (const old of readdirSync(creatures).filter((name) => /^rigged-/u.test(name))) rmSync(join(creatures, old));
+  }
+  const source = "Made in Blender by ThatOneCan (packages/wanderworld/assets/scripts)";
+  const bundles = { folk: {}, rigged: {} };
+  const bundleOf = (kind, name) => (bundles[kind][familyOf(kind, name)] ??= { source, [kind]: {}, pictures: [] });
+  for (const file of files.filter(wanted)) {
     const name = file.slice(0, -4);
-    const gltf = readGltf(join(dir, file));
-    const bones = skeletonOf(gltf).names;
-    if (!bones.includes("pelvis") || !bones.includes("hand_r")) {
-      rigged(name, join(dir, file), creatures);
-      own++;
+    if (kinds.get(file) === "rigged") {
+      const bundle = bundleOf("rigged", name);
+      const { model, picture } = rigged(name, join(dir, file), creatures);
+      bundle.rigged[name] = model;
+      bundle.pictures.push({ name: `rigged-${name}`, webp: picture });
       continue;
     }
+    const gltf = readGltf(join(dir, file));
     const primitives = skinnedPrimitives(gltf);
     const png = join(out, `${name}.png`);
     writeFileSync(png, gltf.imageOf(primitives[0].texture));
-    execFileSync(FFMPEG, ["-v", "error", "-y", "-i", png, "-quality", "90", join(out, `folk-${name}.webp`)]);
-    rmSync(png);
     let top = 0;
     for (const primitive of primitives)
       for (let i = 1; i < primitive.position.values.length; i += 3) top = Math.max(top, primitive.position.values[i]);
     const vertices = primitives.reduce((sum, primitive) => sum + primitive.position.count, 0);
-    const body = {
+    const bundle = bundleOf("folk", name);
+    bundle.folk[name] = {
       height: Math.round(top * 100) / 100,
       ...packPart(primitives, {
         texture: () => `folk-${name}`,
@@ -570,23 +610,33 @@ function bestiary(only = []) {
         distant: distantShare(vertices),
       }),
     };
-    const packed = {
-      source: "Made in Blender by ThatOneCan (packages/wanderworld/assets/scripts)",
-      folk: { [name]: body },
-    };
-    writeFileSync(join(out, `folk-built-${name}.json`), JSON.stringify(packed));
-    count++;
+    bundle.pictures.push({ name: `folk-${name}`, webp: webp(png, 90) });
   }
-  console.log(`wrote ${count} to ${out}, and ${own} with skeletons of their own to ${creatures}`);
+  // The bundles, and each folder's index of them (merged with the one there, after packing only some).
+  for (const [kind, folder, KINDS] of [
+    ["folk", out, MESH_KINDS],
+    ["rigged", creatures, RIGGED_KINDS],
+  ]) {
+    const prefix = kind === "folk" ? "folk-built" : "rigged";
+    const indexPath = join(folder, `${prefix}-index.json`);
+    const index = only.length && existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, "utf8")) : {};
+    for (const [family, bundle] of Object.entries(bundles[kind])) {
+      writePacked(join(folder, `${prefix}-${family}.pack.png`), bundle, KINDS);
+      for (const name of Object.keys(bundle[kind])) index[name] = `${prefix}-${family}`;
+    }
+    const sorted = Object.fromEntries(Object.entries(index).sort(([a], [b]) => a.localeCompare(b)));
+    if (Object.keys(sorted).length) writeFileSync(indexPath, `${JSON.stringify(sorted, null, 2)}\n`);
+  }
+  const count = (kind) =>
+    Object.values(bundles[kind]).reduce((sum, bundle) => sum + Object.keys(bundle[kind]).length, 0);
+  console.log(`wrote ${count("folk")} to ${out}, and ${count("rigged")} with skeletons of their own to ${creatures}`);
 }
 
 /**
- * A creature with a skeleton of its own (a mimic, a roper): its .glb as it is, actions and all, played by
- * three's AnimationMixer in the game (src/rigged.js), but with its texture taken out into a .webp beside
- * it (smaller, and loaded without holding the model up). `kit/creatures/rigged-<name>.json`: { source,
- * height, glb (base64) }, and `rigged-<name>.webp`.
- * ponytail: the whole .glb in base64 (a third bigger than the bytes); a packed format like the animals'
- * would be smaller, once the format keeps textures and move and scale tracks.
+ * A creature with a skeleton of its own (a mimic, a roper): its .glb, actions and all, played by three's
+ * AnimationMixer in the game (src/rigged.js), with its texture taken out as a WebP (`picture`). The model
+ * comes back as { height, gltf (the glTF's JSON), views (its buffer views' bytes, each with its elements'
+ * size and components, for packing) }, which src/rigged.js puts back together into a .glb.
  */
 function rigged(name, path, out) {
   const file = readFileSync(path);
@@ -599,8 +649,7 @@ function rigged(name, path, out) {
   const imageView = json.bufferViews[image.bufferView];
   const png = join(out, `${name}.png`);
   writeFileSync(png, bin.subarray(imageView.byteOffset ?? 0, (imageView.byteOffset ?? 0) + imageView.byteLength));
-  execFileSync(FFMPEG, ["-v", "error", "-y", "-i", png, "-quality", "90", join(out, `rigged-${name}.webp`)]);
-  rmSync(png);
+  const picture = webp(png, 90);
   // Smaller numbers where glTF allows them: bone weights and texture places as whole numbers (core glTF),
   // normals as bytes (KHR_mesh_quantization, which three's GLTFLoader reads). About 40% off the mesh.
   const replaced = new Map(); // buffer view → its new bytes
@@ -645,6 +694,11 @@ function rigged(name, path, out) {
         normals = true;
       }
     }
+  // Turns in the actions as int16 (normalized, which core glTF allows for rotations): within 1/32767.
+  for (const animation of json.animations ?? [])
+    for (const channel of animation.channels)
+      if (channel.target.path === "rotation")
+        shrink(animation.samplers[channel.sampler].output, Int16Array, 5122, 32767, 4);
   if (normals) {
     json.extensionsUsed = [...new Set([...(json.extensionsUsed ?? []), "KHR_mesh_quantization"])];
     json.extensionsRequired = [...new Set([...(json.extensionsRequired ?? []), "KHR_mesh_quantization"])];
@@ -682,17 +736,15 @@ function rigged(name, path, out) {
   // The model without its images: their buffer views dropped and the rest packed up again.
   const dropped = new Set((json.images ?? []).map((entry) => entry.bufferView));
   const renumber = new Map();
-  const parts = [];
+  const viewBytes = [];
   let offset = 0;
   json.bufferViews = json.bufferViews.filter((view, i) => {
     if (dropped.has(i)) return false;
     const bytes = replaced.get(i) ?? bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength);
-    const pad = (4 - (offset % 4)) % 4;
-    if (pad) parts.push(Buffer.alloc(pad));
-    offset += pad;
+    offset += (4 - (offset % 4)) % 4;
     renumber.set(i, renumber.size);
     view.byteOffset = offset;
-    parts.push(bytes);
+    viewBytes.push(bytes);
     offset += bytes.length;
     return true;
   });
@@ -701,34 +753,21 @@ function rigged(name, path, out) {
   delete json.textures;
   delete json.samplers;
   for (const material of json.materials ?? []) delete material.pbrMetallicRoughness?.baseColorTexture;
-  const body = Buffer.concat(parts);
-  json.buffers = [{ byteLength: body.length }];
-  const text = Buffer.from(JSON.stringify(json));
-  const jsonChunk = Buffer.concat([text, Buffer.alloc((4 - (text.length % 4)) % 4, 0x20)]);
-  const binChunk = Buffer.concat([body, Buffer.alloc((4 - (body.length % 4)) % 4)]);
-  const header = Buffer.alloc(12);
-  header.write("glTF", 0);
-  header.writeUInt32LE(2, 4);
-  header.writeUInt32LE(12 + 8 + jsonChunk.length + 8 + binChunk.length, 8);
-  const chunk = (data, type) => {
-    const head = Buffer.alloc(8);
-    head.writeUInt32LE(data.length, 0);
-    head.write(type, 4);
-    return Buffer.concat([head, data]);
-  };
-  const glb = Buffer.concat([header, chunk(jsonChunk, "JSON"), chunk(binChunk, "BIN\0")]);
+  json.buffers = [{ byteLength: offset }];
+  // Each view's elements, for packing: the size and count of components of the accessor reading it.
+  const SIZES = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 };
+  const COMPONENTS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
+  const views = json.bufferViews.map((view, i) => {
+    const accessor = json.accessors.find((entry) => entry.bufferView === i);
+    const size = accessor ? SIZES[accessor.componentType] : 1;
+    const comps = accessor ? (view.byteStride ? view.byteStride / size : COMPONENTS[accessor.type]) : 1;
+    return { size, comps, data: viewBytes[i].toString("base64") };
+  });
   // How tall it stands: the highest point of its meshes at rest.
   let top = 0;
   for (const mesh of json.meshes)
     for (const primitive of mesh.primitives) top = Math.max(top, json.accessors[primitive.attributes.POSITION].max[1]);
-  writeFileSync(
-    join(out, `rigged-${name}.json`),
-    JSON.stringify({
-      source: "Made in Blender by ThatOneCan (packages/wanderworld/assets/scripts)",
-      height: Math.round(top * 100) / 100,
-      glb: glb.toString("base64"),
-    }),
-  );
+  return { model: { height: Math.round(top * 100) / 100, gltf: json, views }, picture };
 }
 
 // ── The base avatar (src/avatar.js) ──
@@ -834,13 +873,13 @@ const sexOfName = (name) =>
 
 /**
  * The base avatar (assets/scripts/make_avatar.py) into the kit, with its shape keys, for src/avatar.js:
- * - kit/generic/avatar/avatar-<sex>.json, a body each (the skeleton, every part with its material's name and
+ * - kit/generic/avatar/avatar-<sex>.pack.png (scripts/wanderworld-packed.mjs), a body each (the skeleton, every part with its material's name and
  *   colour, the underwear's, brows' and lashes' styles, shape keys), and its textures avatar-<sex>.webp,
  *   avatar-<sex>-1.webp; MakeHuman's skins (avatar-<sex>-skin-<age>-<ethnicity>.webp) and eye pictures
  *   (avatar-eyes.webp) from assets/textures/avatar;
- * - kit/generic/avatar/avatar-hair.json, every hair style (avatar-hair-<style>.glb, a `male` and a `female`
+ * - kit/generic/avatar/avatar-hair.pack.png, every hair style (avatar-hair-<style>.glb, a `male` and a `female`
  *   mesh, skinned or hung on the head bone), and their textures;
- * - kit/fantasy/avatar/avatar-outfits.json, every outfit piece (outfit-<piece>.glb, a `male` and a `female`
+ * - kit/fantasy/avatar/avatar-outfits.pack.png, every outfit piece (outfit-<piece>.glb, a `male` and a `female`
  *   mesh with the body's shape keys, and `hides`, the body's regions it covers, in its extras), and theirs.
  * One file a body and one for each kind of the rest, as a package may list at most 256 asset files.
  */
@@ -923,9 +962,10 @@ function avatar() {
     for (const primitive of primitives)
       for (let i = 1; i < primitive.position.values.length; i += 3) top = Math.max(top, primitive.position.values[i]);
     const keys = [...new Set(primitives.flatMap((primitive) => primitive.keyNames))];
-    writeFileSync(
-      join(out, `avatar-${sex}.json`),
-      JSON.stringify({ source, height: Math.round(top * 100) / 100, keys, ...body }),
+    writePacked(
+      join(out, `avatar-${sex}.pack.png`),
+      { source, height: Math.round(top * 100) / 100, keys, ...body },
+      MESH_KINDS,
     );
   }
   // ── MakeHuman skins and eye pictures (assets/textures/avatar, written by make_avatar.py) ──
@@ -967,7 +1007,7 @@ function avatar() {
     const style = file.slice("avatar-hair-".length, -4);
     styles[style] = bySex(readGltf(join(dir, file)), `avatar-hair-${style}`, out).sexes;
   }
-  if (Object.keys(styles).length) writeFileSync(join(out, "avatar-hair.json"), JSON.stringify({ source, styles }));
+  if (Object.keys(styles).length) writePacked(join(out, "avatar-hair.pack.png"), { source, styles }, MESH_KINDS);
   const pieces = {};
   for (const file of glbs.filter((name) => /^outfit-[a-z0-9_]+\.glb$/u.test(name)).sort()) {
     const piece = file.slice("outfit-".length, -4);
@@ -986,7 +1026,7 @@ function avatar() {
     pieces[piece] = { hides, ...sexes };
   }
   if (Object.keys(pieces).length)
-    writeFileSync(join(outfitsOut, "avatar-outfits.json"), JSON.stringify({ source, pieces }));
+    writePacked(join(outfitsOut, "avatar-outfits.pack.png"), { source, pieces }, MESH_KINDS);
   for (const folder of [out, outfitsOut]) if (!readdirSync(folder).length) rmSync(folder, { recursive: true });
   console.log(
     `wrote the avatar: ${readdirSync(out).join(", ")}${Object.keys(pieces).length ? `; outfits: ${Object.keys(pieces).join(", ")}` : ""}`,
@@ -1169,7 +1209,7 @@ function main() {
         bundle[piece] = part;
         (index.sexes[sex].pieces[piece] ??= []).push(kind);
       }
-      writeFileSync(join(OUTFITS, `${sex}-${kind}.json`), JSON.stringify({ pieces: bundle }));
+      writePacked(join(OUTFITS, `${sex}-${kind}.pack.png`), { pieces: bundle }, MESH_KINDS);
       index.sexes[sex].outfits.push({
         name: `${sex}-${kind}`,
         colourways: outfit === "Ranger" ? rangerColourways : colourways,
@@ -1188,7 +1228,7 @@ function main() {
     packed.parts[name] = part;
     index.hair[style.toLowerCase()] = name;
   }
-  writeFileSync(join(OUT, "bodies.json"), JSON.stringify(packed));
+  writePacked(join(OUT, "bodies.pack.png"), packed, MESH_KINDS);
   writeFileSync(join(OUT, "index.json"), JSON.stringify(index, null, 2));
   console.log(`wrote ${OUT} and ${OUTFITS}`);
 }

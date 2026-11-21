@@ -9,6 +9,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Box3 } from "three";
+import { unpack } from "../packages/wanderworld/src/packed.js";
 
 const kit = join(dirname(fileURLToPath(import.meta.url)), "../packages/wanderworld/kit/creatures");
 globalThis.fetch = async (url) => {
@@ -44,7 +45,8 @@ for (const kind of Object.keys(ANIMALS).filter((name) => !ANIMALS[name].folk && 
 // The ones built in code (`built`) have no kit files: the bestiary suite covers them.
 {
   const folkDir = join(kit, "../fantasy/folk");
-  const folk = JSON.parse(await readFile(join(folkDir, "folk.json"), "utf8")).folk;
+  const file = await unpack(await readFile(join(folkDir, "folk.pack.png")));
+  const folk = file.folk;
   for (const [kind, facts] of Object.entries(ANIMALS).filter(
     ([, facts]) => facts.folk && !facts.person && !facts.built,
   )) {
@@ -54,7 +56,8 @@ for (const kind of Object.keys(ANIMALS).filter((name) => !ANIMALS[name].folk && 
     assert.ok(body?.meshes.length && body.height > 0.5 && body.height < 2.5, `the folk kit has the ${kind}`);
     for (const bone of ["pelvis", "spine_01", "Head", "upperarm_l", "hand_r", "thigh_l", "calf_r", "foot_l"])
       assert.ok(body.skeleton.names.includes(bone), `the ${kind} has the people's ${bone}`);
-    assert.ok((await readFile(join(folkDir, `folk-${kind}.webp`))).length > 1000, `and its texture`);
+    const picture = file.pictures.find((entry) => entry.name === `folk-${kind}`)?.webp;
+    assert.ok(picture?.length > 1000 && String.fromCharCode(...picture.subarray(8, 12)) === "WEBP", `and its texture`);
   }
 }
 
@@ -145,8 +148,8 @@ assert.equal((await createAnimal("unicorn")).kind, "deer", "an unknown kind is a
 for (const [kind, facts] of Object.entries(ANIMALS)) {
   if (facts.folk || facts.rigged) continue;
   assert.equal(index.animals[kind].group, facts.group, `the ${kind} is in the file the game looks in`);
-  const file = JSON.parse(await readFile(join(kit, `${facts.group}.json`), "utf8"));
-  assert.ok(file.animals[kind], `${facts.group}.json has the ${kind}`);
+  const file = await unpack(await readFile(join(kit, `${facts.group}.pack.png`)));
+  assert.ok(file.animals[kind], `${facts.group}.pack.png has the ${kind}`);
   // Every part a coat recolours is a part the model has.
   const parts = new Set(file.animals[kind].mesh.parts.map(([name]) => name));
   for (const [coat, colours] of Object.entries(COATS[kind] ?? {})) {
@@ -806,8 +809,14 @@ for (const [text, dog, horse] of [
 // from the kit at their height, walk, strike, and the ones that lie in wait hide when left standing.
 {
   for (const kind of Object.keys(ANIMALS).filter((name) => ANIMALS[name].rigged)) {
-    const data = JSON.parse(await readFile(join(kit, `rigged-${kind}.json`), "utf8"));
-    assert.ok(data.source.includes("ThatOneCan"), `${kind}: credited`);
+    const bundle = JSON.parse(await readFile(join(kit, "rigged-index.json"), "utf8"))[kind];
+    const file = await unpack(await readFile(join(kit, `${bundle}.pack.png`)));
+    const data = file.rigged[kind];
+    assert.ok(file.source.includes("ThatOneCan"), `${kind}: credited`);
+    assert.ok(
+      file.pictures.some((entry) => entry.name === `rigged-${kind}`),
+      `${kind}: its texture is in its file`,
+    );
     const body = await createAnimal(kind);
     body.object.updateMatrixWorld(true);
     const box = new Box3().setFromObject(body.object, true);

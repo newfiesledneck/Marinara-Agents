@@ -693,7 +693,7 @@ every roll, and no AI call is made in a real-time fight.
 - **Monsters with shapes of their own**: a mimic passing for a chest, an awakened shrub, a shambling
   mound, a grick, an otyugh and a roper passing for a stalagmite, modelled in Blender by ThatOneCan with
   skeletons and movements of their own (`src/rigged.js`, played by three's AnimationMixer from
-  `kit/creatures/rigged-<name>.json`). The mimic, the shrub and the roper lie in wait as what they
+  `kit/creatures/rigged-<family>.pack.png`). The mimic, the shrub and the roper lie in wait as what they
   pretend to be until they move or strike. The shambling mound, the otyugh and the roper are rare. Each
   fights by its SRD stat block.
 - **Caves that go down**: "Go in" at a cave's mouth takes you and your party down into the rock, a level
@@ -1159,7 +1159,7 @@ still count, and come first.
   built by `people.js` and moved by the people's clips, with an animal's handles on them. Eleven
   (`built`: the goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and
   minotaur) are Wanderworld's own, modelled in Blender (`assets/scripts/make_*.py`, packed into
-  `kit/fantasy/folk/folk-built-<name>.json` by `scripts/build-wanderworld-people.mjs --bestiary`; how, in
+  `kit/fantasy/folk/folk-built-<family>.pack.png` by `scripts/build-wanderworld-people.mjs --bestiary`; how, in
   `AGENTS.md`), and load like the imp and the puglin. `src/bestiary.js` still builds each in code from
   shapes bound to the built-in person's skeleton (`figure.js figureFrom`), as the fallback when the kit
   has no model for it.
@@ -1254,8 +1254,8 @@ The same seed, depth and kind always give the same level.
 - `buildDungeon(plan)` lays a plan out in a three.js Group: one InstancedMesh per model part, a few dozen
   draw calls a level, with doors and bars as meshes of their own so they can be opened. It returns the
   colliders as boxes for `world.js createCollider`. Lights are left to the caller.
-- The pieces are Quaternius's Updated Modular Dungeon, in `kit/fantasy/dungeon/` (one `models.json`,
-  about 1 MB, flat colours and no textures). Its 2 m floor, wall and stairs are drawn at twice their
+- The pieces are Quaternius's Updated Modular Dungeon, in `kit/fantasy/dungeon/` (one `models.pack.png`,
+  about 0.1 MB, flat colours and no textures). Its 2 m floor, wall and stairs are drawn at twice their
   size. Barrels, crates, beds and tables come from the props kit, and the rock where a wall has given way
   from the nature kit.
 - A level stays under 650 pieces and 600,000 triangles (about 400 pieces and 500,000 triangles at most

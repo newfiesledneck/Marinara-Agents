@@ -21,8 +21,8 @@ older code-made monsters; it stays as the fallback for any kind without a Blende
 | `assets/scripts/wwblend.py`               | What the scripts share: the rig, the body, the palette, export    | yes    |
 | `assets/models/<name>.glb`                | The model: mesh, materials, normals, rig, weights and its actions | yes    |
 | `assets/build/<name>.blend`               | A debug copy to open in Blender                                   | no     |
-| `kit/fantasy/folk/folk-built-<name>.json` | The models as the game loads them, a file each (generated)        | yes    |
-| `kit/fantasy/folk/folk-<name>.webp`       | Each model's texture (generated)                                  | yes    |
+| `kit/fantasy/folk/folk-built-<family>.pack.png` | The models as the game loads them, with their textures, a file a family (generated) | yes |
+| `kit/fantasy/folk/folk-built-index.json`  | Which file has which model (generated)                            | yes    |
 
 ### Rules for a script
 
@@ -33,7 +33,7 @@ older code-made monsters; it stays as the fallback for any kind without a Blende
    it with the people's recorded animations; its own `Idle`, `Walk` and `Attack` actions, each on an NLA
    track of its own, are for the model on its own. A creature with another shape (a mimic, a roper) has
    its own skeleton and its own `Idle`, `Walk`, `Run` and `Attack` actions (and `Hidden` for one that lies in
-   wait); `--bestiary` packs it into `kit/creatures/rigged-<name>.json` and `src/rigged.js` plays them.
+   wait); `--bestiary` packs it into `kit/creatures/rigged-<family>.pack.png` and `src/rigged.js` plays them.
 3. A model has one texture, so the game draws it in one go. Colours start in a palette
    (`wwblend.Palette`: a flat colour per cell); `Model.finish(bake={...})` then bakes them with Cycles
    into a texture of the model's own, with a little mottling, darker towards the ground, and shading
@@ -54,6 +54,9 @@ older code-made monsters; it stays as the fallback for any kind without a Blende
 7. Credit every model made this way to ThatOneCan, in Help's credits (`src/help.js`), the README's
    credits and `kit/CREDITS.md`, naming what it is. A script that reads another pack's files also
    follows that pack's licence and the credit rules in `docs/CONCEPT.md`.
+
+The families are `FAMILIES` in `scripts/build-wanderworld-people.mjs`; a new model goes in `others` until
+it's named there. A `.pack.png` is a packed kit file, not a picture: `src/packed.js` says what's in one.
 
 ### Running one
 

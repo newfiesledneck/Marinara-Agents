@@ -1,7 +1,8 @@
 // Creatures with a skeleton of their own, made in Blender (a mimic, a roper, a grick): not on the people's
 // skeleton, so they move with their own actions, played by three's AnimationMixer. From the kit:
-// kit/creatures/rigged-<kind>.json (the model, its actions in it) and rigged-<kind>.webp (its texture), made
-// by scripts/build-wanderworld-people.mjs --bestiary from packages/wanderworld/assets/models/<kind>.glb.
+// kit/creatures/rigged-<family>.pack.png (packed.js: each model, its actions in it, and its texture; a file
+// a family, rigged-index.json saying which), made by scripts/build-wanderworld-people.mjs --bestiary from
+// packages/wanderworld/assets/models/<kind>.glb.
 //
 // Each has "Idle", "Walk", "Run" and "Attack", and a creature that lies in wait ("Hidden": the mimic as a
 // plain chest, the roper as a stalagmite) goes still into it after standing a while, until it moves or strikes.
@@ -18,12 +19,43 @@ import {
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { addDistant, drawDistant, forget } from "./kit.js";
 import { parseGlb } from "./models.js";
+import { bytesOf, fetchKit, pictureTexture } from "./packed.js";
 
 const BASE = "/api/capability-packages/wanderworld/assets/kit/creatures/";
 const HIDE_AFTER = 4; // seconds standing still before one that lies in wait hides again
 
 const ease = (current, target, dt, seconds) => current + (target - current) * (1 - Math.exp(-dt / seconds));
-const bytes = (base64) => Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+
+/** A packed model ({ gltf, views }: the glTF's JSON and its buffer views' bytes) put back into a .glb. */
+function glbOf({ gltf, views }) {
+  const json = new TextEncoder().encode(JSON.stringify(gltf));
+  const jsonLength = Math.ceil(json.length / 4) * 4;
+  const binLength = Math.ceil(gltf.buffers[0].byteLength / 4) * 4;
+  const glb = new Uint8Array(28 + jsonLength + binLength);
+  const data = new DataView(glb.buffer);
+  data.setUint32(0, 0x46546c67, true); // "glTF"
+  data.setUint32(4, 2, true);
+  data.setUint32(8, glb.length, true);
+  data.setUint32(12, jsonLength, true);
+  data.setUint32(16, 0x4e4f534a, true); // "JSON"
+  glb.set(json, 20);
+  glb.fill(0x20, 20 + json.length, 20 + jsonLength);
+  data.setUint32(20 + jsonLength, binLength, true);
+  data.setUint32(24 + jsonLength, 0x004e4942, true); // "BIN"
+  views.forEach((view, i) => glb.set(bytesOf(view.data), 28 + jsonLength + (gltf.bufferViews[i].byteOffset ?? 0)));
+  return glb.buffer;
+}
+
+// The kit's files, each fetched once (a family's file has several kinds).
+const files = new Map();
+const fileOf = (name) => {
+  if (!files.has(name))
+    files.set(
+      name,
+      fetchKit(`${BASE}${name}`, `kit/creatures/${name}`).catch((error) => forget(files, name, error)),
+    );
+  return files.get(name);
+};
 
 // Each kind is read once and shared: its model (cloned for each one in the world), clips and material.
 const kinds = new Map();
@@ -87,11 +119,13 @@ function source(kind, draw = {}) {
     kinds.set(
       kind,
       (async () => {
-        const response = await fetch(`${BASE}rigged-${kind}.json`);
-        if (!response.ok) throw new Error(`GET kit/creatures/rigged-${kind}.json → ${response.status}`);
-        const data = await response.json();
-        const gltf = await parseGlb(bytes(data.glb).buffer);
-        const map = textures.load(`${BASE}rigged-${kind}.webp`);
+        const bundle = (await fileOf("rigged-index.json"))[kind];
+        if (!bundle) throw new Error(`The kit has no ${kind}`);
+        const file = await fileOf(`${bundle}.pack.png`);
+        const data = file.rigged[kind];
+        const gltf = await parseGlb(data.glb ? bytesOf(data.glb).buffer : glbOf(data));
+        const picture = file.pictures?.find((entry) => entry.name === `rigged-${kind}`)?.webp;
+        const map = picture ? pictureTexture(picture) : textures.load(`${BASE}rigged-${kind}.webp`);
         map.flipY = false; // glTF texture coordinates
         map.colorSpace = SRGBColorSpace;
         map.userData.shared = true;

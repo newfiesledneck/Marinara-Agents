@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Converts animals from Quaternius's Ultimate Animated Animals pack (CC0) into Wanderworld's kit:
-// packages/wanderworld/kit/creatures/<group>.json (farm.json: the farm's and the town's; wild.json: the
-// country's), served as package assets and loaded by src/animals.js when a world has one of that group.
+// packages/wanderworld/kit/creatures/<group>.pack.png (scripts/wanderworld-packed.mjs; farm: the farm's and
+// the town's; wild: the country's), served as package assets and loaded by src/animals.js when a world has one of that group.
 //
 // Usage: node scripts/build-wanderworld-animals.mjs "<…>/Ultimate Animated Animals - July 2021/glTF" "<a folder
 //   holding the unzipped FBX packs>"
@@ -22,6 +22,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AnimationMixer, Quaternion, Vector3 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { ANIMAL_KINDS, pack } from "./wanderworld-packed.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "packages/wanderworld/kit/creatures");
@@ -383,8 +384,9 @@ async function main() {
   const [dir, fbxDir] = process.argv.slice(2);
   if (!dir || !fbxDir)
     throw new Error('Usage: build-wanderworld-animals.mjs "<Ultimate Animated Animals>/glTF" "<folder of FBX packs>"');
-  rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
+  // (Only its own files: the folder also holds the Blender-made creatures, rigged-*.)
+  for (const old of readdirSync(OUT).filter((name) => !name.startsWith("rigged-"))) rmSync(join(OUT, old));
   const index = {
     source: "Ultimate Animated Animals, Monster Pack Animated and Easy Animated Enemy Pack by Quaternius, CC0 1.0",
     animals: {},
@@ -400,9 +402,9 @@ async function main() {
   }
   // One file a group: a package may list only so many, and a world has most of a group anyway.
   for (const [group, animals] of Object.entries(groups)) {
-    const text = JSON.stringify({ animals });
-    writeFileSync(join(OUT, `${group}.json`), text);
-    console.log(`${group}.json: ${Object.keys(animals).join(", ")} (${(text.length / 1024).toFixed(0)} KB)`);
+    const packed = pack({ animals }, ANIMAL_KINDS);
+    writeFileSync(join(OUT, `${group}.pack.png`), packed);
+    console.log(`${group}.pack.png: ${Object.keys(animals).join(", ")} (${(packed.length / 1024).toFixed(0)} KB)`);
   }
   writeFileSync(join(OUT, "index.json"), JSON.stringify(index, null, 2));
   console.log(`wrote ${OUT}`);

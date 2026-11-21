@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Vector3 } from "three";
+import { unpack } from "../packages/wanderworld/src/packed.js";
 
 const context = new Proxy(
   { measureText: (text) => ({ width: String(text).length * 14 }) },
@@ -426,8 +427,8 @@ assert.ok(tentCounts.size >= 2, `campsites have a mix of tents (${[...tentCounts
 // Every kit prop a world has somewhere is one the kit has, and is listed to be loaded (one missing keeps
 // every prop a plain shape): a town with a smithy, a plain one, a big one.
 {
-  const kitProps = JSON.parse(
-    readFileSync(new URL("../packages/wanderworld/kit/fantasy/props/models.json", import.meta.url), "utf8"),
+  const kitProps = (
+    await unpack(readFileSync(new URL("../packages/wanderworld/kit/fantasy/props/models.pack.png", import.meta.url)))
   ).models;
   for (const town of [createWorld(51, null, { smithy: 2 }), createWorld(4242), createWorld(7)]) {
     assert.ok(town.propModels.length > 3, "a world has props");
