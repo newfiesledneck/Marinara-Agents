@@ -356,6 +356,10 @@ export function checkWorld(raw) {
     seasonSince: Number.isFinite(raw.seasonSince) ? raw.seasonSince : null,
     // Each persona's character sheet in this world: { [persona id]: a sheet } (sheet.js checks one when it's read).
     sheets: isRecord(raw.sheets) ? raw.sheets : {},
+    // Each companion's own sheet, for the abilities given them: { [their id]: a sheet }; and the world's day
+    // when "per day" abilities last came back (main.js abilitiesDayTick).
+    allySheets: isRecord(raw.allySheets) ? raw.allySheets : {},
+    abilityDay: Number.isFinite(raw.abilityDay) ? raw.abilityDay : null,
     // Where things were gathered, and on which day: { "kind:x:z": day } (gather.js spotUsed).
     gathered: isRecord(raw.gathered) ? raw.gathered : {},
     // Trees chopped at or felled: { "region|number": { cut, day } } (gather.js chopTree).

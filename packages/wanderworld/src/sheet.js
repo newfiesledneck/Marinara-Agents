@@ -1,5 +1,5 @@
 // The character sheet: level, experience, HP, mana, AC, the six attributes, and whatever the player adds
-// (stats, attributes, skills, feats, spells), each with a name, a short description for the model and,
+// (stats, attributes, skills, feats, spells, abilities), each with a name, a short description for the model and,
 // where it has one, a number. Plus the dice everything rolls with, and the bonuses read out of an item's
 // description ("+2 AC", "+10 HP").
 //
@@ -14,7 +14,7 @@
  * numbered kind may have one too ("Collected cars 2/40") or be a plain number ("Fame 15"); a feat or a
  * spell has no number. Whether an entry has a most is `"max" in entry`.
  */
-export const SHEET_KINDS = ["resource", "stat", "attribute", "skill", "feat", "spell"];
+export const SHEET_KINDS = ["resource", "stat", "attribute", "skill", "feat", "spell", "ability"];
 const NUMBERLESS = new Set(["feat", "spell"]);
 const KIND_WORDS = {
   resource: "Resources",
@@ -23,6 +23,7 @@ const KIND_WORDS = {
   skill: "Skills",
   feat: "Feats",
   spell: "Spells",
+  ability: "Abilities",
 };
 export const kindWords = (kind) => KIND_WORDS[kind] ?? "Stats";
 
@@ -59,6 +60,7 @@ function checkEntry(raw, base) {
     on: raw?.on !== false,
   };
   if (!base) entry.own = true;
+  if (kind === "ability") return checkAbility(raw, entry);
   if (!NUMBERLESS.has(kind)) entry.value = whole(raw?.value, base?.value ?? 0);
   const given = raw?.max !== null && raw?.max !== undefined && raw?.max !== "" && Number(raw.max) > 0;
   if (kind === "resource" || (!base && !NUMBERLESS.has(kind) && given)) {
@@ -66,6 +68,78 @@ function checkEntry(raw, base) {
     entry.value = Math.max(0, Math.min(entry.max, entry.value));
   }
   return entry;
+}
+
+// ── Abilities of the player's own ────────────────────────────────────────────
+
+/** When an ability's uses come back: after a short rest, a long rest (a sleep), a new day, or never spent (at will). */
+export const RECHARGES = { will: "at will", short: "per short rest", long: "per long rest", day: "per day" };
+/** Which uses each rest brings back (a long rest is a night's sleep, so a day's come back with it too). */
+const RECHARGED = { short: ["short"], long: ["short", "long", "day"], day: ["day"] };
+export const ABILITY_SAVES = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"];
+const DICE = /^(?:\d{0,2}d\d{1,3}(?:[+-]\d{1,3})?|\d{1,3})$/u;
+
+/**
+ * An ability of the player's own: a name and what it does, and as they choose, a number of uses (`max`, with
+ * `value` left) that come back by `recharge`, dice for what it does (`dice`, `effect` "damage" or "heal"), and
+ * a saving throw against it (`dc`, and `save`, the ability it's made with). Without uses it's at will.
+ */
+function checkAbility(raw, entry) {
+  const uses = Math.max(0, Math.min(99, whole(raw?.max, 0)));
+  if (uses && raw?.recharge !== "will") {
+    entry.max = uses;
+    entry.value = Math.max(0, Math.min(uses, whole(raw?.value, uses)));
+  }
+  entry.recharge = !entry.max ? "will" : Object.hasOwn(RECHARGED, raw?.recharge) ? raw.recharge : "long";
+  const dice = String(raw?.dice ?? "")
+    .replace(/\s+/gu, "")
+    .toLowerCase();
+  if (DICE.test(dice)) {
+    entry.dice = dice;
+    entry.effect = raw?.effect === "heal" ? "heal" : "damage";
+  }
+  const dc = whole(raw?.dc, 0);
+  if (dc > 0 && ABILITY_SAVES.includes(raw?.save)) {
+    entry.dc = Math.min(30, dc);
+    entry.save = raw.save;
+  }
+  return entry;
+}
+
+/**
+ * An ability used (by its name or id): one use spent where it has uses. { sheet, entry, spent }, `spent`
+ * false when none are left (the sheet as it was); null when there's no such ability, or it's switched off.
+ */
+export function spendAbility(sheet, name) {
+  const entry = find(sheet, name);
+  if (!entry || entry.kind !== "ability" || !entry.on) return null;
+  if (!("max" in entry)) return { sheet, entry, spent: true };
+  if (entry.value < 1) return { sheet, entry, spent: false };
+  return { sheet: changeSheet(sheet, { set: entry.id, field: "value", value: entry.value - 1 }), entry, spent: true };
+}
+
+/** A rest ("short", "long") or a new day ("day") brings back the uses it should: { sheet, back: [names] }. */
+export function rechargeAbilities(sheet, rest) {
+  const kinds = RECHARGED[rest] ?? [];
+  const back = [];
+  const entries = sheet.entries.map((entry) => {
+    if (entry.kind !== "ability" || !("max" in entry) || entry.value >= entry.max || !kinds.includes(entry.recharge))
+      return entry;
+    back.push(entry.name);
+    return { ...entry, value: entry.max };
+  });
+  return { sheet: { ...sheet, entries }, back };
+}
+
+/** An ability in a few words: "Fire Breath (2d6 damage, DC 13 Dexterity save; 1 of 2 left, per long rest): …". */
+export function abilityWords(entry) {
+  const capital = (word) => word.charAt(0).toUpperCase() + word.slice(1);
+  const does = [
+    entry.dice ? `${entry.dice} ${entry.effect === "heal" ? "healing" : "damage"}` : "",
+    entry.dc ? `DC ${entry.dc} ${capital(entry.save)} save` : "",
+  ].filter(Boolean);
+  const uses = "max" in entry ? `${entry.value} of ${entry.max} left, ${RECHARGES[entry.recharge]}` : "at will";
+  return `${entry.name} (${[does.join(", "), uses].filter(Boolean).join("; ")})${entry.about ? `: ${entry.about}` : ""}`;
 }
 
 /** A sheet from whatever was saved: the built-in entries (as saved, or as they start), then the player's own. */
@@ -119,6 +193,7 @@ function find(sheet, name) {
  *   { set: id, field: "value" | "max" | "on" | "about", value }
  *   { add: { kind, name, about, value } }       one of the player's own
  *   { remove: id }                               only one of the player's own
+ *   { edit: id, to: { name, about, … } }         one of the player's own written afresh (its id and kind kept)
  */
 export function changeSheet(sheet, change) {
   if (change?.add) {
@@ -132,6 +207,30 @@ export function changeSheet(sheet, change) {
     let id = `own:${slug}`;
     for (let n = 2; entryOf(sheet, id); n++) id = `own:${slug}-${n}`;
     return { entries: [...sheet.entries, checkEntry({ ...change.add, id, name }, null)] };
+  }
+  if (change?.edit) {
+    const name = words(change.to?.name, 40);
+    const clash = find(sheet, name);
+    if (!name || (clash && clash.id !== change.edit)) return sheet;
+    return {
+      entries: sheet.entries.map((entry) =>
+        entry.own && entry.id === change.edit
+          ? checkEntry(
+              {
+                ...entry,
+                // (A new number of uses, and none said to be left: all of them.)
+                ...(change.to.max !== entry.max ? { value: undefined } : {}),
+                ...change.to,
+                id: entry.id,
+                kind: entry.kind,
+                name,
+                on: entry.on,
+              },
+              null,
+            )
+          : entry,
+      ),
+    };
   }
   if (change?.remove) return { entries: sheet.entries.filter((entry) => !(entry.own && entry.id === change.remove)) };
   if (change?.set && ["value", "max", "on", "about"].includes(change.field)) {
@@ -154,7 +253,7 @@ export function applyChanges(sheet, changes) {
   const applied = [];
   for (const change of Array.isArray(changes) ? changes.slice(0, 20) : []) {
     const entry = find(next, change?.stat);
-    if (!entry || !entry.on || NUMBERLESS.has(entry.kind)) continue;
+    if (!entry || !entry.on || !("value" in entry)) continue;
     const to = Number.isFinite(change.to) ? change.to : Number.isFinite(change.by) ? entry.value + change.by : null;
     if (to === null) continue;
     next = changeSheet(next, { set: entry.id, field: "value", value: to });
@@ -335,6 +434,7 @@ export function sheetWords(sheet, worn = {}) {
     }
     const bonus = typeof worn[entry.id] === "number" ? worn[entry.id] : 0;
     const about = entry.own && entry.about ? ` (${entry.about})` : "";
+    if (entry.kind === "ability") return abilityWords(entry);
     if (NUMBERLESS.has(entry.kind)) return `${entry.name}${about}`;
     if ("max" in entry) return `${entry.name} ${entry.value}/${entry.max}${about}`;
     if (entry.id === "xp") return `XP ${entry.value}/${xpNeeded(valueOf(sheet, "level"))}`;
@@ -358,6 +458,7 @@ export function sheetWords(sheet, worn = {}) {
     group("skill", "Skills"),
     group("feat", "Feats"),
     group("spell", "Spells"),
+    group("ability", "Abilities"),
   ]
     .filter(Boolean)
     .join(" ");
@@ -369,7 +470,7 @@ export function sheetWords(sheet, worn = {}) {
  */
 export function sheetList(sheet) {
   return sheet.entries
-    .filter((entry) => entry.on && !NUMBERLESS.has(entry.kind))
+    .filter((entry) => entry.on && "value" in entry)
     .map((entry) => {
       const amount = "max" in entry ? `${entry.value} of ${entry.max}` : String(entry.value);
       return `- ${entry.name}: ${amount}.${entry.about ? ` ${entry.about}` : ""}`;

@@ -1441,6 +1441,9 @@ assert.equal(
       server.combatLineMessages({ speaker: "a wolf", talks: false, moment: "x" })[1].content,
       /doesn't talk/u,
     );
+    // (Out of a fight: a companion asking to share the player's seat, Settings → People → Your party.)
+    const calm = server.combatLineMessages({ speaker: "Mira", talks: true, moment: "asks to squeeze in", calm: true });
+    assert.ok(!/fight/u.test(calm[0].content) && /companion/u.test(calm[0].content), "a line out of a fight");
     assert.equal(server.checkCombatLine({ line: '"You\'ll pay for that!"\nmore' }), "You'll pay for that!");
     assert.equal(server.checkCombatLine(null), "");
     const options = [

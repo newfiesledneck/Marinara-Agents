@@ -12,7 +12,7 @@ const context = new Proxy(
 globalThis.document = { createElement: () => ({ getContext: () => context, width: 0, height: 0 }) };
 globalThis.fetch = async () => new Response("null", { status: 404 }); // nobody has a 3D model
 
-const { createCrowd, MAX_PEOPLE } = await import("../packages/wanderworld/src/npcs.js");
+const { createCrowd, MAX_PEOPLE, SHARE_MOST, squeezeSpots } = await import("../packages/wanderworld/src/npcs.js");
 const { createInterior } = await import("../packages/wanderworld/src/interiors.js");
 const { createWorld } = await import("../packages/wanderworld/src/world.js");
 
@@ -165,6 +165,119 @@ shown.room.dispose();
   crowd.setFollowing(members[0], false);
   crowd.setFollowing(members[1], false);
   assert.equal(crowd.party().length, 0, "parting ways empties the party");
+}
+
+// Your party (Settings → People → Your party): in a fight a companion leaves their place in the line for where
+// the fight sends them and comes back after; sitting or lying down with the player, with no seat free they sit
+// on the ground, and squeezing onto the player's own log or into their tent, four at most, closer the more.
+{
+  const members = crowd
+    .present(world)
+    .slice(0, 4)
+    .map((person) => person.id);
+  assert.equal(members.length, 4, "four people are out to ask along");
+  const player = { x: 12, y: 0, z: -20 };
+  crowd.restoreParty(members, player);
+  const tick = (seconds, view = {}) => {
+    for (let elapsed = 0; elapsed < seconds; elapsed += 0.1) {
+      time += 0.1;
+      crowd.update(0.1, {
+        player,
+        space: world,
+        playerSitting: false,
+        playerAngle: 0,
+        playerSpeed: 0,
+        hour: 12,
+        time,
+        isVisible: () => false,
+        onFootstep: () => {},
+        ...view,
+      });
+    }
+  };
+  const where = (id) => crowd.snapshot().find((entry) => entry.id === id);
+  const fromPlayer = (id) => Math.hypot(where(id).x - player.x, where(id).z - player.z);
+  tick(2);
+  // A fight by turns: sent 7 m up the street until the fight's over, they stay there; then they follow again.
+  crowd.fightTo(members[0], player.x, player.z + 7, 600);
+  tick(6);
+  assert.ok(
+    fromPlayer(members[0]) > 5.5,
+    `in the fight, off their place behind you (${fromPlayer(members[0]).toFixed(1)} m)`,
+  );
+  crowd.fightOver();
+  tick(6);
+  assert.ok(fromPlayer(members[0]) < 4, `the fight over, back with you (${fromPlayer(members[0]).toFixed(1)} m)`);
+  // Loose, standing still, they wander about their places a little; Close, they stand in line.
+  tick(4, { followSpread: "loose" });
+  const before = members.map(where);
+  tick(12, { followSpread: "loose" });
+  const wandered = members.filter((id, i) => Math.hypot(where(id).x - before[i].x, where(id).z - before[i].z) > 0.5);
+  assert.ok(wandered.length > 0, "standing still a while, loose, they wander about a little");
+  assert.ok(
+    members.every((id) => fromPlayer(id) < 9),
+    "loose, but never far",
+  );
+  tick(4, { followSpread: "close" });
+  assert.ok(
+    members.every((id) => fromPlayer(id) < 4.5),
+    "close, back in line",
+  );
+
+  // The player sits on a log by a campfire, every other seat near taken: the party sits on the ground beside them.
+  const camp = world.camps[0];
+  const logs = world.seats.filter((seat) => Math.hypot(seat.x - camp.x, seat.z - camp.z) < 12);
+  const log = logs.find((seat) => seat.what === "a log by the campfire");
+  for (const seat of logs) seat.taken = seat === log ? "player" : "someone";
+  Object.assign(player, { x: log.x, z: log.z });
+  crowd.restoreParty(members, log.approach);
+  const sitting = { playerSitting: true, playerAngle: log.angle };
+  tick(8, sitting);
+  for (const id of members) {
+    assert.ok(where(id).seated && where(id).seatWhat === "the ground", `no seat free: ${id} sits on the ground`);
+    assert.ok(fromPlayer(id) < 3, `beside the player (${fromPlayer(id).toFixed(1)} m)`);
+  }
+  assert.deepEqual(crowd.seatless(), members, "and all four could ask to share the log");
+  // Sharing: three fit beside the player (four in all), squeezed closer than two bodies' width.
+  const placed = crowd.shareSeat(crowd.seatless(), log);
+  assert.equal(placed.length, SHARE_MOST - 1, "four on a log at most, the player among them");
+  tick(8, sitting);
+  for (const id of placed) {
+    const one = where(id);
+    assert.ok(
+      one.seated && one.seatWhat === "a log by the campfire" && one.squeezed === 4,
+      `${id} squeezed onto the log`,
+    );
+    assert.ok(fromPlayer(id) < 1.4, `right beside the player (${fromPlayer(id).toFixed(2)} m)`);
+  }
+  const gaps = placed.map((id) => fromPlayer(id)).sort((a, b) => a - b);
+  assert.ok(gaps[0] < 0.7, `closer than two bodies' width: a squeeze (${gaps[0].toFixed(2)} m)`);
+  assert.ok(where(members[3]).seatWhat === "the ground", "the fifth of you stays on the ground");
+  const two = squeezeSpots(log, 2);
+  const four = squeezeSpots(log, 4);
+  assert.equal(two.length, 1);
+  assert.equal(four.length, 3);
+  const apart = (spots) => Math.hypot(spots[0].x - log.x, spots[0].z - log.z);
+  assert.ok(apart(four) < apart(two), "the more there are, the closer they sit");
+  assert.equal(squeezeSpots(log, 9).length, SHARE_MOST - 1, "never more than four");
+  // The player gets up: so does everyone.
+  tick(2);
+  assert.ok(
+    members.every((id) => !where(id).seated),
+    "up when the player gets up",
+  );
+
+  // Lying down in a tent (awake): with no other bed, they lie down beside the player on the bedroll.
+  const bedroll = { ...camp.bed, approach: camp.mouth, pose: "lie", lift: 0, tent: true, awake: true };
+  Object.assign(player, { x: bedroll.x, z: bedroll.z });
+  const lying = { playerSitting: true, playerLying: true, playerAngle: bedroll.angle };
+  tick(6, lying);
+  const inTent = crowd.shareSeat(crowd.seatless().slice(0, 1), bedroll);
+  tick(8, lying);
+  assert.ok(where(inTent[0]).lying && where(inTent[0]).squeezed === 2, "lying side by side in the tent");
+  tick(3);
+  for (const seat of logs) seat.taken = null;
+  for (const id of members) crowd.setFollowing(id, false);
 }
 
 // A walled city: a follower in the middle of town finds the way out through a gate to the player waiting

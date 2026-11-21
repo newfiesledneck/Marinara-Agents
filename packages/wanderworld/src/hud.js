@@ -44,7 +44,7 @@ import { LAND_CHOICES } from "./land.js";
 import { FACTION_EXPLAIN, FACTION_SETTINGS } from "./factions.js";
 import { QUEST_EXPLAIN } from "./quests.js";
 import { REGION_EXPLAIN, REGION_SETTINGS } from "./regions.js";
-import { kindWords, SHEET_KINDS, xpNeeded } from "./sheet.js";
+import { ABILITY_SAVES, abilityWords, kindWords, RECHARGES, SHEET_KINDS, xpNeeded } from "./sheet.js";
 import {
   INK_BUTTON,
   INK_INPUT,
@@ -1434,7 +1434,18 @@ export function createHud(root, handlers) {
     opportunity:
       "On: if you move out of a creature's reach on your turn, it gets one strike at you as you go, once a round each. The Disengage action lets you move away freely for that turn. Off: nothing strikes as you leave.",
     partyFights:
-      "On: in real-time combat the people travelling with you join in. Each has a class from the 5e SRD (Inventory → Sheet → Your companions), which gives them a weapon and spells: they strike what comes within reach, cast at what doesn't, and one who can heal mends you when you're below half your HP. Their rolls are told in the chat like yours. They move with the fight: one who strikes closes with a creature and works round it, one who casts keeps a few paces off. Creatures go for them as well as for you; each has HP from their class, and at 0 is out of the fight for a while, then up again. Off: they stand by, and nothing goes for them.",
+      "On: in real-time combat the people travelling with you join in. Each has a class from the 5e SRD (Inventory → Sheet → Your companions), which gives them a weapon and spells: they strike what comes within reach, cast at what doesn't, and one who can heal mends you when you're below half your HP. Their rolls are told in the chat like yours. How they move in a fight is Settings → People → Your party → \"They move about in a fight\". Creatures go for them as well as for you; each has HP from their class, and at 0 is out of the fight for a while, then up again. Off: they stand by, and nothing goes for them.",
+    // (ww:party-sits, ww:party-moves)
+    followSpread:
+      "How far behind you the people travelling with you walk, and how freely. Close: in a tight line just behind you, as before. Normal: a little further back and out to the sides, and when you stand still a few seconds they wander a step or two and look about. Loose: further still, wandering further. However loose, they hurry to catch up when you move off, and run when they fall behind.",
+    partySits:
+      "On: when you sit or lie down (a bench, a log, a bed, a tent, or the ground with C), each of them takes a free seat near you (a free bed too, when you lie down on one). With none free, they sit on the ground beside you, unless they can share yours (the next setting). They get up when you do. Off: they stand by in their place behind you.",
+    partyShare:
+      "When you sit or lie down on something (a log, a bench, a bed, a tent's bedroll) and there's no seat near for some of them. Ask: the first of them asks in the chat whether they can squeeze in, with Yes and No to answer (or type yes or no). Squeeze in: they just do. Sit on the ground: they never share. Up to four of you fit on one log, bench or bed, packed closer the more there are, and the AI is told you're squeezed together. Needs \"They sit and lie down when you do\".",
+    shareAiLine:
+      "On: when one of them asks to share your seat, the AI words the asking, from who they are, where you are and what just happened (one short AI call each time, by the conversation connection in Settings → AI → Connections). Off: a plain line of the game's own, no AI call.",
+    partyMoves:
+      "On: in a fight (real time or turn-based) each of them moves about by how they fight: one who strikes closes in on a creature and works round it, an archer keeps their distance where nothing's in the way of a shot, and a caster stays back behind you. They walk and run round trees, rocks and walls as anyone does. In turn-based combat they move on their own turn, as far as a turn allows, and stay there until their next one. When the fight is over they come back to follow you. Off: they keep their place behind you; in turn-based combat one who strikes still closes in. With \"Creatures fight by their sort\" on, an archer or a caster takes cover behind a tree or a rock where there's one near.",
     fightPeople:
       "Off: a swing passes people by, and only animals, monsters and outlaws can be struck. On: a blow can land on anyone in front of you, your companions too. It's rolled like any other. Whoever you strike remembers it for good and becomes your enemy, anyone who sees it remembers, and at 0 HP they are out cold for a couple of minutes, then get up. Nobody dies.",
     fightBack:
@@ -1838,7 +1849,7 @@ export function createHud(root, handlers) {
   heading(
     "People",
     "How people act around you, how they get on with each other, and what they remember. All of it runs on the game's own rules, with no AI calls. Nothing happens while Wanderworld is closed.",
-    ["Around you", "Relationships", "Memory", "Genders"],
+    ["Around you", "Your party", "Relationships", "Memory", "Genders"],
   );
   at("People", "Around you");
   add(peopleButton); // who lives in this world
@@ -1857,6 +1868,21 @@ export function createHud(root, handlers) {
     known: "Only people I know",
     none: "Hide all names",
   });
+  // (ww:party-sits, ww:party-moves) The people travelling with you.
+  at("People", "Your party");
+  intro(
+    "How the people travelling with you follow you about, sit and lie down with you, and move in a fight. Ask someone along in a conversation, or from Journal → Party. All rules, no AI calls, unless you turn on the AI's words for asking.",
+  );
+  choice("followSpread", "How closely they follow", { close: "Close", normal: "Normal", loose: "Loose" });
+  toggle("partySits", "They sit and lie down when you do");
+  choice(
+    "partyShare",
+    "With no seat for them",
+    { ask: "They ask to share yours", always: "They squeeze in", off: "They sit on the ground" },
+    "partySits",
+  );
+  toggle("shareAiLine", "The AI words their asking", "partySits");
+  toggle("partyMoves", "They move about in a fight");
   at("People", "Relationships");
   intro("How people feel about you and each other can change as they spend time together.");
   toggle("relationsMove", "Relationships change over time");
@@ -3660,9 +3686,80 @@ export function createHud(root, handlers) {
       );
       return input;
     };
+    /**
+     * An ability's form (ww:own-abilities): name, what it does, uses and when they come back, dice for its
+     * effect, and a saving throw. Filled from `entry` to edit one; `onSave(fields)` with what's written.
+     */
+    const abilityForm = (entry, label, onSave) => {
+      const form = piece("display:flex;flex-wrap:wrap;gap:4px;align-items:center;");
+      const input = (placeholder, width, value = "") => {
+        const node = document.createElement("input");
+        node.type = "text";
+        node.placeholder = placeholder;
+        node.value = value;
+        node.setAttribute("aria-label", placeholder);
+        node.style.cssText = `${INK_INPUT}width:${width};padding:2px 6px;`;
+        return node;
+      };
+      const select = (label, options, value) => {
+        const node = document.createElement("select");
+        node.style.cssText = `${INK_INPUT}padding:2px 4px;`;
+        node.setAttribute("aria-label", label);
+        for (const [id, words] of options) {
+          const option = document.createElement("option");
+          option.value = id;
+          option.textContent = words;
+          node.append(option);
+        }
+        node.value = value;
+        return node;
+      };
+      const name = input("Name", "130px", entry?.name);
+      const about = input("What it does, in a few words (for the AI)", "100%", entry?.about);
+      const uses = input("Uses (empty: at will)", "130px", entry && "max" in entry ? String(entry.max) : "");
+      uses.inputMode = "numeric";
+      const recharge = select(
+        "When its uses come back",
+        Object.entries(RECHARGES).filter(([id]) => id !== "will"),
+        entry?.recharge && entry.recharge !== "will" ? entry.recharge : "long",
+      );
+      const dice = input("Dice (2d6+1, optional)", "130px", entry?.dice ?? "");
+      const effect = select(
+        "What the dice do",
+        [
+          ["damage", "Damage"],
+          ["heal", "Healing"],
+        ],
+        entry?.effect ?? "damage",
+      );
+      const dc = input("Save DC (optional)", "120px", entry?.dc ? String(entry.dc) : "");
+      dc.inputMode = "numeric";
+      const save = select(
+        "The saving throw's ability",
+        ABILITY_SAVES.map((id) => [id, id.charAt(0).toUpperCase() + id.slice(1)]),
+        entry?.save ?? "dexterity",
+      );
+      const done = inkSmall(label, () => {
+        if (!name.value.trim()) return;
+        onSave({
+          kind: "ability",
+          name: name.value,
+          about: about.value,
+          max: Number(uses.value) > 0 ? Number(uses.value) : undefined,
+          value: entry && "max" in entry && Number(uses.value) === entry.max ? entry.value : undefined,
+          recharge: Number(uses.value) > 0 ? recharge.value : "will",
+          dice: dice.value,
+          effect: effect.value,
+          dc: Number(dc.value) || undefined,
+          save: save.value,
+        });
+      });
+      form.append(name, uses, recharge, dice, effect, dc, save, about, done);
+      return form;
+    };
     body.append(
       explainNote(
-        "Your character in this world. Untick what you don't use: only ticked lines are told to the AI. Add your own stats, skills, feats and spells at the bottom, each with a few words saying what it is.",
+        "Your character in this world. Untick what you don't use: only ticked lines are told to the AI. Add your own stats, skills, feats, spells and abilities at the bottom, each with a few words saying what it is.",
       ),
     );
     /** One line of the sheet: its tick, its name, and (in use) its boxes; switched off, a Delete for one of your own. */
@@ -3706,6 +3803,19 @@ export function createHud(root, handlers) {
           piece(`color:${INK_SOFT};`, `/ ${xpNeeded(sheet.entries.find((one) => one.id === "level")?.value ?? 1)}`),
         );
       if (!entry.own) return [row];
+      // An ability (ww:own-abilities): Use, and Edit to write it afresh; what it does under it, as the AI is told it.
+      if (entry.kind === "ability") {
+        const edit = abilityForm(entry, "Save", (to) => change({ edit: entry.id, to }));
+        edit.style.display = "none";
+        row.append(
+          inkSmall("Use", () => {
+            handlers.onAbility?.(entry.id);
+            void drawInventory();
+          }),
+          inkSmall("Edit", () => (edit.style.display = edit.style.display === "none" ? "flex" : "none")),
+        );
+        return [row, piece(`margin:-2px 0 0 24px;font-size:11px;color:${INK_SOFT};`, abilityWords(entry)), edit];
+      }
       // What it is, to edit: this is what the AI is told of it (a feat or a spell is nothing but its description).
       const about = document.createElement("input");
       about.type = "text";
@@ -3831,6 +3941,14 @@ export function createHud(root, handlers) {
       ),
     );
     body.append(form);
+    // An ability of your own (ww:own-abilities): uses, dice and a save, used from the fight bar, a number key or /use.
+    body.append(
+      piece("font-weight:700;margin-top:6px;", "Add your own ability"),
+      explainNote(
+        "Something you can do: a name and what it does, and if you like, how many uses it has and when they come back (after a short rest, a long rest or a sleep, or each new day; empty: at will), dice for what it does (damage at what's in front of you, or healing for you), and a saving throw against it (a DC and the ability it's made with: a save for half). Use it with its Use button here, from Abilities on the fight bar, a number key (Hotkeys), or by typing /use and its name in the chat. Its uses are counted down and come back with rests. An ability with no dice is told in the chat as done, and the AI is told of it with your sheet. Edit or delete it like your other lines (untick it, then Delete).",
+      ),
+      abilityForm(null, "Add ability", (add) => change({ add })),
+    );
     // A spell from the 5e SRD, by name: it becomes a line of the sheet with its rule written out.
     const spellPick = document.createElement("select");
     spellPick.style.cssText = `${INK_INPUT}padding:2px 4px;max-width:100%;`;
@@ -4096,7 +4214,44 @@ export function createHud(root, handlers) {
         choose.addEventListener("change", () => handlers.onSetClass?.(member.id, choose.value));
         row.append(piece("flex:1;min-width:0;", member.name), choose);
         body.append(row);
+        // (ww:own-abilities: abilities of their own, which they use in a fight now and then.)
+        const allyChange = (next) => {
+          handlers.onAllySheet?.(member.id, next);
+          void drawInventory();
+        };
+        for (const entry of member.abilities ?? []) {
+          const line = piece("display:flex;align-items:center;gap:6px;margin-left:12px;font-size:12px;");
+          const remove = inkSmall("Delete", () => {
+            if (remove.dataset.sure) return allyChange({ remove: entry.id });
+            remove.dataset.sure = "1";
+            remove.textContent = "Delete it? Tap again";
+          });
+          const edit = abilityForm(entry, "Save", (to) => allyChange({ edit: entry.id, to }));
+          edit.style.display = "none";
+          edit.style.marginLeft = "12px";
+          line.append(
+            piece("flex:1;min-width:0;", abilityWords(entry)),
+            inkSmall("Edit", () => (edit.style.display = edit.style.display === "none" ? "flex" : "none")),
+            remove,
+          );
+          body.append(line, edit);
+        }
+        const fold = document.createElement("details");
+        fold.style.cssText = "margin-left:12px;";
+        const title = document.createElement("summary");
+        title.style.cssText = "cursor:pointer;font-size:12px;";
+        title.textContent = `Add an ability for ${member.name}`;
+        fold.append(
+          title,
+          abilityForm(null, "Add ability", (add) => allyChange({ add })),
+        );
+        body.append(fold);
       }
+      body.append(
+        explainNote(
+          "An ability you give a companion is theirs: in a fight they use it now and then while it has uses (dice of damage at the creature they're after, dice of healing on you when you're hurt, or on themselves), and the AI is told of it with your sheet. Its uses come back with your rests.",
+        ),
+      );
     }
     // What's switched off, folded away at the bottom: tick one to bring it back.
     const unused = sheet.entries.filter((entry) => !entry.on);
@@ -5138,8 +5293,9 @@ export function createHud(root, handlers) {
       if (petMoves.style.display !== show) petMoves.style.display = show;
     },
     /**
-     * The tent's card: how long to sleep, then Sleep or Not now. `onSleep(hours)` is given the choice
-     * (a number of hours, or "morning"). Closes itself either way; `closeSleep()` closes it from outside.
+     * The tent's card: how long to sleep, then Sleep, Lie down (awake, to rest and talk) or Not now.
+     * `onSleep(hours)` is given the choice (a number of hours, "morning", "evening", or "lie" for lying down
+     * awake). Closes itself either way; `closeSleep()` closes it from outside.
      */
     openSleep(onSleep) {
       hud.closeSleep();
@@ -5148,10 +5304,11 @@ export function createHud(root, handlers) {
       card.style.cssText = `${PANEL}display:flex;top:auto;right:auto;left:50%;bottom:120px;transform:translateX(-50%);gap:8px;min-width:240px;`;
       const title = document.createElement("div");
       title.style.cssText = "font-weight:700;font-size:14px;";
-      title.textContent = "Sleep in the tent";
+      title.textContent = "The tent";
       const note = document.createElement("div");
       note.style.cssText = "font-size:12px;opacity:0.8;line-height:1.35;";
-      note.textContent = "Time moves on while you sleep, and people go about their day.";
+      note.textContent =
+        "Lie down to rest and talk, as on a bench, or sleep: time moves on while you sleep, and people go about their day.";
       const length = document.createElement("select");
       length.style.cssText = "font:inherit;padding:8px;border-radius:6px;min-height:40px;";
       for (const [value, label] of [
@@ -5175,9 +5332,13 @@ export function createHud(root, handlers) {
         hud.closeSleep();
         onSleep(Number(chosen) || chosen);
       });
+      const lie = button("Lie down", "Lie down in the tent awake, to rest and talk; the time doesn't jump", () => {
+        hud.closeSleep();
+        onSleep("lie");
+      });
       const no = button("Not now", "Leave the tent be", () => hud.closeSleep());
-      for (const control of [go, no]) control.style.cssText += "flex:1;padding:10px 12px;";
-      row.append(go, no);
+      for (const control of [go, lie, no]) control.style.cssText += "flex:1;padding:10px 12px;";
+      row.append(go, lie, no);
       card.append(title, note, length, row);
       pages.append(card);
       sleepCard = card;
@@ -5764,6 +5925,24 @@ export function createHud(root, handlers) {
       chat.frame.style.opacity = "1";
       clearTimeout(narrationTimer);
       narrationTimer = setTimeout(() => (chat.frame.style.opacity = "0.85"), 20000);
+    },
+    /**
+     * Buttons on the chat's last line, for answering what it asks ("Yes", "No"): `onAnswer(index)` once,
+     * and the buttons are gone. Gives a function that takes them away from outside (answered by typing).
+     */
+    answers(labels, onAnswer) {
+      const row = document.createElement("span");
+      row.style.cssText = "display:inline-flex;gap:6px;margin-left:8px;";
+      labels.forEach((label, index) =>
+        row.append(
+          inkSmall(label, () => {
+            row.remove();
+            onAnswer(index);
+          }),
+        ),
+      );
+      narration.lastElementChild?.append(row);
+      return () => row.remove();
     },
     illustrate,
     setBusy(busy) {

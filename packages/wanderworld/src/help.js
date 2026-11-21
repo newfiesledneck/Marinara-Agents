@@ -98,7 +98,7 @@ export const HELP = [
       "Bigger monsters: now and then a monster is bigger than the rest of its kind, and once in a while the first of a group is huge, called a big or a huge troll, ogre or goblin. A bigger one is tougher: more HP, harder blows and more XP. Menu → Settings → Creatures → Bigger monsters sets how often: never, now and then, or often. Bats, wasps, dragons and people keep their usual size.",
       "Where monsters live: with Menu → Settings → Creatures → \"Only where they'd be found\" on (it is to begin with), each kind turns up only where it would be found: lizardfolk, frogs and shambling mounds by water, ogres, trolls and orcs in the hills and mountains, skeletons and ghouls among ruins and graveyards, kobolds and gricks by caves, gnolls and hobgoblins on open ground. Off, any kind that's switched on can be anywhere out in the country. The Monsters slider still says how many there are; if no kind that's on lives anywhere the world has, they turn up anywhere instead. Caves, dungeons and strongholds have their own creatures either way.",
       "New monsters: every so often (Menu → Settings → Creatures → New monsters every, 10 minutes of play unless changed; 0 for never) the monsters out of sight go and others come in their place, so over time you meet every kind that's switched on, the rare ogres, trolls, minotaurs and dragons too. Kinds not about yet are likelier to turn up. Nothing you can see goes, nothing you're fighting, nothing a lorebook placed and nobody's own animal. The Monsters slider is always how many there are: with only trolls switched on and the slider at 100, there are 100 trolls; with other kinds on, a rare kind is only less likely.",
-      "Outside each settlement there's a campsite or two: sit on the logs by the fire, or use the tent to sleep. You choose how long; the clock jumps on, and everyone not close by is where that hour has them.",
+      "Outside each settlement there's a campsite or two: sit on the logs by the fire, or use the tent to lie down awake, or to sleep. Sleeping, you choose how long; the clock jumps on, and everyone not close by is where that hour has them.",
       "People have places to work and rest out of doors: the smith at the open forge, sellers and buyers at the market stalls, a farm's people in its fields, and others at a garden's beds, by a pond or in a meadow's grass.",
       "E, a click or a tap uses whatever the prompt names: a door, a bench, a person, a market stall.",
     ],
@@ -150,6 +150,15 @@ export const HELP = [
       'Journal → People lists everyone by faction. "Edit people" opens a window for each person: body, voice, temperament and manner, home and work, their day, what they are to you and to each other, how they act towards you, and who knows whose name.',
       'Three things decide how someone behaves. What they are to you (friend, rival, sister) is the relationship. Temperament and manner are what they\'re like with everybody. "How they act toward you" overrides both, for you alone: a sister can be rude, an enemy afraid.',
       "People with a character card keep who they are and their looks from the card. People a world made for itself can be changed entirely.",
+    ],
+  },
+  {
+    title: "Your party: following, sitting together, and in a fight",
+    lines: [
+      "The people travelling with you walk behind you, close, normal or loose (Menu → Settings → People → Your party → How closely they follow). Normal and loose give them room: a little further back and out to the sides, and when you stand still a few seconds they wander a step or two and look about. They hurry back when you move off, and run when they fall behind.",
+      'When you sit or lie down (a bench, a log by a campfire, a bed, a tent, or the ground with C), each of them takes a free seat near you, or a free bed when you lie down on one. With none free, they sit on the ground beside you. If you\'re on a log, a bench, a bed or a tent\'s bedroll, one of them asks in the chat whether they can squeeze in beside you: answer with the Yes or No buttons, or type yes or no. Up to four of you fit on one, closer the more there are, and the chat and the AI are told you\'re squeezed together. "With no seat for them" can have them just squeeze in, or never share; "The AI words their asking" (off to begin with, one AI call each time) has the AI write what they say. They get up when you do.',
+      "A campsite's tent has Lie down as well as Sleep: lie down awake, to rest and talk as on a bench, with the time going on as usual. Your party may lie down beside you there too.",
+      'In a fight (Settings → Inventory → Combat), each of them moves about by how they fight, instead of keeping their place behind you: one who strikes closes in on a creature and works round it, an archer keeps their distance where nothing\'s in the way of a shot, and a caster stays back behind you. In turn-based combat they move on their own turn, as far as a turn allows. When the fight is over they come back to follow you. "They move about in a fight" turns it off.',
     ],
   },
   {
@@ -229,6 +238,14 @@ export const HELP = [
       "The AI can keep the sheet for you (Menu → Settings → Inventory → \"The AI updates your sheet\", off to begin with): after something is narrated, it answers with what changed, such as HP lost or experience earned, and a note in the chat says so. When both are on, it shares the inventory tracker's AI call, so the two cost one call; on its own it's one more call each time.",
       "Your purse is the item named for the world's money. Inventory → Items shows how much you carry and lets you rename it (gold, caps, gems). Because it's an ordinary item, Quartermaster's tracker handles \"you pay 5 gold\" in narration.",
       "Dice: type /roll for a d20, or /roll 2d6+1 for other dice. /check strength rolls a d20 plus that line of your sheet (an attribute adds its modifier, a skill its number). With words after it, as in /check strength to lift the gate, what you try is then narrated with the result.",
+    ],
+  },
+  {
+    title: "Abilities of your own",
+    lines: [
+      'Inventory → Sheet → "Add your own ability" writes something you can do onto your sheet: a name and what it does, and if you like a number of uses and when they come back (per short rest, per long rest, per day; left empty, it\'s at will), dice for what it does (damage, or healing), and a saving throw against it (a DC and the ability it\'s made with). "Fire Breath, 2 uses per short rest, 2d6 damage, DC 13 Dexterity" breathes fire at what\'s in front of you, and whatever fails the save takes it all, half if it makes it.',
+      "Use it with its Use button on the sheet, from Abilities on the fight bar (in turn-based combat it takes your action), a number key (Inventory → Hotkeys), or by typing /use and its name in the chat (/use Fire Breath). A use is counted off each time, and the uses come back with a short rest (the Sheet's button), a sleep (a long rest, which brings back the per-day ones too), or each new day. One with damage dice needs combat on; one with healing dice heals you; one with no dice is told in the chat as done.",
+      'The AI is told your abilities with your sheet, with how many uses are left. Edit changes one in place; untick it and it moves to "Not in use", where Delete takes it away. Your companions can have abilities too: Inventory → Sheet → Your companions → "Add an ability for…". In a fight they use theirs now and then while they have uses: damage at the creature they\'re after, healing on you when you\'re hurt (or on themselves).',
     ],
   },
   {

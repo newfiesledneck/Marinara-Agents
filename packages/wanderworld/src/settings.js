@@ -247,6 +247,14 @@ export const SETTINGS = {
   fightBack: { value: true },
   // Whether the party joins a real-time fight (each by their class: main.js alliesTick).
   partyFights: { value: true },
+  // Your party (Settings → People → Your party): companions move about a fight by their role rather than
+  // keeping their place behind you (npcs.js fightTo); how loosely they follow; whether they sit and lie down
+  // when you do, and ask to share your log, bench or bed (or just squeeze in), the AI wording the asking.
+  partyMoves: { value: true },
+  followSpread: { value: "normal", options: ["close", "normal", "loose"] },
+  partySits: { value: true },
+  partyShare: { value: "ask", options: ["ask", "always", "off"] },
+  shareAiLine: { value: false },
   // The fight display (fighthud.js, plates.js, fightbar.js): a name and an HP bar over those in a fight ("some":
   // only the hurt, the aimed at and whose turn it is), and over hostile creatures in sight too; the list of who
   // is in a real-time fight; foes' HP as numbers or a word; and how much the info card tells of a creature.
