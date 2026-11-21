@@ -338,6 +338,17 @@ export const SETTINGS = {
   worldLog: { value: true },
   awayRecap: { value: true },
   worldEvents: { value: true },
+  /**
+   * Factions and regions (factions.js): new regions made for a purpose; standing moving by what the
+   * player does; and what standing changes (prices, who talks, guards, safe land); the AI told of it.
+   */
+  regionPurposes: { value: true },
+  factionStanding: { value: true },
+  factionPrices: { value: true },
+  factionTalk: { value: true },
+  factionGuards: { value: true },
+  factionLand: { value: true },
+  factionTold: { value: true },
   /** Each person remembers what they themselves saw and heard (memory.js), and the model is told theirs alone. */
   memories: { value: true },
   /** People in sight remember what the player does (getting on a horse, going into a house), not only what's said. */
