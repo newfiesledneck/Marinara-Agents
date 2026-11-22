@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.51",
+          "date": "2026-11-20",
+          "notes": "- Hair, polished: long hair is fuller and layered, the fringe stays off the eye, the angled bob is lighter, curls read as curls, and the parted, buns, shaved and mohawk styles are remade to match the rest. Every style now follows the face, ear, neck and age sliders, and long hair no longer dips into the back when you strike or turn your head.",
+          "highlight": false
+        },
+        {
           "version": "0.7.50",
           "date": "2026-11-20",
           "notes": "- Hair and clothes for the built-in body: 14 hair styles (MakeHuman's and our own), and 78 pieces, from swimwear, crop tops, skirts and shorts to robes, gowns, chain, scale and plate, plus MakeHuman's modern clothes. Each follows the body's sliders.\n- The Look card's Clothes: ready-made outfits (peasant, townsperson, ranger, mage, knight, barbarian, beach, modern casual), one piece per slot, a dye or colour of your own per part, and the cloak's hood up or down. Townsfolk dress for their work.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.32",
           "date": "2026-11-20",
           "notes": "- The goblin is remade from a second set of references: stockier and muscled, with a bigger head, wide ears, a scowl over red eyes, a broad nose and an underbite with fangs. It wears straps crossed on its chest, leather shoulder pads, bracers, a tattered red loincloth and wrapped shins. It's lighter too, about 12,500 vertices instead of 16,000.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.31",
-          "date": "2026-11-20",
-          "notes": "- The goblin is reworked from reference pictures, so it looks less like a cartoon. It has a smaller, longer head with deep-set amber eyes, a bony hooked nose, a crooked grin and big ears swept back, and a wiry, stooped body with ribs and collarbones showing. Its fingers and toes are long and clawed. The tunic is gone: it wears a leather loincloth, a strap across its chest, bracers, wrapped feet and a necklace of teeth.",
           "highlight": false
         }
       ]
