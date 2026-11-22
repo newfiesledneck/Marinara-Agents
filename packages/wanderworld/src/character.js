@@ -20,7 +20,7 @@ import {
   TorusGeometry,
   Vector3,
 } from "three";
-import { createClipPlayer } from "./clips.js";
+import { createClipPlayer, setCarriage } from "./clips.js";
 import { createMotion } from "./motion.js";
 
 /** "recorded" plays the recorded clips (clips.js); "builtin" the hand-made motion (motion.js). */
@@ -240,7 +240,9 @@ export function disposeTree(root) {
 const spanA = new Vector3();
 const spanB = new Vector3();
 
-export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror = 1, blink, seed }) {
+export { setCarriage };
+
+export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror = 1, blink, seed, carriage = null }) {
   const cache = new Map();
   const bone = (name) => {
     if (!cache.has(name)) {
@@ -271,6 +273,7 @@ export function humanoidCharacter({ object, humanoid, afterPose, dispose, mirror
     // Normalized bones rest with no turn, so a bone's position is its offset from its parent; in metres.
     offset: (name) => bone(name).position.clone().divideScalar(unit),
     legLength: upperLeg + lowerLeg,
+    carriage, // (how this body stands and walks: clips.js CARRIAGES)
   });
   const motion = createMotion({
     upperLeg,

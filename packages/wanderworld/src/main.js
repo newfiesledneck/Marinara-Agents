@@ -32,6 +32,7 @@ import {
   listCharacters,
   listPersonas,
   setAnimationStyle,
+  setCarriage,
   setHeldModels,
 } from "./character.js";
 import { gestureSeconds, LIE_SECONDS } from "./clips.js";
@@ -660,6 +661,7 @@ function applySettings() {
     core.camera.updateProjectionMatrix();
   }
   setAnimationStyle(settings.animation);
+  setCarriage(settings.carriage);
   core.hud?.setInventory(core.inventory.ready() || settings.sheet);
   core.shadow.visible = settings.shadows;
   core.crowd.setShadows(settings.shadows);

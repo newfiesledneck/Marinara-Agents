@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.54",
+          "date": "2026-11-20",
+          "notes": "- Standing and walking, relaxed: the animation library's own stance has the feet wide, the arms held out and the elbows bent, as if ready for a fight. People now let their arms hang by their sides and stand with their feet nearer together, a female body a little more so, with a narrower walk. Menu → Settings → Display → Standing and walking: By their body, Relaxed or Graceful for all, or As recorded. Running, working and fighting are unchanged.\n- Hair fits every race: the skin no longer shows through the hairline and temples of an elf, a halfling or a gnome.",
+          "highlight": false
+        },
+        {
           "version": "0.7.53",
           "date": "2026-11-20",
           "notes": "- Races for the built-in body: dwarf, halfling, gnome, elf, half-elf, half-orc and tiefling, each its own shape instead of a human made smaller (a dwarf broad and short-legged, a gnome with a big head and long fingers). The Look card has Race, Tusks, Horns, Tail and Facial hair (a moustache, a goatee and four beards); anyone may wear any. Clothes, underwear and long hair follow a race's build. Lore words (ww:looks:dwarf) and your build's race set it, and there's a ready-made preset for each.\n- Anthro wolf: the tail sweeps back and away from the legs, the claws grow from the fingertips and toes, and the eyes follow the Eyes slider.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.35",
           "date": "2026-11-20",
           "notes": "- The kobold, lizardfolk and gnoll stand on their toes, with legs that bend back like a dog's, and still walk with the people's animations.\n- Fuller bodies: the hobgoblin, orc, bugbear, gnoll, ogre and minotaur have deeper chests, broader backs and thicker waists. The hobgoblin is burlier, with a calmer face and its brow set back.\n- The ghoul and troll stand hunched, with a bent back and a short neck instead of a pushed-out head. The troll's arms are shorter so its claws stay off the ground.\n- The ogre's and minotaur's weapons no longer reach the ground, the ogre's warts and cuff rivets sit on it instead of floating, and the minotaur wears one smooth kilt in place of loose panels.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.34",
-          "date": "2026-11-20",
-          "notes": "- All ten other monsters are now models made in Blender, each modelled from reference descriptions: the hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur, each with its own baked texture, face, gear and weapon. They still move with the people's animations. The shapes built in code stay only as a fallback.\n- The goblin, polished: its harness goes over its shoulders, its ears sweep back and up, its fingers join its palms, its toes are part of its feet, and its shins are wrapped.\n- Each creature's model is a file of its own, so a world fetches only the ones it has. Credits name ThatOneCan as the maker of all eleven.",
           "highlight": false
         }
       ]

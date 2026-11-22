@@ -1374,6 +1374,69 @@ for (const sex of ["male", "female"]) {
   );
 }
 
+// ── Carriage: standing and walking eased from the library's ready-for-a-fight stance ──
+{
+  const { setCarriage, CARRIAGE_STYLES } = await import("../packages/wanderworld/src/clips.js");
+  assert.deepEqual(CARRIAGE_STYLES, ["body", "relaxed", "graceful", "recorded"]);
+  assert.equal(checkSetting("carriage", "graceful"), "graceful");
+  assert.equal(checkSetting("carriage", "swagger"), "body", "an unknown carriage is the default");
+  // How a body stands after a while: its feet apart and its hands out from the hips (in leg lengths),
+  // and how far its elbows are bent (the angle between the upper arm and the forearm).
+  const stanceOf = (character, speed = 0) => {
+    for (let i = 0; i < 90; i++) character.update(1 / 60, speed);
+    character.object.updateMatrixWorld(true);
+    const at = (name) => bone(character, name);
+    const leg = at("pelvis").y - at("foot_l").y;
+    const upper = at("lowerarm_l").sub(at("upperarm_l")).normalize();
+    const fore = at("hand_l").sub(at("lowerarm_l")).normalize();
+    return {
+      feet: Math.abs(at("foot_l").x - at("foot_r").x) / leg,
+      hands: Math.abs(at("hand_l").x - at("hand_r").x) / leg,
+      elbow: upper.angleTo(fore),
+      floor: Math.min(at("foot_l").y, at("foot_r").y),
+    };
+  };
+  const stand = async (style, sex, look = {}) => {
+    setCarriage(style);
+    const one = await createAvatar({ ...EVERYDAY, body: sex, ...look }, "Rowan", sex);
+    const stance = stanceOf(one);
+    one.dispose();
+    return stance;
+  };
+  const recorded = await stand("recorded", "female");
+  const graceful = await stand("body", "female");
+  const relaxed = await stand("body", "male");
+  const recordedMale = await stand("recorded", "male");
+  assert.ok(recorded.feet > 0.42, `the library's own stance is wide (${recorded.feet.toFixed(2)} leg)`);
+  assert.ok(graceful.feet < recorded.feet - 0.12, `a woman stands with her feet nearer (${graceful.feet.toFixed(2)})`);
+  assert.ok(graceful.hands < recorded.hands - 0.08, "her arms hang nearer her sides");
+  assert.ok(graceful.elbow < recorded.elbow * 0.6, "and straighter");
+  assert.ok(relaxed.feet < recordedMale.feet - 0.08 && relaxed.elbow < recordedMale.elbow * 0.7, "a man's too");
+  assert.ok(
+    recordedMale.feet - relaxed.feet < recorded.feet - graceful.feet,
+    "relaxed keeps a wider stance than graceful",
+  );
+  assert.ok(Math.abs(graceful.floor - recorded.floor) < 0.02, "the feet stay on the ground");
+  // One carriage for everyone, when the setting says so.
+  assert.ok(Math.abs((await stand("graceful", "male")).feet - (await stand("relaxed", "male")).feet) > 0.03);
+  // A broad body's arms come in less: they'd pass through its sides.
+  const heavy = await stand("body", "female", { shape: { ...EVERYDAY.shape, weight: 1 } });
+  const heavyRecorded = await stand("recorded", "female", { shape: { ...EVERYDAY.shape, weight: 1 } });
+  assert.ok(
+    heavyRecorded.hands - heavy.hands < (recorded.hands - graceful.hands) * 0.7,
+    "a heavy body keeps its arms further out",
+  );
+  // Running is as recorded: the arms pump as they did.
+  setCarriage("recorded");
+  const runner = await createAvatar({ ...EVERYDAY, body: "female" }, "Rowan", "female");
+  const ranRecorded = stanceOf(runner, 5).elbow;
+  setCarriage("body");
+  const ran = stanceOf(runner, 5).elbow;
+  runner.dispose();
+  assert.ok(Math.abs(ran - ranRecorded) < 0.35, "running keeps its bent arms");
+  setCarriage("body");
+}
+
 // ── The races of the human body: a shape of their own, not a small human ────
 {
   const { RACES, RACE_PARTS, raceOf, raceLook, FACIAL_HAIR, TUSKS, HORNS, TIEFLING_SKINS, HALF_ORC_SKINS, BARE } =
@@ -1532,6 +1595,18 @@ for (const sex of ["male", "female"]) {
   const grown = plainSizes.map((size, i) => dwarfSizes[i].x / size.x);
   assert.ok(Math.max(...grown) > 1.05, `a dwarf's tunic is broader than a human's (${Math.max(...grown).toFixed(2)})`);
   assert.ok(Math.min(...grown) < 1.005 && Math.min(...grown) > 0.995, "the hat fits every race as it is");
+  // Hair follows the brow, temples and nape a race's key moves under the hairline (the skin would show
+  // through hair that stayed behind), but not the ears beside it.
+  const hairOf = async (race) => {
+    const one = await person({ hair: "short", race }, "Rowan", "female");
+    const { array } = piecesOn(one)[0].geometry.attributes.position;
+    one.dispose();
+    return Float32Array.from(array);
+  };
+  const [humanHair, halflingHair, elfHair] = [await hairOf("human"), await hairOf("halfling"), await hairOf("elf")];
+  const furthest = (a, b2) => a.reduce((most, value, i) => Math.max(most, Math.abs(value - b2[i])), 0);
+  assert.ok(furthest(humanHair, halflingHair) > 0.002, "a halfling's hair follows her temples");
+  assert.ok(furthest(humanHair, elfHair) < 0.02, "an elf's ears don't drag her hair along");
   // (The underwear: its vertices are the body's own, moved with the skin under them.)
   const under = files.male.meshes.find((mesh) => mesh.piece === "underwear-bottom-briefs");
   assert.ok(under, "the briefs are in the kit");

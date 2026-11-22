@@ -137,6 +137,27 @@ const CALMER = new Set(["jog", "sprint"]);
 const CALM = 0.6;
 const BONES = data.bones;
 const COUNT = BONES.length;
+
+// ── Carriage: how a body stands and walks, over the recorded clips ──
+// The library's idle and walk are one stance: feet well apart, arms held out from the sides, elbows bent, as
+// if ready for a fight (every idle and walk in both libraries shares it). A carriage eases that, standing and
+// walking only: the arms hang nearer the sides and straighter, and the feet stand and step nearer together.
+// Running, work, gestures and fighting stay as recorded. Angles in radians; `elbow` is the share of the
+// elbow's bend taken out.
+const CARRIAGES = {
+  relaxed: { stand: { arms: 0.14, elbow: 0.5, legs: 0.07 }, walk: { arms: 0.12, elbow: 0.4, legs: 0.02 } },
+  graceful: { stand: { arms: 0.18, elbow: 0.6, legs: 0.1 }, walk: { arms: 0.16, elbow: 0.5, legs: 0.05 } },
+};
+/** The arms stay at least this far out from straight down, to clear the hips. */
+const ARMS_OUT = 0.1;
+/** "body" (a carriage by each body: CARRIAGE_OF), one carriage for all, or "recorded" (the clips as they are). */
+export const CARRIAGE_STYLES = ["body", "relaxed", "graceful", "recorded"];
+const CARRIAGE_OF = { female: "graceful", male: "relaxed" };
+let carriageStyle = "body";
+export function setCarriage(style) {
+  carriageStyle = CARRIAGE_STYLES.includes(style) ? style : "body";
+}
+const AHEAD = new Vector3(0, 0, 1);
 /** The clips, unpacked once: quaternions as x, y, z, w per bone per frame. */
 const CLIPS = Object.fromEntries(
   Object.entries(data.clips).map(([name, clip]) => {
@@ -250,7 +271,55 @@ function blend(from, to, amount) {
 export const gestureSeconds = (name) =>
   GESTURES.has(name) ? (CLIPS[name]?.duration ?? 0) / (GESTURE_RATE[name] ?? 1) : 0;
 
-export function createClipPlayer({ present, offset, legLength }) {
+export function createClipPlayer({ present, offset, legLength, carriage = null }) {
+  // The body's carriage: `carriage` is { body: "female" | "male" (else relaxed), room: 0 … 1 (how far its
+  // arms may come in: less for a broad body) }, read as it is each step, so a setting changes it at once.
+  const limbs = ["left", "right"]
+    .filter((side) => present(`${side}UpperArm`) && present(`${side}LowerArm`) && present(`${side}UpperLeg`))
+    .map((side) => ({
+      arm: [`${side}UpperArm`, `${side}LowerArm`, `${side}Hand`].map((bone) => BONES.indexOf(bone)),
+      // (Everything past the wrist turns with the hand.)
+      fingers: BONES.map((bone, i) =>
+        bone.startsWith(side) && /Proximal|Intermediate|Distal|Metacarpal/u.test(bone) ? i : -1,
+      ).filter((i) => i >= 0),
+      leg: [`${side}UpperLeg`, `${side}LowerLeg`].map((bone) => BONES.indexOf(bone)),
+      // Which way the arm points at rest (out to its side), and which side of the body the leg is on.
+      armRest: offset(`${side}LowerArm`).clone().normalize(),
+      legSide: Math.sign(offset(`${side}UpperLeg`).x) || 1,
+    }));
+  /** Eases `pose` (the idle, or the walk) into the body's carriage, in place: `how` is "stand" or "walk";
+   *  `legsOnly` for a pose whose arms are doing something (talking). */
+  function carry(pose, how, legsOnly = false) {
+    const style = carriageStyle === "body" ? (CARRIAGE_OF[carriage?.body] ?? "relaxed") : carriageStyle;
+    const by = CARRIAGES[style]?.[how];
+    if (!by) return pose;
+    const room = Math.max(0, Math.min(1, carriage?.room ?? 1));
+    for (const { arm, fingers, leg, armRest, legSide } of limbs) {
+      const [upper, lower] = arm.map((i) => pose.rotations[i]);
+      // Where the upper arm points now: how far out from the side it's held. (An arm at or above the
+      // shoulder is doing something, and is left alone.)
+      const points = offsetScratch.copy(armRest).applyQuaternion(upper);
+      if (!legsOnly && points.y < -0.3) {
+        // The whole arm turned in about the way the body faces, as far as its room allows.
+        const held = Math.asin(Math.min(1, Math.abs(points.x)));
+        const turn = Math.min(by.arms * room, Math.max(0, held - ARMS_OUT));
+        if (turn > 0) {
+          change.setFromAxisAngle(AHEAD, -turn * Math.sign(points.x));
+          for (const i of [...arm, ...fingers]) if (i >= 0) pose.rotations[i].premultiply(change);
+        }
+        // The elbow: the forearm's turn brought part of the way to the upper arm's (straight is the same
+        // turn), the hand and fingers keeping theirs on it.
+        scratchA.copy(lower).invert();
+        lower.slerp(upper, by.elbow);
+        change.copy(lower).multiply(scratchA);
+        for (const i of [arm[2], ...fingers]) if (i >= 0) pose.rotations[i].premultiply(change);
+      }
+      // The legs: each turned in from the hip, thigh and shin together; the feet keep their own turn, flat.
+      change.setFromAxisAngle(AHEAD, -by.legs * legSide);
+      for (const i of leg) if (i >= 0) pose.rotations[i].premultiply(change);
+    }
+    return pose;
+  }
   const parentOf = {};
   for (const bone of BONES) {
     let parent = PARENT[bone];
@@ -483,8 +552,10 @@ export function createClipPlayer({ present, offset, legLength }) {
 
     // Standing: idle, or the talking idle while speaking.
     const out = poses.out;
-    sample(CLIPS.idle, (idleTime / CLIPS.idle.duration) % 1, out);
-    if (talking > 0.01) blend(out, sample(CLIPS.talk, (idleTime / CLIPS.talk.duration) % 1, poses.a), talking);
+    carry(sample(CLIPS.idle, (idleTime / CLIPS.idle.duration) % 1, out), "stand");
+    // (Talking stands as the idle does, so the feet don't slide as someone starts to speak.)
+    if (talking > 0.01)
+      blend(out, carry(sample(CLIPS.talk, (idleTime / CLIPS.talk.duration) % 1, poses.a), "stand", true), talking);
 
     // Doing something on the spot. One act fades out before another fades in.
     const want = wanted && ACTS[wanted] && !sit && !swim ? wanted : null;
@@ -511,7 +582,7 @@ export function createClipPlayer({ present, offset, legLength }) {
       const { run, stride, fast, cycles } = gaits(Math.max(pace, 0.2));
       phase = (phase + dt * cycles) % 1;
       const gait = poses.b;
-      lengthenStride(sample(CLIPS.walk, phase, gait), stride);
+      carry(lengthenStride(sample(CLIPS.walk, phase, gait), stride), "walk");
       if (run > 0.001) {
         const running = sample(CLIPS.jog, phase, poses.c);
         if (fast > 0.001) blend(running, sample(CLIPS.sprint, phase, poses.a), fast);
