@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.7.57",
+  "version": "0.7.58",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -220,7 +220,7 @@
     },
     {
       "path": "client.js",
-      "sha256": "254d2abf9fed9e03ecd410d3a8c9309ea28d458352b972af416af806bd45c60a",
+      "sha256": "049b0ccb53f477579c3e404d9970bb3d5ea031b37eecc0390666b50d06fef493",
       "bytes": 3544575
     },
     {
@@ -750,13 +750,13 @@
     },
     {
       "path": "kit/generic/avatar/anthro-dragon-female.pack.png",
-      "sha256": "cbe17b66a7f33b32fb3b0c04965db1c6158aa8e4d09aebb72ecd8e047be7a4d9",
-      "bytes": 3251349
+      "sha256": "d870835b35d033a2417d7e827b6025c70a525ac9394cd1203723e1ecad8cce8f",
+      "bytes": 3480064
     },
     {
       "path": "kit/generic/avatar/anthro-dragon-male.pack.png",
-      "sha256": "eb1a7cc6c0b4f46600c3ad8b4dc574a80b50d76c970799981d9eb5c9ee8db142",
-      "bytes": 2463940
+      "sha256": "39620073406491858dae56e6598a53ee473187106d3825bb087eb0d4b8252808",
+      "bytes": 2699368
     },
     {
       "path": "kit/generic/avatar/anthro-wolf-female.pack.png",

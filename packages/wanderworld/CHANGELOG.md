@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.7.58 — 2026-11-20
+
+- Anthro dragon: the dark cracks on the throat plates are gone (the throat's skin had folded over itself when the neck was deepened), and the plates run cleanly up to the jaw.
+
 ## 0.7.57 — 2026-11-20
 
 - Armour refitted: chainmail, scale mail and the gambeson follow the body instead of standing off it, the plate cuirass is shaped to the chest and waist (no more barrel), and bracers and greaves sit close. Their skirts' patterns no longer shear as they flare.
