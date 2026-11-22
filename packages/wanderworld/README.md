@@ -39,7 +39,7 @@ there, so a phone and a computer stay in step. Each browser writes only the worl
 made on one never drops out of another's list. If one world is played in two browsers at the same moment,
 the browser that saved it first keeps it and the other one loads that save, so don't do that.
 
-## What it does now (0.7.58)
+## What it does now (0.7.59)
 
 ### The world
 
@@ -82,14 +82,22 @@ the browser that saved it first keeps it and the other one loads that save, so d
   as their name and lore have them; a body picker sets Auto, Male or Female, per world.
 - **The built-in body** (`src/avatar.js`, docs/AVATAR.md): Wanderworld's own person, male or female, made
   in Blender from MakeHuman's CC0 base mesh and shapes, with 14 hair styles and 78 pieces of clothing. The
-  Look card shapes it, a section at a time, each folding away, with a small turning picture of them at
-  the top:
+  Look card shapes it (Look beside your persona; for anyone else, Look in Who lives here, or talk to
+  them and open Look at them → Change how they look), a section at a time, each folding away, with a
+  small turning picture of them at the top:
   - **Presets:** start from one of your own or a ready-made one (a few for each body), save the look
     under a name, delete one, or export it as a small JSON file and import one back. Your presets are
     kept with your settings, so they're in every world and every browser.
   - **Body:** gender (how they're spoken of), the body (as their gender unless chosen): human, anthro
     wolf or anthro dragon, male or female; and for a human the age: young adult, middle-aged (about 50)
     or old (about 72), which shapes the face and build a little and picks the skin picture of that age.
+  - **Designed from their cards** (Settings → People → Design looks from their cards, off to begin
+    with; New world asks too): the AI designs each character's and the persona's built-in body from
+    their card (body, race, build, face, skin, hair, eyes, clothes), chosen from the game's own options
+    and checked against them, one call each, once a world. With …and from their card's picture, the
+    card's picture goes along to a connection that can see pictures (Settings → AI → Designing looks
+    uses); one that can't is asked again with the words alone. The Look card keeps your own choices
+    over the design and can design it again. A card's own 3D model always wins.
   - **Races** (a human body's): dwarf, halfling, gnome, elf, half-elf, half-orc or tiefling. Each is its
     own shape, not a human made smaller: a dwarf is broad, short-legged and big-handed, a halfling small
     with a paunch and big feet, a gnome small with a big head and long fingers, an elf slim, a half-orc

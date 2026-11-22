@@ -1764,4 +1764,91 @@ assert.equal(
   assert.equal(steady(later), steady(first), "what's cached doesn't change with the hour or who stands where");
 }
 
+// ── Looks designed from cards, and from a card's picture ──
+{
+  // A card's picture: only the Engine's own avatar files, of a picture type, not too big.
+  const asked = [];
+  const read = async (path) => {
+    asked.push(path);
+    return { arrayBuffer: async () => Uint8Array.from([137, 80, 78, 71]).buffer };
+  };
+  assert.equal(await server.avatarPicture("/api/avatars/file/mira.png", read), "data:image/png;base64,iVBORw==");
+  assert.deepEqual(asked, ["/api/avatars/file/mira.png"]);
+  for (const bad of [
+    "https://evil.example/x.png",
+    "/api/avatars/file/../secret.png",
+    "/etc/passwd",
+    "/api/avatars/file/x.txt",
+    null,
+  ])
+    assert.equal(await server.avatarPicture(bad, read), null, `${bad} isn't read`);
+  assert.equal(asked.length, 1, "nothing else was asked for");
+  const huge = async () => ({ arrayBuffer: async () => new ArrayBuffer(5 * 1024 * 1024) });
+  assert.equal(await server.avatarPicture("/api/avatars/file/big.webp", huge), null, "too big a picture isn't sent");
+
+  // The messages: the menu and the card's words; the picture as the message's images, only when there is one.
+  const words = server.lookDesignMessages({ name: "Mira", words: "Red hair.", menu: "MENU" });
+  assert.equal(words.length, 2);
+  assert.match(words[1].content, /^MENU\n\nWho: Mira\nRed hair\.$/u);
+  assert.equal(words[1].images, undefined);
+  const seen = server.lookDesignMessages({
+    name: "Mira",
+    words: "",
+    menu: "MENU",
+    picture: "data:image/png;base64,AA",
+  });
+  assert.deepEqual(seen[1].images, ["data:image/png;base64,AA"]);
+  assert.match(seen[0].content, /picture is the best guide/u);
+
+  // The route: the card read here, the model's JSON returned for the client to check.
+  const heard = [];
+  runtime.languageModels.resolveForRequest = async ({ connectionId }) => ({
+    connectionId,
+    model: "m-look",
+    async chatComplete(messages, options) {
+      heard.push({ messages, options, connectionId });
+      return { content: '```json\n{"body": "female", "hair": "long", "hairTint": "#b0452a"}\n```' };
+    },
+  });
+  const status = await call("get", "/status");
+  assert.equal(status.body.lookDesign, true, "the client is told it can");
+  const designed = await call("post", "/look-design", {
+    body: { id: "c-mira", menu: "MENU", connectionId: "c-look" },
+  });
+  assert.equal(designed.code, 200);
+  assert.deepEqual(designed.body, {
+    look: { body: "female", hair: "long", hairTint: "#b0452a" },
+    picture: false,
+    hadPicture: false,
+  });
+  assert.match(heard[0].messages[1].content, /Appearance: flour on her apron/u, "from her card");
+  assert.equal(heard[0].connectionId, "c-look", "on the chosen connection");
+  assert.equal((await call("post", "/look-design", { body: { id: "c-mira" } })).code, 400, "no menu, no design");
+  assert.equal((await call("post", "/look-design", { body: { id: "c-gone", menu: "M" } })).code, 404);
+  // The persona's card, and someone the world made (their words come with the request).
+  const persona = await call("post", "/look-design", { body: { id: "p-zoey", persona: true, menu: "M" } });
+  assert.equal(persona.code, 200);
+  assert.match(heard.at(-1).messages[1].content, /Who: Zoey\nDescription: A traveller\./u);
+  const local = await call("post", "/look-design", {
+    body: {
+      id: "local:new-1",
+      menu: "M",
+      locals: [{ id: "local:new-1", name: "Odo", description: "A stout miller." }],
+    },
+  });
+  assert.equal(local.code, 200);
+  assert.match(heard.at(-1).messages[1].content, /Who: Odo\nDescription: A stout miller\./u);
+  // Asked with a picture the card hasn't got: the words alone.
+  heard.length = 0;
+  const none = await call("post", "/look-design", { body: { id: "c-mira", menu: "M", picture: true } });
+  assert.deepEqual([none.body.picture, none.body.hadPicture], [false, false]);
+  assert.equal(heard[0].messages[1].images, undefined);
+  // A model that answers with no JSON object: refused.
+  runtime.languageModels.resolveForRequest = async () => ({
+    model: "m",
+    chatComplete: async () => ({ content: "She has red hair." }),
+  });
+  assert.equal((await call("post", "/look-design", { body: { id: "c-mira", menu: "M" } })).code, 502);
+}
+
 console.log("wanderworld server regression: OK");

@@ -1472,6 +1472,69 @@ for (const sex of ["male", "female"]) {
   for (const one of [plain, dwarf, gloved, bare]) one.dispose();
 }
 
+// ── Looks designed by the AI: the menu it chooses from, and its answer checked ──
+{
+  const { designMenu } = await import("../packages/wanderworld/src/avatar.js");
+  const { readDesign } = looks;
+  const menu = await designMenu();
+  for (const words of [
+    "body: male, female",
+    "race (a human):",
+    "hair:",
+    "facialHair:",
+    "clothes:",
+    "clothColours:",
+    "weight:",
+    "gown (Gown, female only)",
+    "tunic (Tunic)",
+  ])
+    assert.ok(menu.includes(words), `the menu has ${words}`);
+  assert.ok(menu.length < 12000, `the menu fits the server's limit (${menu.length})`);
+  assert.equal(await designMenu(), menu, "made once");
+  // Its answer: colours as #rrggbb read as numbers, every field checked, nothing the lists haven't got.
+  const design = readDesign({
+    body: "female",
+    race: "elf",
+    height: 9,
+    shape: { weight: -0.4, nonsense: 3 },
+    colours: { skin: "#e3bfa3", eyes: "6a9a5a", lips: "red" },
+    hair: "braid",
+    hairTint: "#B0452A",
+    clothes: ["gown", "cloak", "not_a_piece", "robe"],
+    clothColours: { gown: { cloth: "#203040", sparkle: "#ffffff" } },
+    avatar: "vrm",
+    preset: "x",
+    eyePicture: "green",
+  });
+  assert.deepEqual(design, {
+    body: "female",
+    race: "elf",
+    height: looks.HEIGHTS[1],
+    shape: { weight: -0.4 },
+    colours: { skin: 0xe3bfa3, eyes: 0x6a9a5a },
+    hair: "braid",
+    hairTint: 0xb0452a,
+    clothes: ["gown", "cloak"],
+    clothColours: { gown: { cloth: 0x203040 } },
+    eyePicture: "green",
+  });
+  assert.deepEqual(readDesign("She is tall."), {});
+  assert.deepEqual(readDesign(null), {});
+  // A design keeps its place: over lore, under what's chosen by hand.
+  const { checkWorld } = await import("../packages/wanderworld/src/saves.js");
+  const kept = checkWorld({
+    id: "w1",
+    name: "W",
+    seed: "s",
+    designedLooks: { "c-1": { hair: "long", bogus: 1 }, "c-2": "x" },
+  });
+  assert.deepEqual(kept?.designedLooks, { "c-1": { hair: "long" } }, "the save keeps designs checked");
+  assert.equal(checkSetting("designLooks", true), true);
+  assert.equal(checkSetting("designLooks", "yes"), false, "off unless switched on");
+  assert.equal(checkSetting("designPicture", true), true);
+  assert.equal(checkSetting("lookConnection", " c-1 "), "c-1");
+}
+
 // ── Carriage: standing and walking eased from the library's ready-for-a-fight stance ──
 {
   const { setCarriage, CARRIAGE_STYLES } = await import("../packages/wanderworld/src/clips.js");

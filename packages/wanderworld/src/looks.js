@@ -869,6 +869,37 @@ export const CLOTH_HEX = {
   "ranger-grey": 0x6f6f6f,
 };
 
+/**
+ * A look the AI designed (server.mjs `/look-design`), as a checked look: colours written "#rrggbb" (as the
+ * model is asked to) read as numbers, then every field through checkLook, so only what the lists have is
+ * kept. Never the avatar (which 3D model shows) or a preset's name: a design is the built-in body's alone.
+ */
+export function readDesign(raw) {
+  if (!isRecord(raw)) return {};
+  const colour = (value) => {
+    if (isColour(value)) return value;
+    const match = /^#?([0-9a-f]{6})$/iu.exec(typeof value === "string" ? value.trim() : "");
+    return match ? Number.parseInt(match[1], 16) : undefined;
+  };
+  const colours = (record) =>
+    isRecord(record)
+      ? Object.fromEntries(Object.entries(record).map(([key, value]) => [key, colour(value)]))
+      : undefined;
+  const {
+    avatar: _avatar,
+    preset: _preset,
+    ...look
+  } = checkLook({
+    ...raw,
+    colours: colours(raw.colours),
+    hairTint: colour(raw.hairTint),
+    clothColours: isRecord(raw.clothColours)
+      ? Object.fromEntries(Object.entries(raw.clothColours).map(([piece, parts]) => [piece, colours(parts)]))
+      : undefined,
+  });
+  return look;
+}
+
 /** `over` laid on `base` (two checked looks): each choice of `over` wins, part by part for the avatar's
  *  sliders and colours, so a look's own choices sit on what lore says. */
 export function mergeLooks(base, over) {

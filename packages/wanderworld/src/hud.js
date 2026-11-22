@@ -589,6 +589,30 @@ export function createHud(root, handlers) {
       const bodyKeys = avatar?.choices?.keys;
       const offered1 = (list) => list.filter(([key]) => !bodyKeys || hasSlider(key, bodyKeys, shape.body));
       if (shape) {
+        // Designed by the AI from their card (and picture): again on asking. Their own choices stay over it.
+        if (info.design?.can) {
+          section("Designed from their card", () => {
+            says(
+              info.design.has
+                ? `The AI designed this look from ${info.name || "their"}'s card${info.design.picture ? " and picture" : ""}. Anything you change here is kept over it; Reset goes back to the design.`
+                : `The AI can design this look from ${info.name || "their"}'s card${info.design.picture ? " and their card's picture" : ""}. Anything you change here is kept over it.`,
+            );
+            const again = button(info.design.has ? "Design it again" : "Design from their card", "One AI call", () => {
+              again.disabled = true;
+              again.textContent = "Designing…";
+              void handlers
+                .onDesignLook?.(id)
+                .then(() => handlers.lookOf(id))
+                .then((next) => {
+                  if (!next || lookCard !== card) return;
+                  info.design = next.design;
+                  showPreview(chosen);
+                  refresh(next);
+                });
+            });
+            rows.push(again);
+          });
+        }
         // Presets: start from one (your own or a ready-made one), or keep this look as one.
         section("Presets", () => {
           says(
@@ -1785,6 +1809,12 @@ export function createHud(root, handlers) {
     trackerConnection:
       "The model that reads what was narrated for the trackers: Quartermaster's inventory and your character sheet. They answer with short lists, so a small, cheap model does well here. Leave it to use the same as conversations.",
     imageConnection: "The image generation connection for pictures of places and moments.",
+    lookConnection:
+      "The model that designs looks from cards (People → Design looks from their cards). To design from a card's picture it must be one that can see pictures.",
+    designLooks:
+      "On: the AI designs the built-in body of each character and your persona from their card: body, race, build, face, skin, hair, eyes and clothes, chosen from the game's own options. One AI call each, once a world, when a world is set up or someone new turns up; Design it again in their Look card asks once more. Anything you choose in their Look card is kept over it. Someone with a 3D model on their card keeps it: the built-in body is only the default. Off: looks come from names and lore, with no AI.",
+    designPicture:
+      "On: their card's picture goes with it, for the closest likeness. The connection that designs looks (Settings → AI) must be one that can see pictures; one that can't is asked again with the card's words alone.",
     imageStyle:
       "The look of pictures, from the Engine's style profiles. The style's own words are put in the prompt ({style} in Illustrate's template, or at the end if the template leaves it out) and what it keeps out is sent with it. Engine default is your default profile in the Engine. Auto and No style add no words.",
   };
@@ -2119,6 +2149,8 @@ export function createHud(root, handlers) {
     off: "Nowhere",
   });
   toggle("newBodies", "Townsfolk use the new bodies");
+  toggle("designLooks", "Design looks from their cards (AI)");
+  toggle("designPicture", "…and from their card's picture", "designLooks");
   toggle("underwearByDefault", "Default skins with underwear");
   choice("names", "Names over people", {
     all: "Show all names",
@@ -2558,6 +2590,7 @@ export function createHud(root, handlers) {
   connectionChoice("sceneConnection", "Scenes use", "text", "Same as conversations");
   connectionChoice("trackerConnection", "Trackers use", "text", "Same as conversations");
   connectionChoice("imageConnection", "Pictures use", "image", "Engine default");
+  connectionChoice("lookConnection", "Designing looks uses", "text", "Same as conversations");
   // (The trackers' connection again, with the inventory's own settings. Here, since the picker is made above.)
   at("Inventory", "Items");
   connectionChoice("trackerConnection", "Trackers use", "text", "Same as conversations");
@@ -5281,6 +5314,8 @@ export function createHud(root, handlers) {
   layer.append(held);
 
   const hud = {
+    /** Opens `id`'s Look card (a persona or a character: from the talk window, the People list). */
+    openLook: (id) => void openLook(id),
     /**
      * The card for someone coming at the player: `info` is { name, attacks }, `actions` { onTalk, onSay,
      * onScene, onStop (no more aggressive approaches) }; null takes it away.
@@ -5443,12 +5478,11 @@ export function createHud(root, handlers) {
         name.style.flex = "1";
         const body = bodyPicker((value) => handlers.onSetBody(character.id, value));
         body.value = bodies[character.id] ?? "auto";
-        // Their look can be chosen once they're in town (a look is kept with this world's people).
+        // Their look, in town or not (a look is kept with this world's people).
         const look = button("Look", `Choose ${character.name}'s avatar and how they look`, () =>
           openLook(character.id),
         );
         look.style.cssText += "padding:2px 8px;font-size:12px;";
-        look.style.display = chosen.has(character.id) ? "" : "none";
         entry.append(box, name, body, look);
         return entry;
       });

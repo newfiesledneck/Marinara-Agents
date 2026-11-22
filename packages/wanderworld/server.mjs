@@ -13,6 +13,9 @@
 //   POST /scene-origin         — the context of a scene the client is about to start (who's there, the
 //                                persona, the connection, notes, lorebooks), kept until the Engine asks.
 //   GET  /scene-results/:world — recaps of scenes from this world that have ended, for the client to keep.
+//   POST /look-design          — a character's or persona's built-in body designed from their card (and, when
+//                                asked, their card's picture, for a model that can see): the look's fields,
+//                                which the client checks against its own lists (looks.js readDesign).
 //   DELETE /scene-results/:id  — one recap, once the client has kept it.
 //
 // And a scene origin (`scenes` permission, Capability API 1.66): the Engine's scene planner asks
@@ -1787,7 +1790,8 @@ function fetchByName(url, name, { method = "GET", headers = {}, body } = {}) {
   });
 }
 
-export async function engineFetch(path, options = {}, { env = process.env, name = engineName } = {}) {
+/** The Engine's answer to `path` (over loopback, by name for HTTPS), thrown as an error unless it's ok. */
+async function engineResponse(path, options = {}, { env = process.env, name = engineName } = {}) {
   if (typeof fetch !== "function") throw new Error("No fetch available on this Engine's Node");
   const url = `${engineBaseUrl(env)}${path}`;
   const response = url.startsWith("https:") && name ? await fetchByName(url, name, options) : await fetch(url, options);
@@ -1801,7 +1805,59 @@ export async function engineFetch(path, options = {}, { env = process.env, name 
     }
     throw new Error(`The Engine answered ${response.status}${detail ? `: ${detail}` : ""}`);
   }
-  return response.json();
+  return response;
+}
+
+export async function engineFetch(path, options = {}, context = {}) {
+  return (await engineResponse(path, options, context)).json();
+}
+
+/** The picture types a card's avatar can be, by its file's ending. */
+const PICTURE_TYPES = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif" };
+/** The largest card picture sent to a model. */
+const PICTURE_MOST = 4 * 1024 * 1024;
+
+/**
+ * A card's or persona's picture as a data URL, for a model that can see it; null when there's none. Only
+ * the Engine's own avatar files (`/api/avatars/file/<name>`, as a record's `avatarPath` names them), of a
+ * picture type, at most PICTURE_MOST bytes: nothing a card's text could point elsewhere.
+ */
+export async function avatarPicture(path, read = engineResponse) {
+  const match = /^\/api\/avatars\/file\/([\w.-]{1,200}\.(png|jpe?g|webp|gif))$/iu.exec(String(path ?? "").split("?")[0]);
+  if (!match || match[1].includes("..")) return null;
+  const response = await read(`/api/avatars/file/${encodeURIComponent(match[1])}`, { method: "GET" });
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (!bytes.length || bytes.length > PICTURE_MOST) return null;
+  return `data:${PICTURE_TYPES[match[2].toLowerCase()]};base64,${bytes.toString("base64")}`;
+}
+
+/**
+ * The model's messages for designing someone's built-in body: `menu` is the client's list of the look's
+ * fields and their options (avatar.js designMenu), `words` what their card says, and `picture` their card's
+ * picture as a data URL (or null). The picture goes as the message's `images`, which the Engine's providers
+ * send to a model that can see (Capability API messages don't list it yet; an Engine that drops it gets the
+ * words alone).
+ */
+export function lookDesignMessages({ name, words, menu, picture = null }) {
+  return [
+    {
+      role: "system",
+      content: [
+        "You design how a person looks in a 3D game, on its built-in body, choosing only from the options you're given.",
+        "Answer with one JSON object and nothing else: the look's fields, each set to one of the options listed for it.",
+        picture
+          ? "Their picture is the best guide to their face, skin, hair, eyes, build and clothes; their description says the rest."
+          : "Follow what their description says of their body, face, skin, hair, eyes and clothes.",
+        "Where nothing says, choose what suits who they are. Leave out a field you have no reason to set.",
+        "Never describe or comment: the JSON object only.",
+      ].join(" "),
+    },
+    {
+      role: "user",
+      content: `${menu}\n\nWho: ${name}\n${words || "(Their card says nothing of them.)"}${picture ? "\n\nTheir picture is attached." : ""}`,
+      ...(picture ? { images: [picture] } : {}),
+    },
+  ];
 }
 
 /** The user's connections, split into text and image ones, with nothing secret in them. */
@@ -2246,6 +2302,7 @@ export async function activate(context) {
         plans: true,
         loreSetup: true,
         worldWrite: true,
+        lookDesign: true,
         illustrate: true,
         assistant: true,
         saves: true,
@@ -2647,6 +2704,66 @@ Cover the whole day from 0 to 24 in order, hours in halves at most. "home" is at
             }),
           ),
         };
+      });
+
+      // Someone's built-in body designed from their card, and their card's picture when asked and there is one.
+      // A model that can't see the picture (the call fails with it) is asked again with the words alone.
+      routes.post("/look-design", async (request, reply) => {
+        const body = isRecord(request.body) ? request.body : {};
+        const id = idOf(body.id);
+        const menu = block(body.menu, 12000);
+        if (!id || !menu) return reply.status(400).send({ error: "Nobody to design." });
+        try {
+          let record = null;
+          let card = null;
+          if (body.persona === true) {
+            [record] = await resources.listPersonas([id]);
+            card = record ? personaCard(record, "") : null;
+          } else {
+            [record] = await listPeople(resources, [id], body.locals);
+            card = record ? characterCard(record) : null;
+          }
+          if (!card) return reply.status(404).send({ error: "They couldn't be found." });
+          const words = cutText(
+            [
+              card.appearance && `Appearance: ${card.appearance}`,
+              card.description && `Description: ${card.description}`,
+              card.personality && `Personality: ${card.personality}`,
+            ]
+              .filter(Boolean)
+              .join("\n"),
+            4000,
+          );
+          const picture =
+            body.picture === true
+              ? await avatarPicture(record?.avatarPath).catch((error) => {
+                  logger.warn("[wanderworld] a card's picture couldn't be read: %s", error?.message ?? error);
+                  return null;
+                })
+              : null;
+          const model = await languageModels.resolveForRequest({ connectionId: idOf(body.connectionId) || undefined });
+          const ask = (image) =>
+            askModel("look-design", body, model, lookDesignMessages({ name: card.name, words, menu, picture: image }), {
+              temperature: 0.4,
+              maxTokens: 1500,
+            });
+          let seen = !!picture;
+          let result;
+          try {
+            result = await ask(picture);
+          } catch (error) {
+            if (!picture) throw error;
+            logger.warn("[wanderworld] designing from a picture failed, so from words alone: %s", error?.message ?? error);
+            seen = false;
+            result = await ask(null);
+          }
+          const look = readJson(result?.content, api.runtime.json?.parseJsonish);
+          if (!isRecord(look)) return reply.status(502).send({ error: "The model didn't give a usable answer." });
+          return { look, picture: seen, hadPicture: !!picture };
+        } catch (error) {
+          logger.warn("[wanderworld] designing a look failed: %s", error?.message ?? error);
+          return reply.status(502).send({ error: text(error?.message, 300) || "The model call failed." });
+        }
       });
 
       // A world's setup from its lorebooks, for any lorebook: the model reads a batch of entries and gives

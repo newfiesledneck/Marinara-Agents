@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.59 — 2026-11-20
+
+- Looks designed from cards (Settings → People → Design looks from their cards, off to begin with; New world asks too): the AI designs the built-in body of each character and your persona from their card, choosing their body, race, build, face, skin, hair, eyes and clothes from the game's own options. With …and from their card's picture, the picture goes along to a connection that can see pictures. Your own Look card choices stay over it, and a card's 3D model still shows.
+- Anyone's look can be changed: every character in Who lives here has Look, and talking to someone, Look at them has Change how they look.
+
 ## 0.7.58 — 2026-11-20
 
 - Anthro dragon: the dark cracks on the throat plates are gone (the throat's skin had folded over itself when the neck was deepened), and the plates run cleanly up to the jaw.

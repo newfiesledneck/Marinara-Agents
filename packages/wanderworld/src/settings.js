@@ -284,6 +284,12 @@ export const SETTINGS = {
   /** The connection the trackers use (the inventory's and the sheet's); "" is the same as conversations. */
   trackerConnection: { value: "", text: true },
   imageConnection: { value: "", text: true },
+  /** The AI designs the built-in body of anyone without a 3D model of their own from their card (avatar.js designMenu). */
+  designLooks: { value: false },
+  /** …from their card's picture too, for a connection that can see pictures. */
+  designPicture: { value: false },
+  /** The connection that designs looks; "" is the same as conversations. */
+  lookConnection: { value: "", text: true },
   /** Illustrate isn't given the lines that describe other places than the one you're in (the rest of the chat it is). */
   illustrateHere: { value: true },
   /** Illustrate has the place you're in told first, when the chat has no line describing it yet. */
