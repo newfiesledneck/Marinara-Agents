@@ -36,6 +36,9 @@ import {
   ANTHRO_SHAPES,
   BARE,
   BEAST_EYES,
+  CLOTH_PARTS,
+  CLOTH_SLOTS,
+  CLOTHES,
   CLAW_COLOURS,
   CLOTH_COLOURS,
   CLOTH_HEX,
@@ -800,6 +803,55 @@ export async function avatarChoices(sex, species = "human") {
         variants: anthro ? [] : (entry.variants ?? []),
       })),
   };
+}
+
+// ── The menu for a look designed by the AI ──
+/**
+ * Every field of a look and its options, in words, for the model that designs someone's built-in body from
+ * their card (server.mjs `/look-design`); its answer is read by looks.js readDesign. The clothes are the
+ * kit's, each marked when it's made for one body only. Made once (the kit's index is read once).
+ */
+let menuMade = null;
+export function designMenu() {
+  menuMade ??= indexOf(OUTFIT_INDEX).then((outfits) => {
+    const listOf = (list) => list.map(([value]) => value).join(", ");
+    const range = ([key, label, least, most, what, ends]) =>
+      `  ${key}: ${least} to ${most}${ends ? ` (${ends[0]} to ${ends[1]})` : ""}, 0 is usual: ${label}${what ? `. ${what}` : ""}`;
+    const bySlot = new Map(CLOTH_SLOTS.map(([slot, label]) => [slot, { label, pieces: [] }]));
+    for (const [piece, label, slot] of CLOTHES) {
+      const bodies = outfits[piece]?.bodies;
+      if (!bodies?.length) continue;
+      bySlot.get(slot)?.pieces.push(`${piece} (${label}${bodies.length === 1 ? `, ${bodies[0]} only` : ""})`);
+    }
+    return [
+      'The look\'s fields (use these names and values exactly; colours as "#rrggbb"):',
+      `body: male, female`,
+      `species: human, or an anthro body, wolf or dragon (only for someone who is one)`,
+      `race (a human): ${listOf(RACES)}`,
+      `height: ${HEIGHTS[0]} to ${HEIGHTS[1]}, a share of a usual adult's height (1 is usual)`,
+      `age: young (18 to 40), middle (about 50), old (70 and over)`,
+      "shape: { field: number }, each:",
+      ...[...SHAPES, ...FACE].map(range),
+      "  (a wolf or dragon also has these)",
+      ...ANTHRO_SHAPES.map(range),
+      "limbs: { field: number }, each:",
+      ...LIMBS.map(([key, label, least, most]) => `  ${key}: ${least} to ${most} (1 is usual): ${label}`),
+      `skin: "custom" (then colours.skin is their skin's colour), or a skin picture: ${listOf(SKINS.filter(([value]) => value !== "custom"))}`,
+      "colours: { skin, eyes, lips, nails, brows, underwear, horns, and for an anthro body its own: fur, fur2 (lighter fur), nose, claws (a wolf), scales, scales2 (underside) (a dragon) }",
+      `eyePicture: tint (then colours.eyes is their eye colour), or a real eye: ${listOf(EYE_PICTURES)}`,
+      `hair: ${listOf(HAIRSTYLES)}; hairTint: their hair's colour`,
+      ...RACE_PARTS.map(([field, list]) => `${field}: ${listOf(list)}`),
+      "tail: true or false (a tiefling's tail); wings: true or false (a dragon's)",
+      "clothes: a list of pieces, at most one for each slot (pieces made for one body only don't fit the other):",
+      ...[...bySlot.values()]
+        .filter(({ pieces }) => pieces.length)
+        .map(({ label, pieces }) => `  ${label}: ${pieces.join(", ")}`),
+      `clothColours: { piece: { part: colour } }, parts: ${listOf(CLOTH_PARTS)}`,
+      "A wolf or dragon wears no hair, hats or shoes.",
+    ].join("\n");
+  });
+  menuMade.catch(() => (menuMade = null));
+  return menuMade;
 }
 
 // ── A tail's sway and a dragon's wings settling ──

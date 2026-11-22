@@ -515,11 +515,28 @@ export function createMenu(layer, handlers, art = null) {
           "Engine default",
           "The image generation connection for pictures of places and moments.",
         ),
+        connection(
+          "lookConnection",
+          "Designing looks uses",
+          "text",
+          "Same as conversations",
+          "The model that designs your characters' looks from their cards. For their pictures, one that can see pictures.",
+        ),
       ];
       toggle(
         "aiTalk",
         "AI conversations",
         "On: when you talk to someone, the AI writes their replies from their character card. Off: they use short set lines.",
+      );
+      toggle(
+        "designLooks",
+        "Design looks from their cards",
+        "On: once the world is set up, the AI designs each character's and your persona's built-in body from their card (body, race, build, face, skin, hair, eyes and clothes), one call each; anyone who turns up later is designed when they do. A 3D model on their card still shows: the built-in body is only the default. Their Look card can change anything.",
+      );
+      toggle(
+        "designPicture",
+        "…and from their card's picture",
+        "On: their card's picture goes with it, for the closest likeness. Choose a connection above that can see pictures; one that can't is asked again with the card's words alone.",
       );
       toggle(
         "aiMoments",

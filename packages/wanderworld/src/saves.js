@@ -474,6 +474,16 @@ export function checkWorld(raw) {
             .filter(([, look]) => Object.keys(look).length),
         )
       : {},
+    // What the AI designed for each one's built-in body from their card (looks.js readDesign), under what's
+    // chosen by hand and over what lore says. Their card's own 3D model still shows when they have one.
+    designedLooks: isRecord(raw.designedLooks)
+      ? Object.fromEntries(
+          Object.entries(raw.designedLooks)
+            .slice(0, 200)
+            .map(([id, look]) => [id, checkLook(look)])
+            .filter(([, look]) => Object.keys(look).length),
+        )
+      : {},
     // What lore's words say each one looks like (keywords.js lookFromWords), under what's chosen by hand.
     loreLooks: isRecord(raw.loreLooks)
       ? Object.fromEntries(

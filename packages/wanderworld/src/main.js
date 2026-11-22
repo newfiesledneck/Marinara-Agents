@@ -62,9 +62,9 @@ import {
   worldFromLore,
 } from "./keywords.js";
 import { lookChoices, setGenderShares } from "./people.js";
-import { checkLook, mergeLooks, NEUTRAL_LOOK, raceLook } from "./looks.js";
+import { checkLook, mergeLooks, NEUTRAL_LOOK, raceLook, readDesign } from "./looks.js";
 // ── The base avatar (avatar.js): the player's own body, and the townsfolk's ──
-import { avatarChoices, avatarLook, createAvatar, setUnderwearByDefault } from "./avatar.js";
+import { avatarChoices, avatarLook, createAvatar, designMenu, setUnderwearByDefault } from "./avatar.js";
 import { lookFromWords } from "./keywords.js";
 import { approachAngle, createCrowd, MAX_PEOPLE, SHARE_MOST } from "./npcs.js";
 import { afloatAt, createHerd, MONSTER_SIZES } from "./herd.js";
@@ -1376,6 +1376,48 @@ async function aiLoreSetup(save, onProgress = () => {}, only = null, write = {})
     });
   }
 
+  // Their looks, last, once everyone is known: the built-in body of each (and the persona), designed from
+  // their card (Design looks from cards), one call each. A card's own 3D model still shows when it has one.
+  const designedLooks = { ...(save.designedLooks ?? {}) };
+  if (core.settings.designLooks) {
+    parts.push({
+      id: "looks",
+      label: "the characters' looks",
+      doing: "designing your characters' looks…",
+      run: async () => {
+        if (!(await core.ai.status())?.lookDesign) return;
+        const menu = await designMenu();
+        const everyone = [
+          ...(save.persona ? [{ id: save.persona, persona: true }] : []),
+          ...cast.map((entry) => ({ id: entry.id, persona: false })),
+          ...locals.map((entry) => ({ id: entry.id, persona: false })),
+        ];
+        let failures = 0;
+        for (const { id, persona } of everyone) {
+          if (designedLooks[id]) continue;
+          if (await findModel({ type: persona ? "persona" : "character", id }).catch(() => null)) continue;
+          try {
+            const result = await core.ai.lookDesign({
+              id,
+              persona,
+              menu,
+              locals,
+              picture: core.settings.designPicture === true,
+              connectionId: core.settings.lookConnection || core.settings.textConnection || null,
+            });
+            const look = readDesign(result?.look);
+            if (Object.keys(look).length) designedLooks[id] = look;
+          } catch (error) {
+            failures++;
+            console.warn("[wanderworld] a look couldn't be designed", error);
+          }
+        }
+        // (Asked again for this part only when nobody could be designed; the rest are made as they're met.)
+        if (failures && failures === everyone.length) throw new Error("No look could be designed");
+      },
+    });
+  }
+
   const failed = unread ? [{ id: "books", label: "the lorebooks", error: unread }] : [];
   for (const part of parts) {
     // Asked again: only what failed (every lorebook part, when the lorebooks couldn't be read at all).
@@ -1397,7 +1439,7 @@ async function aiLoreSetup(save, onProgress = () => {}, only = null, write = {})
       }
     }
   }
-  return { loreKeys: keys, loreNames: names, book, locals, failed, entries: entries.length };
+  return { loreKeys: keys, loreNames: names, book, locals, designedLooks, failed, entries: entries.length };
 }
 
 /**
@@ -1449,6 +1491,7 @@ async function planNewWorld(
     loreNames: previous?.loreNames ?? {},
     locals: previous?.locals ?? [],
     book: previous?.book ?? null,
+    designedLooks: previous?.designedLooks ?? {},
   };
   core.hud?.setLoading("Building your world…");
   let setup;
@@ -1521,6 +1564,7 @@ async function createNewWorld({
   save.cast = [...(cast ?? []), ...save.locals.map((person) => person.id)].slice(0, MAX_PEOPLE);
   save.loreKeys = setup?.loreKeys ?? {};
   save.loreNames = setup?.loreNames ?? {};
+  save.designedLooks = setup?.designedLooks ?? {};
   // Built with at least what the lorebooks name (a cave brings mountains with it); random past that.
   save.vendorCounts = checkVendorCounts(vendorCounts, PACK.vendors.kinds);
   save.vendorsPending = Object.keys(save.vendorCounts).length > 0;
@@ -3603,7 +3647,7 @@ async function choosePersona(id, redress = false) {
     const character = model
       ? await loadModelCharacter(model)
       : await createAvatar(
-          mergeLooks(playerLook(), core.looks[persona?.id] ?? {}),
+          mergeLooks(underLookOf(persona?.id), core.looks[persona?.id] ?? {}),
           persona?.name ?? "",
           core.bodies[persona?.id] ?? "auto",
         );
@@ -3631,9 +3675,10 @@ function updateCast() {
       ...character,
       body: core.bodies[character.id] ?? character.body ?? "auto",
       // (What lore says they look like, under what's chosen by hand: the base avatar's build, hair, ears…)
-      look: mergeLooks(loreLookOf(character), core.looks[character.id] ?? {}),
+      look: mergeLooks(underLookOf(character.id, character), core.looks[character.id] ?? {}),
     }));
   core.crowd.setCast(chosen);
+  designMissing(); // (whoever's new, in the background, when Design looks from cards is on)
   useSchedules();
   core.crowd.setShadows(core.settings.shadows);
   refreshNames();
@@ -4301,7 +4346,72 @@ function loreLookOf(character) {
  *  their name instead), and what their build's race says of the body (a dragonborn's is the dragon's). */
 const playerLook = () => mergeLooks(NEUTRAL_LOOK, raceLook(buildNow()));
 /** What lies under `id`'s own look: the player's start (playerLook), or what a character's lore says. */
-const underLookOf = (id, character) => (id === core.personaId ? playerLook() : loreLookOf(character));
+const underLookOf = (id, character) =>
+  mergeLooks(id === core.personaId ? playerLook() : loreLookOf(character), designedLookOf(id));
+
+// ── Looks designed by the AI from cards (Settings → People → Design looks from cards) ──
+/** What the AI designed for `id`'s built-in body ({} for none): over lore, under what's chosen by hand. */
+const designedLookOf = (id) => core.save?.designedLooks?.[id] ?? {};
+const designing = new Set(); // ids being designed now
+const modelled = new Set(); // ids found to have a 3D model of their own (not asked about again this session)
+/**
+ * Designs the built-in body of each of `ids` (a character's, or the persona's) from their card, and their
+ * card's picture when Design from their picture is on: one at a time, kept with the world. Only those with no
+ * 3D model of their own (theirs still shows), and only once each unless `again`. Quietly does nothing
+ * without the setting, the server part or a connection; returns how many were designed.
+ */
+async function designLooks(ids, { again = false, notice = false } = {}) {
+  const save = core.save;
+  if (!save || !(again || core.settings.designLooks) || !(await core.ai.status())?.lookDesign) return 0;
+  const menu = await designMenu().catch(() => "");
+  if (!menu) return 0;
+  let made = 0;
+  for (const id of ids) {
+    if (designing.has(id) || (!again && save.designedLooks?.[id]) || core.save?.id !== save.id) continue;
+    const persona = id === save.persona || id === core.personaId;
+    if (!persona && !(core.characters ?? []).some((entry) => entry.id === id)) continue;
+    if (!again && modelled.has(id)) continue;
+    if (!again && (await findModel({ type: persona ? "persona" : "character", id }).catch(() => null))) {
+      modelled.add(id);
+      continue;
+    }
+    designing.add(id);
+    try {
+      const result = await core.ai.lookDesign({
+        id,
+        persona,
+        menu,
+        picture: core.settings.designPicture === true,
+        connectionId: core.settings.lookConnection || core.settings.textConnection || null,
+      });
+      const look = readDesign(result?.look);
+      if (!Object.keys(look).length || core.save?.id !== save.id) continue;
+      core.save = { ...core.save, designedLooks: { ...core.save.designedLooks, [id]: look } };
+      core.saves.write(core.save);
+      made++;
+      if (notice && result.hadPicture && !result.picture)
+        core.hud?.setNotice(
+          "Their picture couldn't be used (the connection may not see pictures), so their look is from their card's words.",
+        );
+      if (persona) void choosePersona(id, true);
+      else updateCast();
+    } catch (error) {
+      console.warn("[wanderworld] a look couldn't be designed", error);
+      if (notice) core.hud?.setNotice(`Their look couldn't be designed: ${error?.message ?? error}`);
+    } finally {
+      designing.delete(id);
+    }
+  }
+  return made;
+}
+/** Everyone in this world whose look isn't designed yet, designed in the background (when the setting is on). */
+const designMissing = () => {
+  if (!core.settings?.designLooks || !core.save) return;
+  const ids = [core.personaId, ...core.cast].filter(
+    (id) => id && !core.save.designedLooks?.[id] && !modelled.has(id) && !designing.has(id),
+  );
+  if (ids.length) void designLooks(ids);
+};
 
 /** The base avatar of `id` with `chosen` (a look) for the Look card's preview: a walking character. */
 function previewAvatar(id, chosen) {
@@ -4330,6 +4440,12 @@ async function lookOf(id) {
       models,
       chosen,
       pets: core.save ? petsOf(id) : null,
+      // Designing their look from their card (when the server part can): whether it's designed now.
+      design: {
+        can: !!core.ai.known()?.lookDesign && !!core.save,
+        has: !!core.save?.designedLooks?.[id],
+        picture: core.settings.designPicture === true,
+      },
       body: core.bodies[id] ?? "auto",
       now: await lookChoices(name, core.bodies[id] ?? "auto", chosen),
       // The base avatar's (avatar.js): how they look now, and what its kit offers for their body.
@@ -4683,6 +4799,7 @@ function talkTo(person) {
   core.hud?.setBusy(true);
   core.hud?.setPrompt(null);
   core.talk.start(nameFor(person.id, person.name), !!(core.settings.aiTalk && core.ai.known()?.talk));
+  core.talk.setLookEditable((core.characters ?? []).some((character) => character.id === person.id));
   showKnowing();
   core.talk.setLooks("");
   void looksOf([person.id]).then((looks) => core.talking?.id === person.id && core.talk.setLooks(looks[person.id]));
@@ -15672,7 +15789,14 @@ function attach(element) {
         );
         if (core.save?.id !== save.id) return; // another world was opened meanwhile
         const cast = [...new Set([...core.save.cast, ...setup.locals.map((person) => person.id)])].slice(0, MAX_PEOPLE);
-        core.save = { ...core.save, loreKeys: setup.loreKeys, loreNames: setup.loreNames, locals: setup.locals, cast };
+        core.save = {
+          ...core.save,
+          loreKeys: setup.loreKeys,
+          loreNames: setup.loreNames,
+          locals: setup.locals,
+          designedLooks: { ...core.save.designedLooks, ...setup.designedLooks },
+          cast,
+        };
         core.characters = peopleOf(core.save);
         core.cast = new Set(cast);
         updateCast();
@@ -15716,6 +15840,7 @@ function attach(element) {
     onSetLook: setLook,
     onSetPet: setPet,
     lookOf,
+    onDesignLook: (id) => designLooks([id], { again: true, notice: true }),
     previewAvatar,
     onSetting: changeSetting,
     onRegenerate: regenerateWorld,
@@ -15831,6 +15956,8 @@ function attach(element) {
     onLeave: endTalk,
     onParty: toggleParty,
     onKnowing: setKnowing,
+    // (Their Look card: anyone who's a character of this world, a card's or the world's own.)
+    onEditLook: () => core.talking && core.hud?.openLook(core.talking.id),
   });
   core.input = createInput();
   core.input.onRunToggle((on) => core.hud?.setRun(on)); // (Ctrl: the Run button shows it)

@@ -194,6 +194,9 @@ export function createAi(locals = () => []) {
     /** What people look like, from their cards: { [id]: words }. */
     looks: (wanted) =>
       request("/looks", { method: "POST", body: { ids: wanted, locals: locals() } }).then((body) => body?.looks ?? {}),
+    /** Someone's built-in body designed from their card: { look, picture } (server.mjs `/look-design`). */
+    lookDesign: (payload) =>
+      request("/look-design", { method: "POST", body: { locals: locals(), ...payload }, timeout: 180000 }),
     /** A world written for itself, a step at a time: { premise, places } or { people } (server.mjs `/world-write`). */
     worldWrite: (payload) => request("/world-write", { method: "POST", body: payload, timeout: 240000 }),
     /** Settings → Debug: the AI calls made since the Engine started ({ totals, calls }), one whole, and clearing them. */

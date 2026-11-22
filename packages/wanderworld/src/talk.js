@@ -112,7 +112,14 @@ export function createTalk(layer, handlers) {
   looksTitle.textContent = "Look at them";
   const looksText = document.createElement("div");
   looksText.style.cssText = "padding:3px 0 2px 12px;line-height:1.4;";
-  looks.append(looksTitle, looksText);
+  // Their Look card, for someone whose look can be chosen (a character, not a passer-by).
+  const editLook = document.createElement("button");
+  editLook.type = "button";
+  editLook.textContent = "Change how they look";
+  editLook.title = "Open their Look card: their body, face, colours, hair and clothes";
+  editLook.style.cssText = `${INK_BUTTON}margin:2px 0 2px 12px;font-size:12px;padding:2px 8px;`;
+  editLook.addEventListener("click", () => handlers.onEditLook?.());
+  looks.append(looksTitle, looksText, editLook);
   const log = document.createElement("div");
   log.style.cssText = "max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;";
   const note = document.createElement("div");
@@ -187,6 +194,10 @@ export function createTalk(layer, handlers) {
     /** What they look like, for the fold under the title ("" while it isn't known). */
     setLooks(words) {
       looksText.textContent = words || "Nothing stands out.";
+    },
+    /** Whether "Change how they look" is offered (someone with a Look card of their own). */
+    setLookEditable(on) {
+      editLook.style.display = on ? "" : "none";
     },
     /** The party button: "Part ways" when they're with you, else "Come with me". */
     setInParty(inParty) {
