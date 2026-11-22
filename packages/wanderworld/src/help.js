@@ -170,6 +170,9 @@ export const HELP = [
       "Body also has the age: young adult, middle-aged or old, which changes the face and build a little and the skin picture's lines (lore words old, elderly, grey-haired and middle-aged set it too). Face also has a brow style and a lash style.",
       "Colours: the skin is a skin picture (Caucasian, African or Asian) or the plain skin in a colour of your own; the eyes a real eye picture or the plain grey eye in a colour of your own; lips, nails and brows each from a list or a colour of your own. Underwear: a top and a bottom, or none, and their colour. An outfit piece covering it hides it.",
       "Presets: save a look under a name and start anyone's Look card from it, or from a ready-made one. Yours are kept with your settings, so they're there in every world; Export saves one as a small file and Import reads one back.",
+      "Anthro bodies: Body also offers an anthro wolf and an anthro dragon, male or female, built on the same body. They have a muzzle, a tail that sways and legs that stand on the toes; the dragon has horns and folded wings too (Wings: Shown or Hidden). Build and Face show their own sliders: the muzzle, the wolf's ears or the dragon's horns, tail length and tail thickness, and a neck that goes slimmer as well as thicker. Colours show their own parts: a wolf's fur, lighter fur, nose, eyes and claws, in natural coats; a dragon's scales, underside, horns and eyes, the scales in the colours of the ten draconic ancestries (black, blue, brass, bronze, copper, gold, green, red, silver, white); or any colour of your own. The ready-made presets have a grey, a white and a black wolf, and a red, a gold, a blue and a silver dragon.",
+      "What an anthro body wears: the same clothes and armour, worn as they are, so trousers bend with the legs. Hats, hoods, helms, circlets and footwear are made for a human head and foot, so they aren't offered yet, a cloak's hood stays down, and there are no hair styles for them yet. A tail comes out through whatever covers it, and so do a dragon's wings: hide the wings to wear a cloak or coat.",
+      "Who has one: townsfolk are human unless their Look card says otherwise, or their lore does with ww:looks:wolfkin, ww:looks:wolf-folk or ww:looks:dragonborn. You are human too, unless your build's race (the Sheet tab) is Dragonborn: then you have the dragon body until you choose another in the Look card.",
       'Townsfolk without a model of their own get the same body, shaped by their name and by their lore: ww:looks:tall, ww:looks:stocky, ww:looks:red hair, ww:looks:elf for pointed ears. Menu → Settings → People → "Townsfolk use the new bodies" turns that off, for the lighter Quaternius townsfolk on a slow phone.',
     ],
   },
@@ -439,6 +442,8 @@ export const BLENDER_MODELS = {
     "fire_elemental",
     "water_elemental",
   ],
+  // The anthro bodies (kit/generic/avatar/anthro-<kind>-<sex>.pack.png), built on the built-in body.
+  anthro: ["anthro_wolf", "anthro_dragon"],
   // The built-in body's hair styles (kit/generic/avatar/avatar-hair-index.json) and clothing
   // (kit/fantasy/avatar/avatar-outfits-index.json): those made in Blender by ThatOneCan, and those fitted
   // from MakeHuman's system assets (MAKEHUMAN_FITTED_CREDIT).
@@ -584,6 +589,7 @@ export const CREDITS = [
     lines: [
       `${MAKEHUMAN_CREDIT}: the built-in body, and the giants' base body made from it.`,
       "MakeHuman system assets (skins, eyes, eyebrows, eyelashes): CC0.",
+      `Made in Blender by ThatOneCan, built on MakeHuman's CC0 base mesh: ${namesOf(BLENDER_MODELS.anthro)} bodies, male and female.`,
       `${MAKEHUMAN_FITTED_CREDIT}: ${namesOf(BLENDER_MODELS.makehumanHair)} hair styles, and the modern clothes: ${namesOf(BLENDER_MODELS.makehumanClothing)}.`,
       `Made in Blender by ThatOneCan for the built-in body: ${namesOf(BLENDER_MODELS.hair)} hair styles, and the clothing and armour: ${namesOf(BLENDER_MODELS.clothing)}.`,
     ],

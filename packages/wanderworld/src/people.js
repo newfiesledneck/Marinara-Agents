@@ -46,11 +46,12 @@ import { arrayOf, fetchKit, pictureTexture } from "./packed.js";
 const KIT = "/api/capability-packages/wanderworld/assets/kit/";
 const BODY_FILE = /^(?:index|bodies|eyes|hair-|head-|plain-head-|plain-skin-|skin-)/u;
 const FOLK_FILE = /^folk[-.]/u; // the monsters on the people's skeleton (the imp, the puglin)
-// (The base avatar, avatar.js: its bodies and hair are any world's, its outfit pieces the medieval one's.)
+// (The base avatar, avatar.js: its bodies, anthro ones too, and hair are any world's, its outfit pieces the
+// medieval one's.)
 const dirOf = (name) =>
   name.startsWith("avatar-outfit")
     ? "fantasy/avatar"
-    : name.startsWith("avatar-")
+    : /^(?:avatar|anthro)-/u.test(name)
       ? "generic/avatar"
       : FOLK_FILE.test(name)
         ? "fantasy/folk"

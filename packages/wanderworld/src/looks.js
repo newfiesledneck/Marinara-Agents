@@ -211,19 +211,24 @@ export function checkLook(raw) {
   if (AVATARS.includes(raw.avatar)) look.avatar = raw.avatar;
   // The base avatar's own (avatar.js): its body, sliders, colours, underwear, outfit pieces, and the preset it began from.
   if (BODIES.some(([body]) => body === raw.body)) look.body = raw.body;
+  // Which kind of body (missing: a human, unless lore or their race says otherwise), and a dragon's wings.
+  if (SPECIES.some(([species]) => species === raw.species)) look.species = raw.species;
+  if (typeof raw.wings === "boolean") look.wings = raw.wings;
   for (const [field, list] of [
-    ["shape", [...SHAPES, ...FACE]],
+    ["shape", [...SHAPES, ...FACE, ...ANTHRO_SHAPES]],
     ["limbs", LIMBS],
   ]) {
     const kept = {};
     for (const [key, , least, most] of list) {
       const value = isRecord(raw[field]) ? raw[field][key] : undefined;
-      if (Number.isFinite(value)) kept[key] = Math.round(Math.max(least, Math.min(most, value)) * 1000) / 1000;
+      // (A slider with a key of its own below the middle goes all the way down on a body that has it.)
+      const lowest = KEY_PAIRS[key]?.[0] ? -1 : least;
+      if (Number.isFinite(value)) kept[key] = Math.round(Math.max(lowest, Math.min(most, value)) * 1000) / 1000;
     }
     if (Object.keys(kept).length) look[field] = kept;
   }
   const colours = {};
-  for (const [part] of AVATAR_COLOURS)
+  for (const [part] of [...AVATAR_COLOURS, ...Object.values(ANTHRO_COLOURS).flat()])
     if (isRecord(raw.colours) && isColour(raw.colours[part])) colours[part] = raw.colours[part];
   if (Object.keys(colours).length) look.colours = colours;
   const underwear = {};
@@ -263,8 +268,10 @@ export function checkLook(raw) {
 //
 // What its look adds, every part optional (missing: from the name, and lore words, keywords.js):
 //
-//   { body,                          "male" or "female" (anthro bodies later): which model is loaded
-//     shape: { weight, muscle, … },  the build and face sliders (SHAPES, FACE), each within its range
+//   { body,                          "male" or "female": which of a kind's two models is loaded
+//     species,                       "human", or an anthro kind, "wolf" or "dragon" (SPECIES)
+//     wings,                         a dragon's wings shown (missing: yes) or left off
+//     shape: { weight, muscle, … },  the build and face sliders (SHAPES, FACE, ANTHRO_SHAPES), each within its range
 //     limbs: { arms, legs, head },   arm and leg length and head size, as a share of the usual
 //     colours: { skin, eyes, … },    each part's colour (0xRRGGBB): AVATAR_COLOURS
 //     underwear: { top, bottom },    a style of each (UNDERWEAR_TOPS, UNDERWEAR_BOTTOMS), or "none"
@@ -281,11 +288,23 @@ export function checkLook(raw) {
 // place (`skin` as a number) or `skinTint` read as a skin of one's own when `colours.skin` isn't set, so a
 // look saved before keeps its height, skin, hair and colours.
 
-/** The bodies: [value, label]. Anthro bodies (a wolf, a dragon: docs/AVATAR.md) go here when they're made. */
+/** The bodies: [value, label]. Every kind (SPECIES) has both. */
 export const BODIES = [
   ["male", "Male body"],
   ["female", "Female body"],
 ];
+/**
+ * The kinds of body: [value, label]. An anthro kind is a body of its own (kit/generic/avatar/
+ * anthro-<kind>-<sex>), built on the human one: its skeleton with tail (and wing) bones, digitigrade legs,
+ * a head, parts and shape keys of its own (docs/AVATAR.md).
+ */
+export const SPECIES = [
+  ["human", "Human"],
+  ["wolf", "Anthro wolf"],
+  ["dragon", "Anthro dragon"],
+];
+/** The clothing slots an anthro body leaves empty for now: head pieces don't fit a muzzle, nor shoes a paw. */
+export const ANTHRO_BARE_SLOTS = new Set(["head", "brow", "feet"]);
 
 /** The build sliders: [look field, label, least, most, what it changes]. 0 is an everyday person. */
 export const SHAPES = [
@@ -305,6 +324,39 @@ export const FACE = [
   ["nose", "Nose", -0.5, 1, "A smaller or larger nose."],
   ["eyes", "Eyes", -0.5, 1, "Smaller or larger eyes."],
   ["ears", "Pointed ears", 0, 1, "Round ears to long, pointed ones, as an elf's."],
+];
+/** The anthro bodies' own sliders, the same way, and the card's section each is in. A body has those its
+ *  model has the shape keys for (hasSlider). */
+export const ANTHRO_SHAPES = [
+  ["muzzle", "Muzzle", -1, 1, "A shorter or a longer muzzle.", "face"],
+  ["earSize", "Ears", -1, 1, "Smaller or taller ears.", "face"],
+  ["horns", "Horns", -1, 1, "Smaller or larger horns.", "face"],
+  ["tailLength", "Tail length", -1, 1, "A shorter or a longer tail.", "build"],
+  ["tail", "Tail thickness", 0, 1, "A thicker tail.", "build"],
+];
+/**
+ * The shape keys a slider drives when they aren't one of its own name: [the key below the middle, the key
+ * above]. With a key below the middle the slider is two-way, each side its own key; with none (null) the
+ * one key is also run backwards, as far as the slider's least.
+ */
+const KEY_PAIRS = {
+  weight: ["thin", "heavy"],
+  neck: ["neck_slim", "neck"],
+  ears: [null, "ears_pointed"],
+  muzzle: ["muzzle_short", "muzzle"],
+  earSize: ["ears_small", "ears_tall"],
+  horns: ["horns_small", "horns"],
+  tailLength: ["tail_short", "tail_long"],
+};
+/** The keys `slider` drives on `sex`'s body: [below the middle (or null), above]. (Her chest key is "bust".) */
+export const sliderKeys = (slider, sex) =>
+  KEY_PAIRS[slider] ?? [null, slider === "chest" && sex === "female" ? "bust" : slider];
+/** Whether a body with shape keys `keys` has `slider`. */
+export const hasSlider = (slider, keys, sex) => keys.includes(sliderKeys(slider, sex)[1]);
+/** A slider's [least, most] on a body with shape keys `keys`: all the way down when it has the key for it. */
+export const sliderRange = ([slider, , least, most], keys) => [
+  keys.includes(KEY_PAIRS[slider]?.[0]) ? -1 : least,
+  most,
 ];
 /** Arm and leg length and head size: [field, label, least, most, what it changes]; 1 is the usual. */
 export const LIMBS = [
@@ -399,6 +451,117 @@ export const AVATAR_COLOURS = [
   ["brows", "Brows", HAIR_COLOURS, "Eyebrows and lashes (else the hair's colour, a little darker)."],
   ["underwear", "Underwear", CLOTH_COLOURS, "The underwear's cloth."],
 ];
+
+// ── The anthro bodies' colours: each part its own, over the model's grey texture ──
+/** Wolf coats, natural ones: [hex, label, the lighter fur that goes with it]. */
+export const FUR_COLOURS = [
+  [0x6e6862, "Grey", 0xe8dfd0],
+  [0x8f8a80, "Timber grey", 0xe8dfd0],
+  [0xa9a8a4, "Silver", 0xf4f1ea],
+  [0xe9e6de, "White", 0xf4f1ea],
+  [0x24211f, "Black", 0x3a3633],
+  [0x5c4433, "Brown", 0xc9a97c],
+  [0x8a5230, "Red", 0xe8dfd0],
+  [0xa5825a, "Tawny", 0xe8dfd0],
+  [0xd8c8a8, "Cream", 0xf4f1ea],
+];
+/** The lighter fur (muzzle, chest, belly, inner limbs): [hex, label]. */
+export const FUR2_COLOURS = [
+  [0xe8dfd0, "Cream"],
+  [0xf4f1ea, "White"],
+  [0xc2beb6, "Pale grey"],
+  [0xc9a97c, "Tan"],
+  [0x7d7a74, "Grey"],
+  [0x3a3633, "Charcoal"],
+];
+export const NOSE_COLOURS = [
+  [0x2b2725, "Black"],
+  [0x3d2b22, "Dark brown"],
+  [0x6a4638, "Liver"],
+  [0xc08a84, "Pink"],
+];
+/** A wolf's or a dragon's eyes: [hex, label]. A name alone picks from the first five. */
+export const BEAST_EYES = [
+  [0xd99a2b, "Amber"],
+  [0xe0b63a, "Gold"],
+  [0xd8c84a, "Yellow"],
+  [0xe07a1e, "Orange"],
+  [0x6b4a2a, "Brown"],
+  [0x5f8a3f, "Green"],
+  [0x8ab8d8, "Ice blue"],
+  [0x3f6f9a, "Blue"],
+  [0xb02a22, "Red"],
+  [0x7a4a9a, "Violet"],
+];
+export const CLAW_COLOURS = [
+  [0x2b2826, "Black"],
+  [0x4a3d33, "Dark horn"],
+  [0x8a7458, "Horn"],
+  [0xd8cdb4, "Bone"],
+  [0xf0ece2, "White"],
+];
+/** Dragon scales, named for the SRD's ten draconic ancestries: [hex, label, the underside that goes with it]. */
+export const SCALE_COLOURS = [
+  [0x2a2a2e, "Black", 0x6a6a70],
+  [0x2f5f9a, "Blue", 0xd9c28a],
+  [0xb89a4a, "Brass", 0xe4dcc8],
+  [0x8a6a3a, "Bronze", 0xd9c28a],
+  [0xb86a3a, "Copper", 0xe4dcc8],
+  [0xd4a82a, "Gold", 0xf0e6c8],
+  [0x3f7a3f, "Green", 0xd9c28a],
+  [0xa02a22, "Red", 0xd9c28a],
+  [0xb4b8c0, "Silver", 0xe6eaee],
+  [0xe6eaee, "White", 0xa8c0d8],
+];
+/** A dragon's underside (throat, chest, belly): [hex, label]. */
+export const SCALE2_COLOURS = [
+  [0xd9c28a, "Pale gold"],
+  [0xe4dcc8, "Bone"],
+  [0xf0e6c8, "Cream"],
+  [0xe6eaee, "White"],
+  [0x6a6a70, "Ash"],
+  [0x3a3a3e, "Charcoal"],
+  [0xa8c0d8, "Pale blue"],
+  [0xa8c8a0, "Pale green"],
+  [0xd8a8a0, "Rose"],
+];
+export const HORN_COLOURS = [
+  [0xd7c9a7, "Bone"],
+  [0xf0ead8, "Ivory"],
+  [0x6a5038, "Horn brown"],
+  [0x2a2826, "Black"],
+  [0x8a8884, "Grey"],
+  [0xc8a050, "Gold"],
+];
+/** An anthro kind's parts that can be coloured (with its underwear, AVATAR_COLOURS): [field, label, its list,
+ *  what it changes]. */
+export const ANTHRO_COLOURS = {
+  wolf: [
+    ["fur", "Fur", FUR_COLOURS, "The coat: the back, head, limbs and tail. The neck ruff's tufts follow it."],
+    ["fur2", "Lighter fur", FUR2_COLOURS, "The muzzle, throat, chest, belly and the tail's underside."],
+    ["nose", "Nose", NOSE_COLOURS, "The nose and the paw pads."],
+    ["eyes", "Eyes", BEAST_EYES, "The colour of the eyes."],
+    ["claws", "Claws", CLAW_COLOURS, "The claws on hands and feet."],
+  ],
+  dragon: [
+    ["scales", "Scales", SCALE_COLOURS, "The scales all over: the back, head, limbs, tail and wings."],
+    ["scales2", "Underside", SCALE2_COLOURS, "The throat, chest, belly and the wings' skin."],
+    ["horns", "Horns", HORN_COLOURS, "The horns, spines and claws."],
+    ["eyes", "Eyes", BEAST_EYES, "The colour of the eyes."],
+  ],
+};
+
+/**
+ * The look a character's race gives when nothing else says (build.js: an SRD race, and a draconic ancestry
+ * if the build names one): a dragonborn has the dragon body, its scales in its ancestry's colour. Laid
+ * under what lore and the Look card choose (mergeLooks).
+ */
+export function raceLook(build) {
+  if (build?.race !== "dragonborn") return {};
+  const ancestry = String(build.ancestry ?? "").toLowerCase();
+  const scales = SCALE_COLOURS.find(([, label]) => label.toLowerCase() === ancestry)?.[0];
+  return { species: "dragon", ...(scales === undefined ? {} : { colours: { scales } }) };
+}
 
 /** Underwear styles, top and bottom: [value, label]. A body offers only those its model has (avatar.js). */
 export const UNDERWEAR_TOPS = [
@@ -618,6 +781,8 @@ const PRESETS_KEPT = 24;
 /** The base avatar's choices, which starting from a preset puts back to the preset's (or the name's). */
 export const PRESET_FIELDS = [
   "body",
+  "species",
+  "wings",
   "figure",
   "shape",
   "limbs",
@@ -730,6 +895,27 @@ export const BUILT_IN_PRESETS = [
       height: 1.04,
     },
   },
+  // The anthro bodies, each in a coat or an ancestry's colours (the body follows their gender).
+  ...[
+    ["Grey wolf", 0, 0xd99a2b],
+    ["White wolf", 3, 0x8ab8d8],
+    ["Black wolf", 4, 0xe0b63a],
+  ].map(([name, coat, eyes]) => ({
+    name,
+    look: { species: "wolf", colours: { fur: FUR_COLOURS[coat][0], fur2: FUR_COLOURS[coat][2], eyes } },
+  })),
+  ...[
+    ["Red dragon", 7, 0xe0b63a],
+    ["Gold dragon", 5, 0xe07a1e],
+    ["Blue dragon", 1, 0xd8c84a],
+    ["Silver dragon", 8, 0x8ab8d8],
+  ].map(([name, ancestry, eyes]) => ({
+    name,
+    look: {
+      species: "dragon",
+      colours: { scales: SCALE_COLOURS[ancestry][0], scales2: SCALE_COLOURS[ancestry][2], eyes },
+    },
+  })),
 ].map((preset) => ({ ...preset, look: checkLook(preset.look) }));
 
 /**

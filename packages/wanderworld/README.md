@@ -87,9 +87,22 @@ the browser that saved it first keeps it and the other one loads that save, so d
   - **Presets:** start from one of your own or a ready-made one (a few for each body), save the look
     under a name, delete one, or export it as a small JSON file and import one back. Your presets are
     kept with your settings, so they're in every world and every browser.
-  - **Body:** gender (how they're spoken of), the male or the female body (as their gender unless
-    chosen), and age: young adult, middle-aged (about 50) or old (about 72), which shapes the face and
-    build a little and picks the skin picture of that age. Anthro bodies come later.
+  - **Body:** gender (how they're spoken of), the body (as their gender unless chosen): human, anthro
+    wolf or anthro dragon, male or female; and for a human the age: young adult, middle-aged (about 50)
+    or old (about 72), which shapes the face and build a little and picks the skin picture of that age.
+  - **Anthro bodies** (a wolf and a dragon, male and female, built on the human body): a muzzle, a tail
+    that sways, legs that stand on the toes, and the dragon's horns and folded wings (Wings: shown or
+    hidden). Build and Face show their own sliders: muzzle, ears (wolf) or horns (dragon), tail length
+    and tail thickness, and a neck that goes slimmer as well as thicker. Colours show their own parts: a
+    wolf's fur, lighter fur, nose, eyes and claws, in natural coats; a dragon's scales, underside, horns
+    and eyes, the scales in the colours of the ten draconic ancestries; or a colour of your own. They
+    wear the same clothes and armour, bound to their own skeleton, so trousers bend with the legs. Hats,
+    hoods, helms, circlets and footwear are made for a human head and foot and aren't offered yet, a
+    cloak's hood stays down, and they have no hair styles yet. A tail (and a dragon's wings, unless
+    hidden) comes out through whatever covers it. Ready-made presets: a grey, white and black wolf; a
+    red, gold, blue and silver dragon. Townsfolk are human unless their Look card or lore
+    (`ww:looks:wolfkin`, `ww:looks:wolf-folk`, `ww:looks:dragonborn`) says otherwise; you have the
+    dragon body if your build's race is Dragonborn and you haven't chosen a body.
   - **Build:** height, weight, muscle, chest (her bust), hips, waist, belly, shoulders, neck, arm length,
     leg length and head size. **Face:** jaw, cheekbones, nose, eyes and pointed ears, and a brow style
     (of 12) and a lash style (of 4), MakeHuman's, blended softly. Each slider's middle
@@ -1063,16 +1076,16 @@ lists any it didn't understand, and why.
 
 **People**
 
-| Keyword                                                                                | On                  | What it does                                                                                                                                                                                                                                                         |
-| -------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ww:body:woman (or man)`                                                               | a character's entry | Their body, when they have no 3D model.                                                                                                                                                                                                                              |
-| `ww:looks:tall, ww:looks:red hair, ww:looks:elf`                                       | a character's entry | How their built-in body looks: height (tall, short), build (slim, stocky, muscular, heavy…), pointed ears (elf, half-elf), hair (bald, long hair, red hair, blond…), skin (pale, tanned, dark skin), eyes (blue eyes…). One word a key; their Look card comes first. |
-| `ww:lives in:home6, ww:works at:smithy1, ww:owner of:tavern1`                          | a character's entry | Home and work.                                                                                                                                                                                                                                                       |
-| `ww:work:10:15-18:45, ww:home:22-7:15, ww:eat:12-13 at tavern1`                        | a character's entry | Their day (home, work, eat, visit, sit, walk), in quarter hours, over midnight if need be.                                                                                                                                                                           |
-| `ww:temperament:aggressive (passive, gentle, calm, grumpy, fierce, aggressive)`        | a character's entry | What they're like with anyone they're against: how readily they square up.                                                                                                                                                                                           |
-| `ww:manner:shy (shy, quiet, friendly, outgoing)`                                       | a character's entry | How readily they come over and greet people.                                                                                                                                                                                                                         |
-| `ww:voice:gruff (natural, cosy, dramatic, witty, terse, gruff, formal, cheerful, sly)` | a character's entry | How they talk, instead of the setting's way.                                                                                                                                                                                                                         |
-| `ww:member of:Thieves Guild`                                                           | a character's entry | Puts them in that faction.                                                                                                                                                                                                                                           |
+| Keyword                                                                                | On                  | What it does                                                                                                                                                                                                                                                                                                          |
+| -------------------------------------------------------------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ww:body:woman (or man)`                                                               | a character's entry | Their body, when they have no 3D model.                                                                                                                                                                                                                                                                               |
+| `ww:looks:tall, ww:looks:red hair, ww:looks:elf`                                       | a character's entry | How their built-in body looks: height (tall, short), build (slim, stocky, muscular, heavy…), pointed ears (elf, half-elf), an anthro body (wolfkin, wolf-folk, dragonborn), hair (bald, long hair, red hair, blond…), skin (pale, tanned, dark skin), eyes (blue eyes…). One word a key; their Look card comes first. |
+| `ww:lives in:home6, ww:works at:smithy1, ww:owner of:tavern1`                          | a character's entry | Home and work.                                                                                                                                                                                                                                                                                                        |
+| `ww:work:10:15-18:45, ww:home:22-7:15, ww:eat:12-13 at tavern1`                        | a character's entry | Their day (home, work, eat, visit, sit, walk), in quarter hours, over midnight if need be.                                                                                                                                                                                                                            |
+| `ww:temperament:aggressive (passive, gentle, calm, grumpy, fierce, aggressive)`        | a character's entry | What they're like with anyone they're against: how readily they square up.                                                                                                                                                                                                                                            |
+| `ww:manner:shy (shy, quiet, friendly, outgoing)`                                       | a character's entry | How readily they come over and greet people.                                                                                                                                                                                                                                                                          |
+| `ww:voice:gruff (natural, cosy, dramatic, witty, terse, gruff, formal, cheerful, sly)` | a character's entry | How they talk, instead of the setting's way.                                                                                                                                                                                                                                                                          |
+| `ww:member of:Thieves Guild`                                                           | a character's entry | Puts them in that faction.                                                                                                                                                                                                                                                                                            |
 
 **People and you**
 
@@ -1468,6 +1481,10 @@ Base mesh and shapes: MakeHuman (CC0), adapted in Blender by ThatOneCan: the bui
 and the giants' base body made from it (`assets/models/giant-base.glb`).
 
 MakeHuman system assets (skins, eyes, eyebrows, eyelashes): CC0, read as data by `make_avatar.py`.
+
+Made in Blender by ThatOneCan, built on MakeHuman's CC0 base mesh (`assets/scripts/make_anthro_wolf.py`,
+`make_anthro_dragon.py`): the anthro wolf and anthro dragon bodies, male and female. Each is the built-in
+body with a head, legs, tail and colours of its own (and the dragon's wings), on the same skeleton.
 
 Hair styles and clothing from MakeHuman's system assets (CC0), fitted in Blender by ThatOneCan
 (`assets/scripts/make_mh_hair.py`, `make_mh_clothes.py`): the short, slicked, crop, fringe, curly, bob,
