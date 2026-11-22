@@ -5216,7 +5216,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.7.51",
+        "version": "0.7.52",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -5346,6 +5346,10 @@
               "kit/generic/art/street-cobbles.webp",
               "kit/generic/art/water.webp",
               "kit/generic/art/wood-beam.webp",
+              "kit/generic/avatar/anthro-dragon-female.pack.png",
+              "kit/generic/avatar/anthro-dragon-male.pack.png",
+              "kit/generic/avatar/anthro-wolf-female.pack.png",
+              "kit/generic/avatar/anthro-wolf-male.pack.png",
               "kit/generic/avatar/avatar-eyes.webp",
               "kit/generic/avatar/avatar-female-3.webp",
               "kit/generic/avatar/avatar-female-skin-middle-african.webp",
@@ -5420,8 +5424,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "99f3e57e4607f61e5a1c01c0654bca072bfee8793d42c8e6f684cbb6b2906b87",
-            "bytes": 3520271
+            "sha256": "08f61a3d27e68ff22f4cc7acab180f73386a60d8658fa4225c246b21d104124b",
+            "bytes": 3531169
           },
           {
             "path": "server.mjs",
@@ -5949,6 +5953,26 @@
             "bytes": 38302
           },
           {
+            "path": "kit/generic/avatar/anthro-dragon-female.pack.png",
+            "sha256": "159b51097de916f3c9fdc26514693dffdeb488445c8acc796765ba283f1cc885",
+            "bytes": 3144545
+          },
+          {
+            "path": "kit/generic/avatar/anthro-dragon-male.pack.png",
+            "sha256": "08642d3dfc5437038cd2c737404dffb1c98f8e9f51325bfb86108f0b91edc555",
+            "bytes": 2394077
+          },
+          {
+            "path": "kit/generic/avatar/anthro-wolf-female.pack.png",
+            "sha256": "18b08a8250969b90d1db90decc0c0283f77cda87b2ac7430cceef112428b9813",
+            "bytes": 3044079
+          },
+          {
+            "path": "kit/generic/avatar/anthro-wolf-male.pack.png",
+            "sha256": "ddd7efff5363aeb21df2fb0f347eed23f929bc8c4762f7952ed90f7b8aa38759",
+            "bytes": 2324939
+          },
+          {
             "path": "kit/generic/avatar/avatar-eyes.webp",
             "sha256": "ebce478bc0fc47310fea5eee1a81a44cd52712597df5be776a83ed64a19d2dd7",
             "bytes": 153766
@@ -6276,9 +6300,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.7.51.zip",
-        "sha256": "1b7e10162732819787a4320e80a1509207a4efd774b6b2b44e9ab34b537e67f6",
-        "bytes": 70538647
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.7.52.zip",
+        "sha256": "6513ccd3632060f9232b9ac24dcf610e2621547412d49ddc4d09ad57d5ed90b3",
+        "bytes": 81458825
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },

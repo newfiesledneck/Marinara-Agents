@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.52",
+          "date": "2026-11-20",
+          "notes": "- Anthro bodies in the Look card: a wolf and a dragon, male and female, with their own sliders (muzzle, ears or horns, tail length and thickness), fur or scale colours (the dragon's in the ten draconic ancestries), wings shown or hidden, and presets. They wear the human clothes, apart from hats, hair and footwear for now. A dragonborn gets the dragon body unless another is chosen.\n- Every Look slider now starts at the body's own shape, with left smaller and right bigger and both ends labelled. Your own character's untouched sliders start neutral.",
+          "highlight": false
+        },
+        {
           "version": "0.7.51",
           "date": "2026-11-20",
           "notes": "- Hair, polished: long hair is fuller and layered, the fringe stays off the eye, the angled bob is lighter, curls read as curls, and the parted, buns, shaved and mohawk styles are remade to match the rest. Every style now follows the face, ear, neck and age sliders, and long hair no longer dips into the back when you strike or turn your head.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.33",
           "date": "2026-11-20",
           "notes": "- The goblin, polished: cupped ears with a raised rim and a pink hollow, a flatter lower lip instead of sausage-shaped lips, a waist that runs into its hips, smaller feet, and chest straps that ride over its muscles instead of through them.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.32",
-          "date": "2026-11-20",
-          "notes": "- The goblin is remade from a second set of references: stockier and muscled, with a bigger head, wide ears, a scowl over red eyes, a broad nose and an underbite with fangs. It wears straps crossed on its chest, leather shoulder pads, bracers, a tattered red loincloth and wrapped shins. It's lighter too, about 12,500 vertices instead of 16,000.",
           "highlight": false
         }
       ]

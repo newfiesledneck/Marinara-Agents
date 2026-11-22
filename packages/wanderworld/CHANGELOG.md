@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.52 — 2026-11-20
+
+- Anthro bodies in the Look card: a wolf and a dragon, male and female, with their own sliders (muzzle, ears or horns, tail length and thickness), fur or scale colours (the dragon's in the ten draconic ancestries), wings shown or hidden, and presets. They wear the human clothes, apart from hats, hair and footwear for now. A dragonborn gets the dragon body unless another is chosen.
+- Every Look slider now starts at the body's own shape, with left smaller and right bigger and both ends labelled. Your own character's untouched sliders start neutral.
+
 ## 0.7.51 — 2026-11-20
 
 - Hair, polished: long hair is fuller and layered, the fringe stays off the eye, the angled bob is lighter, curls read as curls, and the parted, buns, shaved and mohawk styles are remade to match the rest. Every style now follows the face, ear, neck and age sliders, and long hair no longer dips into the back when you strike or turn your head.

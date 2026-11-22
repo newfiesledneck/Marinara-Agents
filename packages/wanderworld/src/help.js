@@ -166,10 +166,14 @@ export const HELP = [
     lines: [
       'Underwear: each body has underwear styles to choose, top and bottom, in the Look card. Menu → Settings → People → "Default skins with underwear" (on to begin with) dresses anyone who has none chosen in the usual: a bra and briefs, or briefs. Off, the base skin shows unless underwear is chosen. A choice made by hand always wins.',
       "Without a 3D model of your own you are Wanderworld's own body, male or female, made in Blender. The Look button beside your persona (or Look on anyone in town) opens its card, with a small turning picture of them at the top. Each part folds away: Presets, Body, Build, Face, Colours, Underwear and Hair.",
-      "Build has height, weight, muscle, chest, hips, waist, belly, shoulders and neck, and arm length, leg length and head size. Face has the jaw, cheekbones, nose, eyes and pointed ears. Each slider's middle is an everyday person; drag one and the picture follows, let go and it's set. Anything you never touch comes from their name, so everyone in town looks a little different.",
+      "Build has height, weight, muscle, chest, hips, waist, belly, shoulders and neck, and arm length, leg length and head size. Face has the jaw, cheekbones, nose, eyes and pointed ears. Drag a slider and the picture follows; let go and it's set.",
+      "Every slider works the same way. Its middle is the model's own shape; to the right is bigger, longer, wider or more, to the left smaller, shorter, narrower or less, and each says what its two ends are (Weight: Thin to Heavy; Waist: Narrow to Wide; a tail: Short to Long). Pointed ears and tail thickness only go one way, so they start at the left end. Your own sliders start at the model's shape. Townsfolk start a little off it, from their name, so everyone in town looks a little different; the card shows where each of theirs is. Reset forgets the look's choices and puts every slider back at the model's shape.",
       "Body also has the age: young adult, middle-aged or old, which changes the face and build a little and the skin picture's lines (lore words old, elderly, grey-haired and middle-aged set it too). Face also has a brow style and a lash style.",
       "Colours: the skin is a skin picture (Caucasian, African or Asian) or the plain skin in a colour of your own; the eyes a real eye picture or the plain grey eye in a colour of your own; lips, nails and brows each from a list or a colour of your own. Underwear: a top and a bottom, or none, and their colour. An outfit piece covering it hides it.",
       "Presets: save a look under a name and start anyone's Look card from it, or from a ready-made one. Yours are kept with your settings, so they're there in every world; Export saves one as a small file and Import reads one back.",
+      "Anthro bodies: Body also offers an anthro wolf and an anthro dragon, male or female, built on the same body. They have a muzzle, a tail that sways and legs that stand on the toes; the dragon has horns and folded wings too (Wings: Shown or Hidden). Build and Face show their own sliders: the muzzle, the wolf's ears or the dragon's horns, tail length and tail thickness, and a neck that goes slimmer as well as thicker. Colours show their own parts: a wolf's fur, lighter fur, nose, eyes and claws, in natural coats; a dragon's scales, underside, horns and eyes, the scales in the colours of the ten draconic ancestries (black, blue, brass, bronze, copper, gold, green, red, silver, white); or any colour of your own. The ready-made presets have a grey, a white and a black wolf, and a red, a gold, a blue and a silver dragon.",
+      "What an anthro body wears: the same clothes and armour, worn as they are, so trousers bend with the legs. Hats, hoods, helms, circlets and footwear are made for a human head and foot, so they aren't offered yet, a cloak's hood stays down, and there are no hair styles for them yet. A tail comes out through whatever covers it, and so do a dragon's wings: hide the wings to wear a cloak or coat.",
+      "Who has one: townsfolk are human unless their Look card says otherwise, or their lore does with ww:looks:wolfkin, ww:looks:wolf-folk or ww:looks:dragonborn. You are human too, unless your build's race (the Sheet tab) is Dragonborn: then you have the dragon body until you choose another in the Look card.",
       'Townsfolk without a model of their own get the same body, shaped by their name and by their lore: ww:looks:tall, ww:looks:stocky, ww:looks:red hair, ww:looks:elf for pointed ears. Menu → Settings → People → "Townsfolk use the new bodies" turns that off, for the lighter Quaternius townsfolk on a slow phone.',
     ],
   },
@@ -439,6 +443,8 @@ export const BLENDER_MODELS = {
     "fire_elemental",
     "water_elemental",
   ],
+  // The anthro bodies (kit/generic/avatar/anthro-<kind>-<sex>.pack.png), built on the built-in body.
+  anthro: ["anthro_wolf", "anthro_dragon"],
   // The built-in body's hair styles (kit/generic/avatar/avatar-hair-index.json) and clothing
   // (kit/fantasy/avatar/avatar-outfits-index.json): those made in Blender by ThatOneCan, and those fitted
   // from MakeHuman's system assets (MAKEHUMAN_FITTED_CREDIT).
@@ -584,6 +590,7 @@ export const CREDITS = [
     lines: [
       `${MAKEHUMAN_CREDIT}: the built-in body, and the giants' base body made from it.`,
       "MakeHuman system assets (skins, eyes, eyebrows, eyelashes): CC0.",
+      `Made in Blender by ThatOneCan, built on MakeHuman's CC0 base mesh: ${namesOf(BLENDER_MODELS.anthro)} bodies, male and female.`,
       `${MAKEHUMAN_FITTED_CREDIT}: ${namesOf(BLENDER_MODELS.makehumanHair)} hair styles, and the modern clothes: ${namesOf(BLENDER_MODELS.makehumanClothing)}.`,
       `Made in Blender by ThatOneCan for the built-in body: ${namesOf(BLENDER_MODELS.hair)} hair styles, and the clothing and armour: ${namesOf(BLENDER_MODELS.clothing)}.`,
     ],

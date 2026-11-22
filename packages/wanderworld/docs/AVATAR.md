@@ -2,7 +2,8 @@
 
 Status: in the game. The male and female bodies are the built-in person, with the Look card's
 sections, presets, saving and townsfolk's seeded looks; hair styles and outfit pieces load when their
-files are in the kit. Anthro bodies are still to come. What's built, and how, is under "What's built".
+files are in the kit. The anthro wolf and dragon bodies are in too, built on the human body. What's built,
+and how, is under "What's built".
 
 The bar: these are the best-looking models in the game, because the player sees them all the time.
 Proper topology with edge loops, a detailed face and hands, a 2048 px texture, up to about 30,000
@@ -38,28 +39,48 @@ as they are for now; only the shape-built person is replaced.
 | Skin, eyes, lips      | Each part's colour, from the lists in `looks.js` or a colour of one's own |
 | Underwear colour      | The underwear part's colour                                               |
 | Hair style and colour | One of the hair meshes on the `Head` bone, tinted                         |
-| Anthro                | A body of its own (wolf, dragon, …); fur or scale colours and pattern     |
+| Anthro                | A wolf's or dragon's body on the human one; own sliders and colours       |
 | Preset                | Start from a saved or built-in look; save the current look as one         |
 
-Every slider has a middle that looks like an ordinary person, so a look that sets nothing is fine. A
-look keeps only what was chosen by hand, as `checkLook` does today; anything left out comes from the
-person's name (seeded), so a crowd differs without anyone setting it.
+Every slider works the same way (`looks.js`): its value 0 is the model's own shape; to the right is bigger,
+longer, wider or more, and to the left smaller, shorter, narrower or less; and each says what its two ends
+are. A pair of keys is one slider with the model's shape in the middle (thin and heavy, `muzzle_short` and
+`muzzle`, `tail_short` and `tail_long`, `ears_small` and `ears_tall`, `horns_small` and `horns`,
+`neck_slim` and `neck`). A slider with one key runs it backwards for its left half (the `waist` key
+narrows, so its slider turns it round), and its track still has 0 in the middle (`toTrack`); a one-way
+slider (pointed ears, tail thickness) has 0 at the left end. `tests/wanderworld-avatar.regression.mjs`
+measures each key's direction on all six bodies.
+
+A look keeps only what was chosen by hand, as `checkLook` does today. For townsfolk, anything left out
+comes from the person's name (seeded), so a crowd differs without anyone setting it, and the card shows
+where each slider is. The player starts with every slider at the model's shape (`NEUTRAL_LOOK` under
+their look), and the card's Reset puts anyone's sliders back there.
 
 ### Anthro
 
-Each anthro kind is a body of its own, male and female, modelled for its kind from head to toe, not a
-human body with a head swapped on. They share the people's skeleton (so the same animations play), the
-same build and face key names where they make sense (so presets and outfits work across bodies), and
-the same recolourable parts plus fur or scales.
+Each anthro kind is built on the human body, male and female (`assets/scripts/make_anthro_wolf.py`,
+`make_anthro_dragon.py`): the same base mesh and skeleton, so the trunk, arms and thighs keep the human
+surface (the wolf's 3 mm of fur over it, the dragon's scales under 5 mm) and human clothes fit them. What's
+its own is the head, the hands' claws, the legs below the hock, the tail, and the dragon's wings. The first
+plan, a body modelled for its kind from head to toe, was dropped for this: one base means one set of
+clothes, one set of build keys and one skeleton.
 
-- **Wolf** and **dragon** first (the user asked for both), then canine, feline, vulpine and lapine.
-- Each has its own head (muzzle, ears or horns, teeth), hands with claws, digitigrade legs (walking on
-  the toes, still played by the people's clips), and a tail on `pelvis` with a short bone chain that
-  sways with a small motion of its own. The dragon adds horns, scales, a frill or spines, and wings
-  folded on its back (a later option: wings that open).
-- Keys of their own: `muzzle` (longer), `ears_tall` (the wolf), `horns` (the dragon), `tail` (thicker).
-- Colours: a main colour, a second for the belly and muzzle, and a pattern (plain, socks, mask,
-  stripes; the dragon: plain, banded, speckled).
+- **Wolf** and **dragon** are in. Canine, feline, vulpine and lapine can follow the same way.
+- **The skeleton** is the people's, with tail bones on `pelvis` (the wolf's `tail_01` to `tail_04`, the
+  dragon's to `tail_05`) and, on the dragon, wing bones on `spine_03` (`wing_01`, `wing_02` and three
+  fingers a side). The legs are digitigrade: the human leg skinned onto joints moved to the new stance,
+  sculpted only below the hock, so the people's clips still play. The dragon stands a few centimetres
+  taller. The game sways the tail and settles the wings itself (`avatar.js swayOf`: a small turn of each
+  bone, no clip); the models' own `Idle`, `Walk` and `Attack` actions stay in the `.glb`.
+- **Pieces** in the body's file: `underwear-bottom-briefs` and `-boxer_briefs`, her `underwear-top-bra`
+  and `-sports_bra`, and the dragon's `wings`, which a look can hide.
+- **Keys:** the human build keys (thin, heavy, muscle, chest or bust, hips, waist, belly, shoulders,
+  neck) with `neck_slim`; for the face `jaw`, `cheeks`, `eyes`, `muzzle` and `muzzle_short`; the wolf's
+  `ears_tall` and `ears_small`, the dragon's `horns` and `horns_small`; `tail` (thicker), `tail_long` and
+  `tail_short`; and the wolf's `ruff_flat`, which lays its neck ruff flat under a piece.
+- **Parts** (each a colour over the model's grey texture): the wolf's `fur`, `fur2`, `nose`, `eyes`,
+  `claws` (and `eyelashes`, `teeth`, and the ruff's `fur_tufts` and `fur2_tufts`, blended cards that take
+  the fur's colours); the dragon's `scales`, `scales2`, `horns`, `iris` (and `eye_white`, `teeth`).
 
 ### Presets
 
@@ -84,9 +105,9 @@ can be exported and imported as a small file.
 4. **The Look card.** A Body section (male, female, anthro), then Build, Face, Colours and Hair, each a
    group of sliders or swatches that folds away, so it isn't a wall of controls. Each control says what it
    changes. It works on a phone: one column, big targets, the figure turning in a small preview.
-5. **Saving.** The look gains `body`, `shape: { weight, muscle, … }` (each −1…1 or 0…1),
+5. **Saving.** The look gains `body`, `species`, `shape: { weight, muscle, … }` (each −1…1 or 0…1),
    `limbs: { arms, legs, head }`, `colours: { skin, eyes, lips, underwear, fur, fur2 }`, `hair`,
-   `anthro: { head, tail, pattern }`. `checkLook` clamps each and drops anything unknown. Older looks
+   `wings`. `checkLook` clamps each and drops anything unknown. Older looks
    still load: their height, skin, hair and colours carry over.
 6. **People in town.** Anyone without a model of their own gets a seeded look within a natural range.
    Lore words can shape it ("tall", "stocky", "red hair", "elf" for pointed ears) through
@@ -174,7 +195,27 @@ Budget: up to about 30,000 vertices for a body, 2,000 to 4,000 for a hair style.
 - **The Look card's clothing:** Clothes and Armour, a piece a slot (or none) of those made for the body,
   each part's colour, the cloak's hood up or down, and ready-made outfits (`looks.js OUTFIT_PRESETS`)
   that change only the clothes.
-- **Not yet:** anthro bodies, facial hair, townsfolk's clothes following where they work (it's from the
+- **Anthro bodies** (`looks.js SPECIES`: `species` in a look, beside `body`, so the body still follows the
+  gender):
+  - **Packing:** `--avatar` packs `assets/models/anthro-<kind>-<sex>.glb` into
+    `kit/generic/avatar/anthro-<kind>-<sex>.pack.png`, a file a body with its pictures inside (the body's at
+    2,048 px, the underwear's at 1,024; the normal maps are left out), about 2.3 to 3.1 MB each.
+    `--avatar anthro` packs only those four.
+  - **Sliders:** the Look card shows the sliders a body has keys for (`looks.js hasSlider`). A two-way
+    slider drives a key each side of its middle (`KEY_PAIRS`: muzzle, ears, horns, tail length, and the
+    neck on a body with `neck_slim`); the human neck has one key, run backwards as before.
+  - **Colours:** `ANTHRO_COLOURS`, each part from its list (natural wolf coats; the SRD's ten draconic
+    ancestries) or a colour of one's own; unless chosen, a coat or an ancestry from the name.
+  - **Clothes:** the human outfit pieces, bound to the anthro skeleton with their own (human) inverse bind
+    matrices (`people.js skeletonFor`), so the stance bends trousers as it bent the legs, and following the
+    build keys the bodies share. Covered regions are hidden as on a human, claws and paw pads under gloves
+    too. Nothing is offered in the head, brow and feet slots (`ANTHRO_BARE_SLOTS`), a cloak's hood stays
+    down, and there's no hair. A tail and wings come through cloth worn over them; the wings can be hidden.
+  - **Who has one:** townsfolk stay human unless their look or lore says otherwise
+    (`ww:looks:wolfkin`, `wolf-folk`, `dragonborn`); a player whose build's race is Dragonborn has the
+    dragon body unless one is chosen (`looks.js raceLook`).
+- **Not yet:** anthro hair, head pieces and footwear, patterns for fur and scales, wings that open, a hole
+  for the tail in what covers it, facial hair, townsfolk's clothes following where they work (it's from the
   name, so the Look card and the world agree), live shape keys while a slider is dragged in the world (the
   preview is made again instead), and a cheaper body far away (each person costs the same at any
   distance; the crowd's own spacing of animation updates applies).

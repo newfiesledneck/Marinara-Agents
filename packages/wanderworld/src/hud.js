@@ -11,6 +11,8 @@ import { makeFloating } from "./floating.js";
 import { cardRow, createInfoCard, createOverCard, logLines } from "./fightbar.js"; // (the fight display)
 import {
   AGES,
+  ANTHRO_COLOURS,
+  ANTHRO_SHAPES,
   AVATAR_COLOURS,
   BARE,
   BODIES,
@@ -27,9 +29,15 @@ import {
   EXTRAS,
   EYE_PICTURES,
   FACE,
+  fromTrack,
+  hasSlider,
+  NEUTRAL_LOOK,
   SKINS,
+  sliderRange,
   SLOT_OF,
+  SPECIES,
   TINT,
+  toTrack,
   HAIR_COLOURS,
   HAIRSTYLES,
   HEIGHTS,
@@ -352,9 +360,10 @@ export function createHud(root, handlers) {
         line.textContent = text;
         rows.push(line);
       };
-      // A slider for the base avatar: its name and value, then the slider across the card, then what it
-      // changes. Dragged, the preview follows; let go, it's set.
-      const slider = (label, what, value, [least, most, step], shown, onLive, onSet) => {
+      // A slider for the base avatar: its name and value, then the slider across the card with what its two
+      // ends are under it (the right is always bigger, longer, wider or more), then what it changes. Dragged,
+      // the preview follows; let go, it's set.
+      const slider = (label, what, value, [least, most, step], shown, onLive, onSet, ends) => {
         const block = document.createElement("div");
         block.style.cssText = "display:flex;flex-direction:column;gap:2px;font-size:13px;";
         const head = document.createElement("div");
@@ -379,10 +388,18 @@ export function createHud(root, handlers) {
           onLive(Number(range.value));
         });
         range.addEventListener("change", () => onSet(Number(range.value)));
+        const sides = document.createElement("div");
+        sides.style.cssText = "display:flex;justify-content:space-between;font-size:11px;opacity:0.85;";
+        for (const end of ends) {
+          const side = document.createElement("span");
+          side.textContent = end;
+          sides.append(side);
+        }
+        range.setAttribute("aria-valuetext", `${shown(value)} (${ends[0]} to ${ends[1]})`);
         const hint = document.createElement("div");
         hint.style.cssText = "font-size:11px;opacity:0.7;line-height:1.3;";
         hint.textContent = what;
-        block.append(head, range, hint);
+        block.append(head, range, sides, hint);
         rows.push(block);
       };
       const signed = (value) => (value > 0 ? `+${value.toFixed(2)}` : value.toFixed(2));
@@ -562,6 +579,12 @@ export function createHud(root, handlers) {
         if (what) says(what);
         picker(key, colour, (picked) => onSet(picked, -1));
       };
+      // An anthro body (a wolf, a dragon) has sliders and colours of its own, no hair, and wears only what
+      // fits it. The sliders offered are those the body's model has shape keys for.
+      const anthro = !!shape && shape.species !== "human";
+      const kindName = shape ? SPECIES.find(([kind]) => kind === shape.species)[1].toLowerCase() : "";
+      const bodyKeys = avatar?.choices?.keys;
+      const offered1 = (list) => list.filter(([key]) => !bodyKeys || hasSlider(key, bodyKeys, shape.body));
       if (shape) {
         // Presets: start from one (your own or a ready-made one), or keep this look as one.
         section("Presets", () => {
@@ -677,36 +700,65 @@ export function createHud(root, handlers) {
           const body = document.createElement("select");
           body.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
           body.setAttribute("aria-label", "Body");
-          body.append(new Option(`As their gender (${shape.body === "female" ? "female" : "male"})`, ""));
-          for (const [value, text] of BODIES) body.append(new Option(text, value));
-          // (Anthro bodies, a wolf or a dragon, go here when they're made: docs/AVATAR.md.)
-          const later = new Option("Anthro bodies (coming later)", "anthro");
-          later.disabled = true;
-          body.append(later);
-          body.value = chosen.body ?? "";
-          body.addEventListener("change", () => set({ body: body.value || undefined, figure: undefined }));
+          // (As their gender: the kind too, when lore or their race gives one and none is chosen here.)
+          const given = anthro && !chosen.species ? `${kindName}, ` : "";
+          body.append(new Option(`As their gender (${given}${shape.body === "female" ? "female" : "male"})`, ""));
+          // Every kind's two bodies: the human ones, and the anthro wolf's and dragon's.
+          for (const [kind, name] of SPECIES)
+            for (const [value] of BODIES) body.append(new Option(`${name}, ${value}`, `${kind}:${value}`));
+          body.value = chosen.body || chosen.species ? `${shape.species}:${shape.body}` : "";
+          body.addEventListener("change", () => {
+            const [kind, value] = body.value.split(":");
+            set({ species: kind || undefined, body: value || undefined, figure: undefined });
+          });
           row("Body", body);
-          says("Which model they are: the male or the female body. Anthro bodies come later.");
-          pick("Age", "age", AGES, shape.age);
           says(
-            "All grown-ups. Middle-aged and old change the face and build a little, and the skin pictures show their lines. Unless chosen, it comes from their name or lore (old, elderly, middle-aged).",
+            "Which model they are: a human, an anthro wolf or an anthro dragon, male or female. An anthro body has a muzzle, a tail and its own colours, and stands on its toes; it wears most clothes, but no hair, hats or shoes yet. As their gender, they're human unless their lore says wolfkin, wolf-folk or dragonborn (or your own build's race is Dragonborn).",
           );
+          if (avatar.choices?.wings) {
+            pick(
+              "Wings",
+              "wings",
+              [
+                ["yes", "Shown"],
+                ["no", "Hidden"],
+              ],
+              shape.wings ? "yes" : "no",
+              (text) => text === "yes",
+            );
+            says(
+              "A dragon's folded wings. They come through a cloak or coat worn over the back: hide them to wear one.",
+            );
+          }
+          if (!anthro) {
+            pick("Age", "age", AGES, shape.age);
+            says(
+              "All grown-ups. Middle-aged and old change the face and build a little, and the skin pictures show their lines. Unless chosen, it comes from their name or lore (old, elderly, middle-aged).",
+            );
+          }
         });
         // Build and face: shape keys, and the bones' lengths.
-        const shapeSlider = ([key, label, least, most, what]) => {
-          const set1 = (value) => ({ shape: { ...chosen.shape, [key]: value } });
+        const shapeSlider = (entry) => {
+          const [key, label, , , what, ends] = entry;
+          // Its track: −1 to 1 with the model's own shape in the middle (0 to 1 for a one-way slider),
+          // whatever the key's own reach each way on this body (looks.js toTrack).
+          const range = sliderRange(entry, bodyKeys ?? []);
+          const set1 = (at) => ({ shape: { ...chosen.shape, [key]: Math.round(fromTrack(at, range) * 1000) / 1000 } });
           slider(
             key === "chest" && shape.body === "female" ? "Bust" : label,
             what,
-            shape.shape[key],
-            [least, most, 0.05],
+            toTrack(Math.max(range[0], Math.min(range[1], shape.shape[key])), range),
+            [range[0] < 0 ? -1 : 0, 1, 0.05],
             signed,
-            (value) => previewSoon({ ...chosen, ...set1(value) }),
-            (value) => set(set1(value)),
+            (at) => previewSoon({ ...chosen, ...set1(at) }),
+            (at) => set(set1(at)),
+            ends,
           );
         };
         section("Build", () => {
-          says("Each slider's middle is an everyday person; anything you don't move comes from their name.");
+          says(
+            "Each slider's middle is the model's own shape: right is bigger, longer or wider, left is smaller, shorter or narrower. Townsfolk start a little off the middle, from their name, so they differ; Reset puts every slider back in the middle.",
+          );
           slider(
             "Height",
             "Shorter or taller, all of them at once.",
@@ -715,9 +767,11 @@ export function createHud(root, handlers) {
             share,
             (value) => previewSoon({ ...chosen, height: value }),
             (value) => set({ height: value }),
+            ["Short", "Tall"],
           );
-          for (const entry of SHAPES) shapeSlider(entry);
-          for (const [key, label, least, most, what] of LIMBS) {
+          for (const entry of offered1([...SHAPES, ...ANTHRO_SHAPES.filter((each) => each[6] === "build")]))
+            shapeSlider(entry);
+          for (const [key, label, least, most, what, ends] of LIMBS) {
             const set1 = (value) => ({ limbs: { ...chosen.limbs, [key]: value } });
             slider(
               label,
@@ -727,11 +781,13 @@ export function createHud(root, handlers) {
               share,
               (value) => previewSoon({ ...chosen, ...set1(value) }),
               (value) => set(set1(value)),
+              ends,
             );
           }
         });
         section("Face", () => {
-          for (const entry of FACE) shapeSlider(entry);
+          for (const entry of offered1([...FACE, ...ANTHRO_SHAPES.filter((each) => each[6] === "face")]))
+            shapeSlider(entry);
           // Brow and lash styles (MakeHuman's): the ones this body has. Their colour is under Colours.
           for (const [field, label, what] of [
             ["brows", "Brows", "The eyebrows' shape. Their colour is the Brows colour below."],
@@ -752,6 +808,20 @@ export function createHud(root, handlers) {
         // Colours: each part from its list or a colour of one's own. The skin and eyes are a picture, or a
         // colour of one's own. (The skin's colour is the older kit's too.)
         section("Colours", () => {
+          // An anthro body: each of its parts from its list (natural coats; the ten draconic ancestries) or a
+          // colour of one's own. Unless chosen, they come from the name.
+          if (anthro) {
+            says(
+              shape.species === "wolf"
+                ? "A wolf's coat in natural colours, or any colour of your own. Unless chosen, they come from their name."
+                : "A dragon's scales in the colours of the ten draconic ancestries, or any colour of your own. Unless chosen, they come from their name.",
+            );
+            for (const [part, label, list, what] of ANTHRO_COLOURS[shape.species])
+              colourRow(label, what, list, shape.colours[part], `colour:${part}`, (colour) =>
+                set({ colours: { ...chosen.colours, [part]: colour } }),
+              );
+            return;
+          }
           const picture = shape.skin !== "custom";
           for (const [part, label, list, what] of AVATAR_COLOURS) {
             if (part === "underwear") continue; // (with the underwear, below)
@@ -804,6 +874,7 @@ export function createHud(root, handlers) {
         });
         // Hair: the style and its colour (the older kit's people wear the same).
         section("Hair", () => {
+          if (anthro) return says(`The hair styles are made for a human head, so an ${kindName} has none for now.`);
           const style = document.createElement("select");
           style.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
           style.setAttribute("aria-label", "Hair style");
@@ -909,6 +980,10 @@ export function createHud(root, handlers) {
             says(
               `One piece a slot; each hides the skin and underwear it covers. Unless you choose, they wear everyday clothes for their work, from their name${job ? ` (now ${job})` : ""}.`,
             );
+            if (anthro)
+              says(
+                `Made for the human body and worn as they are: hats, hoods, helms, circlets and footwear don't fit an ${kindName}'s head and paws, so they aren't offered for now, and a cloak's hood stays down. A tail comes out through whatever covers it.`,
+              );
             const start = document.createElement("select");
             start.style.cssText = "font:inherit;padding:6px;border-radius:6px;min-height:36px;min-width:0;";
             start.setAttribute("aria-label", "Start from an outfit");
@@ -1163,13 +1238,19 @@ export function createHud(root, handlers) {
       });
       const buttons = document.createElement("div");
       buttons.style.cssText = "display:flex;gap:8px;";
-      const reset = button("Reset", "Forget these choices: back to the look their name gives", () => {
-        picking = null;
-        chosen = {};
-        handlers.onSetLook(id, null);
-        showPreview({});
-        void handlers.lookOf(id).then(refresh);
-      });
+      // Reset: every choice forgotten, and every slider back at the model's own shape (its middle, or the left
+      // end of a one-way one), which is where the player starts; the colours, hair and clothes are their name's.
+      const reset = button(
+        "Reset",
+        "Forget these choices: every slider back to the model's own shape, the rest as their name gives",
+        () => {
+          picking = null;
+          chosen = avatar ? { ...NEUTRAL_LOOK } : {};
+          handlers.onSetLook(id, avatar ? chosen : null);
+          showPreview(chosen);
+          void handlers.lookOf(id).then(refresh);
+        },
+      );
       const done = button("Done", "Close", closeLook);
       for (const control of [reset, done]) control.style.cssText += "flex:1;padding:8px 10px;";
       buttons.append(reset, done);
