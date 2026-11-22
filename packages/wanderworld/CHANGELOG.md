@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.7.51 — 2026-11-20
+
+- Hair, polished: long hair is fuller and layered, the fringe stays off the eye, the angled bob is lighter, curls read as curls, and the parted, buns, shaved and mohawk styles are remade to match the rest. Every style now follows the face, ear, neck and age sliders, and long hair no longer dips into the back when you strike or turn your head.
+
 ## 0.7.50 — 2026-11-20
 
 - Hair and clothes for the built-in body: 14 hair styles (MakeHuman's and our own), and 78 pieces, from swimwear, crop tops, skirts and shorts to robes, gowns, chain, scale and plate, plus MakeHuman's modern clothes. Each follows the body's sliders.

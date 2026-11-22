@@ -459,9 +459,81 @@ class Fitted:
         out.faces = [[remap[v] for v in self.faces[f]] for f in face_ids]
         starts = np.cumsum([0] + [len(f) for f in self.faces])
         out.corner_uv = np.concatenate([self.corner_uv[starts[f] : starts[f + 1]] for f in face_ids])
+        out.normal_hint = self.normal_hint[used].copy() if getattr(self, "normal_hint", None) is not None else None
         out.source = used
         out._nb = None
         return out
+
+    def face_uv_centres(self):
+        """Each face's middle in the texture."""
+        starts = np.cumsum([0] + [len(f) for f in self.faces])
+        return np.array([self.corner_uv[starts[i] : starts[i + 1]].mean(0) for i in range(len(self.faces))])
+
+    def vertex_uv(self):
+        """A texture place per vertex (the first corner's, where a seam gives it more than one)."""
+        uv = np.zeros((len(self.co), 2))
+        k = 0
+        for f in self.faces:
+            for v in f:
+                uv[v] = self.corner_uv[k]
+                k += 1
+        return uv
+
+    def decimate(self, ratio, face_ids=None):
+        """Fewer faces where they're densest (Blender's collapse decimation, keeping the texture's seams), its
+        new vertices taking the keys of the surface they were on, so it follows every slider as before.
+        `face_ids` limits it to those faces; the rest stay as they are. Returns a new Fitted."""
+        keep = sorted(range(len(self.faces))) if face_ids is None else sorted(set(face_ids))
+        part = self.subset(keep)
+        others = sorted(set(range(len(self.faces))) - set(keep))
+        rest = self.subset(others) if others else None
+        mesh = bpy.data.meshes.new("decimate")
+        mesh.from_pydata(part.co.tolist(), [], part.faces)
+        uv = mesh.uv_layers.new(name="UVMap")
+        uv.data.foreach_set("uv", part.corner_uv.astype(np.float32).ravel())
+        obj = bpy.data.objects.new("decimate", mesh)
+        bpy.context.scene.collection.objects.link(obj)
+        mod = obj.modifiers.new("Decimate", "DECIMATE")
+        mod.decimate_type = "COLLAPSE"
+        mod.ratio = ratio
+        mod.delimit = {"UV"}
+        dg = bpy.context.evaluated_depsgraph_get()
+        ev = obj.evaluated_get(dg)
+        me = ev.to_mesh()
+        a = np.zeros(len(me.vertices) * 3)
+        me.vertices.foreach_get("co", a)
+        co = a.reshape(-1, 3).copy()
+        faces = [list(p.vertices) for p in me.polygons]
+        cuv = np.zeros(len(me.loops) * 2)
+        me.uv_layers[0].data.foreach_get("uv", cuv)
+        cuv = cuv.reshape(-1, 2).copy()
+        ev.to_mesh_clear()
+        bpy.data.objects.remove(obj, do_unlink=True)
+        bpy.data.meshes.remove(mesh)
+        tris = np.array([(f[0], f[j], f[j + 1]) for f in part.faces for j in range(1, len(f) - 1)])
+        bvh = BVHTree.FromPolygons(part.co.tolist(), tris.tolist())
+        keys = {k: np.zeros_like(co) for k in part.keys}
+        W = np.zeros((len(co), part.W.shape[1]))
+        for i, p in enumerate(co):
+            loc, _, t, _ = bvh.find_nearest(Vector(p))
+            ids = tris[t]
+            A, B, C = part.co[ids]
+            v0, v1, v2 = B - A, C - A, np.array(loc) - A
+            d00, d01, d11 = v0 @ v0, v0 @ v1, v1 @ v1
+            den = d00 * d11 - d01 * d01
+            if abs(den) < 1e-20:
+                w = np.array([1.0, 0.0, 0.0])
+            else:
+                v = (d11 * (v2 @ v0) - d01 * (v2 @ v1)) / den
+                u = (d00 * (v2 @ v1) - d01 * (v2 @ v0)) / den
+                w = np.clip([1 - v - u, v, u], 0, 1)
+                w = w / max(w.sum(), 1e-9)
+            for k in keys:
+                keys[k][i] = w @ part.keys[k][ids]
+            W[i] = w @ part.W[ids]
+        out = made(part.body, co, faces, cuv, keys, like=part)
+        out.W = W
+        return merge([out, rest]) if rest is not None else out
 
     def neighbours(self):
         if self._nb is None:
@@ -636,6 +708,164 @@ class Fitted:
         for i, f in enumerate(self.faces):
             groups.setdefault(find(f[0]), []).append(i)
         return sorted(groups.values(), key=len, reverse=True)
+
+
+def merge(parts):
+    """One Fitted from several: their vertices, faces, texture places, keys and weights side by side."""
+    parts = [p for p in parts if p is not None and len(p.faces)]
+    out = Fitted.__new__(Fitted)
+    out.proxy, out.body = parts[0].proxy, parts[0].body
+    out.key_names = list(parts[0].key_names)
+    faces, base = [], 0
+    for p in parts:
+        faces += [[v + base for v in f] for f in p.faces]
+        base += len(p.co)
+    out.co = np.concatenate([p.co for p in parts])
+    out.keys = {k: np.concatenate([p.keys[k] for p in parts]) for k in out.key_names}
+    out.W = np.concatenate([p.W for p in parts])
+    out.faces = faces
+    out.corner_uv = np.concatenate([p.corner_uv for p in parts])
+    hints = [getattr(p, "normal_hint", None) for p in parts]
+    out.normal_hint = None
+    if any(h is not None for h in hints):
+        out.normal_hint = np.concatenate([h if h is not None else np.full((len(p.co), 3), np.nan) for h, p in zip(hints, parts)])
+    out._nb = None
+    return out
+
+
+def made(body, co, faces, corner_uv, keys, normal_hint=None, like=None):
+    """A Fitted from geometry made here (cards of our own): positions, faces, texture places per corner, and
+    an offset per shape key ({name: (n, 3)}). Weights come later (the style's own)."""
+    out = Fitted.__new__(Fitted)
+    out.proxy = like.proxy if like is not None else None
+    out.body = body
+    out.key_names = list(like.key_names if like is not None else keys)
+    out.co = np.asarray(co, dtype=np.float64)
+    out.keys = {k: np.asarray(keys[k], dtype=np.float64) for k in out.key_names}
+    out.W = np.zeros((len(out.co), len(BONE_NAMES)))
+    out.W[:, BONE_INDEX["Head"]] = 1.0
+    out.faces = [list(f) for f in faces]
+    out.corner_uv = np.asarray(corner_uv, dtype=np.float64)
+    out.normal_hint = None if normal_hint is None else np.asarray(normal_hint, dtype=np.float64)
+    out._nb = None
+    return out
+
+
+class Surface:
+    """Some of a Fitted's faces as a surface to sample by texture place: a point given in the texture comes
+    back as a position on those faces, with its shape keys' offsets and the surface's normal there (so cards
+    laid on it follow every slider as it does)."""
+
+    def __init__(self, fitted, face_ids):
+        self.f = fitted
+        starts = np.cumsum([0] + [len(f) for f in fitted.faces])
+        tris, tuv = [], []
+        for i in face_ids:
+            f = fitted.faces[i]
+            uv = fitted.corner_uv[starts[i] : starts[i + 1]]
+            for j in range(1, len(f) - 1):
+                tris.append((f[0], f[j], f[j + 1]))
+                tuv.append((uv[0], uv[j], uv[j + 1]))
+        self.tris = np.array(tris)
+        self.tuv = np.array(tuv)
+        pts = self.tuv.reshape(-1, 2)
+        flat = np.concatenate([pts, np.zeros((len(pts), 1))], axis=1)
+        self.bvh = BVHTree.FromPolygons(flat.tolist(), np.arange(len(pts)).reshape(-1, 3).tolist())
+        n = np.cross(fitted.co[self.tris[:, 1]] - fitted.co[self.tris[:, 0]], fitted.co[self.tris[:, 2]] - fitted.co[self.tris[:, 0]])
+        self.tri_n = unit(n)
+
+    def at(self, uv):
+        """(positions, {key: offsets}, normals, distance outside in texture units) for texture places (k, 2)."""
+        uv = np.atleast_2d(uv)
+        bary = np.zeros((len(uv), 3))
+        tri = np.zeros(len(uv), dtype=np.int64)
+        miss = np.zeros(len(uv))
+        for i, p in enumerate(uv):
+            loc, _, t, d = self.bvh.find_nearest(Vector((p[0], p[1], 0.0)))
+            a, b, c = self.tuv[t]
+            v0, v1, v2 = b - a, c - a, np.array(loc[:2]) - a
+            den = v0[0] * v1[1] - v1[0] * v0[1]
+            if abs(den) < 1e-14:
+                w = np.array([1.0, 0.0, 0.0])
+            else:
+                s = (v2[0] * v1[1] - v1[0] * v2[1]) / den
+                t_ = (v0[0] * v2[1] - v2[0] * v0[1]) / den
+                w = np.array([1 - s - t_, s, t_])
+            bary[i], tri[i], miss[i] = w, t, d
+        ids = self.tris[tri]
+        co = (self.f.co[ids] * bary[..., None]).sum(1)
+        keys = {k: (d[ids] * bary[..., None]).sum(1) for k, d in self.f.keys.items()}
+        return co, keys, self.tri_n[tri], miss
+
+
+def strip(points, keys, outward, width, rect, cols=2, taper=0.3, round_=0.45):
+    """A card along `points` (k, 3) with each point's key offsets ({name: (k, 3)}) and outward direction
+    (k, 3): `cols` quads across, `width` at the root narrowing by `taper` at the tip, texture place
+    `rect` (u0, v0, u1, v1: across, root at v1 to tip at v0). Normals curve round it across (`round_`), so
+    a flat card is lit like a lock with a rounded front. Returns (co, faces, corner uv, keys, normals)."""
+    k = len(points)
+    tang = np.gradient(points, axis=0)
+    tang = unit(tang)
+    side = unit(np.cross(outward, tang))
+    out = unit(np.cross(tang, side))
+    co, nrm, uvs = [], [], []
+    vkeys = {name: [] for name in keys}
+    for i in range(k):
+        s = i / (k - 1)
+        w = width * (1 - taper * s)
+        for j in range(cols + 1):
+            a = j / cols - 0.5
+            co.append(points[i] + side[i] * a * w)
+            nrm.append(unit(out[i] + side[i] * a * 2 * round_))
+            uvs.append((rect[0] + (rect[2] - rect[0]) * (j / cols), rect[3] + (rect[1] - rect[3]) * s))
+            for name in keys:
+                vkeys[name].append(keys[name][i])
+    faces, corner = [], []
+    for i in range(k - 1):
+        for j in range(cols):
+            a = i * (cols + 1) + j
+            q = [a, a + cols + 1, a + cols + 2, a + 1]
+            faces.append(q)
+            corner += [uvs[v] for v in q]
+    return np.array(co), faces, np.array(corner), {n: np.array(v) for n, v in vkeys.items()}, np.array(nrm)
+
+
+def skin_keys(body, points, key_names, ears=False):
+    """Shape key offsets for points made here: each moves as the skin nearest it does (the ears left out
+    unless `ears`, so hair goes over a pointed ear, not with it)."""
+    tris = body.tris
+    if not ears and "ears_pointed" in body.keys:
+        ear = np.linalg.norm(body.keys["ears_pointed"], axis=1) > 0.0005
+        tris = tris[~ear[tris].any(1)]
+    bvh = BVHTree.FromPolygons(body.co.tolist(), tris.tolist())
+    out = {k: np.zeros((len(points), 3)) for k in key_names}
+    for i, p in enumerate(points):
+        loc, _, t, _ = bvh.find_nearest(Vector(p))
+        a, b, c = (body.co[j] for j in tris[t])
+        v0, v1, v2 = b - a, c - a, np.array(loc) - a
+        d00, d01, d11 = v0 @ v0, v0 @ v1, v1 @ v1
+        den = d00 * d11 - d01 * d01
+        if abs(den) < 1e-20:
+            w = np.array([1.0, 0.0, 0.0])
+        else:
+            v = (d11 * (v2 @ v0) - d01 * (v2 @ v1)) / den
+            u = (d00 * (v2 @ v1) - d01 * (v2 @ v0)) / den
+            w = np.clip([1 - v - u, v, u], 0, 1)
+            w = w / max(w.sum(), 1e-9)
+        for k in key_names:
+            out[k][i] = w @ body.keys[k][tris[t]]
+    return out
+
+
+def remap_uv(fitted, rect_from, rect_to, face_ids=None):
+    """Moves texture places inside `rect_from` (u0, v0, u1, v1) to the same place in `rect_to` (an atlas)."""
+    starts = np.cumsum([0] + [len(f) for f in fitted.faces])
+    ids = range(len(fitted.faces)) if face_ids is None else face_ids
+    a0, a1 = np.array(rect_from[:2]), np.array(rect_from[2:])
+    b0, b1 = np.array(rect_to[:2]), np.array(rect_to[2:])
+    for i in ids:
+        uv = fitted.corner_uv[starts[i] : starts[i + 1]]
+        fitted.corner_uv[starts[i] : starts[i + 1]] = b0 + (uv - a0) / (a1 - a0) * (b1 - b0)
 
 
 def coverage(fitted, body, reach=0.08, back=0.03):
