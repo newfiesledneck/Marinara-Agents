@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.57 — 2026-11-20
+
+- Armour refitted: chainmail, scale mail and the gambeson follow the body instead of standing off it, the plate cuirass is shaped to the chest and waist (no more barrel), and bracers and greaves sit close. Their skirts' patterns no longer shear as they flare.
+- Gloves and gauntlets follow the fingers: leather gloves bend with each finger, and gauntlets have a plate for each finger joint over a leather glove.
+
 ## 0.7.56 — 2026-11-20
 
 - Hands: the built-in bodies have fingers that move. Standing and walking, hands hang open in a relaxed curl instead of flat and spread, and they close round a weapon or a tool. The animation library's idle holds loose fists; the relaxed stance (Settings → Display → Standing and walking) opens them, and As recorded keeps them. A dwarf's big hands and a gnome's long fingers bend at their own knuckles. Gloves and gauntlets hide the fingers and stay stiff until they're remade.

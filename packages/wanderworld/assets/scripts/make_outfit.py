@@ -295,7 +295,8 @@ def neckline(body, M, lift=0.006, bins=36):
     hg = ~np.isnan(head)
     if hg.any():
         head = np.interp(idx, idx[hg], head[hg], period=bins)
-        z = np.minimum(z, head - 0.03)
+        # (4.5 cm, so a band collar standing up from the neckline still keeps 1.5 cm or more from the jaw.)
+        z = np.minimum(z, head - 0.045)
     centres = (edges[:-1] + edges[1:]) / 2
 
     def at(P):
