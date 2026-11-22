@@ -17,7 +17,9 @@ anthro-dragon-female.glb. Run (BLENDER: your Blender executable; add `-- male` o
   line, the middle line feature by feature, the eyes carried whole, the jaw cast onto the dragon's) and
   then settled onto a sculpted shape, with the brow ridges, cheekbones, nostrils and the mouth's line
   raised or cut into it. The ears are taken away and the mouth closed. Eyes of its own with slit pupils.
-- The neck: deep from front to back, a full throat and the nape's muscles, from the jaw into the chest.
+- The neck: nearly as deep as the head at its jaw's hinge right under the jaw and staying deep down to
+  the shoulders, a full throat and the nape's muscles; weighted along its own line onto spine_03, neck_01
+  and Head, so it turns with the head.
 - The tail (`tail_01`..`tail_05` on `pelvis`) is joined to the body. The wings (`wing_01`/`wing_02` and
   three fingers a side, on `spine_03`, folded on the back; their bones can open them later) are a mesh of
   their own named `wings`, so the game can hide them; the back under them is finished skin.
@@ -25,12 +27,13 @@ anthro-dragon-female.glb. Run (BLENDER: your Blender executable; add `-- male` o
   own: underwear-bottom-briefs and -boxer_briefs, and for her underwear-top-bra and -sports_bra; the
   bottoms with an oval opening for the tail. Each follows the body's keys and bones.
 - Material parts, each recoloured by its base colour factor over a greyscale texture: scales, scales2
-  (belly plates, throat, the wings' inner side), horns (horns, claws, spines), iris, eye_white, teeth (one
-  2048 px texture and a normal map of the scales' relief); underwear and underwear_trim (the garments'
-  own texture and normal map, as the human avatar's).
+  (belly plates, throat, the wings' inner side), horns (horns, spines), claws (the hands', feet's and
+  wings' claws), iris, eye_white, teeth (one 2048 px texture and a JPEG normal map of the scales' relief);
+  underwear and underwear_trim (the garments' own texture and normal map, as the human avatar's).
 - Shape keys (glTF morph targets, 0-1; a slider that runs both ways is a pair): the build keys and
-  neck_slim; jaw, cheeks, eyes; muzzle (longer) and muzzle_short; horns (bigger) and horns_small; tail
-  (thicker), tail_long and tail_short.
+  neck_slim; collar_fit (the neck's lower third at a person's size, under a human collar); jaw, cheeks,
+  eyes; muzzle (longer) and muzzle_short; horns (bigger) and horns_small; tail (thicker), tail_long and
+  tail_short. The wings carry the body keys at their roots. Every key exports at 0.
 """
 
 import math
@@ -92,8 +95,9 @@ MATS = [
     ("iris", 0xE8A818, 0.12),
     ("eye_white", 0x3A2614, 0.2),
     ("teeth", 0xEFE6CE, 0.3),
+    ("claws", 0x4A4038, 0.32),
 ]
-SCALES, SCALES2, HORNS, IRIS, EYE_WHITE, TEETH = range(len(MATS))
+SCALES, SCALES2, HORNS, IRIS, EYE_WHITE, TEETH, CLAWS = range(len(MATS))
 GARMENT_MATS = [("underwear", 0xE8E4DC, 0.85), ("underwear_trim", 0xDCD6CC, 0.6)]
 
 
@@ -146,11 +150,14 @@ class HeadDesign:
         self.jaw_shape = mirrored(union([jaw, chin]))
         self.jaw_axis = [(f, u) for f, u, _, _ in lj]
         self.jaw_rows = lj
-        Sh.append(ellipsoid(P(0, 0.0, -0.062), np.array([0.058, 0.075, 0.05]) * K).soft(0.055 * K))  # throat
+        throat = ellipsoid(P(0, 0.0, -0.062), np.array([0.058, 0.075, 0.05]) * K).soft(0.055 * K)
         Sh.append(ellipsoid(P(0.056, -0.002, -0.012), np.array([0.028, 0.048, 0.042]) * K).soft(0.035 * K))  # jaw muscle
         self.E = P(*self.eye["centre"])
         Sh.append(ellipsoid(self.E, np.array([0.028, 0.028, 0.022]) * K).soft(0.025 * K))  # the lids' mound
-        self.shape = mirrored(union(Sh))
+        # (The head alone, for telling its own skin from the neck's; the shape the mesh settles onto has the
+        # throat under it too.)
+        self.head_only = mirrored(union(Sh))
+        self.shape = mirrored(union(Sh + [throat]))
         # The details, raised or cut along curves (height, width), mirrored across the middle.
         lip = list(self.lip_line)
         feats = [
@@ -284,6 +291,10 @@ def pose_all(mesh, wear, extra, J):
     extra named points (with weights). Returns the new joints, the turns and the points."""
     R, st, J2 = dragon_pose(J)
     W = mesh.v["W"]
+    # (Also where the skin would be with a person's girth of neck: what collar_fit takes it back to.)
+    st_h = dict(st)
+    st_h["neck_01"] = stretch_along(J["Head"] - J["neck_01"], NECK_STRETCH, 1.0)
+    mesh.v["humanlike"] = wd.pose_points(mesh.co, W, J, J2, R, st_h)
     mesh.co = wd.pose_points(mesh.co, W, J, J2, R, st)
     for k in list(mesh.v):
         if k.startswith("key:"):
@@ -400,36 +411,195 @@ def garment_object(name, gm):
 # ── The neck, the feet and the hands ─────────────────────────────────────────────────────────────────
 
 
-def sculpt_neck(mesh, J, B, g):
-    """A powerful reptile's neck: deep from front to back, the throat sweeping from under the jaw down
-    into the chest and the nape's muscles rising from the shoulders up under the skull's back, a little
-    fuller at the sides. Returns how far each vertex moved (the `neck_slim` key takes most of it back)."""
-    a = J["neck_01"]
-    b = J["Head"]
+def level_cut(co, edges, z, keep):
+    """Where the surface (edges with both ends kept) crosses height z: points."""
+    a, b = co[edges[:, 0]], co[edges[:, 1]]
+    m = ((a[:, 2] - z) * (b[:, 2] - z) < 0) & keep[edges[:, 0]] & keep[edges[:, 1]]
+    a, b = a[m], b[m]
+    return a + (b - a) * ((z - a[:, 2]) / (b[:, 2] - a[:, 2]))[:, None]
+
+
+def push_out(shape, V, faces, data_w, free, rounds=12, stiff=(80, 6)):
+    """Like wd.fit, but each vertex inside the shape is moved out along its own normal to the shape's
+    surface, level (never to the nearest surface, which inside a deep neck can be the far side). The moves are
+    smoothed over the mesh, stiff at first and looser later, so the skin moves together."""
+    E = wd.edges_of(faces)
+    a, b = np.concatenate([E[:, 0], E[:, 1]]), np.concatenate([E[:, 1], E[:, 0]])
+    n = len(V)
+    deg = np.maximum(np.bincount(a, minlength=n), 1).astype(np.float64)[:, None]
+    V = V.copy()
+    steps = np.linspace(0.0, 0.2, 101)
+    for r in range(rounds):
+        act = np.nonzero((data_w > 0) & free)[0]
+        N = wd.normals(V, faces)[act]
+        N[:, 2] = 0.0  # level: the skin moves out across the neck, never up or down it
+        N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9)
+        Q = V[act]
+        inside = shape(Q) < 0
+        reach = np.zeros(len(act))
+        todo = inside.copy()
+        for st in steps[1:]:
+            if not todo.any():
+                break
+            out = shape(Q[todo] + N[todo] * st) >= 0
+            idx = np.nonzero(todo)[0]
+            reach[idx[out]] = st
+            todo[idx[out]] = False
+        D0 = np.zeros_like(V)
+        D0[act] = N * reach[:, None]
+        it = int(round(stiff[0] * (stiff[1] / stiff[0]) ** (r / max(rounds - 1, 1))))
+        lam = 0.03 * (0.3 / 0.03) ** (r / max(rounds - 1, 1))
+        w = lam * data_w[:, None]
+        D = D0.copy()
+        for _ in range(it):
+            avg = np.stack([np.bincount(a, weights=D[b, j], minlength=n) for j in range(3)], 1) / deg
+            D = (w * D0 + avg) / (w + 1.0)
+            D[~free] = 0.0
+        V += D * 0.6
+    return V
+
+
+def unflip(ref, co, faces, free, rounds=40):
+    """Faces the shaping turned over (against their own way before it: a flap of skin folded back over its
+    neighbours, which wd.unfold, comparing faces with their corners, does not see) smoothed out with a ring
+    round them, round after round, until none is left or the rounds run out. Returns the points and how
+    many faces stay turned over."""
+    n_ref = wd.face_normals(ref, faces)
+    flat = np.concatenate([np.array(f) for f in faces])
+    owner = np.repeat(np.arange(len(faces)), [len(f) for f in faces])
+    E = wd.edges_of(faces)
+    a, b = np.concatenate([E[:, 0], E[:, 1]]), np.concatenate([E[:, 1], E[:, 0]])
+    n = len(co)
+    deg = np.maximum(np.bincount(a, minlength=n), 1)[:, None]
+    ok = np.zeros(len(faces), dtype=bool)
+    np.logical_or.at(ok, owner, ~free[flat])
+    ok = ~ok  # faces with every corner free
+    co = co.copy()
+    for _ in range(rounds):
+        bad = (np.sum(n_ref * wd.face_normals(co, faces), axis=1) < 0) & ok
+        if not bad.any():
+            break
+        m = np.zeros(n)
+        m[flat[bad[owner]]] = 1.0
+        for _ring in range(2):
+            g = np.zeros(n)
+            np.maximum.at(g, a, m[b])
+            m = np.maximum(m, g)
+        m *= free
+        for _s in range(3):
+            avg = np.stack([np.bincount(a, weights=co[b, j], minlength=n) for j in range(3)], 1) / deg
+            co += (avg - co) * (0.6 * m[:, None])
+    bad = (np.sum(n_ref * wd.face_normals(co, faces), axis=1) < 0) & ok
+    return co, int(bad.sum())
+
+
+def shape_neck(mesh, J, design, shift, B, g):
+    """A powerful reptile's neck, set by its side profile. Level by level from the shoulders up to under the
+    jaw, the neck as it is (front and back, where its surface crosses the level) sets where it should be:
+    just under the jaw nearly as deep as the head at its hinge, staying deep down the neck and easing out
+    into the chest and shoulders below (an S-curve of throat), the nape kept under the skull's back, the
+    sides widened to match. The skin is then fitted out onto that shape. Returns how far each vertex
+    moved."""
+    P = mesh.co
+    K = design.k
+    k = B["neck"]
+    # The head's depth at its jaw's hinge, on its design: the skull's top to the jaw's underside.
+    hinge = design.P(0, 0.02, 0.0) + shift
+    jaw_z = (design.P(0, 0.02, -0.071) + shift)[2]
+    zs = np.linspace(hinge[2] + 0.3 * K, hinge[2], 600)
+    col = np.stack([np.full_like(zs, hinge[0]), np.full_like(zs, hinge[1]), zs], 1)
+    top_z = zs[int(np.argmax(design.head_only(col - shift) < 0))]
+    depth = 0.88 * (top_z - jaw_z) * (0.92 + 0.08 * k)
+    z_base = J["clavicle_l"][2] + 0.01 * g
+    z_top = jaw_z + 0.02 * K  # the last level under the jaw, where the throat turns into it
+    neckish = (np.abs(P[:, 0]) < 0.2) & (P[:, 1] > J["Head"][1] - 0.4) & (P[:, 1] < J["Head"][1] + 0.3)
+    keep = neckish.copy()
+    E = wd.edges_of(mesh.faces)
+    levels = np.linspace(z_base - 0.05, z_top - 0.003, 44)
+    cur = []
+    for z in levels:
+        q = level_cut(P, E, z, keep)
+        mid = q[np.abs(q[:, 0]) < 0.008]
+        cur.append((mid[:, 1].min(), mid[:, 1].max(), np.abs(q[:, 0]).max()) if len(mid) > 1 else (np.nan,) * 3)
+    cur = np.array(cur)
+    ok = ~np.isnan(cur[:, 0])
+    cur = np.stack([np.interp(levels, levels[ok], cur[ok, j]) for j in range(3)], 1)
+    u = np.clip((levels - z_base) / (z_top - z_base), 0, 1)
+    # Where they should be. The back: as it is (under the skull's back already), never drawn in. The front:
+    # from the chest's (as it is at the base) out to the full depth by 40% of the way up, then on up to
+    # the jaw; the width the same way.
+    back = cur[:, 1]
+    d0 = cur[0, 1] - cur[0, 0]
+    rise = smoothstep(-0.15, 0.4, u)
+    D = d0 + (depth - d0) * rise
+    front = back - D
+    # (No wider just under the jaw than the head is there, or its sides would stand out under the cheeks.)
+    xs = np.linspace(0.0, 0.2, 200)
+    row = np.stack([xs, np.full_like(xs, (front[-1] + back[-1]) / 2), np.full_like(xs, z_top + 0.015 * K)], 1)
+    head_hw = xs[int(np.argmax(design.head_only(row - shift) > 0))]
+    half_w = np.minimum(0.47 * D, 0.95 * head_hw + 0.03 * (1 - u))
+    # The neck to be, a tube of those slices (on up into the head, past the jaw), joined to the head's shape:
+    # the neck's skin inside it, and the jaw's underside where the tube runs up into the head, are fitted out
+    # onto it (the moves smoothed over the mesh, as the head's are, so the skin stays even and nothing folds).
+    zs_up = z_top + np.array([0.015, 0.03, 0.05]) * K
+    zz = np.concatenate([levels, zs_up])
+    fr_ = np.concatenate([front, np.full(3, front[-1])])
+    bk_ = np.concatenate([back, np.full(3, back[-1])])
+    hw_ = np.concatenate([half_w, np.full(3, half_w[-1])])
+    centres = np.stack([np.zeros_like(zz), (fr_ + bk_) / 2, zz], 1)
+    tube = sweep(centres, hw_, (bk_ - fr_) / 2, up=(0, -1, 0))
+    head = design.head_only
+
+    def neck_f(Q):
+        return wd.smin(head(Q - shift), tube(Q), 0.02 * K)
+
+    inside = (tube(P) < 0.003) & ((head(P - shift) > -0.004) | (P[:, 2] < z_top - 0.01))  # (not the mouth's inside)
+    zone = neckish * smoothstep(z_base - 0.06, z_base - 0.01, P[:, 2]) * (P[:, 2] < z_top + 0.06 * K)
+    data = zone * inside
+    free = (zone > 0) & (inside | (P[:, 2] < z_top - 0.005))
+    before = P.copy()
+    # (Where the throat meets the jaw: the neck keys are kept out of it, as its skin has come a long way.)
+    mesh.v["neckjoin"] = neckish * smoothstep(z_top - 0.05, z_top - 0.01, P[:, 2])
+    mesh.v["neckzone"] = free.astype(float)
+    mesh.co = push_out(neck_f, P, mesh.faces, data, free)
+    # The skin then evened out over it (pushed straight out, the throat's few rows bunch at the front).
+    on = (data > 0.5).astype(float)
+    mesh.co = wd.settle(neck_f, mesh.co, mesh.faces, free * 0.8, on, rounds=8, factor=0.5)
+    mesh.co = wd.unfold(mesh.co, mesh.faces, free.astype(float), passes=8)
+    # The join under the jaw smoothed: there the throat's top and the jaw's underside, pushed out together,
+    # roll into a lip round a pit.
+    join = free * smoothstep(z_top - 0.025, z_top - 0.005, P[:, 2]) * (P[:, 1] < (front[-1] + back[-1]) / 2)
+    mesh.co = wd.smooth_region(mesh.co, mesh.faces, join * 0.6, rounds=40)
+    # (Below the join only: under the jaw the skin is meant to tuck into the head, and smoothing it there
+    # round after round would draw the throat's top in.)
+    mesh.co, flipped = unflip(before, mesh.co, mesh.faces, free & (P[:, 2] < z_top - 0.02), rounds=12)
+    log(f"neck: head {100 * (top_z - jaw_z):.1f} cm deep at its hinge, {200 * head_hw:.1f} cm wide under it; neck {100 * D[-1]:.1f} cm deep and {200 * half_w[-1]:.1f} cm wide under it (was {100 * (cur[-1, 1] - cur[-1, 0]):.1f} deep); {flipped} faces turned over")
+    return mesh.co - before
+
+
+def neck_weights(mesh, J):
+    """The neck turning with the head: weighted along its own line, spine_03 at its base, neck_01 up its
+    length and Head towards the skull, so a turn of the head carries the neck with it (the skull's own
+    weights, all Head, kept; the shoulders' kept)."""
+    W = mesh.v["W"]
+    I = BONE_INDEX
+    a, b = J["neck_01"], J["Head"]
     L = np.linalg.norm(b - a)
     ax = (b - a) / L
-    rel = mesh.co - a
-    t = (rel @ ax) / L
-    r = rel - np.outer(rel @ ax, ax)
-    rn = r / np.maximum(np.linalg.norm(r, axis=1, keepdims=True), 1e-9)
-    front = np.clip(-rn[:, 1], 0, 1) ** 1.3
-    back = np.clip(rn[:, 1], 0, 1) ** 1.6
-    side = np.clip(np.abs(rn[:, 0]), 0, 1) ** 2
-    k = B["neck"] * g
-    # Along the neck: the throat fullest near the jaw, the nape's muscles fullest low down; both easing out
-    # into the chest and shoulders below and into the head above.
-    throat = smoothstep(-0.05, 0.6, t) * smoothstep(1.4, 1.0, t)
-    nape = smoothstep(-0.1, 0.4, t) * smoothstep(1.25, 0.8, t)
-    amount = 0.04 * k * throat * front + 0.026 * k * nape * back + 0.009 * k * throat * side
-    near = (1 - mesh.v["headzone"]) * (np.abs(mesh.co[:, 0]) < 0.14) * (t > -0.15) * (t < 1.5)
-    # (Kept off the shoulders where a strap crosses them.)
-    near *= 1 - smoothstep(0.065, 0.11, np.abs(mesh.co[:, 0])) * smoothstep(0.35, -0.1, t)
-    move = rn * (amount * near)[:, None]
-    before = mesh.co.copy()
-    mesh.co = mesh.co + move
-    m = np.clip(near * (amount > 1e-4) * 3, 0, 1) * 0.6
-    mesh.co = wd.smooth_region(mesh.co, mesh.faces, m, rounds=10)
-    return mesh.co - before
+    t = ((mesh.co - a) @ ax) / L
+    w_head = smoothstep(0.45, 1.05, t)
+    w_neck = smoothstep(-0.55, 0.0, t) * (1 - w_head)
+    w_sp = 1 - w_head - w_neck
+    new = np.zeros_like(W)
+    new[:, I["Head"]] = w_head
+    new[:, I["neck_01"]] = w_neck
+    new[:, I["spine_03"]] = w_sp
+    reach = (np.abs(mesh.co[:, 0]) < 0.1) * smoothstep(-0.7, -0.4, t) * (1 - smoothstep(0.85, 1.0, W[:, I["Head"]]))
+    arms = W[:, [I[f"{b_}_{s}"] for b_ in ("clavicle", "upperarm") for s in "lr"]].sum(1)
+    reach *= 1 - smoothstep(0.1, 0.4, arms)
+    W2 = W * (1 - reach[:, None]) + new * reach[:, None]
+    mesh.v["W"] = wd.limit_weights(W2)
+    log(f"neck weights: {int((mesh.v['W'][:, I['neck_01']] > 0.3).sum())} vertices mostly on neck_01")
 
 
 # Each forward toe's shape: (length against the human toe, thickness at its root and its tip (metres, for
@@ -564,7 +734,6 @@ def shape_hands(mesh, hp, side_sign, g):
     new = {}
     for i, k in enumerate(range(1, 6)):
         L = chains[k]
-        base = L[0]
         seg = np.linalg.norm(np.diff(L, axis=0), axis=1)
         cum = np.concatenate([[0], np.cumsum(seg)]) / seg.sum()
         length = 1.12 if k > 1 else 1.08
@@ -606,7 +775,7 @@ def claws(parts, chains, kind, B):
         path = wd.bend_path(root, e + up * 0.15, length, bend, 7, bend_axis=axis)
         radii = r * (1 - np.linspace(0, 1, len(path)) ** 0.9) + 0.0005
         V, F = wd.loft(path, radii, n=7, up=up, flat=0.62)
-        parts.add(V, F, HORNS, None, "claw", origin=root)
+        parts.add(V, F, CLAWS, None, "claw", origin=root)
 
 
 # ── The tail ─────────────────────────────────────────────────────────────────────────────────────────
@@ -618,8 +787,8 @@ def tail_path(B, root, g):
     t = B["tail"]
     z0 = root[2]
     pts = [root + np.array([0, -0.05, 0.02]) * g]
-    for dy, dz in ((0.0, 0.0), (0.2, -0.1), (0.45, -0.34), (0.72, -0.62), (1.0, -0.82), (1.28, -0.93), (1.52, -0.95), (1.7, -0.93)):
-        dz = max(dz * g, 0.08 - z0)
+    for dy, dz in ((0.0, 0.0), (0.2, -0.1), (0.45, -0.32), (0.72, -0.56), (1.0, -0.7), (1.28, -0.74), (1.5, -0.7), (1.66, -0.6)):
+        dz = max(dz * g, 0.22 - z0)
         pts.append(root + np.array([0, dy * g * t, dz]))
     return wd.spline(pts, 40)
 
@@ -650,7 +819,6 @@ def make_tail(B, mesh, J, g):
     loops = mesh.boundary_loops()
     loop, lf = min(loops, key=lambda lp: np.linalg.norm(mesh.co[lp[0]].mean(0) - line[0]))
     loop = list(loop)
-    nb = len(mesh.co)
     co = []
     for i in range(len(line)):
         for j in range(n):
@@ -868,7 +1036,7 @@ def make_wings(WJ):
     path = wd.bend_path(Wr + np.array([0, 0, 0.014]) * wg, np.array([0.1, 0.35, 1.0]), 0.07 * wg, 0.9, 6, bend_axis=(-1, 0, 0))
     radii = 0.01 * wg * (1 - np.linspace(0, 1, len(path)) ** 0.9) + 0.0008
     vs, fs = wd.loft(path, radii, n=8, up=out, flat=0.6)
-    add(vs, fs, HORNS, [{"wing_02_l": 1.0}] * len(vs))
+    add(vs, fs, CLAWS, [{"wing_02_l": 1.0}] * len(vs))
     # And the right wing, mirrored.
     n = len(V)
     V += [np.array([-v[0], v[1], v[2]]) for v in V[:n]]
@@ -986,7 +1154,7 @@ def make_crest(parts, bvh, mesh, J, design, shift, tail_line, tail_wh, B, g, cle
     z0, z1 = J["neck_01"][2] - 0.05, J["pelvis"][2] + 0.12
     for z in np.linspace(z0, z1, 8):
         pts.append((np.array([0, 0.0, z]), np.array([0, 1.0, 0.0]), 0.045 * g))
-    tw, thh = tail_wh
+    _tw, thh = tail_wh
     for i in range(3, 36, 3):
         c = tail_line[i]
         tang = tail_line[min(i + 1, len(tail_line) - 1)] - tail_line[i - 1]
@@ -1030,11 +1198,12 @@ def front_line(bvh, J, design, shift, B, g):
         u = (z - zc) / (zs - zc)
         size.append(0.046 * g)
         width.append(np.interp(u, [0, 0.12, 0.45, 0.8, 1.0], [0.045, 0.075, 0.09, 0.06 if fem else 0.095, 0.07]) * g)
-    # The throat: straight in from the front, from the base of the neck up to just under the jaw's back.
+    # The throat: straight in from the front, from the base of the neck up to just under the jaw's back
+    # (each from a little in front of the last, so the chin, out in front, is never what is met).
     z_jaw = (design.P(0, 0.06, -0.075) + shift)[2]
     z0n = zs + 0.02 * g
     for t in np.linspace(0.0, 1.0, 7)[1:]:
-        p, _ = on_skin(bvh, np.array([0, -0.6, z0n + (z_jaw - z0n) * t]), (0, 1, 0), 1.0)
+        p, _ = on_skin(bvh, np.array([0, pts[-1][1] - 0.07, z0n + (z_jaw - z0n) * t]), (0, 1, 0), 1.0)
         pts.append(p)
         size.append(np.interp(t, [0, 1], [0.04, 0.032]) * g)
         width.append(np.interp(t, [0, 1], [0.06, 0.045]) * g)
@@ -1053,6 +1222,11 @@ def front_line(bvh, J, design, shift, B, g):
     size = np.interp(sf, s, size)
     width = np.interp(sf, s, width)
     nrm = np.array([bvh.find_nearest(Vector(p))[1] for p in fine])
+    # (Smoothed along the line: offset inwards at the throat's corner under the jaw, raw normals would
+    # loop the inner line over itself.)
+    pad = np.concatenate([np.repeat(nrm[:1], 7, 0), nrm, np.repeat(nrm[-1:], 7, 0)])
+    nrm = np.array([pad[i : i + 15].mean(0) for i in range(len(nrm))])
+    nrm /= np.linalg.norm(nrm, axis=1, keepdims=True)
     ds = np.linalg.norm(np.diff(fine, axis=0), axis=1)
     count = np.concatenate([[0], np.cumsum(ds / ((size[:-1] + size[1:]) / 2))])
     depth = 0.04 * g
@@ -1082,7 +1256,9 @@ def plate_field(line, count, width, nrm, surf):
         return np.maximum(np.maximum(np.maximum(np.abs(P[:, 0]) - w, -ahead), past), behind)
 
     def plate(P):
-        c, _ = wd.polyline_param(P, line, count)
+        # (Along the line on the skin, not the one inside: where the throat leans out over the chest, a point
+        # can be nearly as near two stretches of the inner line, and the plates' grooves would crack.)
+        c, _ = wd.polyline_param(P, surf, count)
         return c
 
     return g, plate
@@ -1190,8 +1366,10 @@ def build(B):
     key_names = list(keys)
     # The underwear: the human avatar's garments on the same skin, at its rest.
     wear, gatlas, gnormal = make_underwear(B, H, key_names, g)
-    # The head subdivided once (Catmull-Clark), then made the dragon's.
+    # The head and the neck subdivided once (Catmull-Clark; the neck grows much deeper and needs the rows),
+    # then made the dragon's.
     sel = W[:, BONE_INDEX["Head"]] > 0.9
+    sel |= (co[:, 2] > J["clavicle_l"][2] - 0.03) & (co[:, 2] < J["Head"][2] + 0.02) & (np.abs(co[:, 0]) < 0.12)
     apply, faces, corners = wa.subdivide_region(co, quads, sel[quads].all(1))
     src = np.array([f for f, _ in corners])
     v = {"W": wd.limit_weights(apply(W)), "ear": apply(H["ear"])}
@@ -1213,7 +1391,17 @@ def build(B):
             extra[name] = (p, W[np.argsort(d)[:4]].mean(0))
     J2, R, hp = pose_all(mesh, wear, extra, J)
     shift = J2["Head"] - J["Head"]
-    mesh.v["thick"] = sculpt_neck(mesh, J2, B, g)
+    mesh.v["thick"] = shape_neck(mesh, J2, design, shift, B, g)
+    neck_weights(mesh, J2)
+    # collar_fit: the neck's lower third back to a person's size, under a human collar.
+    # (By height, as shape_neck works: the neck leans so far forward that its own line would leave the throat
+    # out.) Fully a person's from the collarbones to 30% of the way up, easing back to the dragon's by 75%.
+    zb = J2["clavicle_l"][2] + 0.01 * g
+    zt = (design.P(0, 0.15 + 0.03 * B["neck"], -0.074) + shift)[2]
+    z = mesh.v["humanlike"][:, 2]  # (where each point ends up: the neck's skin slid up and down a little as it was shaped)
+    wl = smoothstep(zb - 0.06, zb - 0.015, z) * (1 - smoothstep(zb + (zt - zb) * 0.3, zb + (zt - zb) * 0.75, z))
+    wl *= (np.abs(mesh.co[:, 0]) < 0.13) * (mesh.co[:, 1] > J2["Head"][1] - 0.35) * (1 - mesh.v["headzone"])
+    mesh.v["collar"] = (mesh.v["humanlike"] - mesh.co) * wl[:, None]
     parts = wd.Parts()
     for side in (1.0, -1.0):
         toes = shape_feet(mesh, hp, side, B, g, J2)
@@ -1266,13 +1454,14 @@ def build(B):
         Wb[is_tail, ALL_INDEX[b]] = tw_[is_tail, i]
     body_keys = {}
     for k in key_names:
-        fade = (1 - headz) if not k.startswith("neck") else (1 - smoothstep(0.5, 1.0, headz))
+        fade = (1 - headz) if not k.startswith("neck") else (1 - smoothstep(0.5, 1.0, headz)) * (1 - mesh.v["neckjoin"])
         d = mesh.v["key:" + k] * fade[:, None]
         d[is_tail] = 0.0
         body_keys[k] = d
     # (A slimmer neck takes back most of the dragon's fullness too.)
-    if "thick" in mesh.v:
-        body_keys["neck_slim"] = body_keys["neck_slim"] - mesh.v["thick"] * 0.65
+    body_keys["neck_slim"] = body_keys["neck_slim"] - mesh.v["thick"] * (0.65 * (1 - mesh.v["neckjoin"]))[:, None]
+    body_keys["collar_fit"] = np.where(is_tail[:, None], 0.0, mesh.v["collar"])
+    key_names = key_names + ["collar_fit"]
     body_n = wd.normals(mesh.co, mesh.faces)
     dkeys = dragon_keys(B, design, shift, parts.eye_axes, mesh.co, headz, eyez, tail_u, tail_c, tail_line, body_n)
     all_keys = key_names + list(dkeys)
@@ -1321,8 +1510,23 @@ def build(B):
         for b, val in wt.items():
             Wwg[i, ALL_INDEX[b]] += val
     WW.append(Wwg)
+    # (The wings follow the body's build keys where they meet it: each vertex near the back as the skin under
+    # it moves, the rest of the wing as its root does.)
+    tree = KDTree(nb)
+    for i, p in enumerate(mesh.co):
+        tree.insert(p, i)
+    tree.balance()
+    found = [tree.find(p) for p in Vw]
+    near_i = np.array([f[1] for f in found])
+    near_d = np.array([f[2] for f in found])
+    root_i = tree.find(WJ["s0"])[1]
+    stick = 1 - smoothstep(0.015, 0.06, near_d)
     for k in all_keys:
-        KK[k].append(np.zeros_like(Vw))
+        if k in key_names:
+            off = body_keys[k]
+            KK[k].append(off[near_i] * stick[:, None] + off[root_i] * (1 - stick)[:, None])
+        else:
+            KK[k].append(np.zeros_like(Vw))
     V = np.vstack(V)
     Wall = np.vstack(WW)
     keys_all = {k: np.vstack(KK[k]) for k in all_keys}
@@ -1330,7 +1534,7 @@ def build(B):
     pu_all[parts_at[0] : parts_at[1]] = parts.u
     is_wing = np.zeros(len(F), dtype=np.int64)
     is_wing[len(F) - len(Fw) :] = 1
-    info = dict(rings=rings, pu=pu_all, nb=nb, design=design, shift=shift, J=J2, WJ=WJ, tail_line=tail_line, eyes=parts.eye_axes, keys=all_keys, g=g, bvh=bvh, wear=wear, gatlas=gatlas, gnormal=gnormal, body_keys=key_names)
+    info = dict(headzone=headz, neckzone=mesh.v["neckzone"][:nb], rings=rings, pu=pu_all, nb=nb, design=design, shift=shift, J=J2, WJ=WJ, tail_line=tail_line, eyes=parts.eye_axes, keys=all_keys, g=g, bvh=bvh, wear=wear, gatlas=gatlas, gnormal=gnormal, body_keys=key_names)
     UV = list(mesh.f["uv"]) + [None] * (len(F) - len(mesh.faces))
     obj = make_object(B["name"], V, F, M, keys_all, Wall, UV)
     obj.data.attributes.new("wing", "INT", "FACE").data.foreach_set("value", is_wing.tolist())
@@ -1451,6 +1655,11 @@ def cut_plates(obj, info):
     skin = np.array([all(v < nb or v >= n0 for v in f) for f in F])
     Fs = [f for f, k in zip(F, skin) if k]
     c = wd.smooth_values(V, Fs, c, rounds=10, factor=0.5)
+    # (Much more up the neck, where the skin was pushed far out over few rows: there a less even count
+    # crosses a whole number in jagged loops, and the grooves drawn there look like cracks.)
+    J = info["J"]
+    neck = (np.abs(V[:, 0]) < 0.14) * smoothstep(J["clavicle_l"][2] - 0.12, J["clavicle_l"][2] - 0.06, V[:, 2])
+    c = c + (wd.smooth_values(V, Fs, c, rounds=60, factor=0.5) - c) * neck
     return c, mats
 
 
@@ -1595,7 +1804,7 @@ def shaders(info):
         u = G.attr("pu")
         return G.add(0.72, G.mul(u, 0.28)), G.mul(u, 0.0), 0.0
 
-    return {"scales": scales, "scales2": plates, "horns": horns, "iris": iris, "eye_white": eye_white, "underwear": underwear, "teeth": teeth}
+    return {"scales": scales, "scales2": plates, "horns": horns, "claws": horns, "iris": iris, "eye_white": eye_white, "underwear": underwear, "teeth": teeth}
 
 
 def unwrap(obj, info, factor_of):
@@ -1607,15 +1816,18 @@ def unwrap(obj, info, factor_of):
     nb = info["nb"]
     known = np.array([a.value for a in mesh.attributes["mh_uv"].data])
     body = np.array([max(p.vertices) < nb or all(v < nb or v >= info["n0"] for v in p.vertices) for p in mesh.polygons])
-    # (The head is laid out afresh: the dragon's face has moved too far from the human's for its island.)
-    hg = obj.vertex_groups["Head"].index
-    head_v = np.zeros(len(mesh.vertices), dtype=bool)
-    for v in mesh.vertices:
-        for ge in v.groups:
-            if ge.group == hg and ge.weight > 0.5:
-                head_v[v.index] = True
-    head_f = np.array([head_v[list(p.vertices)].all() for p in mesh.polygons])
+    # (The head is laid out afresh: the dragon's face has moved too far from the human's for its island.
+    # The head as it was made, not as the Head bone now carries it: the neck turns with the head, and its
+    # throat laid out in the head's many small islands would be all seams.)
+    head_v = info["headzone"] > 0.5
+    head_f = np.array([all(head_v[v] for v in p.vertices if v < nb) and min(p.vertices) < nb for p in mesh.polygons])
     body &= ~head_f
+    # (The neck, stretched far from the human's, is laid out as islands of its own, opened down the back of
+    # its neck: inside MakeHuman's islands its throat came out squeezed into a few texels.)
+    neck_v = info["neckzone"] > 0.5
+    neck_f = body & np.array([all(neck_v[v] for v in p.vertices if v < nb) and min(p.vertices) < nb for p in mesh.polygons])
+    Vco = np.array([v.co[:] for v in mesh.vertices])
+    back_y = info["J"]["neck_01"][1]
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
@@ -1625,13 +1837,19 @@ def unwrap(obj, info, factor_of):
     uvl = bm.loops.layers.uv.active
     # Seams: wherever the stored coordinates part (MakeHuman's island edges, and round the new pieces),
     # and down the underside of the tail.
+    back_seam = 0
     for e in bm.edges:
         lf = e.link_faces
         if len(lf) != 2:
             continue
         f1, f2 = lf
-        if body[f1.index] != body[f2.index] or known[f1.index] != known[f2.index]:
+        if body[f1.index] != body[f2.index] or known[f1.index] != known[f2.index] or neck_f[f1.index] != neck_f[f2.index]:
             e.seam = True
+            continue
+        a, b = e.verts
+        if neck_f[f1.index] and abs(Vco[a.index, 0]) < 1e-4 and abs(Vco[b.index, 0]) < 1e-4 and min(Vco[a.index, 1], Vco[b.index, 1]) > back_y:
+            e.seam = True
+            back_seam += 1
             continue
         if not known[f1.index]:
             continue
@@ -1640,6 +1858,7 @@ def unwrap(obj, info, factor_of):
             return next(lp[uvl].uv.copy() for lp in f.loops if lp.vert == v)
         if (uv_at(f1, a) - uv_at(f2, a)).length > 1e-5 or (uv_at(f1, b) - uv_at(f2, b)).length > 1e-5:
             e.seam = True
+    log(f"texture coordinates: the neck {int(neck_f.sum())} faces, opened along {back_seam} edges")
     rings = info["rings"]
     bm.verts.ensure_lookup_table()
     j = rings.shape[1] * 3 // 4
@@ -1753,6 +1972,15 @@ def texture(obj, info, B, plate, mats, per, scute, pu):
     bpy.data.images.remove(colour)
     colour = bpy.data.images.load(path)
     colour.pack()
+    # (The normal map a small JPEG too.)
+    npath = os.path.join(ww.BUILD, f"{B['name']}-normal.jpg")
+    normal.filepath_raw = npath
+    normal.file_format = "JPEG"
+    normal.save(filepath=npath, quality=88)
+    bpy.data.images.remove(normal)
+    normal = bpy.data.images.load(npath)
+    normal.colorspace_settings.name = "Non-Color"
+    normal.pack()
     wd.final_materials(MATS, colour, normal)
     for o in (obj, wings):
         for nm in ("ssz", "plate", "pmask", "pu", "scute"):

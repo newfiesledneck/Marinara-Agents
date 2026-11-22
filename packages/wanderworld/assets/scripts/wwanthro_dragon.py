@@ -726,7 +726,7 @@ def bake(objs, shaders, size=2048, ao_distance=0.08, samples=64):
             G.links.new(shader_of(emit, bsdf), out.inputs["Surface"])
         scene.cycles.samples = samples if kind == "AO" else 4
         if kind != "AO" or len(objs) == 1:
-            bpy.ops.object.bake(type=kind, margin=6, use_clear=True, normal_space="TANGENT")
+            bpy.ops.object.bake(type=kind, margin=16, use_clear=True, normal_space="TANGENT")
         else:
             # (Each object's occlusion on its own, the others hidden: the wings, which the game can hide,
             # leave no shadow baked into the back under them.)
@@ -747,6 +747,9 @@ def bake(objs, shaders, size=2048, ao_distance=0.08, samples=64):
     run("AO", images["ao"], lambda e, b: b.outputs["BSDF"])
     colour = np.array(images["colour"].pixels[:], dtype=np.float32).reshape(size, size, 4)
     ao = np.array(images["ao"].pixels[:], dtype=np.float32).reshape(size, size, 4)[..., :1]
+    # (Texels the occlusion pass left empty, round the islands, count as open: the colour's own wider margin
+    # pads each island there, so no dark rim shows where a texture is sampled across an island's edge.)
+    ao = np.where(ao <= 1e-5, 1.0, ao)
     colour[..., :3] *= 0.38 + 0.62 * np.clip(ao, 0, 1) ** 0.9
     final = bpy.data.images.new("texture", size, size, alpha=False)
     final.pixels.foreach_set(colour.ravel())

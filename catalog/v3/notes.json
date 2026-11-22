@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.58",
+          "date": "2026-11-20",
+          "notes": "- Anthro dragon: the dark cracks on the throat plates are gone (the throat's skin had folded over itself when the neck was deepened), and the plates run cleanly up to the jaw.",
+          "highlight": false
+        },
+        {
           "version": "0.7.57",
           "date": "2026-11-20",
           "notes": "- Armour refitted: chainmail, scale mail and the gambeson follow the body instead of standing off it, the plate cuirass is shaped to the chest and waist (no more barrel), and bracers and greaves sit close. Their skirts' patterns no longer shear as they flare.\n- Gloves and gauntlets follow the fingers: leather gloves bend with each finger, and gauntlets have a plate for each finger joint over a leather glove.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.39",
           "date": "2026-11-20",
           "notes": "- Faction standing: from Hated to Honoured (−100 to 100), moving a little at a time with errands for a faction's people, trading with it and fighting its guards, at most 10 a day. Helping one faction costs a little with its enemies (ww:enemy of:). Journal → Factions shows each, with a slider and a lock.\n- Standing changes prices at a faction's vendors, and at Hostile its people won't talk, its guards fight and its land is no refuge. Each has its own switch under Settings → World → Factions, as has telling the AI the standing.\n- Regions with a purpose: travel can find a faction's walled town with its banners and guards, a stronghold's gate in a hillside, outposts, a smaller town, hamlets, a ruin or a hillside of caves, from lore (ww:region:east) or the world's seed, and kept once found. Journal → Map shows the ones you know.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.38",
-          "date": "2026-11-20",
-          "notes": "- Six new monsters, modelled in Blender, each with a skeleton and movements of its own: a mimic that passes for a chest, an awakened shrub, a shambling mound, a grick, an otyugh and a roper that passes for a stalagmite. The mimic, the shrub and the roper lie in wait as what they pretend to be until they move or strike. The shambling mound, the otyugh and the roper are rare. Each fights by its SRD stat block, has its own switch under Settings → Creatures → Kinds and counts toward the Monsters slider.\n- A plan for Wanderworld's own player and character bodies (docs/AVATAR.md): male and female bodies, wolf and dragon anthro bodies, sliders for build and face, colours, hair and presets.",
           "highlight": false
         }
       ]
