@@ -991,7 +991,9 @@ def robe(body, M):
     # The standing collar and the placket down the front of the bodice.
     P2, N2 = wo.clean_loop(neck_pts, neck_n, 0.01)
     P2, N2 = oriented(P2, N2, UP)
-    g.join(wo.strip(P2 + N2 * 0.0015 + UP * 0.012, unit(N2 + UP * 0.25), 0.032, 0.004, part="trim", kind="embroidery", panel="collar"))
+    # (Standing only a little: the jaw comes low over the front of the neck.)
+    lift = np.clip((P2[:, 2] - P2[:, 2].min()) / max(np.ptp(P2[:, 2]), 1e-6), 0, 1) * 0.008
+    g.join(wo.strip(P2 + N2 * 0.0015 + UP * lift[:, None], unit(N2 + UP * 0.25), 0.022, 0.004, part="trim", kind="embroidery", panel="collar"))
     pl = []
     for z in np.linspace(float(neck_pts[:, 2].min()) - 0.005, waist - 0.01, 14):
         p, n = ray_onto(g, np.array([0, M.centre_y(z) - 0.4, z]), (0, 1, 0), 0.0015)
@@ -1733,13 +1735,13 @@ def glove_weights(body, M, P, joints):
     return W
 
 
-def gloves(body, M, offset=0.0022, cuff=True):
+def gloves(body, M, offset=0.0022, cuff=True, decim=0.62):
     """Leather gloves close over each finger and following it (on the body's own finger bones, each finger
     weighted from its own skin), with a flared gauntlet cuff over the wrist."""
     t_arm, *_ = M.arm_fields(body.co)
     keep = np.isin(body.bone, ["hand_l", "hand_r"]) | (np.isin(body.bone, ["lowerarm_l", "lowerarm_r"]) & (t_arm > 1.7))
     g = wo.Geo.from_body(body, body_polys(body, keep))
-    g = wo.decimate(g, 0.62)
+    g = wo.decimate(g, decim)
     g.part = ["leather"] * len(g.faces)
     g.kind = ["leather"] * len(g.faces)
     g.attrs["P0"] = g.co.copy()
@@ -1783,7 +1785,7 @@ def gauntlets(body, M):
     over the knuckle blend band into the next so nothing opens at a full bend; the palm and the fingers'
     undersides stay leather."""
     joints, backs = finger_joints(body)
-    glove = gloves(body, M, offset=0.0022, cuff=False)
+    glove = gloves(body, M, offset=0.0022, cuff=False, decim=0.5)
     wo.lift_off(glove, body, 0.0015)
     nb_hand = len(wo.BONE_NAMES) + len(wo.FINGER_BONES)
     plates = []
@@ -1798,7 +1800,7 @@ def gauntlets(body, M):
         t, *_ = M.arm_fields(P)
         field = np.maximum.reduce([
             -(nrm @ hand_back) + 0.25,
-            (P[:, 0] * sg < 0).astype(float),
+            np.where(P[:, 0] * sg < 0, 1.0, -1.0),
             np.where(owner >= 0, s_al - KNUCKLE_BAND[0], -1.0),
             np.where(owner == 0, 1.0, -1.0),
             1.985 - t,
@@ -1820,6 +1822,9 @@ def gauntlets(body, M):
             starts = np.concatenate([[0], np.cumsum(seg_len)])
             back = backs[(s, f)]
             for k in range(3):
+                if f == "thumb":
+                    # (The thumb stays leather: it wraps round a grip, and plates on it only splay.)
+                    continue
                 lo = starts[k] - (KNUCKLE_BAND[k] if k > 0 else KNUCKLE_BAND[0] * 0.4)
                 hi = starts[k + 1] + (KNUCKLE_BAND[k + 1] if k < 2 else 0.003)
                 q = glove.copy()
@@ -1829,10 +1834,10 @@ def gauntlets(body, M):
                 nrm = q.vertex_normals()
                 field = np.maximum.reduce([
                     np.where(owner == fi, -1.0, 1.0),
-                    (P[:, 0] * sg < 0).astype(float),
+                    np.where(P[:, 0] * sg < 0, 1.0, -1.0),
                     lo - s_al,
                     s_al - hi,
-                    -(nrm @ back) + 0.1,
+                    -(nrm @ back) + (0.1 if f != "thumb" else -0.25),
                 ])
                 q.clip(field)
                 if not q.faces:
@@ -1843,7 +1848,8 @@ def gauntlets(body, M):
                 q.part = ["plate"] * len(q.faces)
                 q.kind = ["plate"] * len(q.faces)
                 q.panel = [f"{f}{k}_{s}"] * len(q.faces)
-                mo.lined(q, part="plate", kind="plate", depth=0.0012)
+                # (No lining: the glove fills the plate's underside, and its back faces would only cost
+                # vertices.)
                 q.attrs["bone"] = np.full((q.n, 1), float(len(wo.BONE_NAMES) + wo.FINGER_BONES.index(f"{f}_{k + 1:02d}_{s}")))
                 plates.append(q)
         # The cuff: a flared steel cuff with a rolled edge, on the forearm.

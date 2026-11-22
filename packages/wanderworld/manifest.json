@@ -10,7 +10,7 @@
   },
   "id": "wanderworld",
   "name": "Wanderworld",
-  "version": "0.7.56",
+  "version": "0.7.57",
   "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
   "engine": {
     "min": "2.4.6",
@@ -220,7 +220,7 @@
     },
     {
       "path": "client.js",
-      "sha256": "fa2f71a2788cef7c90acf9da745dbc5369fb11a1ab32b92032d566d24a07bc88",
+      "sha256": "254d2abf9fed9e03ecd410d3a8c9309ea28d458352b972af416af806bd45c60a",
       "bytes": 3544575
     },
     {
@@ -280,8 +280,8 @@
     },
     {
       "path": "kit/fantasy/avatar/avatar-outfits-armour.pack.png",
-      "sha256": "7b3b594478725b01930c59e401dd39d46d75a11f68231e99023a1e9cfc6dda60",
-      "bytes": 5350394
+      "sha256": "5688b595fad4051d1ef3cc66aba31afc7981f652c961d754a62dc8fb541d88b8",
+      "bytes": 5467068
     },
     {
       "path": "kit/fantasy/avatar/avatar-outfits-body.pack.png",
@@ -290,18 +290,18 @@
     },
     {
       "path": "kit/fantasy/avatar/avatar-outfits-feet.pack.png",
-      "sha256": "56532cfd32f03637ff36ecb6b437c152f4528d98207f22c19cc9c67501ada8b0",
-      "bytes": 2951365
+      "sha256": "e7ab2256eee16255bade46917991c512f88758ac1ae17129fdc06e68afb5ff73",
+      "bytes": 2944740
     },
     {
       "path": "kit/fantasy/avatar/avatar-outfits-hands.pack.png",
-      "sha256": "2a29f52e5ddf9683b58c9aeee52405fe636c1a1cbccd663caf675333cbb522cc",
-      "bytes": 1080497
+      "sha256": "30271e930ab744f344db41c2d43041d8cd9506c16ee9efd3481b64aaf796a725",
+      "bytes": 1160024
     },
     {
       "path": "kit/fantasy/avatar/avatar-outfits-head.pack.png",
-      "sha256": "3856bee53fa17c61ab387b35c6e1de2a6d605e348c5a28cc29e7204fa25de4bc",
-      "bytes": 1147233
+      "sha256": "f03eb19f48ea1cb099b58f0ed673cd6043d487d097d85c3261540a3c3f88c5b3",
+      "bytes": 1109025
     },
     {
       "path": "kit/fantasy/avatar/avatar-outfits-index.json",
@@ -315,8 +315,8 @@
     },
     {
       "path": "kit/fantasy/avatar/avatar-outfits-tops.pack.png",
-      "sha256": "fe94507c4965d4da10156bcc39ee64aaf5b0133558365dab42d27b0fd80782ef",
-      "bytes": 7591444
+      "sha256": "d847d6dca50cee54666f515737710096adc884a7e43336c8d2b98d2dc837dbfa",
+      "bytes": 7551085
     },
     {
       "path": "kit/fantasy/dungeon/index.json",

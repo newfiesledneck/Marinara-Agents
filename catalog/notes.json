@@ -1450,6 +1450,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.57",
+          "date": "2026-11-20",
+          "notes": "- Armour refitted: chainmail, scale mail and the gambeson follow the body instead of standing off it, the plate cuirass is shaped to the chest and waist (no more barrel), and bracers and greaves sit close. Their skirts' patterns no longer shear as they flare.\n- Gloves and gauntlets follow the fingers: leather gloves bend with each finger, and gauntlets have a plate for each finger joint over a leather glove.",
+          "highlight": false
+        },
+        {
           "version": "0.7.56",
           "date": "2026-11-20",
           "notes": "- Hands: the built-in bodies have fingers that move. Standing and walking, hands hang open in a relaxed curl instead of flat and spread, and they close round a weapon or a tool. The animation library's idle holds loose fists; the relaxed stance (Settings → Display → Standing and walking) opens them, and As recorded keeps them. A dwarf's big hands and a gnome's long fingers bend at their own knuckles. Gloves and gauntlets hide the fingers and stay stiff until they're remade.",
@@ -1561,12 +1567,6 @@
           "version": "0.7.38",
           "date": "2026-11-20",
           "notes": "- Six new monsters, modelled in Blender, each with a skeleton and movements of its own: a mimic that passes for a chest, an awakened shrub, a shambling mound, a grick, an otyugh and a roper that passes for a stalagmite. The mimic, the shrub and the roper lie in wait as what they pretend to be until they move or strike. The shambling mound, the otyugh and the roper are rare. Each fights by its SRD stat block, has its own switch under Settings → Creatures → Kinds and counts toward the Monsters slider.\n- A plan for Wanderworld's own player and character bodies (docs/AVATAR.md): male and female bodies, wolf and dragon anthro bodies, sliders for build and face, colours, hair and presets.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.37",
-          "date": "2026-11-20",
-          "notes": "- The Monsters slider is how many there are, whichever kinds are on: with only trolls switched on and the slider at 100, there are 100 trolls. With other kinds on, a rare kind is only less likely.\n- Ogres, trolls, minotaurs and dragons turn up more often: half as often as a common kind, instead of a fifth.\n- New monsters: every 10 minutes of play (Settings → Creatures → New monsters every; 0 for never) the monsters out of sight go and others come, with kinds not about yet likelier, so in time you meet every kind that's on. Nothing in sight goes, nor anything in a fight, placed by a lorebook or owned.",
           "highlight": false
         }
       ]
