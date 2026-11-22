@@ -12,8 +12,9 @@
 //     (Two-legged ones on the people's skeleton go to kit/fantasy/folk; ones with a skeleton of their own, a
 //     mimic or a roper, to kit/creatures/rigged-<name>.json, each with its own actions; avatar-* and anthro-*
 //     bodies and outfit pieces are left for the avatar packing.)
-//   node scripts/build-wanderworld-people.mjs --avatar   (the base avatar, its hair styles and outfit pieces:
-//     assets/models/avatar-*.glb and outfit-*.glb, into kit/generic/avatar and kit/fantasy/avatar)
+//   node scripts/build-wanderworld-people.mjs --avatar [anthro]   (the base avatar, its anthro bodies, hair
+//     styles and outfit pieces: assets/models/avatar-*.glb, anthro-*.glb and outfit-*.glb, into
+//     kit/generic/avatar and kit/fantasy/avatar; with `anthro`, only the anthro bodies are packed again)
 //
 // Each part (an outfit, a head, a hairstyle) keeps its own joints' inverse bind matrices, and every part
 // of a person binds to one shared skeleton built from the outfit's. So a head cut from the base body, or a
@@ -169,7 +170,8 @@ function skinnedPrimitives(gltf) {
         name: mesh.name,
         nodeName: node.name,
         extras: { ...mesh.extras, ...node.extras },
-        // (Shape keys: Blender's exporter names them in the mesh's extras.)
+        // (Shape keys: Blender's exporter names them in the mesh's extras. A mesh's default weights are
+        // left unread: the mesh is packed at rest, and the look drives every key.)
         targets: primitive.targets?.map((target) => ({
           position: gltf.accessor(target.POSITION),
           normal: target.NORMAL === undefined ? null : gltf.accessor(target.NORMAL),
@@ -1027,6 +1029,10 @@ const sexOfName = (name) =>
  *   colour, the underwear's, brows' and lashes' styles, shape keys), and its textures avatar-<sex>.webp,
  *   avatar-<sex>-1.webp; MakeHuman's skins (avatar-<sex>-skin-<age>-<ethnicity>.webp) and eye pictures
  *   (avatar-eyes.webp) from assets/textures/avatar;
+ * - kit/generic/avatar/anthro-<kind>-<sex>.pack.png, an anthro body each (assets/scripts/make_anthro_*.py: the
+ *   human body's skeleton with tail and wing bones, its own parts and shape keys, the underwear's styles and
+ *   a dragon's `wings` as pieces), its textures inside (`pictures`: the body's at most 2,048 pixels, the
+ *   underwear's 1,024; the normal maps are left out, as the game doesn't use them);
  * - kit/generic/avatar/avatar-hair-short.pack.png and avatar-hair-long.pack.png, every hair style
  *   (avatar-hair-<style>.glb, a `male` and a `female` mesh, skinned or hung on the head bone) with its
  *   textures inside (`pictures`), and avatar-hair-index.json saying which file has which;
@@ -1039,12 +1045,14 @@ const sexOfName = (name) =>
  * and clothes' shape keys move them only where they move the body (followBody), and every key's normals
  * are put right (keyNormals).
  */
-function avatar() {
+function avatar(only = "") {
+  // (`--avatar anthro`: only the anthro bodies are packed again, the rest of the kit left as it is.)
+  const anthroOnly = only === "anthro";
   const dir = join(ROOT, "packages/wanderworld/assets/models");
   const out = join(KIT, "generic/avatar");
   const outfitsOut = join(KIT, "fantasy/avatar");
   for (const folder of [out, outfitsOut]) {
-    rmSync(folder, { recursive: true, force: true });
+    if (!anthroOnly) rmSync(folder, { recursive: true, force: true });
     mkdirSync(folder, { recursive: true });
   }
   const source =
@@ -1091,28 +1099,24 @@ function avatar() {
     });
     return packed;
   };
-  const glbs = readdirSync(dir).filter((name) => name.endsWith(".glb"));
-  // (Each body's distant version keeps DISTANT_VERTICES' worth of its triangles, and its hair and outfit
-  // pieces the same share of theirs.)
-  const shares = {};
-  const reach = {}; // each body's keyReach, for its hair and clothes (followBody)
-  for (const sex of ["male", "female"]) {
-    if (!glbs.includes(`avatar-${sex}.glb`)) continue;
-    const gltf = readGltf(join(dir, `avatar-${sex}.glb`));
+  const glbs = readdirSync(dir).filter((name) => name.endsWith(".glb") && (!anthroOnly || name.startsWith("anthro-")));
+  /**
+   * A body file's document (its skeleton, parts and pieces, shape keys and height; `texture` names each
+   * mesh's picture), with its meshes as read and the share of its triangles its distant version keeps
+   * (DISTANT_VERTICES' worth; its hair and outfit pieces keep the same share of theirs).
+   */
+  const bodyOf = (gltf, texture) => {
     const primitives = skinnedPrimitives(gltf);
     primitives.forEach(keyNormals);
-    reach[sex] = keyReach(primitives);
-    shares[sex] = distantShare(primitives.reduce((sum, primitive) => sum + primitive.position.count, 0));
-    const body = part(primitives, namer(gltf, `avatar-${sex}`, out), {
-      skeleton: skeletonOf(gltf),
-      distant: shares[sex],
-    });
+    const share = distantShare(primitives.reduce((sum, primitive) => sum + primitive.position.count, 0));
+    const body = part(primitives, texture, { skeleton: skeletonOf(gltf), distant: share });
     // The underwear's styles, each a mesh of its own ("underwear-bottom-briefs", "underwear-top-bra"); a body
     // made before they were has one layer in its own mesh, "underwear-legacy" (briefs, and a bra on her).
-    // The brow and lash styles ("eyebrows-01", "eyelashes-01") are pieces too: one of each shows.
+    // The brow and lash styles ("eyebrows-01", "eyelashes-01") are pieces too: one of each shows. A dragon's
+    // "wings" are a piece the look can leave off.
     body.meshes.forEach((mesh, i) => {
       const name = [primitives[i].nodeName, primitives[i].name].find((text) =>
-        /^(?:underwear-(?:top|bottom)|eyebrows|eyelashes)-/u.test(text ?? ""),
+        /^(?:underwear-(?:top|bottom)|eyebrows|eyelashes)-|^wings$/u.test(text ?? ""),
       );
       if (name) mesh.piece = name;
       else if (/^underwear/u.test(mesh.part)) mesh.piece = "underwear-legacy";
@@ -1121,11 +1125,17 @@ function avatar() {
     for (const primitive of primitives)
       for (let i = 1; i < primitive.position.values.length; i += 3) top = Math.max(top, primitive.position.values[i]);
     const keys = [...new Set(primitives.flatMap((primitive) => primitive.keyNames))];
-    writePacked(
-      join(out, `avatar-${sex}.pack.png`),
-      { source, height: Math.round(top * 100) / 100, keys, ...body },
-      MESH_KINDS,
-    );
+    return { primitives, share, document: { source, height: Math.round(top * 100) / 100, keys, ...body } };
+  };
+  const shares = {};
+  const reach = {}; // each body's keyReach, for its hair and clothes (followBody)
+  for (const sex of ["male", "female"]) {
+    if (!glbs.includes(`avatar-${sex}.glb`)) continue;
+    const gltf = readGltf(join(dir, `avatar-${sex}.glb`));
+    const { primitives, share, document } = bodyOf(gltf, namer(gltf, `avatar-${sex}`, out));
+    reach[sex] = keyReach(primitives);
+    shares[sex] = share;
+    writePacked(join(out, `avatar-${sex}.pack.png`), document, MESH_KINDS);
   }
   // ── MakeHuman skins and eye pictures (assets/textures/avatar, written by make_avatar.py) ──
   // The skins as they are, a file each, loaded only when worn. The nine eye pictures in one file
@@ -1133,7 +1143,7 @@ function avatar() {
   // iris and eye white use (src/looks.js EYE_PICTURES, in this order). (avatar-eyes-grey-tint.webp is the
   // model's own eye texture, packed with the body above.)
   const pictures = join(ROOT, "packages/wanderworld/assets/textures/avatar");
-  if (existsSync(pictures)) {
+  if (!anthroOnly && existsSync(pictures)) {
     for (const name of readdirSync(pictures).filter((file) => /^avatar-(?:male|female)-skin-/u.test(file)))
       writeFileSync(join(out, name), readFileSync(join(pictures, name)));
     const eyes = ["brownlight", "brown", "green", "bluegreen", "blue", "lightblue", "deepblue", "grey", "ice"];
@@ -1155,15 +1165,15 @@ function avatar() {
     if (!bundles.has(path)) bundles.set(path, { source, ...document, pictures: [] });
     return bundles.get(path);
   };
-  /** A .glb's picture into a bundle as WebP, at most 1,024 pixels a side, once however often it's used. */
-  const pictureIn = (path, gltf, image, name) => {
+  /** A .glb's picture into a bundle as WebP, at most `most` pixels a side, once however often it's used. */
+  const pictureIn = (path, gltf, image, name, most = 1024) => {
     const bytes = gltf.imageOf(image);
     const key = `${path}:${bytes.toString("base64")}`;
     if (!seen.has(key)) {
       const jpeg = gltf.json.images[Number(image.slice(6))].mimeType === "image/jpeg";
       const raw = join(dirname(path), `${name}.${jpeg ? "jpg" : "png"}`);
       writeFileSync(raw, bytes);
-      const scale = ["-vf", "scale=w='min(1024,iw)':h='min(1024,ih)'"];
+      const scale = ["-vf", `scale=w='min(${most},iw)':h='min(${most},ih)'`];
       bundles.get(path).pictures.push({ name, webp: webp(raw, 82, scale) });
       seen.set(key, name);
     }
@@ -1183,6 +1193,25 @@ function avatar() {
   // A shape key's moves under a tenth of a millimetre are left out of hair and clothes.
   const PIECE_STILL = 1e-4;
   const sexes = Object.keys(reach);
+
+  // The anthro bodies: a file each, with its pictures inside (the package may list only so many files).
+  for (const file of glbs.filter((name) => /^anthro-[a-z]+-(?:male|female)\.glb$/u.test(name)).sort()) {
+    const name = file.slice(0, -4);
+    const path = join(out, `${name}.pack.png`);
+    const gltf = readGltf(join(dir, file));
+    const bundle = bundleAt(path, {});
+    const texture = (primitive) =>
+      primitive.texture?.startsWith("image:")
+        ? pictureIn(
+            path,
+            gltf,
+            primitive.texture,
+            `${name}-${primitive.texture.slice(6)}`,
+            /^underwear/u.test(primitive.material?.name ?? "") ? 1024 : 2048,
+          )
+        : null;
+    Object.assign(bundle, bodyOf(gltf, texture).document);
+  }
 
   // Hair: in two bundles, the short styles and the long. Each keeps only the keys that move the head.
   const hairIndex = {};
@@ -1284,7 +1313,7 @@ const LONG_HAIR = new Set(["long", "ponytail", "braid", "bob", "bob_angled", "cu
 
 function main() {
   if (process.argv[2] === "--bestiary") return bestiary(process.argv.slice(3));
-  if (process.argv[2] === "--avatar") return avatar();
+  if (process.argv[2] === "--avatar") return avatar(process.argv[3]);
   if (process.argv[2] === "--folk") {
     if (!process.argv[3]) throw new Error("Usage: build-wanderworld-people.mjs --folk <Bestiary GLB dir>");
     return folk(process.argv[3]);

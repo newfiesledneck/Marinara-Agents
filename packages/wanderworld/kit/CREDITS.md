@@ -45,6 +45,13 @@ distant version, made from it when it's packed.
 `scripts/build-wanderworld-people.mjs --avatar`. MakeHuman's hm08 base mesh and morph targets are public
 domain (CC0 1.0); they're read as data, and MakeHuman itself is neither run nor copied.
 
+`generic/avatar/anthro-wolf-<sex>.pack.png` and `anthro-dragon-<sex>.pack.png`, textures in them: made in
+Blender by ThatOneCan, built on MakeHuman's CC0 base mesh, with
+`packages/wanderworld/assets/scripts/make_anthro_wolf.py` and `make_anthro_dragon.py`: the anthro wolf and
+anthro dragon bodies, male and female. Each is the built-in body with a head, legs, tail and colours of its
+own (and the dragon's wings), on the same skeleton, packed by
+`scripts/build-wanderworld-people.mjs --avatar`.
+
 Its hair styles are in `generic/avatar/avatar-hair-short.pack.png` and `avatar-hair-long.pack.png`, and its
 clothing in `fantasy/avatar/avatar-outfits-<group>.pack.png`, textures in them, each folder with an index
 of which file has which (`avatar-hair-index.json`, `avatar-outfits-index.json`), packed the same way.

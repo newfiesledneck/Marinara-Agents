@@ -99,6 +99,10 @@ const LOOK_WORDS = {
   elvish: { shape: { ears: 1 } },
   "half-elf": { shape: { ears: 0.6 } },
   "pointed ears": { shape: { ears: 1 } },
+  // An anthro body (avatar.js): townsfolk are human unless their Look card or lore says otherwise.
+  wolfkin: { species: "wolf" },
+  "wolf-folk": { species: "wolf" },
+  dragonborn: { species: "dragon" },
   bald: { hair: "none" },
   "short hair": { hair: "short" },
   "long hair": { hair: "long" },
@@ -651,7 +655,7 @@ export const KEYWORD_GUIDE = [
     group: "People",
     write: "ww:looks:tall, ww:looks:red hair, ww:looks:elf",
     on: "a character's entry",
-    does: `How their built-in body looks, when they have no 3D model: height (tall, short), build (slim, stocky, muscular, heavy…), pointed ears (elf, half-elf), hair (bald, long hair, red hair, blond…), skin (pale, tanned, dark skin), eyes (blue eyes…) and age (young, middle-aged, old, elderly, grey-haired). One word a key; their Look card comes first. All of them: ${LOOK_WORD_LIST.join(", ")}.`,
+    does: `How their built-in body looks, when they have no 3D model: height (tall, short), build (slim, stocky, muscular, heavy…), pointed ears (elf, half-elf), an anthro body (wolfkin, wolf-folk, dragonborn), hair (bald, long hair, red hair, blond…), skin (pale, tanned, dark skin), eyes (blue eyes…) and age (young, middle-aged, old, elderly, grey-haired). One word a key; their Look card comes first. All of them: ${LOOK_WORD_LIST.join(", ")}.`,
   },
   {
     group: "People",

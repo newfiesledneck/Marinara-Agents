@@ -52,6 +52,18 @@ assert.ok(helpFor("", 1e9).length < 100000);
     [...BLENDER_MODELS.clothing, ...BLENDER_MODELS.makehumanClothing].sort(),
     kitNames("kit/fantasy/avatar/avatar-outfits-index.json"),
   );
+  // The anthro bodies: a file a kind and sex.
+  assert.deepEqual(
+    [...BLENDER_MODELS.anthro].sort(),
+    [
+      ...new Set(
+        readdirSync(new URL("kit/generic/avatar/", pkg)).flatMap((name) => {
+          const body = /^anthro-([a-z]+)-(?:male|female)\.pack\.png$/u.exec(name);
+          return body ? [`anthro_${body[1]}`] : [];
+        }),
+      ),
+    ].sort(),
+  );
   const flat = (text) => text.replace(/\s+/gu, " ");
   const help = flat(CREDITS.flatMap((part) => part.lines).join(" "));
   for (const [where, text] of [
@@ -64,6 +76,10 @@ assert.ok(helpFor("", 1e9).length < 100000);
     assert.ok(text.includes(MAKEHUMAN_CREDIT), `${where} gives the MakeHuman credit`);
     assert.ok(text.includes(MAKEHUMAN_FITTED_CREDIT), `${where} gives the fitted hair and clothing's credit`);
     assert.ok(text.includes("giant-base.glb"), `${where} names the giants' base body`);
+    assert.ok(
+      /built on MakeHuman's CC0 base mesh/u.test(text),
+      `${where} says the anthro bodies are built on MakeHuman's base mesh`,
+    );
     assert.ok(text.includes("ThatOneCan"), `${where} credits ThatOneCan`);
   }
   console.log("ok: one list of the Blender-made models' credits");

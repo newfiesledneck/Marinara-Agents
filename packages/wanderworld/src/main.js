@@ -61,7 +61,7 @@ import {
   worldFromLore,
 } from "./keywords.js";
 import { lookChoices, setGenderShares } from "./people.js";
-import { checkLook, mergeLooks } from "./looks.js";
+import { checkLook, mergeLooks, NEUTRAL_LOOK, raceLook } from "./looks.js";
 // ── The base avatar (avatar.js): the player's own body, and the townsfolk's ──
 import { avatarChoices, avatarLook, createAvatar, setUnderwearByDefault } from "./avatar.js";
 import { lookFromWords } from "./keywords.js";
@@ -3600,7 +3600,11 @@ async function choosePersona(id, redress = false) {
     // Their own 3D model, or else the base avatar (avatar.js).
     const character = model
       ? await loadModelCharacter(model)
-      : await createAvatar(core.looks[persona?.id] ?? {}, persona?.name ?? "", core.bodies[persona?.id] ?? "auto");
+      : await createAvatar(
+          mergeLooks(playerLook(), core.looks[persona?.id] ?? {}),
+          persona?.name ?? "",
+          core.bodies[persona?.id] ?? "auto",
+        );
     core.personaHasModel = !!model;
     if (load !== core.personaLoad) {
       character.dispose();
@@ -4291,13 +4295,21 @@ function loreLookOf(character) {
   const written = character.appearance ? lookFromWords(character.appearance) : {};
   return mergeLooks(written, core.save?.loreLooks?.[character.id] ?? {});
 }
+/** What lies under the player's own look: every slider at the model's own shape (townsfolk start from
+ *  their name instead), and what their build's race says of the body (a dragonborn's is the dragon's). */
+const playerLook = () => mergeLooks(NEUTRAL_LOOK, raceLook(buildNow()));
+/** What lies under `id`'s own look: the player's start (playerLook), or what a character's lore says. */
+const underLookOf = (id, character) => (id === core.personaId ? playerLook() : loreLookOf(character));
 
 /** The base avatar of `id` with `chosen` (a look) for the Look card's preview: a walking character. */
 function previewAvatar(id, chosen) {
   const persona = id === core.personaId ? core.personas?.find((entry) => entry.id === id) : null;
   const character = persona ?? (core.characters ?? []).find((entry) => entry.id === id) ?? { id, name: "" };
-  const lore = persona ? {} : loreLookOf(character);
-  return createAvatar(mergeLooks(lore, checkLook(chosen)), character.name, core.bodies[id] ?? "auto");
+  return createAvatar(
+    mergeLooks(underLookOf(id, character), checkLook(chosen)),
+    character.name,
+    core.bodies[id] ?? "auto",
+  );
 }
 
 /** What the Look card needs for `id`: their name, how they look now, and whether a 3D model hides it. */
@@ -4321,12 +4333,12 @@ async function lookOf(id) {
       // The base avatar's (avatar.js): how they look now, and what its kit offers for their body.
       avatar: await (async () => {
         const character = persona ?? (core.characters ?? []).find((entry) => entry.id === id) ?? { id };
-        const now = avatarLook(
-          name,
-          core.bodies[id] ?? "auto",
-          mergeLooks(persona ? {} : loreLookOf(character), chosen),
-        );
-        return { now, choices: await avatarChoices(now.body).catch(() => null), presets: core.settings.lookPresets };
+        const now = avatarLook(name, core.bodies[id] ?? "auto", mergeLooks(underLookOf(id, character), chosen));
+        return {
+          now,
+          choices: await avatarChoices(now.body, now.species).catch(() => null),
+          presets: core.settings.lookPresets,
+        };
       })(),
     };
   } catch {
@@ -10253,6 +10265,7 @@ function setBuild(field, value) {
   core.save = { ...core.save, build: checkBuild({ ...buildNow(), [field]: value }, playerClass()) };
   core.saves.write(core.save);
   core.hud?.refreshInventory?.();
+  if (field === "race") void choosePersona(core.personaId, true); // (a dragonborn has the dragon body: raceLook)
 }
 
 /** The build in a line for the model: "A Hill Dwarf fighter (Defense). Background: Acolyte. Proficient in Athletics, Insight." */

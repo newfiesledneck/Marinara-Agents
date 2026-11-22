@@ -2,7 +2,8 @@
 // assets/models/avatar-*.glb by `scripts/build-wanderworld-people.mjs --avatar`): both bodies with every
 // shape key, a person built from each in Node (pictures stubbed), shape keys, limb lengths, underwear and
 // outfit pieces applied, looks checked and older ones carried over, presets read back as written, and
-// townsfolk's looks the same every time from their name and lore.
+// townsfolk's looks the same every time from their name and lore. The anthro bodies (a wolf, a dragon) too:
+// their kit files, two-way sliders, colours, wings, and human outfit pieces worn on them.
 // Run: node tests/wanderworld-avatar.regression.mjs
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
@@ -26,7 +27,7 @@ globalThis.fetch = async (url) => {
 const image = () => ({ addEventListener() {}, removeEventListener() {}, setAttribute() {}, style: {} });
 globalThis.document = { createElementNS: image, createElement: image };
 
-const { avatarChoices, avatarLook, createAvatar } = await import("../packages/wanderworld/src/avatar.js");
+const { avatarChoices, avatarLook, createAvatar, keyWeights } = await import("../packages/wanderworld/src/avatar.js");
 const looks = await import("../packages/wanderworld/src/looks.js");
 const { checkLook, checkPresets, mergeLooks, presetFile, readPresetFile, BUILT_IN_PRESETS, SKIN_TONES } = looks;
 const { lookFromWords, readKeyword } = await import("../packages/wanderworld/src/keywords.js");
@@ -549,14 +550,15 @@ for (const sex of ["male", "female"]) {
 // ── Looks: checked and clamped, older ones carried over ─────────────────────
 {
   const checked = checkLook({
-    body: "wolf",
-    shape: { weight: 5, jaw: -3, ears: 0.5, tail: 1 },
+    body: "wolf", // (a kind of body is `species`; a body is male or female)
+    species: "cat",
+    shape: { weight: 5, jaw: -3, ears: 0.5, snout: 1 },
     limbs: { arms: 2, legs: 0.5, head: "big" },
-    colours: { skin: 0x123456, eyes: -1, fur: 0xffffff },
+    colours: { skin: 0x123456, eyes: -1, feathers: 0xffffff },
     underwear: { top: "corset", bottom: "thong" },
     clothes: ["vest", "Vest!", 3, "vest"],
     preset: "  My look  ",
-    wings: true,
+    wings: "yes",
   });
   assert.deepEqual(checked, {
     shape: { weight: 1, jaw: -0.5, ears: 0.5 },
@@ -566,6 +568,22 @@ for (const sex of ["male", "female"]) {
     clothes: ["vest"],
     preset: "My look",
   });
+  // The anthro bodies' fields: the kind, the wings, their sliders (each within its range, a two-way one all
+  // the way down) and their parts' colours.
+  assert.deepEqual(
+    checkLook({
+      species: "dragon",
+      wings: false,
+      shape: { muzzle: 5, earSize: -2, horns: -9, tailLength: 3, tail: -1, neck: -3 },
+      colours: { fur: 0xffffff, fur2: 1, nose: 2, claws: 3, scales: 4, scales2: 5, horns: 0x1000000 },
+    }),
+    {
+      species: "dragon",
+      wings: false,
+      shape: { neck: -1, muzzle: 1, earSize: -1, horns: -1, tailLength: 1, tail: 0 },
+      colours: { fur: 0xffffff, fur2: 1, nose: 2, claws: 3, scales: 4, scales2: 5 },
+    },
+  );
   assert.equal(checkLook({ body: "female" }).body, "female");
   assert.deepEqual(checkLook({ underwear: { top: "none" } }), { underwear: { top: "none" } });
   // Clothing: known pieces only, the first one a slot; known parts' colours; known variants of worn-able pieces.
@@ -594,6 +612,8 @@ for (const sex of ["male", "female"]) {
   assert.equal(now.height, 1.05, "the height carries over");
   assert.equal(now.colours.underwear, looks.CLOTH_HEX["clothes-blue"], "the cloth's colour is the underwear's");
   assert.equal(avatarLook("Rowan", "male", { skinTint: 0x112233 }).colours.skin, 0x112233);
+  assert.equal(now.species, "human", "a look saved before the anthro bodies is a human's");
+  assert.equal(now.wings, true);
   // The body: the look's own, else the gender's, the same as the older kit's people have.
   assert.equal(avatarLook("Rowan", "male", { body: "female" }).body, "female");
   assert.equal(avatarLook("Rowan", "female").body, "female");
@@ -804,6 +824,543 @@ for (const sex of ["male", "female"]) {
   setDetailDistance(DETAIL_DISTANCES.full);
   assert.equal(drawn(500), near, "Always full detail");
   setDetailDistance(DETAIL_DISTANCES.normal);
+}
+
+// ── The anthro bodies: a wolf and a dragon, built on the human body ─────────
+{
+  const BUILD = ["thin", "heavy", "muscle", "hips", "waist", "belly", "shoulders", "neck", "neck_slim"];
+  const KINDS = {
+    wolf: {
+      keys: [...BUILD, "jaw", "cheeks", "eyes", "muzzle", "muzzle_short", "ears_tall", "ears_small"].concat([
+        "tail",
+        "tail_long",
+        "tail_short",
+        "ruff_flat",
+      ]),
+      parts: ["fur", "fur2", "nose", "eyes", "eyelashes", "claws", "teeth", "fur_tufts", "fur2_tufts"],
+      bones: ["tail_01", "tail_04"],
+    },
+    dragon: {
+      keys: [...BUILD, "jaw", "cheeks", "eyes", "muzzle", "muzzle_short", "horns", "horns_small"].concat([
+        "tail",
+        "tail_long",
+        "tail_short",
+      ]),
+      parts: ["scales", "scales2", "horns", "iris", "eye_white", "teeth"],
+      bones: ["tail_01", "tail_05", "wing_01_l", "wing_f3_r"],
+    },
+  };
+  const anthro = {}; // "wolf-male" → its kit file
+  let bytes = 0;
+  for (const [kind, { keys, parts, bones }] of Object.entries(KINDS))
+    for (const sex of ["male", "female"]) {
+      const path = join(kitRoot, `generic/avatar/anthro-${kind}-${sex}.pack.png`);
+      bytes += (await readFile(path)).length;
+      const file = (anthro[`${kind}-${sex}`] = await unpack(await readFile(path)));
+      const where = `the ${sex} ${kind}`;
+      assert.match(file.source, /MakeHuman \(CC0\)/u, `${where} says it's built on MakeHuman's base mesh`);
+      assert.deepEqual(
+        [...file.keys].sort(),
+        [...keys, sex === "female" ? "bust" : "chest"].sort(),
+        `${where} has its shape keys`,
+      );
+      for (const part of parts)
+        assert.ok(
+          file.meshes.some((mesh) => mesh.part === part && !mesh.piece),
+          `${where} has its ${part}`,
+        );
+      // Its pieces: two underwear bottoms, her two tops, and a dragon's wings.
+      const pieces = [...new Set(file.meshes.map((mesh) => mesh.piece).filter(Boolean))].sort();
+      assert.deepEqual(
+        pieces,
+        [
+          "underwear-bottom-boxer_briefs",
+          "underwear-bottom-briefs",
+          ...(sex === "female" ? ["underwear-top-bra", "underwear-top-sports_bra"] : []),
+          ...(kind === "dragon" ? ["wings"] : []),
+        ],
+        `${where}'s pieces`,
+      );
+      // On the people's skeleton, with tail (and wing) bones, each on a parent.
+      for (const joint of [...files[sex].skeleton.names, ...bones])
+        assert.ok(file.skeleton.names.includes(joint), `${where} has the ${joint} bone`);
+      assert.ok(file.skeleton.parents[file.skeleton.names.indexOf("tail_01")] >= 0, "the tail is on the body");
+      // Its pictures are inside the file, none bigger than the body's 2,048 pixels would make it.
+      for (const mesh of file.meshes)
+        assert.ok(
+          file.pictures.some((picture) => picture.name === mesh.texture),
+          `${where}'s ${mesh.part} picture is in its file`,
+        );
+      assert.ok(file.pictures.length <= 4, `${where} has few pictures (${file.pictures.length}): no normal maps`);
+      // Compact shape keys, a distant version, and a body within its budget.
+      const main = file.meshes.find((mesh) => mesh.part === parts[0] && !mesh.piece);
+      assert.equal(main.morphs.thin.q, 511, "its shape keys are packed in fewer steps");
+      assert.ok(main.far, `${where} has a distant version`);
+      const vertices = file.meshes.filter((mesh) => !mesh.piece).reduce((sum, mesh) => sum + mesh.count, 0);
+      assert.ok(vertices < 45000, `${where} stays within its budget (${vertices} vertices)`);
+    }
+  assert.ok(bytes < 14e6, `the four anthro bodies are under 14 MB together (${(bytes / 1e6).toFixed(1)})`);
+
+  const BEAST = {
+    ...EVERYDAY,
+    shape: { ...EVERYDAY.shape, ...Object.fromEntries(looks.ANTHRO_SHAPES.map(([key]) => [key, 0])) },
+  };
+  const positions = (person) => bodyMesh(person).geometry.attributes.position.array;
+  /** How far apart two bodies' vertices are at most (metres). */
+  const apart = (a, b) => {
+    let most = 0;
+    for (let i = 0; i < a.length; i++) most = Math.max(most, Math.abs(a[i] - b[i]));
+    return most;
+  };
+
+  // Each stands like a person, on the ground, in a few draws, and walks with the people's clips.
+  for (const [kind, sex] of [
+    ["wolf", "male"],
+    ["wolf", "female"],
+    ["dragon", "male"],
+    ["dragon", "female"],
+  ]) {
+    const person = await createAvatar({ ...BEAST, species: kind, body: sex }, "Rowan");
+    assert.equal(person.avatar.species, kind);
+    assert.equal(person.avatar.body, sex);
+    person.object.updateMatrixWorld(true);
+    const box = new Box3().setFromObject(person.object, true);
+    const height = box.max.y - box.min.y;
+    assert.ok(height > 1.5 && height < 2.2, `the ${sex} ${kind} is person-sized (${height.toFixed(2)} m)`);
+    assert.ok(Math.abs(box.min.y) < 0.05, `the ${sex} ${kind} stands on the ground (${box.min.y.toFixed(3)})`);
+    assert.ok(bodyMesh(person).geometry.groups.length <= 4, `the ${sex} ${kind} is a few draws`);
+    // The tail sways, a little, while the people's clips move the rest.
+    const tail = () => bone(person, kind === "wolf" ? "tail_04" : "tail_05");
+    const rest = bone(person, "foot_l").z;
+    let swing = 0;
+    let sway = 0;
+    const from = tail();
+    for (let i = 0; i < 60; i++) {
+      person.update(1 / 30, 1.4);
+      person.object.updateMatrixWorld(true);
+      swing = Math.max(swing, Math.abs(bone(person, "foot_l").z - rest));
+      sway = Math.max(sway, tail().distanceTo(from));
+    }
+    assert.ok(swing > 0.1, `the ${sex} ${kind} walks`);
+    assert.ok(sway > 0.01 && sway < 0.8, `the ${sex} ${kind}'s tail sways (${sway.toFixed(3)} m)`);
+    person.dispose();
+  }
+
+  // Two-way sliders: each side of the middle drives a key of its own, when the body has the one below.
+  const wolfKeys = anthro["wolf-male"].keys;
+  const dragonKeys = anthro["dragon-male"].keys;
+  const weightsOf = (shape, keys, flat) => keyWeights({ shape: { ...BEAST.shape, ...shape } }, "male", keys, flat);
+  for (const [slider, low, high, keys] of [
+    ["muzzle", "muzzle_short", "muzzle", wolfKeys],
+    ["earSize", "ears_small", "ears_tall", wolfKeys],
+    ["tailLength", "tail_short", "tail_long", wolfKeys],
+    ["neck", "neck_slim", "neck", wolfKeys],
+    ["horns", "horns_small", "horns", dragonKeys],
+    ["weight", "thin", "heavy", files.male.keys],
+  ]) {
+    const down = weightsOf({ [slider]: -0.6 }, keys);
+    const up = weightsOf({ [slider]: 0.6 }, keys);
+    assert.deepEqual([down[low], down[high]], [0.6, 0], `${slider} below the middle is the ${low} key`);
+    assert.deepEqual([up[low], up[high]], [0, 0.6], `${slider} above the middle is the ${high} key`);
+  }
+  assert.equal(weightsOf({ neck: -1 }, wolfKeys).neck_slim, 1, "a wolf's neck goes all the way down");
+  const humanNeck = weightsOf({ neck: -1 }, files.male.keys);
+  assert.equal(humanNeck.neck, -0.5, "the human neck has one key, run backwards as far as it goes");
+  assert.equal(humanNeck.neck_slim, undefined);
+  assert.equal(weightsOf({ tail: 1 }, wolfKeys).tail, 1, "tail thickness is one key");
+  assert.equal(weightsOf({ ears: 1, nose: 1 }, wolfKeys).ears_pointed, undefined, "only the keys the body has");
+  assert.equal(weightsOf({}, wolfKeys).nose, undefined);
+  assert.equal(weightsOf({}, wolfKeys, true).ruff_flat, 1, "under a piece the ruff lies flat");
+  assert.equal(weightsOf({}, wolfKeys).ruff_flat, 0);
+  assert.equal(weightsOf({}, dragonKeys, true).ruff_flat, undefined, "a dragon has no ruff");
+  // (And on the model: a longer muzzle and a shorter one both move it, and aren't each other backwards.)
+  const wolf = await createAvatar({ ...BEAST, species: "wolf", body: "male" }, "Rowan");
+  const longer = await createAvatar(
+    { ...BEAST, species: "wolf", body: "male", shape: { ...BEAST.shape, muzzle: 1, tailLength: 1 } },
+    "Rowan",
+  );
+  const shorter = await createAvatar(
+    { ...BEAST, species: "wolf", body: "male", shape: { ...BEAST.shape, muzzle: -1, tailLength: -1 } },
+    "Rowan",
+  );
+  assert.ok(apart(positions(longer), positions(wolf)) > 0.01, "a longer muzzle and tail move the model");
+  assert.ok(apart(positions(shorter), positions(wolf)) > 0.01, "a shorter muzzle and tail move the model");
+  const [a, b, c] = [positions(wolf), positions(longer), positions(shorter)];
+  let mirrored = 0;
+  for (let i = 0; i < a.length; i++) mirrored = Math.max(mirrored, Math.abs(b[i] - a[i] + (c[i] - a[i])));
+  assert.ok(mirrored > 0.005, "shorter is a key of its own, not longer run backwards");
+  for (const person of [longer, shorter]) person.dispose();
+
+  // Colours: each part its own, and the tufts follow the fur they're on.
+  const count = (file, wanted) =>
+    file.meshes.filter((mesh) => wanted.includes(mesh.part)).reduce((sum, mesh) => sum + mesh.count, 0);
+  const coloured = (person, [r, g, b2]) => {
+    const colour = bodyMesh(person).geometry.attributes.color;
+    let found = 0;
+    for (let v = 0; v < colour.count; v++)
+      if (
+        Math.abs(colour.getX(v) - r) < 0.01 &&
+        Math.abs(colour.getY(v) - g) < 0.01 &&
+        Math.abs(colour.getZ(v) - b2) < 0.01
+      )
+        found++;
+    return found;
+  };
+  const dyed = await createAvatar(
+    {
+      ...BEAST,
+      species: "wolf",
+      body: "male",
+      colours: { fur: 0xff0000, fur2: 0x00ff00, nose: 0x0000ff, claws: 0xffff00, eyes: 0xff00ff },
+    },
+    "Rowan",
+  );
+  const wolfFile = anthro["wolf-male"];
+  assert.equal(coloured(dyed, [1, 0, 0]), count(wolfFile, ["fur", "fur_tufts"]), "the fur and its tufts");
+  assert.equal(coloured(dyed, [0, 1, 0]), count(wolfFile, ["fur2", "fur2_tufts"]), "the lighter fur and its tufts");
+  assert.equal(coloured(dyed, [0, 0, 1]), count(wolfFile, ["nose"]), "the nose");
+  assert.equal(coloured(dyed, [1, 1, 0]), count(wolfFile, ["claws"]), "the claws");
+  assert.equal(coloured(dyed, [1, 0, 1]), count(wolfFile, ["eyes"]), "the eyes");
+  const scaled = await createAvatar(
+    {
+      ...BEAST,
+      species: "dragon",
+      body: "female",
+      colours: { scales: 0xff0000, scales2: 0x00ff00, horns: 0x0000ff, eyes: 0xff00ff },
+    },
+    "Rowan",
+  );
+  const dragonFile = anthro["dragon-female"];
+  assert.equal(coloured(scaled, [1, 0, 0]), count(dragonFile, ["scales"]), "the scales (the wings' too)");
+  assert.equal(coloured(scaled, [0, 1, 0]), count(dragonFile, ["scales2"]), "the underside");
+  assert.equal(coloured(scaled, [0, 0, 1]), count(dragonFile, ["horns"]), "the horns");
+  assert.equal(coloured(scaled, [1, 0, 1]), count(dragonFile, ["iris"]), "the eyes");
+  // Unless chosen, a natural coat or an ancestry's scales from the name, the same every time.
+  const grey = avatarLook("Rowan", "auto", { species: "wolf" });
+  assert.deepEqual(avatarLook("Rowan", "auto", { species: "wolf" }), grey);
+  assert.ok(
+    looks.FUR_COLOURS.some(([hex]) => hex === grey.colours.fur),
+    "a natural coat from the name",
+  );
+  assert.ok(
+    looks.SCALE_COLOURS.some(([hex]) => hex === avatarLook("Rowan", "auto", { species: "dragon" }).colours.scales),
+    "an ancestry's scales from the name",
+  );
+  assert.deepEqual(
+    looks.SCALE_COLOURS.map(([, label]) => label.toLowerCase()),
+    ["black", "blue", "brass", "bronze", "copper", "gold", "green", "red", "silver", "white"],
+    "the SRD's ten draconic ancestries",
+  );
+  const black = avatarLook("Rowan", "auto", { species: "wolf", colours: { fur: looks.FUR_COLOURS[4][0] } });
+  assert.equal(black.colours.fur2, looks.FUR_COLOURS[4][2], "the lighter fur goes with the coat unless chosen");
+  assert.equal(black.colours.eyes, grey.colours.eyes, "choosing one colour leaves the others as the name has them");
+  for (const person of [dyed, scaled]) person.dispose();
+
+  // Wings: a dragon's, shown unless the look hides them; the Look card offers the switch only for a body with wings.
+  const triangles = (person) => bodyMesh(person).geometry.groups.reduce((sum, group) => sum + group.count, 0) / 3;
+  const winged = await createAvatar({ ...BEAST, species: "dragon", body: "male" }, "Rowan");
+  const wingless = await createAvatar({ ...BEAST, species: "dragon", body: "male", wings: false }, "Rowan");
+  const wingTriangles = anthro["dragon-male"].meshes
+    .filter((mesh) => mesh.piece === "wings")
+    .reduce((sum, mesh) => sum + arrayOf(Uint16Array, mesh.index).length / 3, 0);
+  assert.ok(wingTriangles > 1000, "the wings are a piece of their own");
+  assert.equal(triangles(winged) - triangles(wingless), wingTriangles, "hiding the wings leaves their triangles out");
+  assert.equal((await avatarChoices("male", "dragon")).wings, true);
+  assert.equal((await avatarChoices("male", "wolf")).wings, false);
+  assert.equal((await avatarChoices("male")).wings, false);
+  for (const person of [winged, wingless]) person.dispose();
+
+  // What an anthro body is offered: its own keys and underwear, no hair, nothing for a human head or foot,
+  // and no other way of wearing a piece (a hood up).
+  for (const kind of ["wolf", "dragon"])
+    for (const sex of ["male", "female"]) {
+      const choices = await avatarChoices(sex, kind);
+      assert.deepEqual(choices.keys, anthro[`${kind}-${sex}`].keys);
+      assert.deepEqual(choices.hair, [], `no hair for the ${sex} ${kind}`);
+      assert.deepEqual(choices.bottoms, ["briefs", "boxer_briefs"]);
+      assert.deepEqual(choices.tops, sex === "female" ? ["bra", "sports_bra"] : []);
+      const slots = new Set(choices.clothes.map(({ slot }) => slot));
+      for (const slot of ["head", "brow", "feet"]) assert.ok(!slots.has(slot), `no ${slot} pieces for the ${kind}`);
+      for (const slot of ["top", "over", "legs", "body", "back", "armour", "hands"])
+        assert.ok(slots.has(slot), `the ${sex} ${kind} is offered ${slot} pieces`);
+      assert.deepEqual(choices.clothes.find(({ piece }) => piece === "cloak").variants, [], "the hood stays down");
+      assert.ok(looks.hasSlider("muzzle", choices.keys, sex) && looks.hasSlider("tailLength", choices.keys, sex));
+      assert.ok(!looks.hasSlider("nose", choices.keys, sex) && !looks.hasSlider("ears", choices.keys, sex));
+      assert.equal(looks.hasSlider("horns", choices.keys, sex), kind === "dragon");
+      assert.equal(looks.hasSlider("earSize", choices.keys, sex), kind === "wolf");
+      assert.ok(looks.hasSlider("chest", choices.keys, sex), "her bust, his chest");
+      assert.deepEqual(
+        looks.sliderRange(
+          looks.SHAPES.find(([key]) => key === "neck"),
+          choices.keys,
+        ),
+        [-1, 1],
+      );
+    }
+  assert.ok(!looks.hasSlider("muzzle", files.male.keys, "male"), "a human has no muzzle slider");
+  assert.deepEqual(
+    looks.sliderRange(
+      looks.SHAPES.find(([key]) => key === "neck"),
+      files.male.keys,
+    ),
+    [-0.5, 1],
+  );
+  const dressed = await createAvatar(
+    {
+      ...BEAST,
+      species: "wolf",
+      body: "male",
+      hair: "long",
+      clothes: ["hood", "circlet", "shirt", "trousers", "boots", "cloak"],
+      variants: { cloak: "hood_up" },
+    },
+    "Rowan",
+  );
+  assert.deepEqual(dressed.avatar.clothes, ["shirt", "trousers", "cloak"], "nothing made for a human head or foot");
+  assert.equal(dressed.avatar.hair, "none", "and no hair");
+  assert.deepEqual(dressed.avatar.variants, {});
+  assert.equal(piecesOn(dressed).length, 3, "a mesh each for the shirt, trousers and cloak");
+  // (Townsfolk's everyday clothes, the same: a wolf smith goes without boots.)
+  for (const name of ["Bram", "Ivy", "Hank", "Lena"])
+    for (const piece of avatarLook(name, "auto", { species: "wolf" }).clothes)
+      assert.ok(!looks.ANTHRO_BARE_SLOTS.has(looks.SLOT_OF[piece]), `${name} the wolf doesn't wear ${piece}`);
+
+  // A human outfit piece on an anthro body: bound to the body's own bones with the piece's own (human) bind
+  // pose, so the digitigrade stance bends trousers as it bent the legs.
+  const wearing = await createAvatar({ ...BEAST, species: "wolf", body: "male", clothes: ["trousers"] }, "Rowan");
+  const [trousers] = piecesOn(wearing);
+  const wolfBody = bodyMesh(wearing);
+  const trouserPart = bundles[outfitIndex.trousers.bundle].pieces.trousers.male;
+  assert.ok(
+    trousers.skeleton.bones.every((each) => wolfBody.skeleton.bones.includes(each)),
+    "the trousers are on the wolf's own bones",
+  );
+  const thigh = trouserPart.joints.indexOf("thigh_l");
+  assert.ok(
+    trousers.skeleton.boneInverses[thigh].elements.every(
+      (value, i) => Math.abs(value - trouserPart.inverseBind[thigh * 16 + i]) < 1e-5,
+    ),
+    "with the trousers' own bind pose",
+  );
+  const wolfThigh = wolfBody.skeleton.boneInverses[wolfBody.skeleton.bones.indexOf(trousers.skeleton.bones[thigh])];
+  assert.ok(
+    wolfThigh.elements.some((value, i) => Math.abs(value - trouserPart.inverseBind[thigh * 16 + i]) > 0.05),
+    "which isn't the wolf's (its legs are bent)",
+  );
+  /** A skinned mesh's vertices as posed, in the world (every `step`th). */
+  const posed = (mesh, step = 1) => {
+    mesh.skeleton.update();
+    const position = mesh.geometry.attributes.position;
+    const points = [];
+    for (let v = 0; v < position.count; v += step)
+      points.push(
+        mesh.applyBoneTransform(v, new Vector3().fromBufferAttribute(position, v)).applyMatrix4(mesh.matrixWorld),
+      );
+    return points;
+  };
+  wearing.object.updateMatrixWorld(true);
+  const leg = posed(wolfBody, 3);
+  const gaps = posed(trousers, 25)
+    .map((point) => Math.sqrt(leg.reduce((least, each) => Math.min(least, each.distanceToSquared(point)), Infinity)))
+    .sort((x, y) => x - y);
+  const usual = gaps[Math.floor(gaps.length * 0.9)];
+  assert.ok(usual < 0.05, `the trousers lie on the wolf's legs (nine in ten within ${(usual * 100).toFixed(1)} cm)`);
+  const hem = Math.min(...posed(trousers).map((point) => point.y));
+  assert.ok(hem > 0.1 && hem < 0.5, `their hems end at the hock, above the paw (${hem.toFixed(2)} m)`);
+  // What they cover is hidden on the body, as on a human.
+  assert.ok(wolfBody.geometry.index.count < bodyMesh(wolf).geometry.index.count, "the legs under them are left out");
+  // They follow a key the bodies share, and not one that's the wolf's own.
+  const piecePositions = (person) => piecesOn(person)[0].geometry.attributes.position.array;
+  const heavyWolf = await createAvatar(
+    { ...BEAST, species: "wolf", body: "male", clothes: ["trousers"], shape: { ...BEAST.shape, weight: 1 } },
+    "Rowan",
+  );
+  const longTail = await createAvatar(
+    { ...BEAST, species: "wolf", body: "male", clothes: ["trousers"], shape: { ...BEAST.shape, tailLength: 1 } },
+    "Rowan",
+  );
+  assert.ok(apart(piecePositions(heavyWolf), piecePositions(wearing)) > 0.01, "the trousers follow the heavy key");
+  assert.equal(apart(piecePositions(longTail), piecePositions(wearing)), 0, "and not the tail's");
+  // Several pieces at once, on each body, without a hitch: a shirt, tunic, robe, mail and cloak.
+  for (const [kind, sex] of [
+    ["wolf", "female"],
+    ["dragon", "male"],
+    ["dragon", "female"],
+  ])
+    for (const clothes of [["shirt", "tunic", "trousers", "chainmail", "cloak", "gloves"], ["robe"]]) {
+      const person = await createAvatar({ ...BEAST, species: kind, body: sex, clothes }, "Rowan");
+      assert.equal(piecesOn(person).length, clothes.length, `the ${sex} ${kind} wears ${clothes.join(", ")}`);
+      person.update(1 / 30, 1.4);
+      person.object.updateMatrixWorld(true);
+      for (const mesh of piecesOn(person))
+        for (const point of posed(mesh, 40))
+          assert.ok(point.length() < 3, `the ${sex} ${kind}'s ${clothes.join(", ")} stay on them`);
+      person.dispose();
+    }
+  // A piece over the neck or chest lays the wolf's ruff flat (a cuirass hides nothing, so only the ruff moves).
+  const plated = await createAvatar({ ...BEAST, species: "wolf", body: "male", clothes: ["plate_cuirass"] }, "Rowan");
+  assert.ok(apart(positions(plated), positions(wolf)) > 0.005, "the ruff lies flat under a cuirass");
+  for (const person of [wolf, dressed, wearing, heavyWolf, longTail, plated]) person.dispose();
+
+  // Presets: the ready-made anthro looks, and any preset on any body (what a body hasn't got is left off).
+  for (const name of [
+    "Grey wolf",
+    "White wolf",
+    "Black wolf",
+    "Red dragon",
+    "Gold dragon",
+    "Blue dragon",
+    "Silver dragon",
+  ]) {
+    const preset = BUILT_IN_PRESETS.find((each) => each.name === name);
+    assert.ok(preset, `${name} is a ready-made look`);
+    const made = avatarLook("Rowan", "female", preset.look);
+    assert.equal(made.species, name.endsWith("wolf") ? "wolf" : "dragon");
+    assert.equal(made.body, "female", "the body follows their gender");
+  }
+  const red = BUILT_IN_PRESETS.find((each) => each.name === "Red dragon").look;
+  assert.equal(red.colours.scales, looks.SCALE_COLOURS.find(([, label]) => label === "Red")[0]);
+  const elf = BUILT_IN_PRESETS.find((each) => each.name === "Female elf").look;
+  const elfWolf = avatarLook("Rowan", "auto", { ...elf, species: "wolf" });
+  assert.equal(elfWolf.hair, "none", "a human preset on a wolf: no hair");
+  assert.equal(elfWolf.shape.weight, elf.shape.weight, "but its build");
+  assert.ok(looks.PRESET_FIELDS.includes("species") && looks.PRESET_FIELDS.includes("wings"));
+
+  // The SRD race: a dragonborn has the dragon body unless one is chosen by hand, in its ancestry's scales
+  // when the build names one.
+  const { raceLook } = looks;
+  assert.deepEqual(raceLook({ race: "dragonborn" }), { species: "dragon" });
+  assert.deepEqual(raceLook({ race: "dragonborn", ancestry: "Gold" }), {
+    species: "dragon",
+    colours: { scales: looks.SCALE_COLOURS[5][0] },
+  });
+  assert.deepEqual(raceLook({ race: "elf" }), {});
+  assert.deepEqual(raceLook(undefined), {});
+  assert.deepEqual(
+    checkLook(raceLook({ race: "dragonborn", ancestry: "red" })),
+    raceLook({ race: "dragonborn", ancestry: "red" }),
+  );
+  const born = (chosen) => avatarLook("Rowan", "auto", mergeLooks(raceLook({ race: "dragonborn" }), chosen));
+  assert.equal(born({}).species, "dragon", "a dragonborn is a dragon unless said");
+  assert.equal(born({ shape: { weight: 0.3 } }).species, "dragon", "whatever else is chosen");
+  assert.equal(born({ species: "human" }).species, "human", "a body chosen by hand wins");
+  assert.equal(born({ species: "wolf" }).species, "wolf");
+
+  // ── Every slider works one way, on every body ──
+  // Its 0 is the model's own shape; the right is bigger, longer, wider or more and the left smaller, shorter,
+  // narrower or less; a two-way slider's track has 0 in the middle, a one-way one's at the left end; and
+  // each says what its two ends are.
+  const SLIDERS = [...looks.SHAPES, ...looks.FACE, ...looks.ANTHRO_SHAPES];
+  for (const entry of [...SLIDERS, ...looks.LIMBS]) {
+    const [key, , least, most, what, ends] = entry;
+    assert.ok(what && ends?.length === 2 && ends[0] !== ends[1], `${key} says what it changes, and its two ends`);
+    assert.ok(least < most);
+  }
+  for (const [key, , least, most] of looks.LIMBS)
+    assert.ok(Math.abs((least + most) / 2 - 1) < 1e-9, `${key}'s middle is the model's own (1)`);
+  assert.ok(Math.abs((looks.HEIGHTS[0] + looks.HEIGHTS[1]) / 2 - 1) < 1e-9, "the height's middle is the model's own");
+  const bodyFiles = { "human-male": files.male, "human-female": files.female, ...anthro };
+  /** How far a look's shape keys move a body's surface, summed over it, measured `way` (metres × vertices). */
+  const moved = (file, weights, way) => {
+    let sum = 0;
+    for (const mesh of file.meshes.filter((each) => !each.piece)) {
+      const normal = arrayOf(Int8Array, mesh.normal);
+      const position = arrayOf(Int16Array, mesh.position);
+      for (const [key, morph] of Object.entries(mesh.morphs ?? {})) {
+        if (!weights[key]) continue;
+        const ids = arrayOf(mesh.count > 65535 ? Uint32Array : Uint16Array, morph.ids);
+        const delta = arrayOf(Int16Array, morph.delta);
+        ids.forEach((id, i) => {
+          const [x, y, z] = [0, 1, 2].map((c) => (delta[i * 3 + c] / morph.q) * morph.d[c] * weights[key]);
+          if (way === "outward")
+            sum += (x * normal[id * 3] + y * normal[id * 3 + 1] + z * normal[id * 3 + 2]) / 127; // (along the surface's own normal)
+          else if (way === "wider") {
+            // (The model is centred: left and right move apart.)
+            const side = mesh.box[0] + ((position[id * 3] + 32768) / 65535) * (mesh.box[3] - mesh.box[0]);
+            sum += x * (side > 0 ? 1 : -1);
+          } else sum += way === "up" ? y : z; // ("forward")
+        });
+      }
+    }
+    return sum;
+  };
+  // What "bigger" is for each slider. (Muscle and eyes aren't measured: more muscle is more shape, not more
+  // of everything, and larger eyes open the lids; both were looked at.)
+  const BIGGER = {
+    weight: "outward",
+    chest: "outward",
+    hips: "wider",
+    waist: "outward",
+    belly: "outward",
+    shoulders: "wider",
+    neck: "outward",
+    jaw: "outward",
+    cheeks: "outward",
+    nose: "outward",
+    ears: "up",
+    muzzle: "forward",
+    earSize: "up",
+    horns: "outward",
+    tailLength: "outward",
+    tail: "outward",
+  };
+  for (const [name, file] of Object.entries(bodyFiles)) {
+    const sex = name.split("-")[1];
+    const weightsAt = (shape) => keyWeights({ shape: { ...looks.NEUTRAL_LOOK.shape, ...shape } }, sex, file.keys);
+    assert.ok(
+      Object.values(weightsAt({})).every((weight) => weight === 0),
+      `the ${name} body with every slider at 0 is the model's own shape`,
+    );
+    for (const entry of SLIDERS) {
+      const [key] = entry;
+      if (!looks.hasSlider(key, file.keys, sex)) continue;
+      const [least, most] = looks.sliderRange(entry, file.keys);
+      // Its track: 0 in the middle of −1…1, or at the left end of 0…1, and back to the same value.
+      assert.equal(looks.toTrack(0, [least, most]), 0);
+      assert.equal(looks.toTrack(most, [least, most]), 1);
+      assert.equal(looks.toTrack(least, [least, most]), least < 0 ? -1 : 0, `${key}'s left end on the ${name} body`);
+      for (const at of [-1, -0.35, 0, 0.6, 1].filter((each) => each >= 0 || least < 0))
+        assert.ok(Math.abs(looks.toTrack(looks.fromTrack(at, [least, most]), [least, most]) - at) < 1e-9);
+      if (!BIGGER[key]) continue;
+      const right = moved(file, weightsAt({ [key]: most }), BIGGER[key]);
+      assert.ok(right > 0, `${key} to the right is bigger on the ${name} body (${right.toFixed(3)})`);
+      if (least < 0) {
+        const left = moved(file, weightsAt({ [key]: least }), BIGGER[key]);
+        assert.ok(left < 0, `${key} to the left is smaller on the ${name} body (${left.toFixed(3)})`);
+      }
+    }
+  }
+  // The player starts with every slider at the model's own shape (NEUTRAL_LOOK under their look, main.js),
+  // which is what Reset goes back to; townsfolk start from their name, so they differ.
+  const neutral = avatarLook("Rowan", "male", looks.NEUTRAL_LOOK);
+  assert.ok(
+    Object.values(neutral.shape).every((value) => value === 0),
+    "every shape slider at 0",
+  );
+  assert.deepEqual(neutral.limbs, { arms: 1, legs: 1, head: 1 });
+  assert.equal(neutral.height, 1);
+  assert.deepEqual(checkLook(looks.NEUTRAL_LOOK), looks.NEUTRAL_LOOK, "the neutral look is a checked look");
+  const own = avatarLook("Rowan", "male", mergeLooks(looks.NEUTRAL_LOOK, { shape: { weight: 0.4 } }));
+  assert.equal(own.shape.weight, 0.4, "a slider moved by hand sits on it");
+  assert.equal(own.shape.muscle, 0);
+  assert.ok(
+    Object.values(avatarLook("Rowan", "male").shape).some((value) => value !== 0),
+    "someone in town is a little off the middle",
+  );
+
+  // Townsfolk stay human unless their look or lore says otherwise.
+  for (const name of ["Bram", "Ivy", "Hank", "Lena", "Odo", "Sera"])
+    assert.equal(avatarLook(name).species, "human", `${name} is human unless said`);
+  assert.deepEqual(lookFromWords(["looks wolfkin"]), { species: "wolf" });
+  assert.deepEqual(lookFromWords("One of the wolf-folk of the north."), { species: "wolf" });
+  assert.deepEqual(lookFromWords("A tall dragonborn smith."), { height: 1.08, species: "dragon" });
+  assert.equal(readKeyword("ww:looks:dragonborn").problem, "");
+  assert.equal(avatarLook("Bram", "auto", lookFromWords("wolfkin")).species, "wolf");
+  assert.equal(
+    avatarLook("Bram", "auto", mergeLooks(lookFromWords("wolfkin"), { species: "human" })).species,
+    "human",
+    "their Look card's choice sits on lore",
+  );
 }
 
 console.log("wanderworld avatar: ok");
