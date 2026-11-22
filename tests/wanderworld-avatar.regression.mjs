@@ -894,7 +894,11 @@ for (const sex of ["male", "female"]) {
       );
       // On the people's skeleton, with tail (and wing) bones, each on a parent.
       // (The human body's own tail bones are a tiefling's: an anthro body has its own, as many as its tail needs.)
-      for (const joint of [...files[sex].skeleton.names.filter((name) => !/^tail_/u.test(name)), ...bones])
+      // (Nor its finger bones yet.)
+      const shared = files[sex].skeleton.names.filter(
+        (name) => !/^tail_|^(?:thumb|index|middle|ring|pinky)_/u.test(name),
+      );
+      for (const joint of [...shared, ...bones])
         assert.ok(file.skeleton.names.includes(joint), `${where} has the ${joint} bone`);
       assert.ok(file.skeleton.parents[file.skeleton.names.indexOf("tail_01")] >= 0, "the tail is on the body");
       // Its pictures are inside the file, none bigger than the body's 2,048 pixels would make it.
@@ -1377,6 +1381,95 @@ for (const sex of ["male", "female"]) {
     "human",
     "their Look card's choice sits on lore",
   );
+}
+
+// ── Fingers: bones of their own, straightened for the clips, their joints following the body's shape ──
+{
+  const FINGERS = ["l", "r"].flatMap((side) =>
+    ["thumb", "index", "middle", "ring", "pinky"].flatMap((finger) => [1, 2, 3].map((n) => `${finger}_0${n}_${side}`)),
+  );
+  for (const sex of ["male", "female"]) {
+    const { skeleton, jointMoves } = files[sex];
+    for (const joint of FINGERS) {
+      assert.ok(skeleton.names.includes(joint), `the ${sex} body has the ${joint} bone`);
+      const parent = skeleton.names[skeleton.parents[skeleton.names.indexOf(joint)]];
+      assert.equal(
+        parent,
+        /_01_/u.test(joint) ? `hand_${joint.at(-1)}` : joint.replace(/_0(\d)_/u, (_, n) => `_0${n - 1}_`),
+      );
+    }
+    const skin = files[sex].meshes.find((mesh) => mesh.part === "skin");
+    assert.ok(FINGERS.every((joint) => files[sex].joints.includes(joint)) && skin, "its skin is weighted to them");
+    // The kit says where each finger joint goes under the keys that move the hand; none for a key that doesn't.
+    assert.ok(jointMoves?.race_dwarf?.index_01_l, `the ${sex} kit has a dwarf's knuckles`);
+    assert.ok(Math.hypot(...jointMoves.race_dwarf.index_01_l) > 0.015, "a dwarf's hand is moved and bigger");
+    assert.ok(
+      Math.hypot(...jointMoves.race_gnome.index_03_l) > Math.hypot(...jointMoves.race_gnome.index_01_l),
+      "a gnome's fingers are longer",
+    );
+    assert.ok(!jointMoves.belly, "a belly moves no finger joint");
+    for (const joints of Object.values(jointMoves))
+      for (const joint of Object.keys(joints)) assert.ok(FINGERS.includes(joint), `${joint} is a finger joint`);
+  }
+  const person = (look) => createAvatar({ ...EVERYDAY, body: "male", ...look }, "Rowan", "male");
+  const settle = (character, speed = 0, frames = 60) => {
+    for (let i = 0; i < frames; i++) character.update(1 / 60, speed);
+    character.object.updateMatrixWorld(true);
+  };
+  // Standing, the fingers hang in a relaxed curl: bent, but not the library's loose fist (which they make
+  // with the carriage "as recorded").
+  const { setCarriage: carriageTo } = await import("../packages/wanderworld/src/clips.js");
+  carriageTo("body");
+  const plain = await person({});
+  settle(plain);
+  const bend = (character, finger, side = "l") => {
+    const [a, b, c] = [1, 2, 3].map((n) => bone(character, `${finger}_0${n}_${side}`));
+    const hand = bone(character, `hand_${side}`);
+    return a.clone().sub(hand).normalize().angleTo(c.clone().sub(b).normalize());
+  };
+  for (const finger of ["index", "middle", "ring", "pinky"]) {
+    const angle = bend(plain, finger);
+    assert.ok(
+      angle > 0.1 && angle < 1.6,
+      `standing, the ${finger} finger is relaxed (${((angle * 180) / Math.PI).toFixed(0)}°)`,
+    );
+  }
+  carriageTo("recorded");
+  settle(plain);
+  assert.ok(bend(plain, "index") > 2, "as recorded, the hand is a loose fist");
+  carriageTo("body");
+  // A look's keys move the finger joints with the skin, and the skin stays where the keys put it.
+  const dwarf = await person({ race: "dwarf", facialHair: "none" });
+  const [plainBody, dwarfBody] = [bodyMesh(plain), bodyMesh(dwarf)];
+  const knuckle = (mesh, name) => {
+    const at = mesh.skeleton.bones.findIndex((each) => each.name === name);
+    return new Vector3().setFromMatrixPosition(mesh.skeleton.boneInverses[at].clone().invert());
+  };
+  const moved = knuckle(dwarfBody, "index_01_l").distanceTo(knuckle(plainBody, "index_01_l"));
+  const wanted = Math.hypot(...files.male.jointMoves.race_dwarf.index_01_l);
+  assert.ok(Math.abs(moved - wanted) < 0.002, `a dwarf's knuckle is bound where his hand is (${moved.toFixed(3)} m)`);
+  assert.ok(
+    knuckle(dwarfBody, "hand_l").distanceTo(knuckle(plainBody, "hand_l")) < 1e-6,
+    "only the fingers' joints move",
+  );
+  // A glove hides the fingers with the hand.
+  const gloved = await person({ clothes: ["gloves"] });
+  const count = (character) => bodyMesh(character).geometry.groups.reduce((sum, group) => sum + group.count, 0);
+  const bare = await person({ clothes: [] });
+  const fingerTriangles = (() => {
+    const mesh = bodyMesh(bare);
+    const ids = new Set(FINGERS.map((name) => mesh.skeleton.bones.findIndex((each) => each.name === name)));
+    let found = 0;
+    const { index } = mesh.geometry;
+    const main = (v) => mesh.geometry.attributes.skinIndex.getX(v);
+    for (const group of mesh.geometry.groups)
+      for (let i = group.start; i < group.start + group.count; i += 3)
+        if ([0, 1, 2].every((c) => ids.has(main(index.getX(i + c))))) found += 3;
+    return found;
+  })();
+  assert.ok(fingerTriangles > 1000, "the bare hand's fingers are drawn");
+  assert.ok(count(bare) - count(gloved) >= fingerTriangles, "gloves hide the fingers as well as the hand");
+  for (const one of [plain, dwarf, gloved, bare]) one.dispose();
 }
 
 // ── Carriage: standing and walking eased from the library's ready-for-a-fight stance ──

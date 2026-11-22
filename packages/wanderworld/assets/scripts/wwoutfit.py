@@ -41,6 +41,9 @@ MODELS = os.environ.get("WW_OUTFIT_MODELS") or ww.MODELS
 # The body regions a piece can hide, by the game's words (src/avatar.js REGION_OF): the body's vertices
 # whose heaviest bone is one of these. The game hides a body triangle when all three of its vertices are in
 # hidden regions (and the underwear with it).
+# The body's finger bones (thumb, index, middle, ring, pinky, three each, a side each), children of hand_*.
+FINGERS = ("thumb", "index", "middle", "ring", "pinky")
+FINGER_BONES = [f"{f}_{k:02d}_{s}" for s in "lr" for f in FINGERS for k in (1, 2, 3)]
 REGIONS = {
     "head": ["Head"],
     "neck": ["neck_01"],
@@ -48,7 +51,7 @@ REGIONS = {
     "hips": ["pelvis"],
     "upperarms": ["upperarm_l", "upperarm_r"],
     "forearms": ["lowerarm_l", "lowerarm_r"],
-    "hands": ["hand_l", "hand_r"],
+    "hands": ["hand_l", "hand_r", *FINGER_BONES],
     "thighs": ["thigh_l", "thigh_r"],
     "calves": ["calf_l", "calf_r"],
     "feet": ["foot_l", "foot_r", "ball_l", "ball_r"],
@@ -180,10 +183,25 @@ class Body:
             self.keys[k.name] = a.reshape(-1, 3).copy() - self.co
         names = {g.index: g.name for g in self.obj.vertex_groups}
         W = np.zeros((n, len(BONE_NAMES)))
+        # (Finger bones' weights, kept apart for gloves; folded onto their hand for everything else, which
+        # gives the weights the body had before it had fingers.)
+        self.finger_W = np.zeros((n, len(FINGER_BONES)))
+        fidx = {b: i for i, b in enumerate(FINGER_BONES)}
         for v in me.vertices:
             for g in v.groups:
-                W[v.index, BONE_INDEX[names[g.group]]] = g.weight
+                name = names[g.group]
+                if name in BONE_INDEX:
+                    W[v.index, BONE_INDEX[name]] += g.weight
+                elif name in fidx:
+                    W[v.index, BONE_INDEX["hand_" + name[-1]]] += g.weight
+                    self.finger_W[v.index, fidx[name]] = g.weight
         self.W = W / np.maximum(W.sum(1, keepdims=True), 1e-9)
+        # (With the fingers kept apart: BONE_NAMES then FINGER_BONES, for gloves.)
+        Wf = W.copy()
+        for i, b in enumerate(FINGER_BONES):
+            Wf[:, BONE_INDEX["hand_" + b[-1]]] -= self.finger_W[:, i]
+        Wf = np.concatenate([np.maximum(Wf, 0), self.finger_W], axis=1)
+        self.W_full = Wf / np.maximum(Wf.sum(1, keepdims=True), 1e-9)
         me.vertices.foreach_get("normal", a)
         self.normals = a.reshape(-1, 3).copy()
         # (A second body imported into the same file gets "skin.001" and so on.)
@@ -208,6 +226,40 @@ class Body:
         self._bvh_cache = {}
         self.height = self.co[:, 2].max()
         log(f"body {sex}: {n} vertices, {len(self.tris)} surface triangles")
+
+    def finger_frames(self):
+        """Each finger bone's rest frame as the body's .glb stores it: {name: (head, x, y, z, length)}, the
+        bone's axes in Blender's armature space (y along the bone). Read by importing the body again with
+        Blender's bone heuristic, which keeps each node's own rotation (a .glb stores no tails, so the axes
+        can't be rebuilt from a roll rule)."""
+        if getattr(self, "_finger_frames", None) is None:
+            before = set(bpy.data.objects)
+            bpy.ops.import_scene.gltf(filepath=os.path.join(ww.MODELS, f"avatar-{self.sex}.glb"), bone_heuristic="BLENDER")
+            new = [o for o in bpy.data.objects if o not in before]
+            rig = next(o for o in new if o.type == "ARMATURE")
+            out = {}
+            for b in rig.data.bones:
+                if b.name in FINGER_BONES:
+                    m = np.array(b.matrix_local)
+                    out[b.name] = (m[:3, 3].copy(), m[:3, 0].copy(), m[:3, 1].copy(), m[:3, 2].copy(), b.length)
+            for o in new:
+                bpy.data.objects.remove(o, do_unlink=True)
+            # (The import's bone lengths are guesses: each bone runs to the next joint, the last as long as
+            # the finger's skin reaches along it.)
+            for s in "lr":
+                for f in FINGERS:
+                    for k in (1, 2):
+                        a, b = f"{f}_{k:02d}_{s}", f"{f}_{k + 1:02d}_{s}"
+                        h, x, y, z, _ = out[a]
+                        out[a] = (h, x, y, z, float(np.linalg.norm(out[b][0] - h)))
+                    a = f"{f}_03_{s}"
+                    h, x, y, z, _ = out[a]
+                    col = FINGER_BONES.index(a)
+                    on = self.finger_W[:, col] > 0.5
+                    reach = float(((self.co[on] - h) @ y).max()) if on.any() else 0.02
+                    out[a] = (h, x, y, z, max(reach, 0.01))
+            self._finger_frames = out
+        return self._finger_frames
 
     def morphed(self, values):
         """Positions with shape keys {name: value}."""
@@ -1742,9 +1794,11 @@ def coverage(geo, body, region, reach=0.5, missed=None):
 # ── The rig ──────────────────────────────────────────────────────────────────────────────────────────
 
 
-def make_rig(body):
+def make_rig(body, fingers=False):
     """The body's armature rebuilt as make_avatar.py builds it (the same heads, tails and rolls), so the
-    piece's inverse bind matrices match the body's."""
+    piece's inverse bind matrices match the body's; with `fingers`, its 30 finger bones too, each with the
+    body's own head and axes."""
+    frames = body.finger_frames() if fingers else None
     body.rig.name = f"import-{body.sex}-rig"
     joints = {}
     children = {}
@@ -1770,7 +1824,25 @@ def make_rig(body):
             bone.parent = armature.edit_bones[parent]
         direction = (bone.tail - bone.head).normalized()
         bone.align_roll(Vector((0, 0, 1)) if abs(direction.z) < 0.5 else Vector((0, -1, 0)))
+    if frames:
+        for s in "lr":
+            for f in FINGERS:
+                parent = armature.edit_bones[f"hand_{s}"]
+                for k in (1, 2, 3):
+                    name = f"{f}_{k:02d}_{s}"
+                    h, x, y, z, length = frames[name]
+                    bone = armature.edit_bones.new(name)
+                    bone.head = Vector(h)
+                    bone.tail = Vector(h + y * length)
+                    bone.align_roll(Vector(z))
+                    bone.parent = parent
+                    bone.use_connect = False
+                    parent = bone
     bpy.ops.object.mode_set(mode="OBJECT")
+    if frames:
+        # (Check: each finger bone's axes as the body has them.)
+        worst = max(float(np.abs(np.array(rig.data.bones[n].matrix_local)[:3, :3] - np.stack([frames[n][1], frames[n][2], frames[n][3]], 1)).max()) for n in FINGER_BONES)
+        log(f"  finger bones on the rig: axes within {worst:.4f} of the body's")
     return rig
 
 
@@ -1804,9 +1876,10 @@ def build_object(name, geo, rig, key_names, parts):
         D = geo.keys[k].copy()
         D[np.abs(D).max(1) < MORPH_MIN] = 0
         sk.data.foreach_set("co", (geo.co + D).ravel())
-    for b in BONE_NAMES:
+    names = BONE_NAMES + (FINGER_BONES if geo.W.shape[1] > len(BONE_NAMES) else [])
+    for b in names:
         obj.vertex_groups.new(name=b)
-    for bi, b in enumerate(BONE_NAMES):
+    for bi, b in enumerate(names):
         vg = obj.vertex_groups[b]
         idx = np.nonzero(geo.W[:, bi] > 0)[0]
         for i in idx:

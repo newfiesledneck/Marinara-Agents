@@ -90,6 +90,14 @@ const REGION_OF = {
   lowerarm_r: "forearms",
   hand_l: "hands",
   hand_r: "hands",
+  // (The fingers' own bones are the hand's too: a glove hides them.)
+  ...Object.fromEntries(
+    ["l", "r"].flatMap((side) =>
+      ["thumb", "index", "middle", "ring", "pinky"].flatMap((finger) =>
+        [1, 2, 3].map((joint) => [`${finger}_0${joint}_${side}`, "hands"]),
+      ),
+    ),
+  ),
   thigh_l: "thighs",
   thigh_r: "thighs",
   calf_l: "calves",
@@ -938,6 +946,43 @@ function carried(kit, key, positions, near, offset = 0) {
   return { ids: Uint32Array.from(ids), delta: Float32Array.from(delta), normal: new Float32Array(ids.length * 3) };
 }
 
+// ── Joints that follow the body's shape ──
+/**
+ * Moves the rig's joints by what the look's keys move them (`moves`: { key: { joint: [x, y, z] } }, the
+ * kit's; `weights`: { key: influence }), each staying on its parent. Returns what binding needs to keep the
+ * skin where it was (people.js skeletonFor's `moved`: joint → the move undone), or null if nothing moved.
+ */
+function moveJoints(root, bones, moves, weights) {
+  const by = new Map();
+  for (const [key, joints] of Object.entries(moves ?? {})) {
+    const weight = weights[key] ?? 0;
+    if (!weight) continue;
+    for (const [joint, move] of Object.entries(joints)) {
+      if (!bones.has(joint)) continue;
+      if (!by.has(joint)) by.set(joint, new Vector3());
+      by.get(joint).add(new Vector3(...move).multiplyScalar(weight));
+    }
+  }
+  if (!by.size) return null;
+  root.updateMatrixWorld(true);
+  const rootInverse = root.matrixWorld.clone().invert();
+  // Each joint's place in the body's space, moved; then each joint's place on its parent from those.
+  const places = new Map();
+  for (const [name, bone] of bones) {
+    const place = rootInverse.clone().multiply(bone.matrixWorld);
+    const move = by.get(name);
+    if (move) place.premultiply(new Matrix4().makeTranslation(move.x, move.y, move.z));
+    places.set(name, place);
+  }
+  for (const [name, bone] of bones) {
+    const parent = bone.parent?.isBone ? places.get(bone.parent.name) : null;
+    const local = parent ? parent.clone().invert().multiply(places.get(name)) : places.get(name);
+    local.decompose(bone.position, bone.quaternion, bone.scale);
+  }
+  root.updateMatrixWorld(true);
+  return new Map([...by].map(([name, move]) => [name, new Matrix4().makeTranslation(-move.x, -move.y, -move.z)]));
+}
+
 // ── Making one ───────────────────────────────────────────────────────────────
 
 /**
@@ -955,6 +1000,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     Promise.all(filled.clothes.map((piece) => pieceOf(piece, sex, filled.variants[piece]))),
   ]);
   const { root, bones } = rigOf(kit.file);
+  let moved = null; // joints moved with the body's shape (below), for binding
   // Outfit pieces (innermost first, by their layer): what they cover is hidden on the body, a hood or helm
   // that hides the hair hides it, and one over the neck or chest lays a wolf's ruff flat under it.
   const hides = new Set();
@@ -962,6 +1008,9 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   for (const piece of pieces) for (const word of piece.hides) hides.add(word);
   const flat = hides.has("neck") || hides.has("torso") || pieces.some((piece) => RUFF_SLOTS.has(piece.slot));
   const weights = keyWeights(filled, sex, kit.file.keys, flat);
+  // The finger joints go where the look's keys put the knuckles (the kit's jointMoves: a dwarf's bigger
+  // hand, an old back's lower one), or a finger would turn about a pivot left behind in the plain hand.
+  moved = moveJoints(root, bones, kit.file.jointMoves, weights);
   // A race: its key on the skin, carried onto the underwear worn (and, below, the hair and clothes), and its
   // sizes: the legs, arms and head with the look's own, and the whole figure.
   const race = raceOf(filled.race);
@@ -1022,7 +1071,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     mesh.name = fallback ? "piece" : "body"; // (hair and outfit pieces are bound to the body's skeleton)
     mesh.userData.sharedShadow = true; // (disposed here, so the shared data stays: avatar.js `dispose`)
     root.add(mesh);
-    mesh.bind(skeletonFor(root, bones, part, stretch, fallback), mesh.matrixWorld);
+    mesh.bind(skeletonFor(root, bones, part, stretch, fallback, moved), mesh.matrixWorld);
     drawDistant(mesh); // (its distant version, past the Creature detail distance: kit.js)
     return mesh;
   };
@@ -1207,10 +1256,14 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     0,
     1,
   );
-  const character = humanoidFromSkeleton(root, humanoidNodes(bones), () => filled.height * race.height, filled.seed, {
-    body: sex,
-    room,
-  });
+  const character = humanoidFromSkeleton(
+    root,
+    humanoidNodes(bones),
+    () => filled.height * race.height,
+    filled.seed,
+    { body: sex, room },
+    true, // (its fingers are modelled curled: straightened for the clips)
+  );
   if (sway) {
     const updateRest = character.update;
     character.update = (dt, speed, ...rest) => {

@@ -1045,6 +1045,48 @@ function mergePrimitives(primitives) {
   };
 }
 
+/** A finger's joints: the hand's shape keys move these with the skin (jointMoves). */
+const FINGER_JOINT = /^(?:thumb|index|middle|ring|pinky)_0[123]_[lr]$/u;
+/**
+ * How far each finger joint moves under each shape key: { key: { joint: [x, y, z] } }, in metres. A key
+ * that makes a hand bigger (a dwarf's) or moves it (broad shoulders, old age) leaves the game's joints where
+ * the rest pose has them, and a finger turning about a pivot centimetres from its knuckle swings through the
+ * hand. So each joint's move is recorded: the mean of the key's moves over the skin that bends there (the
+ * body's vertices weighted to both the joint's bone and its parent), for the game to move the joint by
+ * (src/avatar.js). Moves under a fifth of a millimetre are left out.
+ */
+function jointMoves(primitives, skeleton) {
+  const moves = {};
+  skeleton.names.forEach((joint, at) => {
+    const parent = skeleton.names[skeleton.parents[at]];
+    if (!FINGER_JOINT.test(joint) || !parent) return;
+    for (const primitive of primitives) {
+      const [own, above] = [primitive.jointNames.indexOf(joint), primitive.jointNames.indexOf(parent)];
+      if (own < 0 || above < 0 || !primitive.targets) continue;
+      const bent = [];
+      for (let v = 0; v < primitive.position.count; v++) {
+        let [onOwn, onAbove] = [0, 0];
+        for (let c = 0; c < 4; c++) {
+          const weight = primitive.weights.values[v * 4 + c];
+          if (primitive.joints.values[v * 4 + c] === own) onOwn += weight;
+          if (primitive.joints.values[v * 4 + c] === above) onAbove += weight;
+        }
+        if (onOwn > 0.15 && onAbove > 0.15) bent.push(v);
+      }
+      if (!bent.length) continue;
+      primitive.keyNames.forEach((key, k) => {
+        const mean = [0, 0, 0];
+        for (const v of bent)
+          for (let c = 0; c < 3; c++) mean[c] += primitive.targets[k].position.values[v * 3 + c] / bent.length;
+        if (Math.hypot(...mean) < 0.0002) return;
+        (moves[key] ??= {})[joint] = mean.map((value) => Math.round(value * 1e5) / 1e5);
+      });
+      break; // (the skin: the first mesh that bends there)
+    }
+  });
+  return moves;
+}
+
 /** A linear colour (a glTF factor) as 0xRRGGBB in sRGB, as the Look card shows colours. */
 const srgbHex = (linear) =>
   linear
@@ -1180,7 +1222,14 @@ function avatar(only = "", to = "") {
     for (const primitive of primitives)
       for (let i = 1; i < primitive.position.values.length; i += 3) top = Math.max(top, primitive.position.values[i]);
     const keys = [...new Set(primitives.flatMap((primitive) => primitive.keyNames))];
-    return { primitives, share, document: { source, height: Math.round(top * 100) / 100, keys, ...body } };
+    // (Where the finger joints go under each key: the body's own skin, not its underwear or other pieces.)
+    const moved = jointMoves(
+      primitives.filter((primitive, i) => !body.meshes[i].piece),
+      body.skeleton,
+    );
+    const document = { source, height: Math.round(top * 100) / 100, keys, ...body };
+    if (Object.keys(moved).length) document.jointMoves = moved;
+    return { primitives, share, document };
   };
   const shares = {};
   const reach = {}; // each body's keyReach, for its hair and clothes (followBody)

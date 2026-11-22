@@ -1999,7 +1999,7 @@ def run(pieces, args):
         for sex in sexes:
             body = wo.Body(sex)
             M = Marks(body)
-            rig = wo.make_rig(body)
+            rig = wo.make_rig(body, fingers=spec.get("fingers", False))
             geo = spec["make"](body, M)
             if os.environ.get("WW_DEBUG_COUNT"):
                 import collections

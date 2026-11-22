@@ -154,7 +154,7 @@ function aimBone(bone, child, goal) {
  * T-pose (the pose a humanoid walk starts from), turned to face +z, scaled by `scaleFor`, and stood on
  * the ground under its hips.
  */
-export function humanoidFromSkeleton(loaded, nodes, scaleFor, seed, carriage = null) {
+export function humanoidFromSkeleton(loaded, nodes, scaleFor, seed, carriage = null, fingers = false) {
   const missing = REQUIRED_BONES.filter((bone) => !nodes[bone]);
   if (missing.length) throw new Error(`The model has no ${missing.join(", ")} bone`);
   const root = new Group();
@@ -169,6 +169,13 @@ export function humanoidFromSkeleton(loaded, nodes, scaleFor, seed, carriage = n
     const goal = new Vector3(sign * facing, 0, 0);
     aimBone(nodes[`${side}UpperArm`], nodes[`${side}LowerArm`], goal);
     aimBone(nodes[`${side}LowerArm`], nodes[`${side}Hand`], goal);
+    // (`fingers`: a hand modelled at rest with its fingers curled has them straightened too, along the arm,
+    // as the clips' T-pose has them; the thumb stays as modelled.)
+    if (fingers)
+      for (const finger of ["Index", "Middle", "Ring", "Little"]) {
+        aimBone(nodes[`${side}${finger}Proximal`], nodes[`${side}${finger}Intermediate`], goal);
+        aimBone(nodes[`${side}${finger}Intermediate`], nodes[`${side}${finger}Distal`], goal);
+      }
   }
   const humanoid = new VRMHumanoid(Object.fromEntries(Object.entries(nodes).map(([bone, node]) => [bone, { node }])));
   root.add(humanoid.normalizedHumanBonesRoot);

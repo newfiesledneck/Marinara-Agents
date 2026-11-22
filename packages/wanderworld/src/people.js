@@ -371,14 +371,18 @@ export function rigOf(body) {
 /**
  * A part's skeleton: its joints on the body's bones, with its own inverse bind matrices (or `fallback`'s, a
  * body's, for a part that has none: one hung on a bone). `stretch` (joint name → Matrix4) reshapes a bone's
- * own vertices in its own space without its children (avatar.js: longer arms, a bigger head).
+ * own vertices in its own space without its children (avatar.js: longer arms, a bigger head). `moved`
+ * (joint name → Matrix4) is for a joint whose rest place was moved (avatar.js moveJoints): the move undone,
+ * so its skin stays where it was.
  */
-export function skeletonFor(root, bones, part, stretch = null, fallback = null) {
+export function skeletonFor(root, bones, part, stretch = null, fallback = null, moved = null) {
   const partBones = part.joints.map((jointName) => bones.get(jointName) ?? root);
   const inverses = part.joints.map((jointName, i) => {
     const inverse = part.inverseBind
       ? new Matrix4().fromArray(part.inverseBind, i * 16)
       : new Matrix4().fromArray(fallback.inverseBind, Math.max(0, fallback.joints.indexOf(jointName)) * 16);
+    const back = moved?.get(jointName);
+    if (back) inverse.multiply(back);
     const reshape = stretch?.get(jointName);
     return reshape ? inverse.premultiply(reshape) : inverse;
   });

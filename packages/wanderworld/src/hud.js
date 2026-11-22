@@ -1511,7 +1511,7 @@ export function createHud(root, handlers) {
       'On: townsfolk with no 3D model of their own are the new base bodies, each shaped from their name within an everyday range, and from their lore: "ww:looks:tall", "ww:looks:red hair", "ww:looks:elf" for pointed ears. Their Look card changes any of it. Off: they are dressed from the older Quaternius kit, which is lighter on a slow phone. You are the new body either way.',
     animation: "Recorded: motion from the animation library. Built-in: a simple hand-made walk.",
     carriage:
-      "How people stand and walk with the recorded motion. The library's own stance has the feet wide, the arms held out and the elbows bent, as if ready for a fight. Relaxed lets the arms hang by the sides and stands the feet nearer together; Graceful does so a little more and walks with the feet nearer one line. By their body: Graceful for a female body, Relaxed for a male one and for 3D models. Running, working and fighting are as recorded either way.",
+      "How people stand and walk with the recorded motion. The library's own stance has the feet wide, the arms held out and the elbows bent, as if ready for a fight. Relaxed lets the arms hang by the sides, opens the hands from loose fists and stands the feet nearer together; Graceful does so a little more and walks with the feet nearer one line. By their body: Graceful for a female body, Relaxed for a male one and for 3D models. Running, working and fighting are as recorded either way.",
     walkSpeed: "How fast you walk.",
     runSpeed: "How fast you run (hold Shift).",
     lookSpeed: "How fast the camera turns when you drag or use the arrow keys.",

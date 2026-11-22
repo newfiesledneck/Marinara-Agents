@@ -141,13 +141,21 @@ const COUNT = BONES.length;
 // ── Carriage: how a body stands and walks, over the recorded clips ──
 // The library's idle and walk are one stance: feet well apart, arms held out from the sides, elbows bent, as
 // if ready for a fight (every idle and walk in both libraries shares it). A carriage eases that, standing and
-// walking only: the arms hang nearer the sides and straighter, and the feet stand and step nearer together.
-// Running, work, gestures and fighting stay as recorded. Angles in radians; `elbow` is the share of the
-// elbow's bend taken out.
+// walking only: the arms hang nearer the sides and straighter, the hands open from the library's loose
+// fists into a relaxed curl, and the feet stand and step nearer together. Running, work, gestures and
+// fighting stay as recorded. Angles in radians; `elbow` and `fingers` are the share of the elbow's bend
+// and of each finger joint's taken out.
 const CARRIAGES = {
-  relaxed: { stand: { arms: 0.14, elbow: 0.5, legs: 0.07 }, walk: { arms: 0.12, elbow: 0.4, legs: 0.02 } },
-  graceful: { stand: { arms: 0.18, elbow: 0.6, legs: 0.1 }, walk: { arms: 0.16, elbow: 0.5, legs: 0.05 } },
+  relaxed: {
+    stand: { arms: 0.14, elbow: 0.5, legs: 0.07, fingers: 0.65 },
+    walk: { arms: 0.12, elbow: 0.4, legs: 0.02, fingers: 0.6 },
+  },
+  graceful: {
+    stand: { arms: 0.18, elbow: 0.6, legs: 0.1, fingers: 0.7 },
+    walk: { arms: 0.16, elbow: 0.5, legs: 0.05, fingers: 0.65 },
+  },
 };
+const IDENTITY = new Quaternion();
 /** The arms stay at least this far out from straight down, to clear the hips. */
 const ARMS_OUT = 0.1;
 /** "body" (a carriage by each body: CARRIAGE_OF), one carriage for all, or "recorded" (the clips as they are). */
@@ -283,6 +291,13 @@ export function createClipPlayer({ present, offset, legLength, carriage = null }
         bone.startsWith(side) && /Proximal|Intermediate|Distal|Metacarpal/u.test(bone) ? i : -1,
       ).filter((i) => i >= 0),
       leg: [`${side}UpperLeg`, `${side}LowerLeg`].map((bone) => BONES.indexOf(bone)),
+      // Each finger's bones from the hand outwards, the hand first.
+      chains: [
+        ["ThumbMetacarpal", "ThumbProximal", "ThumbDistal"],
+        ...["Index", "Middle", "Ring", "Little"].map((finger) =>
+          ["Proximal", "Intermediate", "Distal"].map((part) => `${finger}${part}`),
+        ),
+      ].map((chain) => [`${side}Hand`, ...chain.map((bone) => `${side}${bone}`)].map((bone) => BONES.indexOf(bone))),
       // Which way the arm points at rest (out to its side), and which side of the body the leg is on.
       armRest: offset(`${side}LowerArm`).clone().normalize(),
       legSide: Math.sign(offset(`${side}UpperLeg`).x) || 1,
@@ -294,7 +309,7 @@ export function createClipPlayer({ present, offset, legLength, carriage = null }
     const by = CARRIAGES[style]?.[how];
     if (!by) return pose;
     const room = Math.max(0, Math.min(1, carriage?.room ?? 1));
-    for (const { arm, fingers, leg, armRest, legSide } of limbs) {
+    for (const { arm, fingers, leg, chains, armRest, legSide } of limbs) {
       const [upper, lower] = arm.map((i) => pose.rotations[i]);
       // Where the upper arm points now: how far out from the side it's held. (An arm at or above the
       // shoulder is doing something, and is left alone.)
@@ -313,6 +328,19 @@ export function createClipPlayer({ present, offset, legLength, carriage = null }
         lower.slerp(upper, by.elbow);
         change.copy(lower).multiply(scratchA);
         for (const i of [arm[2], ...fingers]) if (i >= 0) pose.rotations[i].premultiply(change);
+        // The fingers: each joint's bend on the one before it, part of it taken out, from the hand outwards
+        // (a joint's bend is its turn seen from its parent's; straight is the same turn as the parent's).
+        if (by.fingers)
+          for (const chain of chains) {
+            if (chain.some((i) => i < 0)) continue;
+            scratchA.copy(pose.rotations[chain[0]]); // the joint before, as it was
+            for (let at = 1; at < chain.length; at++) {
+              const bone = pose.rotations[chain[at]];
+              local.copy(scratchA).invert().multiply(bone);
+              scratchA.copy(bone);
+              bone.copy(pose.rotations[chain[at - 1]]).multiply(warped.copy(IDENTITY).slerp(local, 1 - by.fingers));
+            }
+          }
       }
       // The legs: each turned in from the hip, thigh and shin together; the feet keep their own turn, flat.
       change.setFromAxisAngle(AHEAD, -by.legs * legSide);

@@ -192,6 +192,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.56",
+          "date": "2026-11-20",
+          "notes": "- Hands: the built-in bodies have fingers that move. Standing and walking, hands hang open in a relaxed curl instead of flat and spread, and they close round a weapon or a tool. The animation library's idle holds loose fists; the relaxed stance (Settings → Display → Standing and walking) opens them, and As recorded keeps them. A dwarf's big hands and a gnome's long fingers bend at their own knuckles. Gloves and gauntlets hide the fingers and stay stiff until they're remade.",
+          "highlight": false
+        },
+        {
           "version": "0.7.55",
           "date": "2026-11-20",
           "notes": "- Clothes, the first batch refitted: leather armour and the brigandine are tailored to the body instead of hanging off it, the pauldrons, the leather armour's shoulder pads and the tassets are overlapping plates fixed in place, and the bikini's cords go all the way round with bows on the hips (they used to sink under the skin). Bikini armour and the barbarian harness sit on the body too.\n- Faces and beards: elf and tiefling women lose the gaunt shelf under the eyes, halfling and gnome women have smooth human faces, the half-orc woman is a woman, and beards grow from the cheeks and chin and turn with the head.\n- Anthro wolf: the head tapers into the muzzle from the front, without the puffy cheeks under the eyes. Anthro dragon: a much deeper neck, underwear that fits before any slider moves, and a neck that draws in under a collar.",
@@ -303,12 +309,6 @@
           "version": "0.7.37",
           "date": "2026-11-20",
           "notes": "- The Monsters slider is how many there are, whichever kinds are on: with only trolls switched on and the slider at 100, there are 100 trolls. With other kinds on, a rare kind is only less likely.\n- Ogres, trolls, minotaurs and dragons turn up more often: half as often as a common kind, instead of a fifth.\n- New monsters: every 10 minutes of play (Settings → Creatures → New monsters every; 0 for never) the monsters out of sight go and others come, with kinds not about yet likelier, so in time you meet every kind that's on. Nothing in sight goes, nor anything in a fight, placed by a lorebook or owned.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.36",
-          "date": "2026-11-20",
-          "notes": "- Bigger monsters: now and then a monster is bigger than the rest of its kind, and once in a while the first of a group is huge. The story calls it a big or a huge troll, ogre or goblin. A bigger one has more HP, hits harder and is worth more XP. Settings → Creatures → Bigger monsters sets how often: never, now and then (the default) or often.\n- The goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur each have a switch under Settings → Creatures → Kinds. They count toward the Monsters slider like the rest.",
           "highlight": false
         }
       ]

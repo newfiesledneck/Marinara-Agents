@@ -19,7 +19,10 @@ eye pictures, eyebrows and eyelashes: MakeHuman's system assets (CC0), read as d
 - The rig: the people's bones at MakeHuman's joint helpers. Blender's automatic (bone heat) weights,
   then reshaped along the arms and legs (clean bends at the elbows, wrists, knees and ankles, fingers
   and toes wholly on the hand and ball), the head, the collarbones and hips, and smoothed over the
-  trunk. Into the rest pose by our own skinning: legs hanging straight under the hips (as the people's
+  trunk. The fingers then get bones of their own, three each under the hand (thumb, index, middle, ring
+  and pinky, _01 to _03, _l and _r), at MakeHuman's knuckle joints, with weights of our own across each
+  knuckle (`finger_weights`); the baking and the fitting of underwear and parts know only the people's
+  bones. Into the rest pose by our own skinning: legs hanging straight under the hips (as the people's
   T-pose has them), arms 45 degrees below level, elbows bent 10 degrees. The game turns the arms up into
   its T-pose when it loads a body, so the people's clips play the same; the model's own Idle, Walk and
   Attack are `wwblend.humanoid_actions` with the arms lowered from the A-pose.
@@ -65,6 +68,7 @@ eye pictures, eyebrows and eyelashes: MakeHuman's system assets (CC0), read as d
   The horns and tusks share a small texture of their own.
 """
 
+import heapq
 import math
 import os
 import sys
@@ -737,6 +741,7 @@ def curl_fingers(body, used):
     by distance (so the skin between them doesn't tear); shape key offsets turn with it."""
     co = body.co
     body.knuckles = []
+    body.fingertips = []  # (side, finger, where its tip's joint is)
     for s in ("l", "r"):
         J = lambda n: body.at(f"{s}-{n}")  # noqa: E731
         across = J("finger-2-1") - J("finger-5-1")
@@ -770,6 +775,7 @@ def curl_fingers(body, used):
                     joints[m] = jk + R @ (joints[m] - jk)
             for k in range(3):
                 body.knuckles.append((s, f, k, joints[k].copy(), _unit(joints[k + 1] - joints[k]), -palm))
+            body.fingertips.append((s, f, joints[3].copy()))
             wf = soft[:, f - 1][:, None]
             new += wf * p
             turns += wf[:, :, None] * R_all
@@ -1397,8 +1403,9 @@ def join(name, parts, key_names):
         sk.data.foreach_set("co", (co + d).ravel())
         sk.slider_min, sk.slider_max = 0.0, 1.0
         sk.value = 0.0
-    W = np.concatenate([p.weights for p in parts])
-    groups = [obj.vertex_groups.new(name=b) for b in ALL_BONES[: W.shape[1]]]  # (the tail's weights have its bones too)
+    width = max(p.weights.shape[1] for p in parts)  # (the body's weights have its fingers' bones too, the tail's its own)
+    W = np.concatenate([np.pad(p.weights, ((0, 0), (0, width - p.weights.shape[1]))) for p in parts])
+    groups = [obj.vertex_groups.new(name=b) for b in ALL_BONES[:width]]
     for b, g in enumerate(groups):
         idx = np.nonzero(W[:, b] > 0)[0]
         for i in idx:
@@ -3127,6 +3134,163 @@ def landmarks(co, body, J, mats, faces, hair, rims):
     return marks
 
 
+# ── The fingers' bones ───────────────────────────────────────────────────────────────────────────────
+#
+# Three bones a finger (the Unreal mannequin's names: thumb, index, middle, ring and pinky, _01 to _03, _l and
+# _r), each finger's first a child of its hand, at MakeHuman's own knuckle joints where `curl_fingers` left
+# them. The thumb's first is its metacarpal, from the joint by the wrist. The rest pose is the relaxed hand
+# as it was; the other bones and the skin's shape are as they were. Each bone's Y runs along its finger and
+# its Z out of the finger's back (the nail's side), so closing the hand is a turn about its X, negative.
+
+FINGERS = {1: "thumb", 2: "index", 3: "middle", 4: "ring", 5: "pinky"}  # by MakeHuman's finger numbers
+FINGER_BONES = [f"{name}_{k:02d}_{s}" for s in ("l", "r") for name in FINGERS.values() for k in (1, 2, 3)]
+# Each joint's blend, in the finger's size (the middle distance of its skin from the line of its joints, which
+# runs nearer its back: about 12 mm on the man's index): where it is centred past the joint on the palm's side,
+# how much further on the back's side (so the skin over a knuckle stays on the bone whose end the knuckle is),
+# and its half width. The fingers' three joints, then the thumb's last two (its first is shared out by length).
+FINGER_BLEND = [(0.3, 0.4, 1.0), (0.0, 0.25, 0.75), (0.0, 0.2, 0.6)]
+THUMB_BLEND = [None, (0.0, 0.25, 0.8), (0.0, 0.2, 0.65)]
+THUMB_REACH = (1.3, 3.0)  # the thumb's ball follows its first bone out to here from it (in the thumb's size)
+FINGER_SHARE = 0.4  # how far apart (in the finger's size, along the skin) two fingers share a vertex of a web
+
+
+def finger_chains(body, co, faces, mats):
+    """Each finger's four joints at rest (three knuckles and the tip), and the way its back faces: the hand's
+    back, and for the thumb its own nail's way. ({(side, finger): (4, 3)}, {(side, finger): (3,)})."""
+    chains, backs = {}, {}
+    for side, f, k, pos, d, back in body.knuckles:
+        chains.setdefault((side, f), [None] * 4)[k] = pos
+        backs[(side, f)] = back
+    for side, f, pos in body.fingertips:
+        chains[(side, f)][3] = pos
+    chains = {key: np.array(ch) for key, ch in chains.items()}
+    nails = [fc for fc, m in zip(faces, mats) if m == PART["nails"]]
+    centre = np.array([co[fc].mean(0) for fc in nails])
+    normal = np.array([np.cross(co[fc[2]] - co[fc[0]], co[fc[-1]] - co[fc[1]]) for fc in nails])
+    for side in ("l", "r"):
+        a, b = chains[(side, 1)][2:]
+        on = segment_distance(centre, a, b) < 0.6 * np.linalg.norm(b - a)
+        if on.any():
+            n = normal[on].sum(0)
+            backs[(side, 1)] = _unit(n if n @ (centre[on].mean(0) - (a + b) / 2) > 0 else -n)
+    return chains, backs
+
+
+def _along_skin(n, edges, seeds):
+    """Each vertex's distance along the skin (`edges`: per vertex, [(other, length)]) from the nearest of `seeds`."""
+    far = np.full(n, np.inf)
+    far[seeds] = 0.0
+    heap = [(0.0, int(v)) for v in seeds]
+    while heap:
+        d, v = heapq.heappop(heap)
+        if d > far[v]:
+            continue
+        for o, length in edges[v]:
+            if d + length < far[o]:
+                far[o] = d + length
+                heapq.heappush(heap, (d + length, o))
+    return far
+
+
+def finger_weights(co, faces, W, chains, backs):
+    """The skin's weights with the fingers' bones (columns BONE_NAMES + FINGER_BONES): what the hand held of
+    each finger is shared out along it, blended across each knuckle (FINGER_BLEND), and the palm stays the
+    hand's. Which finger a vertex follows is measured along the skin, from the finger's outer two bones back
+    towards the palm (through the air its neighbour's side is as near as its own): the webs between fingers
+    are shared, so they stretch and don't tear, and a finger's own sides are its own. The thumb's ball follows
+    its first bone, less the further from it. Four bones a vertex at most."""
+    out = np.zeros((len(co), len(BONE_NAMES) + len(FINGER_BONES)))
+    out[:, : W.shape[1]] = W
+    radii = {}
+    for s in ("l", "r"):
+        hand = BONE_INDEX[f"hand_{s}"]
+        idx = np.nonzero(W[:, hand] > 0)[0]
+        p = co[idx]
+        dist = np.stack([np.min([segment_distance(p, a, b) for a, b in zip(chains[(s, f)][:-1], chains[(s, f)][1:])], axis=0) for f in FINGERS], axis=1)
+        nearest = dist.argmin(1)
+        second = np.sort(dist, axis=1)[:, 1]
+        share = np.zeros((len(idx), 5, 3))
+        local = -np.ones(len(co), dtype=np.int64)
+        local[idx] = np.arange(len(idx))
+        edges = [[] for _ in idx]
+        for fc in faces:
+            at = local[list(fc)]
+            if (at < 0).any():
+                continue
+            for i in range(len(fc)):
+                for j in range(i + 1, len(fc)):
+                    length = float(np.linalg.norm(co[fc[i]] - co[fc[j]]))
+                    edges[at[i]].append((int(at[j]), length))
+                    edges[at[j]].append((int(at[i]), length))
+        radius, reach = [], []
+        for col, f in enumerate(FINGERS):
+            ch = chains[(s, f)]
+            mid = (nearest == col) & (np.abs(along(p, ch[1], ch[2]) - 0.5) < 0.3)
+            radius.append(np.median(segment_distance(p[mid], ch[1], ch[2])))
+            # (From what is surely this finger's: past its middle joint and clearly nearest its own line. Counted
+            # from its first knuckle, so two fingers meet where they are as far past their knuckles.)
+            k = 2 if f == 1 else 1
+            sure = (nearest == col) & ((p - ch[k]) @ _unit(ch[k + 1] - ch[k]) > 0) & (dist[:, col] < 0.8 * second)
+            reach.append(_along_skin(len(idx), edges, np.nonzero(sure)[0]) - np.linalg.norm(ch[k] - ch[k - 1]))
+        radii[s] = radius
+        reach = np.stack(reach, axis=1)
+        lost = ~np.isfinite(reach).all(1)  # (skin not joined to the rest: by the straight distance)
+        reach[lost] = dist[lost]
+        soft = np.exp(-(((reach - reach.min(1, keepdims=True)) / (FINGER_SHARE * np.array(radius))) ** 2))
+        soft /= soft.sum(1, keepdims=True)
+        for col, f in enumerate(FINGERS):
+            ch, r = chains[(s, f)], radius[col]
+            d = [_unit(ch[k + 1] - ch[k]) for k in range(3)]
+            across = [d[0], _unit(d[0] + d[1]), _unit(d[1] + d[2])]  # each joint's plane, halfway between its bones
+            back = backs[(s, f)]
+            past = []
+            for k in range(3):
+                blend = (THUMB_BLEND if f == 1 else FINGER_BLEND)[k]
+                t = (p - ch[k]) @ across[k]
+                if blend is None:
+                    # (The thumb's first joint is by the wrist, in the hand: its bone takes hold along its first half.)
+                    past.append(wa.smoothstep(0.0, 0.5 * np.linalg.norm(ch[1] - ch[0]), t))
+                    continue
+                centre, more, half = blend
+                up = np.clip(((p - ch[k]) @ _unit(back - (back @ across[k]) * across[k])) / r, 0.0, 1.0)
+                past.append(wa.smoothstep(-half * r, half * r, t - (centre + more * up) * r))
+            hold = soft[:, col]
+            if f == 1:
+                hold = hold * (1 - wa.smoothstep(THUMB_REACH[0] * r, THUMB_REACH[1] * r, dist[:, col]))
+            share[:, col, 0] = hold * past[0] * (1 - past[1])
+            share[:, col, 1] = hold * past[0] * past[1] * (1 - past[2])
+            share[:, col, 2] = hold * past[0] * past[1] * past[2]
+        share[share < 0.004] = 0.0
+        rows = out[idx]
+        held = rows[:, hand].copy()
+        for col, f in enumerate(FINGERS):
+            for k in range(3):
+                rows[:, len(BONE_NAMES) + FINGER_BONES.index(f"{FINGERS[f]}_{k + 1:02d}_{s}")] = held * share[:, col, k]
+        rows[:, hand] = held * (1 - share.sum((1, 2)))
+        total = rows.sum(1, keepdims=True)
+        np.put_along_axis(rows, np.argsort(rows, axis=1)[:, :-4], 0.0, axis=1)
+        out[idx] = rows * total / rows.sum(1, keepdims=True)
+    moved = (out[:, len(BONE_NAMES) :] > 0).any(1)
+    log(f"the fingers: {int(moved.sum())} vertices on their bones; their sizes " + ", ".join(f"{r * 1000:.1f}" for r in radii["l"]) + " mm")
+    return out
+
+
+def add_finger_bones(rig, chains, backs):
+    """The fingers' bones (FINGER_BONES) added under the hands, every other bone left as it is."""
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.mode_set(mode="EDIT")
+    for (s, f), ch in chains.items():
+        parent = rig.data.edit_bones[f"hand_{s}"]
+        for k in range(3):
+            eb = rig.data.edit_bones.new(f"{FINGERS[f]}_{k + 1:02d}_{s}")
+            eb.head, eb.tail = Vector(ch[k]), Vector(ch[k + 1])
+            eb.parent = parent
+            eb.use_connect = False
+            eb.align_roll(Vector(backs[(s, f)]))
+            parent = eb
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+
 # ── The races' parts: tusks, horns, a tail, facial hair ──────────────────────────────────────────────
 #
 # Each a mesh of its own beside the body, for the game to show or leave out, with the body's shape keys (it
@@ -3136,7 +3300,7 @@ def landmarks(co, body, J, mats, faces, hair, rims):
 # is).
 
 TAIL = [f"tail_{i:02d}" for i in range(1, 6)]
-ALL_BONES = BONE_NAMES + TAIL
+ALL_BONES = BONE_NAMES + FINGER_BONES + TAIL
 HAIR_CUTOFF = 0.5  # the facial hair's alpha test
 STILL = 0.0003  # a key's move under this is dropped (invisible, and the file then stores only what moves)
 ROOT_DEPTH = 0.0025  # how far under the skin a hair's root starts, so no gap shows between a beard and the face
@@ -4264,6 +4428,7 @@ def make(B):
         body.keys[k] = body.keys[k] * s
         body.keys[k][used] = posed_keys[k] * s
     body.knuckles = [(side, f, k, (J2[f"hand_{side}"] + R[f"hand_{side}"] @ (pos - J[f"hand_{side}"]) - shift) * s, R[f"hand_{side}"] @ d, R[f"hand_{side}"] @ back) for side, f, k, pos, d, back in body.knuckles]
+    body.fingertips = [(side, f, (J2[f"hand_{side}"] + R[f"hand_{side}"] @ (pos - J[f"hand_{side}"]) - shift) * s) for side, f, pos in body.fingertips]
     J = {k: (v - shift) * s for k, v in J2.items()}
     body.joints = J
     for e in body.eye.values():
@@ -4368,6 +4533,9 @@ def make(B):
     shared = materials(atlas, cards, normal, gatlas, gnormal, eye_image, parts_image, beard_image)
     # (Our own strip brows and lashes, `hair`, still place the painted lash line and brow shadow; MakeHuman's
     # styles are what the model wears.)
+    # (The fingers' bones only now: everything above, the baking and the fitting, knows the people's bones.)
+    chains, backs = finger_chains(body, parts[0].co, parts[0].faces, parts[0].mat)
+    parts[0].weights = finger_weights(parts[0].co, parts[0].faces, parts[0].weights, chains, backs)
     obj = join(name, parts + [to_eye_texture(e) for e in eyes], key_names)
     brows = [join(n, [part], key_names) for n, part in mh_hair(B, body, co, body_keys, key_names, roots, len(co0))]
     pieces = [join(g.name, [g.part], key_names) for g in wear] + brows + [join(n, [part], key_names) for n, part in extras]
@@ -4379,6 +4547,7 @@ def make(B):
 
     rig = make_rig(name, J)
     add_tail_bones(rig, tail_joints)
+    add_finger_bones(rig, chains, backs)
     for o in [obj] + pieces:
         o.parent = rig
         o.modifiers.new("Armature", "ARMATURE").object = rig

@@ -226,7 +226,15 @@ Budget: up to about 30,000 vertices for a body, 2,000 to 4,000 for a hair style.
   moves as the skin nearest it does (`avatar.js carried`: the four nearest skin vertices, worked out once a
   piece), which costs the kit nothing; the packer leaves the race keys off the underwear for the same
   reason, and leaves out the halfling's foot hair until it's remade.
-- **Not yet:** anthro hair, head pieces and footwear, patterns for fur and scales, wings that open, a hole
+- **Fingers:** both bodies have the people's skeleton's 30 finger bones (`thumb/index/middle/ring/pinky_01`
+  to `_03`, `_l` and `_r`), modelled in a relaxed curl and straightened for the clips' T-pose when the
+  figure is made (`models.js humanoidFromSkeleton`'s `fingers`). A shape key that moves or grows the hand
+  would leave the joints behind, so the packer records where each finger joint goes under each key
+  (`jointMoves` in the body's file: the mean move of the skin that bends there) and the game moves the
+  joints by the look's keys before binding (`avatar.js moveJoints`, `people.js skeletonFor`'s `moved`). The
+  library's idle and walk hold loose fists; the carriage (`clips.js CARRIAGES`) opens them. Gloves and
+  gauntlets made before the bones hide the fingers and stay rigid until they're rebuilt.
+- **Not yet:** finger bones for the anthro bodies, anthro hair, head pieces and footwear, patterns for fur and scales, wings that open, a hole
   for the tail in what covers it, solid or glowing eyes for a tiefling, townsfolk's clothes following where they work (it's from the
   name, so the Look card and the world agree), live shape keys while a slider is dragged in the world (the
   preview is made again instead), and a cheaper body far away (each person costs the same at any

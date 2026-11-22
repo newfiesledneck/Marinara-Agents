@@ -39,7 +39,7 @@ there, so a phone and a computer stay in step. Each browser writes only the worl
 made on one never drops out of another's list. If one world is played in two browsers at the same moment,
 the browser that saved it first keeps it and the other one loads that save, so don't do that.
 
-## What it does now (0.7.55)
+## What it does now (0.7.56)
 
 ### The world
 
@@ -553,8 +553,8 @@ only walk about.
   work, kneeling, folded arms, lying down, reaching and picking up), or the hand-made motion (Menu →
   Settings → Animation), which has none of the new ones: there people sit for what's low and stand for
   the rest. The library's idle and walk are one stance, feet wide, arms out and elbows bent, as if ready
-  for a fight; **Standing and walking** (the same settings) eases it: Relaxed hangs the arms by the
-  sides and stands the feet nearer together, Graceful a little more with a narrower walk, By their
+  for a fight, hands in loose fists; **Standing and walking** (the same settings) eases it: Relaxed hangs
+  the arms by the sides, opens the hands and stands the feet nearer together, Graceful a little more with a narrower walk, By their
   body (the default) is Graceful for a female body and Relaxed for a male one and for 3D models, and As
   recorded leaves the clips alone. Running, work and fighting are as recorded either way.
 - **Controls.** Computer: WASD walks, Shift runs, Space jumps, C sits or lies down, drag (left or middle
