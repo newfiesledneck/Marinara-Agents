@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.7.56 — 2026-11-20
+
+- Hands: the built-in bodies have fingers that move. Standing and walking, hands hang open in a relaxed curl instead of flat and spread, and they close round a weapon or a tool. The animation library's idle holds loose fists; the relaxed stance (Settings → Display → Standing and walking) opens them, and As recorded keeps them. A dwarf's big hands and a gnome's long fingers bend at their own knuckles. Gloves and gauntlets hide the fingers and stay stiff until they're remade.
+
 ## 0.7.55 — 2026-11-20
 
 - Clothes, the first batch refitted: leather armour and the brigandine are tailored to the body instead of hanging off it, the pauldrons, the leather armour's shoulder pads and the tassets are overlapping plates fixed in place, and the bikini's cords go all the way round with bows on the hips (they used to sink under the skin). Bikini armour and the barbarian harness sit on the body too.

@@ -1304,35 +1304,6 @@ def tall_boots(body, M):
     return g_all
 
 
-def gloves(body, M):
-    """Leather gloves, close over each finger, with a flared gauntlet cuff over the wrist, stitched."""
-    t_arm, *_ = M.arm_fields(body.co)
-    keep = np.isin(body.bone, ["hand_l", "hand_r"]) | (np.isin(body.bone, ["lowerarm_l", "lowerarm_r"]) & (t_arm > 1.7))
-    g = wo.Geo.from_body(body, body_polys(body, keep))
-    g = wo.decimate(g, 0.45)
-    g.part = ["leather"] * len(g.faces)
-    g.kind = ["leather"] * len(g.faces)
-    g.attrs["P0"] = g.co.copy()
-    wo.wrap(g, body, 0.0022, rounds=4, factor=0.3)
-    P0 = g.attrs["P0"]
-    t, *_ = M.arm_fields(P0)
-    g.clip(1.82 - t)
-    P0 = g.attrs["P0"]
-    for i, fc in enumerate(g.faces):
-        g.panel[i] = "glove_l" if P0[fc, 0].mean() > 0 else "glove_r"
-    g.smooth_edges(rounds=2)
-    g.rim(depth=0.002, back=0.006)
-    for s in ("l", "r"):
-        E, W = M.J[f"lowerarm_{s}"], M.J[f"hand_{s}"]
-        cuff, path = mo.limb_loft(body, M, (E, W), 0.72, 1.03, [f"lowerarm_{s}", f"hand_{s}"], lambda tt: 0.006 + 0.03 * smoothstep(0.95, 0.72, tt) ** 1.5, around=22, rings=7, panel=f"cuff_{s}")
-        cuff.attrs = {}
-        cuff.rim(depth=0.003, back=0.01)
-        g.join(cuff)
-    g.attrs = {k: v for k, v in g.attrs.items() if k.startswith("paint_")}
-    wo.fit(g, body, rigid=None, loose=np.ones(g.n), smooth_rounds=2, clearance=0.002)
-    return g
-
-
 def belt_pouches(body, M):
     """A wide leather belt slung on the hips with a brass buckle, three pouches with flaps and studs, and a
     small knife in a sheath at the back."""
@@ -1572,7 +1543,7 @@ def gambeson(body, M):
     tied shut down the front with leather points."""
     waist = M.waist_z - 0.01
     # (Padded, so it stands a little off the body, but shaped: taken in at the waist, following the chest.)
-    g, zn = top_shell(body, M, waist - 0.03, sleeve_t=1.98, kind="quilted", part="cloth", torso_off=0.012, waist_off=0.012, sleeve_off=0.012, drape_off=0.0, neck_lift=0.014, decim=0.45)
+    g, zn = top_shell(body, M, waist - 0.03, sleeve_t=1.98, kind="quilted", part="cloth", torso_off=0.012, waist_off=0.012, sleeve_off=0.012, drape_off=0.0, neck_lift=0.0, decim=0.45)
     wo.drape(g, body, M.centre_y, M.waist_z + 0.02, waist - 0.08, 0.014, slope=0.5)
     hem = M.crotch - 0.13
     sk = mo.skirt_loft(body, M, waist + 0.02, hem, 0.022, flare=0.2, around=40, kind="quilted", folds=0.005, n_folds=8, slit=[(0.0, 0.2)])
@@ -1589,7 +1560,7 @@ def gambeson(body, M):
     g.rim(depth=0.012, back=0.012)
     P2, N2 = wo.clean_loop(neck_pts, neck_n, 0.012)
     P2, N2 = oriented(P2, N2, UP)
-    g.join(wo.strip(P2 + N2 * 0.002 + UP * 0.004, unit(N2 + UP * 0.15), 0.03, 0.01, part="cloth", kind="quilted", panel="collar"))
+    g.join(wo.strip(P2 + N2 * 0.002 - UP * 0.004, unit(N2 + UP * 0.1), 0.02, 0.008, part="cloth", kind="quilted", panel="collar"))
     for P in cuff_pts:
         s = "l" if P[:, 0].mean() > 0 else "r"
         S, E, W = M.arm_joints(s)
@@ -1680,93 +1651,231 @@ def tassets(body, M):
     return g
 
 
-def hand_frame(body, M, s):
-    """One hand's skin points, its direction from the wrist to the fingers, and the normal of its palm
-    (the hand's flattest direction, turned to face the palm)."""
-    sg = 1 if s == "l" else -1
-    pts = body.co[M.surf & (body.bone == f"hand_{s}")]
-    E, W = M.J[f"lowerarm_{s}"], M.J[f"hand_{s}"]
-    ax = unit(W - E)
-    c = pts.mean(0)
-    _, _, vt = np.linalg.svd(pts - c, full_matrices=False)
-    pn = vt[2]
-    # (The palm faces in towards the body in the A-pose, and down.)
-    if pn @ np.array([-sg, 0.0, -0.5]) < 0:
-        pn = -pn
-    return pts, W, ax, pn
+def finger_joints(body):
+    """Each finger's four joints at rest ({(side, finger): (4, 3)}: three knuckles and the tip) and the way
+    its back faces (the bone's z axis), from the body's own finger bones."""
+    fr = body.finger_frames()
+    joints, backs = {}, {}
+    for s in "lr":
+        for f in wo.FINGERS:
+            hs = [fr[f"{f}_{k:02d}_{s}"] for k in (1, 2, 3)]
+            joints[(s, f)] = np.array([h[0] for h in hs] + [hs[2][0] + hs[2][2] * hs[2][4]])
+            backs[(s, f)] = unit(hs[1][3])
+    return joints, backs
+
+
+def chain_param(P, J):
+    """Each point's distance from a chain of joints J (4, 3), its arc length along it (0 at the first knuckle,
+    negative before it, past the tip beyond it) and which segment it is nearest (0, 1, 2)."""
+    P = np.atleast_2d(P)
+    best = np.full(len(P), np.inf)
+    s_out = np.zeros(len(P))
+    seg = np.zeros(len(P), dtype=np.int64)
+    acc = 0.0
+    for i in range(3):
+        a, b = J[i], J[i + 1]
+        ab = b - a
+        L = float(np.linalg.norm(ab))
+        u = (P - a) @ ab / max(L * L, 1e-12)
+        lo = -0.8 if i == 0 else 0.0
+        hi = 1.5 if i == 2 else 1.0
+        u = np.clip(u, lo, hi)
+        d = np.linalg.norm(P - (a + np.outer(u, ab)), axis=1)
+        better = d < best - 1e-12
+        best[better] = d[better]
+        s_out[better] = acc + u[better] * L
+        seg[better] = i
+        acc += L
+    return best, s_out, seg
+
+
+def finger_owner(P, joints, side, reach=0.016):
+    """Which finger (index into wo.FINGERS, or -1 for the hand) each point lies on, its arc length along that
+    finger and its distance from its axis: the nearest finger axis, if within `reach` and past its first
+    knuckle."""
+    n = len(P)
+    owner = -np.ones(n, dtype=np.int64)
+    s_al = np.zeros(n)
+    dist = np.full(n, np.inf)
+    for fi, f in enumerate(wo.FINGERS):
+        d, s_, _ = chain_param(P, joints[(side, f)])
+        take = (d < dist) & (d < reach) & (s_ > -0.004)
+        owner[take] = fi
+        s_al[take] = s_[take]
+        dist = np.where(take, d, dist)
+    return owner, s_al, dist
+
+
+def glove_weights(body, M, P, joints):
+    """Weights over BONE_NAMES + FINGER_BONES for points on a glove: on a finger, sampled from that finger's
+    own skin only (the plain nearest point between two fingers can take the neighbour's side); elsewhere from
+    the nearest skin."""
+    W = np.zeros((len(P), len(wo.BONE_NAMES) + len(wo.FINGER_BONES)))
+    loc, nrm, tri, d = body.nearest(P)
+    c = body.tris[tri]
+    w = wo.bary(body.co[c[:, 0]], body.co[c[:, 1]], body.co[c[:, 2]], loc)
+    W[:] = (body.W_full[c] * w[..., None]).sum(1)
+    for s, sg in (("l", 1), ("r", -1)):
+        side = P[:, 0] * sg > 0
+        owner, _, _ = finger_owner(P, joints, s)
+        for fi, f in enumerate(wo.FINGERS):
+            m = side & (owner == fi)
+            if not m.any():
+                continue
+            cols = [len(wo.BONE_NAMES) + wo.FINGER_BONES.index(f"{f}_{k:02d}_{s}") for k in (1, 2, 3)]
+            own = body.W_full[:, cols].sum(1)
+            tris = body.tris[own[body.tris].mean(1) > 0.35]
+            bvh = wo.BVHTree.FromPolygons(body.co.tolist(), tris.tolist())
+            l2, _, t2, _ = wo.nearest(bvh, P[m])
+            c2 = tris[t2]
+            w2 = wo.bary(body.co[c2[:, 0]], body.co[c2[:, 1]], body.co[c2[:, 2]], l2)
+            W[m] = (body.W_full[c2] * w2[..., None]).sum(1)
+    return W
+
+
+def gloves(body, M, offset=0.0022, cuff=True):
+    """Leather gloves close over each finger and following it (on the body's own finger bones, each finger
+    weighted from its own skin), with a flared gauntlet cuff over the wrist."""
+    t_arm, *_ = M.arm_fields(body.co)
+    keep = np.isin(body.bone, ["hand_l", "hand_r"]) | (np.isin(body.bone, ["lowerarm_l", "lowerarm_r"]) & (t_arm > 1.7))
+    g = wo.Geo.from_body(body, body_polys(body, keep))
+    g = wo.decimate(g, 0.62)
+    g.part = ["leather"] * len(g.faces)
+    g.kind = ["leather"] * len(g.faces)
+    g.attrs["P0"] = g.co.copy()
+    wo.wrap(g, body, offset, rounds=3, factor=0.25)
+    P0 = g.attrs["P0"]
+    t, *_ = M.arm_fields(P0)
+    g.clip(1.82 - t)
+    P0 = g.attrs["P0"]
+    for i, fc in enumerate(g.faces):
+        g.panel[i] = "glove_l" if P0[fc, 0].mean() > 0 else "glove_r"
+    g.smooth_edges(rounds=2)
+    g.rim(depth=0.002, back=0.006)
+    if cuff:
+        for s in ("l", "r"):
+            E, W = M.J[f"lowerarm_{s}"], M.J[f"hand_{s}"]
+            cf, path = mo.limb_loft(body, M, (E, W), 0.72, 1.03, [f"lowerarm_{s}", f"hand_{s}"], lambda tt: 0.006 + 0.03 * smoothstep(0.95, 0.72, tt) ** 1.5, around=22, rings=7, panel=f"cuff_{s}")
+            cf.attrs = {}
+            cf.rim(depth=0.003, back=0.01)
+            g.join(cf)
+    g.attrs = {k: v for k, v in g.attrs.items() if k.startswith("paint_")}
+    return g
+
+
+def gloves_piece(body, M):
+    joints, _ = finger_joints(body)
+    g = gloves(body, M)
+    wo.lift_off(g, body, 0.0015)
+    W = glove_weights(body, M, g.co, joints)
+    wo.fit(g, body, weights=W, clearance=0.0015, floor=0)
+    return g
+
+
+# The skin's blend bands at each knuckle (half-widths, metres, the male index's), which overlapping
+# plates must cover or they open at a full bend: the first knuckle, the middle, the last.
+KNUCKLE_BAND = (0.013, 0.0095, 0.0075)
 
 
 def gauntlets(body, M):
     """Steel gauntlets over leather gloves: a flared steel cuff with a rolled edge over the wrist, a plate
-    over the back of the hand and overlapping lames over the backs of the fingers, riveted; the palm and
-    fingers' undersides leather."""
-    glove = gloves(body, M)
-    g_all = glove
+    over the back of the hand, and a rigid plate over each finger bone (the thumb's too), each lame reaching
+    over the knuckle blend band into the next so nothing opens at a full bend; the palm and the fingers'
+    undersides stay leather."""
+    joints, backs = finger_joints(body)
+    glove = gloves(body, M, offset=0.0022, cuff=False)
+    wo.lift_off(glove, body, 0.0015)
+    nb_hand = len(wo.BONE_NAMES) + len(wo.FINGER_BONES)
+    plates = []
     for s, sg in (("l", 1), ("r", -1)):
-        pts, W, ax, pn = hand_frame(body, M, s)
-        keep = body.bone == f"hand_{s}"
-        h = wo.Geo.from_body(body, body_polys(body, keep))
-        h = wo.decimate(h, 0.3)
-        wo.wrap(h, body, 0.008, rounds=20, factor=0.55)
-        sp = (pts - W) @ ax
-        wo.hull_envelope(h, pts, W + ax * (sp.min() - 0.005), ax, sp.max() - sp.min() + 0.02, 0.009, bins=16, slab=0.01)
-        h.co = h.smooth_values(h.co, 3, 0.4)
-        wo.wrap(h, body, 0.008, rounds=1, factor=0.1)
-        # Only the back of the hand and fingers: the side facing away from the palm.
-        back = -((h.co - pts.mean(0)) @ pn)
-        h.clip(-back + 0.002)
-        along = (h.co - W) @ ax
-        h.clip(-(along - 0.004))
-        h.part = ["plate"] * len(h.faces)
-        h.kind = ["plate"] * len(h.faces)
-        h.panel = [f"back_{s}"] * len(h.faces)
-        h.down = [tuple(ax)] * len(h.faces)
-        # The plate over the hand, then lames over the fingers, each a separate plate stepping out over the next.
-        along = (h.co - W) @ ax
-        a_knuckle = float(np.percentile(sp, 55))
-        pieces = [(0.004, a_knuckle + 0.006)]
-        a = a_knuckle - 0.004
-        while a < sp.max() + 0.01:
-            pieces.append((a, a + 0.024))
-            a += 0.019
-        for k, (a0, a1) in enumerate(pieces):
-            sub = h.copy()
-            al = (sub.co - W) @ ax
-            sub.clip(a0 - al)
-            al = (sub.co - W) @ ax
-            sub.clip(al - a1)
-            if not sub.faces:
-                continue
-            nrm = sub.vertex_normals()
-            sub.co += nrm * (0.0012 * (len(pieces) - k))
-            sub.attrs = {}
-            sub.smooth_edges(rounds=2)
-            sub.rim(depth=0.0025, back=0.0)
-            g_all.join(sub)
-        E = M.J[f"lowerarm_{s}"]
-        cuff, path = mo.limb_loft(body, M, (E, W), 0.62, 1.02, [f"lowerarm_{s}", f"hand_{s}"], lambda tt: 0.013 + 0.022 * smoothstep(0.95, 0.62, tt) ** 1.4, around=24, rings=8, panel=f"cuff_{s}", part="plate", kind="plate")
+        hand_back = unit(sum(backs[(s, f)] for f in ("index", "middle", "ring", "pinky")))
+        # The plate over the back of the hand: from the wrist to just past the first knuckles.
+        h = glove.copy()
+        h.attrs = {}
+        P = h.co
+        owner, s_al, _ = finger_owner(P, joints, s)
+        nrm = h.vertex_normals()
+        t, *_ = M.arm_fields(P)
+        field = np.maximum.reduce([
+            -(nrm @ hand_back) + 0.25,
+            (P[:, 0] * sg < 0).astype(float),
+            np.where(owner >= 0, s_al - KNUCKLE_BAND[0], -1.0),
+            np.where(owner == 0, 1.0, -1.0),
+            1.985 - t,
+        ])
+        h.clip(field)
+        if h.faces:
+            h.co = h.co + h.vertex_normals() * 0.0045
+            h.smooth_edges(rounds=2)
+            h.part = ["plate"] * len(h.faces)
+            h.kind = ["plate"] * len(h.faces)
+            h.panel = [f"hand_{s}"] * len(h.faces)
+            mo.lined(h, part="plate", kind="plate", depth=0.0015)
+            h.attrs["bone"] = np.full((h.n, 1), float(wo.BONE_INDEX[f"hand_{s}"]))
+            plates.append(h)
+        # A plate on each finger bone, reaching over the knuckle bands each side.
+        for fi, f in enumerate(wo.FINGERS):
+            J = joints[(s, f)]
+            seg_len = np.linalg.norm(np.diff(J, axis=0), axis=1)
+            starts = np.concatenate([[0], np.cumsum(seg_len)])
+            back = backs[(s, f)]
+            for k in range(3):
+                lo = starts[k] - (KNUCKLE_BAND[k] if k > 0 else KNUCKLE_BAND[0] * 0.4)
+                hi = starts[k + 1] + (KNUCKLE_BAND[k + 1] if k < 2 else 0.003)
+                q = glove.copy()
+                q.attrs = {}
+                P = q.co
+                owner, s_al, _ = finger_owner(P, joints, s)
+                nrm = q.vertex_normals()
+                field = np.maximum.reduce([
+                    np.where(owner == fi, -1.0, 1.0),
+                    (P[:, 0] * sg < 0).astype(float),
+                    lo - s_al,
+                    s_al - hi,
+                    -(nrm @ back) + 0.1,
+                ])
+                q.clip(field)
+                if not q.faces:
+                    continue
+                # (Each more distal plate a little lower than the one before, so it slides under it.)
+                q.co = q.co + q.vertex_normals() * (0.0038 - 0.0007 * k)
+                q.smooth_edges(rounds=1)
+                q.part = ["plate"] * len(q.faces)
+                q.kind = ["plate"] * len(q.faces)
+                q.panel = [f"{f}{k}_{s}"] * len(q.faces)
+                mo.lined(q, part="plate", kind="plate", depth=0.0012)
+                q.attrs["bone"] = np.full((q.n, 1), float(len(wo.BONE_NAMES) + wo.FINGER_BONES.index(f"{f}_{k + 1:02d}_{s}")))
+                plates.append(q)
+        # The cuff: a flared steel cuff with a rolled edge, on the forearm.
+        E, W = M.J[f"lowerarm_{s}"], M.J[f"hand_{s}"]
+        ax = unit(W - E)
+        cuff, path = mo.limb_loft(body, M, (E, W), 0.62, 1.02, [f"lowerarm_{s}", f"hand_{s}"], lambda tt: 0.011 + 0.02 * smoothstep(0.95, 0.62, tt) ** 1.4, around=24, rings=8, panel=f"cuff_{s}", part="plate", kind="plate")
         cuff.attrs = {}
         loops = [cuff.co[lp].copy() for lp in cuff.edge_loops()]
-        cuff.rim(depth=0.004, back=0.0)
+        mo.lined(cuff, part="plate", kind="plate", depth=0.0018)
         if loops:
             top = max(loops, key=lambda L: -((L.mean(0) - W) @ ax))
             P2, N2 = wo.clean_loop(top, unit(top - top.mean(0)), 0.01)
-            cuff.join(wo.tube(np.concatenate([P2, P2[:1]]), 0.0035, sides=6, part="plate", kind="plate", caps=False))
+            cuff.join(wo.tube(np.concatenate([P2, P2[:1]]), 0.0032, sides=6, part="plate", kind="plate", caps=False))
         for tt in (0.75, 0.9):
             cc = E + (W - E) * tt
             e1 = unit(np.cross(ax, UP))
             p, n = ray_onto(cuff, cc + e1 * sg * 0.2, -e1 * sg, 0.0005)
             cuff.join(wo.stud(p, n, 0.004, 0.0025, part="metal", kind="metal", sides=6))
-        g_all.join(cuff)
-    # Rigid: the cuff on the forearm, the rest on the hand.
-    W_ = np.zeros((g_all.n, len(wo.BONE_NAMES)))
-    t_g, *_ = M.arm_fields(g_all.co)
-    for s in ("l", "r"):
-        side = (g_all.co[:, 0] > 0) if s == "l" else (g_all.co[:, 0] <= 0)
-        W_[side & (t_g >= 1.97), wo.BONE_INDEX[f"hand_{s}"]] = 1.0
-        W_[side & (t_g < 1.97), wo.BONE_INDEX[f"lowerarm_{s}"]] = 1.0
-    wo.fit(g_all, body, weights=W_, clearance=0.003)
-    return g_all
+        cuff.attrs["bone"] = np.full((cuff.n, 1), float(wo.BONE_INDEX[f"lowerarm_{s}"]))
+        plates.append(cuff)
+    Wg = glove_weights(body, M, glove.co, joints)
+    g = glove
+    g.attrs = {}
+    for q in plates:
+        g.join(q)
+    # Rigid plates: each wholly on its bone; the glove under them follows its own skin.
+    Wp = np.zeros((g.n - len(Wg), nb_hand))
+    bones = g.attrs["bone"][len(Wg):, 0].astype(int)
+    Wp[np.arange(len(bones)), bones] = 1.0
+    W = np.concatenate([Wg, Wp])
+    wo.fit(g, body, weights=W, clearance=0.0015, floor=0)
+    return g
 
 
 def sabatons(body, M):
@@ -2123,7 +2232,7 @@ PIECES = {
     # Footwear and accessories.
     "sandals": dict(make=sandals, layer=2, slot="feet", hides=[], parts={"sole": LEATHER_DARK, "leather": LEATHER, "metal": BRASS}),
     "tall_boots": dict(make=tall_boots, layer=2, slot="feet", hides=["feet", "calves"], parts={"leather": LEATHER_DARK, "trim": LEATHER_DARK, "sole": LEATHER_DARK, "metal": IRON}),
-    "gloves": dict(make=gloves, layer=2, slot="hands", hides=["hands"], parts={"leather": LEATHER}),
+    "gloves": dict(make=gloves_piece, layer=2, slot="hands", hides=["hands"], parts={"leather": LEATHER}, fingers=True),
     "belt_pouches": dict(make=belt_pouches, layer=4, slot="belt", hides=[], parts={"belt": LEATHER_DARK, "pouch": LEATHER, "metal": BRASS}),
     "scarf": dict(make=scarf, layer=5, slot="neck", hides=[], parts={"cloth": KNIT_RED}),
     "hood": dict(make=hood, layer=5, slot="head", hides=["hair"], parts={"cloth": WOOL_GREY, "lining": WOOL_BROWN}, head=True),
@@ -2133,7 +2242,7 @@ PIECES = {
     "scale_mail": dict(make=scale_mail, layer=3, slot="armour", hides=["torso", "hips", "underwear"], parts={"scale": STEEL, "trim": LEATHER_DARK}),
     "gambeson": dict(make=gambeson, layer=2, slot="armour_under", hides=["torso", "upperarms", "hips", "underwear"], parts={"cloth": QUILT, "laces": LEATHER_DARK}),
     "tassets": dict(make=tassets, layer=4, slot="tassets", hides=[], parts={"plate": STEEL, "leather": LEATHER_DARK, "metal": BRASS}),
-    "gauntlets": dict(make=gauntlets, layer=3, slot="hands", hides=["hands"], parts={"plate": STEEL, "leather": LEATHER_DARK, "metal": BRASS}),
+    "gauntlets": dict(make=gauntlets, layer=3, slot="hands", hides=["hands"], parts={"plate": STEEL, "leather": LEATHER_DARK, "metal": BRASS}, fingers=True),
     "sabatons": dict(make=sabatons, layer=3, slot="feet", hides=["feet"], parts={"plate": STEEL, "sole": LEATHER_DARK, "metal": BRASS}),
     "full_helm": dict(make=full_helm, layer=4, slot="head", hides=["hair", "neck"], parts={"plate": STEEL, "trim": BRASS}, head=True),
     "bikini_armour": dict(make=bikini_armour, layer=3, slot="armour", sexes=F, hides=["underwear"], parts={"plate": STEEL, "leather": LEATHER_DARK, "metal": BRASS, "cloth": WOOL_RED}),
