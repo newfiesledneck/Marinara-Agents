@@ -192,6 +192,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.55",
+          "date": "2026-11-20",
+          "notes": "- Clothes, the first batch refitted: leather armour and the brigandine are tailored to the body instead of hanging off it, the pauldrons, the leather armour's shoulder pads and the tassets are overlapping plates fixed in place, and the bikini's cords go all the way round with bows on the hips (they used to sink under the skin). Bikini armour and the barbarian harness sit on the body too.\n- Faces and beards: elf and tiefling women lose the gaunt shelf under the eyes, halfling and gnome women have smooth human faces, the half-orc woman is a woman, and beards grow from the cheeks and chin and turn with the head.\n- Anthro wolf: the head tapers into the muzzle from the front, without the puffy cheeks under the eyes. Anthro dragon: a much deeper neck, underwear that fits before any slider moves, and a neck that draws in under a collar.",
+          "highlight": false
+        },
+        {
           "version": "0.7.54",
           "date": "2026-11-20",
           "notes": "- Standing and walking, relaxed: the animation library's own stance has the feet wide, the arms held out and the elbows bent, as if ready for a fight. People now let their arms hang by their sides and stand with their feet nearer together, a female body a little more so, with a narrower walk. Menu → Settings → Display → Standing and walking: By their body, Relaxed or Graceful for all, or As recorded. Running, working and fighting are unchanged.\n- Hair fits every race: the skin no longer shows through the hairline and temples of an elf, a halfling or a gnome.",
@@ -303,12 +309,6 @@
           "version": "0.7.36",
           "date": "2026-11-20",
           "notes": "- Bigger monsters: now and then a monster is bigger than the rest of its kind, and once in a while the first of a group is huge. The story calls it a big or a huge troll, ogre or goblin. A bigger one has more HP, hits harder and is worth more XP. Settings → Creatures → Bigger monsters sets how often: never, now and then (the default) or often.\n- The goblin, hobgoblin, bugbear, orc, gnoll, kobold, lizardfolk, ghoul, ogre, troll and minotaur each have a switch under Settings → Creatures → Kinds. They count toward the Monsters slider like the rest.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.35",
-          "date": "2026-11-20",
-          "notes": "- The kobold, lizardfolk and gnoll stand on their toes, with legs that bend back like a dog's, and still walk with the people's animations.\n- Fuller bodies: the hobgoblin, orc, bugbear, gnoll, ogre and minotaur have deeper chests, broader backs and thicker waists. The hobgoblin is burlier, with a calmer face and its brow set back.\n- The ghoul and troll stand hunched, with a bent back and a short neck instead of a pushed-out head. The troll's arms are shorter so its claws stay off the ground.\n- The ogre's and minotaur's weapons no longer reach the ground, the ogre's warts and cuff rivets sit on it instead of floating, and the minotaur wears one smooth kilt in place of loose panels.",
           "highlight": false
         }
       ]

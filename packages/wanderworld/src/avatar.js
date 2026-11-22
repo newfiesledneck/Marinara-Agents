@@ -398,13 +398,14 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
  * The shape keys' influences for a filled-in look on a body with shape keys `keys`. A two-way slider drives
  * a key each side of its middle (weight: thin or heavy; an anthro's neck, muzzle, ears, horns and tail
  * length), when the body has the one below; else its one key is run backwards (the human neck). `flat`
- * lays a wolf's neck ruff flat, under a piece that covers it.
+ * lays a wolf's neck ruff flat, and brings a dragon's neck in, under a piece that covers it.
  */
 export function keyWeights(look, sex, keys, flat = false) {
   const weights = {
     age_middle: look.age === "middle" ? 1 : 0,
     age_old: look.age === "old" ? 1 : 0,
     ruff_flat: flat ? 1 : 0,
+    collar_fit: flat ? 1 : 0, // (a dragon's deep neck, brought in to a person's where a collar goes round it)
   };
   for (const entry of [...SHAPES, ...FACE, ...ANTHRO_SHAPES]) {
     const [slider] = entry;
@@ -1060,7 +1061,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
       fur2: filled.colours.fur2,
       fur2_tufts: filled.colours.fur2,
       nose: filled.colours.nose,
-      claws: filled.colours.claws,
+      claws: filled.colours.claws ?? filled.colours.horns, // (a dragon's are its horns' colour)
       scales: filled.colours.scales,
       scales2: filled.colours.scales2,
       horns: filled.colours.horns,

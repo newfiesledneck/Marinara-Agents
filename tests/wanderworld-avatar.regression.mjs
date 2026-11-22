@@ -855,8 +855,9 @@ for (const sex of ["male", "female"]) {
         "tail",
         "tail_long",
         "tail_short",
+        "collar_fit",
       ]),
-      parts: ["scales", "scales2", "horns", "iris", "eye_white", "teeth"],
+      parts: ["scales", "scales2", "horns", "iris", "eye_white", "teeth", "claws"],
       bones: ["tail_01", "tail_05", "wing_01_l", "wing_f3_r"],
     },
   };
@@ -1044,7 +1045,11 @@ for (const sex of ["male", "female"]) {
   const dragonFile = anthro["dragon-female"];
   assert.equal(coloured(scaled, [1, 0, 0]), count(dragonFile, ["scales"]), "the scales (the wings' too)");
   assert.equal(coloured(scaled, [0, 1, 0]), count(dragonFile, ["scales2"]), "the underside");
-  assert.equal(coloured(scaled, [0, 0, 1]), count(dragonFile, ["horns"]), "the horns");
+  assert.equal(
+    coloured(scaled, [0, 0, 1]),
+    count(dragonFile, ["horns", "claws"]),
+    "the horns, and the claws with them",
+  );
   assert.equal(coloured(scaled, [1, 0, 1]), count(dragonFile, ["iris"]), "the eyes");
   // Unless chosen, a natural coat or an ancestry's scales from the name, the same every time.
   const grey = avatarLook("Rowan", "auto", { species: "wolf" });

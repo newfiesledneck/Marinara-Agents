@@ -272,9 +272,48 @@ def ray_onto(geo_or_body, origin, direction, lift=0.0):
 # ── Swim and summer ──────────────────────────────────────────────────────────────────────────────────
 
 
+TORSO = ("torso", "hips", "neck")
+CORD_R = 0.003
+
+
+def cord_path(body, ctrl, n, radius=CORD_R, regions=TORSO, over=None, rounds=4):
+    """A cord's centre line through control points, laid ON the skin of `regions` (its surface `radius`
+    plus 2 mm off it, so it never sinks in), or on `over` (a Geo: a cup it runs across) where that is
+    nearer the outside. Returns the points and their outward normals."""
+    P = bezier(np.asarray(ctrl, dtype=np.float64), n)
+    lift = radius + 0.002
+    bvh_over = wo.geo_bvh(over)[0] if over is not None else None
+    for r in range(rounds + 1):
+        loc, nrm, _, _ = body.nearest_in(P, regions)
+        Q = loc + nrm * lift
+        N = nrm
+        if bvh_over is not None:
+            l2, n2, _, d2 = wo.nearest(bvh_over, P)
+            take = (np.linalg.norm(P - l2, axis=1) < 0.012) & (((l2 - loc) * nrm).sum(1) > -0.002)
+            Q = np.where(take[:, None], l2 + n2 * (radius + 0.0012), Q)
+            N = np.where(take[:, None], n2, N)
+        P = Q
+        if r < rounds:
+            P[1:-1] = 0.5 * P[1:-1] + 0.25 * (P[:-2] + P[2:])
+    return P, unit(N)
+
+
+def torso_ring(body, M, z, regions=TORSO, n=48, tilt=0.0):
+    """Skin points round the torso at height z (lower by `tilt` at the front), by rays out from its axis."""
+    pts = []
+    for a in np.linspace(-math.pi, math.pi, n, endpoint=False):
+        zz = z - tilt * 0.5 * math.cos(a)
+        c = np.array([0.0, M.centre_y(zz), zz])
+        d = np.array([math.sin(a), -math.cos(a), 0.0])
+        loc, _, _, _ = body.nearest_in((c + d * 0.25)[None], regions)
+        pts.append(loc[0])
+    return np.array(pts)
+
+
 def bikini_top(body, M):
-    """A string bikini top: two triangle cups with a bound edge and soft gathers under them, tied behind
-    the neck and round the back in bows."""
+    """A string bikini top: two triangle cups gathered at their base and bound at the edges, a halter cord
+    from each cup tied behind the neck, and a band cord running along the cups' base and round the ribs,
+    tied in a bow at the back; every cord lies on the skin."""
     apex = bust_marks(body, M)
     g = skin_patch(body, M, ["spine_02", "spine_03", "clavicle_l", "clavicle_r"], 0.0028, decim=0.8, extra=body.co[:, 1] < M.centre_y(body.co[:, 2]) + 0.02)
     g.kind = ["cloth"] * len(g.faces)
@@ -282,9 +321,9 @@ def bikini_top(body, M):
     tris = {}
     for s, sg in (("l", 1), ("r", -1)):
         A = apex[s]
-        top = A + np.array([-0.01 * sg, 0, 0.105])
-        inner = np.array([0.014 * sg, 0, A[2] - 0.078])
-        outer = A + np.array([0.095 * sg, 0, -0.062])
+        top = A + np.array([-0.012 * sg, 0, 0.1])
+        inner = np.array([0.016 * sg, 0, A[2] - 0.072])
+        outer = A + np.array([0.09 * sg, 0, -0.06])
         tris[s] = (top, inner, outer)
     front = P0[:, 1] < M.centre_y(P0[:, 2]) - 0.01
     f = np.minimum(triangle_field(P0, *tris["l"]), triangle_field(P0, *tris["r"]))
@@ -292,48 +331,48 @@ def bikini_top(body, M):
     P0 = g.attrs["P0"]
     for i, fc in enumerate(g.faces):
         g.panel[i] = "cup_l" if P0[fc, 0].mean() > 0 else "cup_r"
-    # Gathers along the lower edge of each cup.
+    # A little fullness: the cup stands off the skin towards its middle, gathered along its base.
     rel = np.zeros(g.n)
     for s, sg in (("l", 1), ("r", -1)):
         top, inner, outer = tris[s]
         side = P0[:, 0] * sg > 0
         x = (P0[:, 0] - inner[0]) / (outer[0] - inner[0] + 1e-9)
-        low = smoothstep(inner[2] + 0.04, inner[2], P0[:, 2])
+        low = smoothstep(inner[2] + 0.035, inner[2], P0[:, 2])
         rel += side * low * 0.0012 * (0.5 + 0.5 * np.sin(x * 12 * math.pi))
+        d_edge = -triangle_field(P0, *tris[s])
+        rel += side * 0.0025 * smoothstep(0.0, 0.03, d_edge)
     g.displace(rel)
     g.smooth_edges(rounds=4)
     loops = [g.co[lp].copy() for lp in g.edge_loops()]
-    g.rim(depth=0.0025, back=0.006)
+    g.rim(depth=0.0025, back=0.0)
+    cups = g.copy()
     for P in loops:
         if len(P) < 6:
             continue
         c = P.mean(0)
         N = unit((P - c) * np.array([1, 0.2, 1]) + np.array([0, -0.5, 0]))
         P2, N2 = wo.clean_loop(P, N, 0.006)
-        g.join(wo.tube(np.concatenate([P2, P2[:1]]), 0.0022, sides=5, part="trim", kind="cloth", caps=False, panel="binding"))
-    # Strings: from each cup's top round the neck to a bow at the nape; from each outer corner round the
-    # back to a bow at the spine.
-    nape = M.neck + np.array([0, 0.055, -0.035])
+        g.join(wo.tube(np.concatenate([P2, P2[:1]]), 0.0024, sides=6, part="trim", kind="cloth", caps=False, panel="binding"))
+    # The halter: from each cup's top over the shoulder to a bow at the nape.
+    nape_c, nape_n = ray_onto(body, M.neck + np.array([0, 0.3, -0.035]), (0, -1, 0), 0.0)
     for s, sg in (("l", 1), ("r", -1)):
         top, inner, outer = tris[s]
-        tp, _ = ray_onto(g, top + np.array([0, -0.3, -0.004]), (0, 1, 0), 0.001)
-        side_neck = M.neck + np.array([0.06 * sg, 0.0, -0.045])
-        P, N = skin_path(body, [tp, (tp + side_neck) / 2 + np.array([0, 0, 0.02]), side_neck, nape + np.array([0.025 * sg, 0, 0])], 18, lift=0.003)
-        g.join(wo.tube(P, 0.0018, sides=5, part="trim", kind="cord"))
-        op, _ = ray_onto(g, outer + np.array([0.004 * sg, -0.3, 0.004]), (0, 1, 0), 0.001)
-        z = op[2] - 0.004
-        ring, rn = skin_ring(body, M, z, lift=0.004, n=24, a0=math.atan2(op[0], -(op[1] - M.centre_y(z))), a1=math.pi * sg * 0.98)
-        if sg < 0:
-            ring, rn = skin_ring(body, M, z, lift=0.004, n=24, a0=-math.pi * 0.98, a1=math.atan2(op[0], -(op[1] - M.centre_y(z))))
-        P = np.concatenate([op[None], ring])
-        g.join(wo.tube(P, 0.0018, sides=5, part="trim", kind="cord"))
-    zb = g.co[:, 2][g.co[:, 1] > M.centre_y(M.chest_z)].min() if (g.co[:, 1] > M.centre_y(M.chest_z)).any() else M.chest_z - 0.06
-    back_c, back_n = ray_onto(body, np.array([0, 0.4, zb + 0.004]), (0, -1, 0), 0.006)
-    g.join(bow(back_c, back_n, np.array([1.0, 0, 0]), size=0.025, part="trim", radius=0.0022, tails=0.07))
-    nape_c, nape_n = ray_onto(body, nape + np.array([0, 0.3, 0]), (0, -1, 0), 0.006)
-    g.join(bow(nape_c, nape_n, np.array([1.0, 0, 0]), size=0.022, part="trim", radius=0.002, tails=0.06))
+        tp, _ = ray_onto(cups, top + np.array([0, -0.3, -0.006]), (0, 1, 0), 0.0)
+        side_neck = M.neck + np.array([0.062 * sg, 0.0, -0.045])
+        P, N = cord_path(body, [tp, (tp + side_neck) / 2 + np.array([0, -0.01, 0.02]), side_neck, nape_c + np.array([0.022 * sg, 0.0, 0.0])], 20, over=cups)
+        g.join(wo.tube(P, CORD_R, sides=6, part="trim", kind="cord"))
+    g.join(bow(nape_c + nape_n * (CORD_R + 0.002), nape_n, np.array([1.0, 0, 0]), size=0.022, part="trim", radius=CORD_R * 0.9, tails=0.06))
+    # The band: along the base of both cups and round the ribs, one cord, tied at the back.
+    zb = float(np.mean([tris[s][1][2] for s in "lr"])) - 0.002
+    ring = torso_ring(body, M, zb, n=56)
+    back = int(np.argmax(ring[:, 1]))
+    ring = np.roll(ring, -back, axis=0)
+    ring = np.concatenate([ring, ring[:1]])
+    P, N = cord_path(body, ring, 90, over=cups)
+    g.join(wo.tube(P, CORD_R, sides=6, part="trim", kind="cord"))
+    g.join(bow(P[0] + N[0] * (CORD_R + 0.002), N[0], np.array([1.0, 0, 0]), size=0.026, part="trim", radius=CORD_R * 0.9, tails=0.07))
     g.attrs = {k: v for k, v in g.attrs.items() if k.startswith("paint_")}
-    wo.fit(g, body, clearance=0.002)
+    wo.fit(g, body, clearance=0.0025, regions=TORSO)
     return g
 
 
@@ -350,34 +389,55 @@ def brief_field(body, M, P0, top_front, top_back, k_front, k_back, gusset=0.028)
     return np.maximum(P0[:, 2] - top, leg - P0[:, 2])
 
 
+HIPS = ("hips", "torso")
+
+
 def bikini_bottom(body, M):
-    """A tie-side bikini bottom: a low front, a fuller back, bound edges and a bow at each hip."""
-    g = skin_patch(body, M, ["pelvis", "thigh_l", "thigh_r", "spine_01"], 0.0028, decim=0.7)
+    """A tie-side bikini bottom: a shaped front panel and a fuller back, bound at the edges, joined over
+    each hip by a cord lying on the skin, tied in a bow on the hip."""
+    g = skin_patch(body, M, ["pelvis", "thigh_l", "thigh_r", "spine_01"], 0.0028, decim=0.75)
     g.kind = ["cloth"] * len(g.faces)
     P0 = g.attrs["P0"]
-    g.clip(brief_field(body, M, P0, M.crotch + 0.085, M.crotch + 0.11, 1.45, 0.75))
+    cy = M.centre_y(P0[:, 2])
+    back = smoothstep(-0.02, 0.03, P0[:, 1] - cy)
+    width = 0.115 * (1 - back) + 0.13 * back
+    zf, zbk = M.crotch + 0.085, M.crotch + 0.1
+    g.clip(np.maximum(brief_field(body, M, P0, zf, zbk, 1.15, 0.7), np.abs(P0[:, 0]) - width))
     P0 = g.attrs["P0"]
     for i, fc in enumerate(g.faces):
         g.panel[i] = "back" if P0[fc, 1].mean() > M.centre_y(P0[fc, 2].mean()) else "front"
     g.smooth_edges(rounds=4)
     loops = [g.co[lp].copy() for lp in g.edge_loops()]
-    g.rim(depth=0.0025, back=0.006)
+    g.rim(depth=0.0025, back=0.0)
+    panel = g.copy()
     for P in loops:
         if len(P) < 6:
             continue
         c = P.mean(0)
         N = unit((P - c) * np.array([1, 1, 0.2]))
         P2, N2 = wo.clean_loop(P, N, 0.006)
-        g.join(wo.tube(np.concatenate([P2, P2[:1]]), 0.0022, sides=5, part="trim", kind="cloth", caps=False, panel="binding"))
-    # A bow at each hip, where the top line is highest.
+        g.join(wo.tube(np.concatenate([P2, P2[:1]]), 0.0024, sides=6, part="trim", kind="cloth", caps=False, panel="binding"))
+    # Each side: a cord from the front panel's top corner over the hip to the back panel's, a bow on the hip.
+    co = panel.co
+    cyc = M.centre_y(co[:, 2])
     for sg in (1, -1):
-        side = g.co[g.co[:, 0] * sg > 0]
-        p = side[np.argmax(side[:, 0] * sg + side[:, 2] * 0.2)]
-        n = unit(np.array([sg, 0, 0.0]))
-        c, nn = ray_onto(body, p + n * 0.2 + np.array([0, 0, -0.012]), -n, 0.006)
-        g.join(bow(c, nn, np.array([0, -1.0, 0]), size=0.022, part="trim", radius=0.0022, tails=0.07))
+        fr = co[(co[:, 1] < cyc) & (co[:, 0] * sg > 0)]
+        bk = co[(co[:, 1] > cyc) & (co[:, 0] * sg > 0)]
+        # (Each panel's top corner: the highest point near its side edge.)
+        fr = fr[fr[:, 0] * sg > (fr[:, 0] * sg).max() - 0.015]
+        bk = bk[bk[:, 0] * sg > (bk[:, 0] * sg).max() - 0.015]
+        fc = fr[np.argmax(fr[:, 2])]
+        bc = bk[np.argmax(bk[:, 2])]
+        z = (fc[2] + bc[2]) / 2 + 0.004
+        hip = np.array([0.3 * sg, M.centre_y(z), z])
+        hp, hn, _, _ = body.nearest_in(hip[None], HIPS)
+        mid = hp[0]
+        P, N = cord_path(body, [fc, (fc + mid) / 2, mid, (mid + bc) / 2, bc], 26, regions=HIPS)
+        g.join(wo.tube(P, CORD_R, sides=6, part="trim", kind="cord"))
+        j = len(P) // 2
+        g.join(bow(P[j] + N[j] * (CORD_R + 0.002), N[j], np.array([0, -1.0, 0]), size=0.022, part="trim", radius=CORD_R * 0.9, tails=0.075))
     g.attrs = {k: v for k, v in g.attrs.items() if k.startswith("paint_")}
-    wo.fit(g, body, clearance=0.002)
+    wo.fit(g, body, clearance=0.0025, regions=("hips", "torso", "thighs"))
     return g
 
 
@@ -385,7 +445,7 @@ def swim_trunks(body, M):
     """Swim trunks (on her, short swim shorts): loose legs to mid-thigh with a stripe down each side, a
     drawstring waist tied at the front."""
     end = 0.45 if body.sex == "male" else 0.28
-    g = legwear(body, M, end, 0.006, 0.022 if body.sex == "male" else 0.014, kind="cloth", decim=0.55, waist_lift=0.012)
+    g = legwear(body, M, end, 0.005, 0.013 if body.sex == "male" else 0.009, kind="cloth", decim=0.55, waist_lift=0.012)
     P0 = g.attrs["P0"]
     t, r, out, axis = M.leg_fields(P0)
     # The stripe: a band down the outside of each leg.
@@ -427,7 +487,7 @@ def one_piece_swimsuit(body, M):
         g.panel[i] = "back" if P0[fc, 1].mean() > M.centre_y(P0[fc, 2].mean()) else "front"
     g.smooth_edges(rounds=4)
     loops = [g.co[lp].copy() for lp in g.edge_loops()]
-    g.rim(depth=0.0025, back=0.006)
+    g.rim(depth=0.0025, back=0.0)
     for P in loops:
         if len(P) < 6:
             continue
@@ -489,7 +549,8 @@ def crop_top(body, M):
 def tank_top(body, M):
     """A knitted tank top to the hips: deep armholes, a scoop neck, ribbed edges, hanging loose below the
     chest."""
-    g, zn = top_shell(body, M, M.crotch + 0.07, sleeve_t=None, kind="knit", torso_off=0.005, waist_off=0.012, drape_off=0.016, neck_lift=0.004, decim=0.6, scoop=0.07)
+    g, zn = top_shell(body, M, M.crotch + 0.07, sleeve_t=None, kind="knit", torso_off=0.0045, waist_off=0.006, drape_off=0.0, neck_lift=0.004, decim=0.6, scoop=0.07)
+    wo.drape(g, body, M.centre_y, M.waist_z, M.crotch, 0.008, slope=0.5)
     g.smooth_edges(rounds=3)
     rib_edges(g)
     wo.fit(g, body, loose=smoothstep(M.chest_z, M.crotch, g.co[:, 2]) * 0.5, smooth_rounds=4, clearance=0.003)
@@ -499,7 +560,8 @@ def tank_top(body, M):
 def t_shirt(body, M):
     """A linen T-shirt (a short-sleeved shift): to the hips, sleeves to mid upper arm, a round neck with a
     narrow band, stitched hems."""
-    g, zn = top_shell(body, M, M.crotch + 0.06, sleeve_t=0.5, kind="linen", torso_off=0.006, waist_off=0.016, sleeve_off=0.012, drape_off=0.022, neck_lift=0.006, decim=0.6)
+    g, zn = top_shell(body, M, M.crotch + 0.06, sleeve_t=0.5, kind="linen", torso_off=0.0055, waist_off=0.008, sleeve_off=0.009, drape_off=0.0, neck_lift=0.006, decim=0.6)
+    wo.drape(g, body, M.centre_y, M.waist_z, M.crotch, 0.011, slope=0.5)
     P0 = g.attrs["P0"]
     t, r, out, axis = M.arm_fields(P0)
     sleeve = smoothstep(-0.02, 0.03, M.armhole(P0))
@@ -572,7 +634,7 @@ def vest(body, M):
     at the hem and welt pockets. Both worn over a shirt or blouse."""
     female = body.sex == "female"
     hem = M.waist_z - (0.05 if female else 0.1)
-    g, zn = top_shell(body, M, hem - 0.06, sleeve_t=None, kind="velvet" if female else "wool", torso_off=0.013, waist_off=0.016, drape_off=0.0 if female else 0.02, neck_lift=0.012, decim=0.6, scoop=0.1 if female else 0.0)
+    g, zn = top_shell(body, M, hem - 0.06, sleeve_t=None, kind="velvet" if female else "wool", torso_off=0.011, waist_off=0.011, drape_off=0.0, neck_lift=0.012, decim=0.6, scoop=0.1 if female else 0.0)
     P0 = g.attrs["P0"]
     front = P0[:, 1] < M.centre_y(P0[:, 2])
     x = np.abs(P0[:, 0])
@@ -634,7 +696,7 @@ def corset(body, M):
     g.kind = ["leather"] * len(g.faces)
     g.attrs["P0"] = g.co.copy()
     # (Over a blouse or shirt and the top of a skirt.)
-    wo.wrap(g, body, 0.028, rounds=25, factor=0.5)
+    wo.wrap(g, body, 0.015, rounds=25, factor=0.5)
     P0 = g.attrs["P0"]
     cy = M.centre_y(P0[:, 2])
     front = P0[:, 1] < cy
@@ -690,7 +752,7 @@ def corset(body, M):
 
 def shorts(body, M):
     """Canvas shorts to above the knee: roomy legs with turned-up cuffs, a waistband and a laced fly."""
-    g = legwear(body, M, 0.62, 0.0065, 0.02, kind="canvas", decim=0.55)
+    g = legwear(body, M, 0.62, 0.0055, 0.012, kind="canvas", decim=0.55)
     P0 = g.attrs["P0"]
     t, r, out, axis = M.leg_fields(P0)
     crease = 0.002 * np.sin(np.arctan2(out[:, 0], -out[:, 1]) * 3 + t * 9) * smoothstep(0.1, 0.5, t) * (P0[:, 2] < M.crotch)
@@ -772,7 +834,7 @@ def leggings(body, M):
     loops = g.edge_loops()
     ankles = [g.co[lp].copy() for lp in loops if g.co[lp, 2].mean() < 0.3]
     waistband(g, M, 0.04, 0.003, part="trim", kind="knit", lift=0.001)
-    g.rim(depth=0.0025, back=0.006)
+    g.rim(depth=0.0025, back=0.0)
     for C in ankles:
         c = C.mean(0)
         N = unit((C - c) * np.array([1, 1, 0]))
@@ -896,7 +958,7 @@ def robe(body, M):
     placket down the front, sleeves widening into deep bell sleeves that hang from the elbow, a skirt
     falling in real folds to an embroidered hem band, and a cord girdle with tasselled ends."""
     waist = M.waist_z
-    g, zn = top_shell(body, M, waist - 0.02, sleeve_t=1.0, kind="wool", torso_off=0.012, waist_off=0.014, sleeve_off=0.016, drape_off=0.0, neck_lift=0.01, decim=0.28)
+    g, zn = top_shell(body, M, waist - 0.02, sleeve_t=1.0, kind="wool", torso_off=0.009, waist_off=0.01, sleeve_off=0.012, drape_off=0.0, neck_lift=0.01, decim=0.28)
     g.smooth_edges(rounds=3)
     loops = g.edge_loops()
     neck = max(loops, key=lambda lp: g.co[lp, 2].mean())
@@ -961,7 +1023,7 @@ def long_coat(body, M):
     split at the front and with a vent behind, hanging in real folds to below the knee."""
     waist = M.waist_z
     # (Roomy enough to go over a shirt: its sleeves and the drape below the chest.)
-    g, zn = top_shell(body, M, waist - 0.02, sleeve_t=1.98, kind="wool", torso_off=0.024, waist_off=0.036, sleeve_off=0.03, drape_off=0.036, neck_lift=0.014, decim=0.3)
+    g, zn = top_shell(body, M, waist - 0.02, sleeve_t=1.98, kind="wool", torso_off=0.014, waist_off=0.016, sleeve_off=0.017, drape_off=0.0, neck_lift=0.014, decim=0.3)
     vz_top = M.neck[2] + 0.02
     vz_bot = M.chest_z - 0.04
     front_opening(g, M, lambda z: 0.006 + 0.07 * smoothstep(vz_bot, vz_top, z) ** 1.2, waist - 0.2, vz_bot)
@@ -974,7 +1036,7 @@ def long_coat(body, M):
     neck_n = g.vertex_normals()[neck]
     g.rim(depth=0.004, back=0.012)
     zb = M.J["calf_l"][2] - 0.1
-    sk = sim_skirt(body, M, waist + 0.012, zb, offset=0.036, flare=0.36, around=42, ring_step=0.032, kind="wool", seed=41, gores=6, open_front=lambda z: 0.16 + 0.22 * smoothstep(waist, zb, z), slits=[(math.pi, 0.32)])
+    sk = sim_skirt(body, M, waist + 0.012, zb, offset=0.024, flare=0.36, around=42, ring_step=0.032, kind="wool", seed=41, gores=6, open_front=lambda z: 0.16 + 0.22 * smoothstep(waist, zb, z), slits=[(math.pi, 0.32)])
     sk.attrs = {}
     mo.lined(sk, part="lining", kind="cloth", depth=0.003, edge_kind="wool", edge_part="cloth")
     g.join(sk)
@@ -1276,7 +1338,7 @@ def belt_pouches(body, M):
     small knife in a sheath at the back."""
     zb = M.crotch + 0.14
     # (Slung over whatever is worn there, a coat included.)
-    P, N = skin_ring(body, M, zb, lift=0.046, n=56, tilt=0.05)
+    P, N = skin_ring(body, M, zb, lift=0.03, n=56, tilt=0.05)
     P, N = oriented(P, N, UP)
     g = wo.strip(P, N, 0.05, 0.007, part="belt", kind="leather", panel="belt")
     j = int(np.argmin(P[:, 1]))
@@ -1325,7 +1387,7 @@ def scarf(body, M):
     z = M.neck[2] - 0.055
     c0 = np.array([0.0, M.neck[1] + 0.005, z])
     g = None
-    for k, (dz, grow, rr, ph) in enumerate(((0.0, 0.034, 0.021, 0.0), (0.026, 0.03, 0.017, 1.3))):
+    for k, (dz, grow, rr, ph) in enumerate(((0.0, 0.026, 0.019, 0.0), (0.024, 0.022, 0.016, 1.3))):
         ang = np.linspace(-math.pi, math.pi, 40, endpoint=False)
         r = []
         for a in ang:
@@ -1351,7 +1413,7 @@ def scarf(body, M):
         tn = np.repeat(n[None], 8, 0)
         end = hanging_flap(body, M, top, tn, length, kind="knit", part="cloth", seed=seed, bending=0.8, colliders=[])
         # (Hanging clear of a coat or tunic worn under it.)
-        wo.wrap(end, body, 0.034, rounds=2, factor=0.1)
+        wo.wrap(end, body, 0.026, rounds=2, factor=0.1)
         end.attrs = {}
         mo.lined(end, part="cloth", kind="knit", depth=0.008)
         # Fringe at the bottom.
@@ -1441,11 +1503,11 @@ def brigandine(body, M):
     """A brigandine: steel plates riveted inside a velvet-covered jerkin to the hips, rows of brass rivet
     heads over it, edged in leather, buckled shut down the front with three straps."""
     hem = M.crotch + 0.05
-    g, zn = top_shell(body, M, hem, sleeve_t=None, kind="velvet", part="cloth", torso_off=0.024, waist_off=0.03, drape_off=0.036, neck_lift=0.022, decim=0.45)
-    g.co = g.smooth_values(g.co, 3, 0.4)
-    wo.wrap(g, body, 0.022, rounds=1, factor=0.1)
-    P0 = g.attrs["P0"]
-    g.clip(np.where(np.abs(P0[:, 0]) > 0.1, M.armhole(P0) + 0.02, -1.0))
+    g, zn = top_shell(body, M, hem, sleeve_t=None, kind="velvet", part="cloth", torso_off=0.012, waist_off=0.013, drape_off=0.0, neck_lift=0.016, decim=0.5)
+    # (Plates inside it: smooth over the chest and back, easing over the hips below the waist.)
+    g.co = g.smooth_values(g.co, 4, 0.4)
+    wo.wrap(g, body, 0.012, rounds=1, factor=0.1)
+    wo.drape(g, body, M.centre_y, M.waist_z, hem - 0.05, 0.014, slope=0.6)
     g.smooth_edges(rounds=3)
     edges = [g.co[lp].copy() for lp in g.edge_loops()]
     g.rim(depth=0.008, back=0.01)
@@ -1483,9 +1545,10 @@ def scale_mail(body, M):
     """A coat of scale mail to mid-thigh: overlapping steel scales, short sleeves, split front and back for
     riding, edged in leather."""
     waist = M.waist_z - 0.01
-    g, zn = top_shell(body, M, waist - 0.03, sleeve_t=0.62, kind="scale", part="scale", torso_off=0.02, waist_off=0.032, sleeve_off=0.024, drape_off=0.04, neck_lift=0.016, decim=0.5)
+    g, zn = top_shell(body, M, waist - 0.03, sleeve_t=0.62, kind="scale", part="scale", torso_off=0.009, waist_off=0.011, sleeve_off=0.011, drape_off=0.0, neck_lift=0.012, decim=0.5)
+    wo.drape(g, body, M.centre_y, M.waist_z + 0.02, waist - 0.08, 0.013, slope=0.5)
     hem = M.crotch - 0.14
-    sk = mo.skirt_loft(body, M, waist + 0.03, hem, 0.046, flare=0.14, around=40, part="scale", kind="scale", folds=0.004, n_folds=8, slit=[(0.0, 0.17), (math.pi, 0.17)])
+    sk = mo.skirt_loft(body, M, waist + 0.02, hem, 0.021, flare=0.2, around=40, part="scale", kind="scale", folds=0.004, n_folds=8, slit=[(0.0, 0.17), (math.pi, 0.17)])
     sk.attrs = {}
     g.smooth_edges()
     g.attrs = {}
@@ -1508,9 +1571,11 @@ def gambeson(body, M):
     """A padded gambeson: quilted in vertical channels, full sleeves, a high padded collar, to mid-thigh,
     tied shut down the front with leather points."""
     waist = M.waist_z - 0.01
-    g, zn = top_shell(body, M, waist - 0.03, sleeve_t=1.98, kind="quilted", part="cloth", torso_off=0.022, waist_off=0.028, sleeve_off=0.02, drape_off=0.03, neck_lift=0.016, decim=0.45)
+    # (Padded, so it stands a little off the body, but shaped: taken in at the waist, following the chest.)
+    g, zn = top_shell(body, M, waist - 0.03, sleeve_t=1.98, kind="quilted", part="cloth", torso_off=0.012, waist_off=0.012, sleeve_off=0.012, drape_off=0.0, neck_lift=0.014, decim=0.45)
+    wo.drape(g, body, M.centre_y, M.waist_z + 0.02, waist - 0.08, 0.014, slope=0.5)
     hem = M.crotch - 0.13
-    sk = mo.skirt_loft(body, M, waist + 0.03, hem, 0.04, flare=0.16, around=40, kind="quilted", folds=0.005, n_folds=8, slit=[(0.0, 0.2)])
+    sk = mo.skirt_loft(body, M, waist + 0.02, hem, 0.022, flare=0.2, around=40, kind="quilted", folds=0.005, n_folds=8, slit=[(0.0, 0.2)])
     sk.attrs = {}
     g.smooth_edges()
     loops = g.edge_loops()
@@ -1546,15 +1611,18 @@ def tassets(body, M):
     """Steel tassets: four overlapping lames hanging over the front and side of each thigh from a leather
     belt, on leather straps, riveted, the lowest with a rolled edge."""
     zb = M.waist_z - 0.06
-    P, N = skin_ring(body, M, zb, lift=0.03, n=56)
+    P, N = skin_ring(body, M, zb, lift=0.016, n=56)
     P, N = oriented(P, N, UP)
     g = wo.strip(P, N, 0.04, 0.006, part="leather", kind="leather", panel="belt")
+    g.attrs["group"] = np.zeros((g.n, 1))
+    gid = 1
     j = int(np.argmin(P[:, 1]))
     g.join(wo.box_ring(P[j] + N[j] * 0.008, N[j], UP, 0.05, 0.05, 0.007, 0.004, part="metal", kind="metal"))
     for s, sg in (("l", 1), ("r", -1)):
         H, K = M.J[f"thigh_{s}"], M.J[f"calf_{s}"]
         ax = unit(K - H)
-        pts = body.co[M.surf & (body.region == "thighs") & (body.co[:, 0] * sg > 0)]
+        # (The hip as well as the thigh: the top lames lie over the hip.)
+        pts = body.co[M.surf & np.isin(body.region, ["thighs", "hips"]) & (body.co[:, 0] * sg > 0.02)]
         top_z = zb - 0.035
         for k in range(4):
             z0 = top_z - k * 0.055
@@ -1570,7 +1638,7 @@ def tassets(body, M):
                 if len(sel) < 4:
                     sel = pts[np.argsort(np.abs(pts[:, 2] - c[2]))[:40]]
                 q = np.stack([(sel - c) @ e1, (sel - c) @ e2], axis=1)
-                return wo.ray_hull(wo.hull2(q), angles) + 0.032 + 0.008 * k + 0.012 * i / 4
+                return wo.ray_hull(wo.hull2(q), angles) + 0.02 + 0.005 * k + 0.008 * i / 4
 
             lame = wo.loft(path, 32, rad, up_hint=(0, -1, 0), seam_angle=math.pi, part="plate", kind="plate", panel=f"lame_{s}{k}", down=(0, 0, -1))
             # Only over the front and outside of the thigh.
@@ -1580,7 +1648,10 @@ def tassets(body, M):
             lame.attrs = {}
             loops = [lame.co[lp].copy() for lp in lame.edge_loops()]
             lame.smooth_edges(rounds=4)
-            lame.rim(depth=0.004, back=0.0)
+            # (A plate with thickness: its inside shows when the leg lifts.)
+            mo.lined(lame, part="plate", kind="plate", depth=0.003)
+            lame.attrs["group"] = np.full((lame.n, 1), float(gid))
+            gid += 1
             if k == 3 and loops:
                 L = loops[0]
                 low = L[L[:, 2] < L[:, 2].min() + 0.02]
@@ -1605,7 +1676,7 @@ def tassets(body, M):
             LP = np.array([p for p, n in line])
             LN = np.array([n for p, n in line])
             g.join(wo.strip(LP, LN, 0.018, 0.003, part="leather", kind="leather", closed=False, panel="strap"))
-    wo.fit(g, body, loose=np.ones(g.n), smooth_rounds=8, clearance=0.012)
+    wo.fit(g, body, loose=np.ones(g.n), smooth_rounds=6, clearance=0.01, groups=g.attrs["group"][:, 0])
     return g
 
 
@@ -1882,6 +1953,7 @@ def bikini_armour(body, M):
     g.smooth_edges(rounds=4)
     rims = [g.co[lp].copy() for lp in g.edge_loops()]
     g.rim(depth=0.004, back=0.0)
+    cups = g.copy()
     for R in rims:
         if len(R) < 6:
             continue
@@ -1899,20 +1971,29 @@ def bikini_armour(body, M):
         tp, _ = ray_onto(g, np.array([A[0], -0.4, A[2] + 0.07]), (0, 1, 0), 0.001)
         sh = np.array([0.1 * sg, M.centre_y(M.shoulder_top), M.shoulder_top + 0.012])
         bk = np.array([0.08 * sg, M.centre_y(A[2]) + 0.15, A[2] - 0.05])
-        P, N = skin_path(body, [tp, sh + np.array([0, -0.03, 0]), sh, sh + np.array([0, 0.05, -0.04]), bk], 22, lift=0.004)
+        P, N = cord_path(body, [tp, sh + np.array([0, -0.03, 0]), sh, sh + np.array([0, 0.05, -0.04]), bk], 24, radius=0.0006, over=cups)
         g.join(wo.strip(P, N, 0.016, 0.003, part="leather", kind="leather", closed=False, panel=f"strap_{s}"))
+    # The band: from one cup's side round the back to the other's, on the skin, buckled at the spine.
     zr = mid_z - 0.06
-    P, N = skin_ring(body, M, zr, lift=0.005, n=40, a0=1.0, a1=2 * math.pi - 1.0)
+    ring = torso_ring(body, M, zr, n=56)
+    a = np.arctan2(ring[:, 0], -(ring[:, 1] - M.centre_y(zr)))
+    order = np.argsort(np.mod(a, 2 * math.pi))
+    ring = ring[order]
+    a = np.mod(a[order], 2 * math.pi)
+    ring = ring[(a > 0.9) & (a < 2 * math.pi - 0.9)]
+    P, N = cord_path(body, ring, 40, radius=0.0006)
     P, N = oriented(P, N, UP)
     g.join(wo.strip(P, N, 0.018, 0.003, part="leather", kind="leather", closed=False, panel="band"))
     jb = len(P) // 2
-    g.join(wo.box_ring(P[jb] + N[jb] * 0.004, N[jb], UP, 0.024, 0.022, 0.004, 0.003, part="metal", kind="metal"))
+    g.join(wo.box_ring(P[jb] + N[jb] * 0.0045, N[jb], UP, 0.024, 0.022, 0.004, 0.003, part="metal", kind="metal"))
     # Below: the leather brief, a belt of plaques, a front plate, cloth flaps.
     br = brief(body, M, kind="leather", part="leather", offset=0.004, top_front=M.crotch + 0.08, top_back=M.crotch + 0.11)
     br.attrs = {}
     g.join(br)
     zb = M.crotch + 0.095
-    P, N = skin_ring(body, M, zb, lift=0.011, n=48, tilt=0.03)
+    P = torso_ring(body, M, zb, regions=("hips", "torso"), n=48, tilt=0.03)
+    P, N = cord_path(body, np.concatenate([P, P[:1]]), 60, radius=0.0035, regions=("hips", "torso"))
+    P, N = P[:-1], N[:-1]
     P, N = oriented(P, N, UP)
     g.join(wo.strip(P, N, 0.03, 0.005, part="leather", kind="leather", panel="belt"))
     for i in range(0, len(P), 3):
@@ -1947,7 +2028,7 @@ def bikini_armour(body, M):
         mo.lined(flap, part="cloth", kind="cloth", depth=0.002)
         g.join(flap)
     g.attrs = {k: v for k, v in g.attrs.items() if k.startswith("paint_")}
-    wo.fit(g, body, loose=smoothstep(zb - 0.05, zb - 0.3, g.co[:, 2]), smooth_rounds=8, clearance=0.003)
+    wo.fit(g, body, loose=smoothstep(zb - 0.05, zb - 0.3, g.co[:, 2]), smooth_rounds=8, clearance=0.003, regions=("torso", "hips", "neck", "thighs"), region_mask=g.co[:, 2] > zb - 0.03)
     return g
 
 
@@ -1962,7 +2043,7 @@ def barbarian_harness(body, M):
         sh = np.array([0.1 * sg, M.centre_y(M.shoulder_top), M.shoulder_top + 0.01])
         hip_f = np.array([0.15 * -sg, M.centre_y(zbelt) - 0.12, zbelt + 0.02])
         hip_b = np.array([0.15 * -sg, M.centre_y(zbelt) + 0.12, zbelt + 0.02])
-        P, N = skin_path(body, [hip_f, (ring_c + hip_f) / 2, ring_c, (ring_c + sh) / 2 + np.array([0, -0.02, 0.03]), sh, sh + np.array([0, 0.06, -0.03]), back_c, hip_b], 40, lift=0.006)
+        P, N = cord_path(body, [hip_f, (ring_c + hip_f) / 2, ring_c, (ring_c + sh) / 2 + np.array([0, -0.02, 0.03]), sh, sh + np.array([0, 0.06, -0.03]), back_c, hip_b], 44, radius=0.0012)
         s = wo.strip(P, N, 0.042, 0.005, part="leather", kind="leather", closed=False, panel=f"strap_{sg}")
         g = s if g is None else g.join(s)
         for i in range(2, len(P) - 2, 4):
@@ -1972,7 +2053,9 @@ def barbarian_harness(body, M):
         e2 = np.cross(n, e1)
         circle = np.array([c + n * 0.008 + (e1 * math.cos(a) + e2 * math.sin(a)) * 0.032 for a in np.linspace(0, 2 * math.pi, 18)])
         g.join(wo.tube(circle, 0.0065, sides=6, part="metal", kind="metal", caps=False))
-    P, N = skin_ring(body, M, zbelt, lift=0.008, n=56)
+    P = torso_ring(body, M, zbelt, n=56)
+    P, N = cord_path(body, np.concatenate([P, P[:1]]), 70, radius=0.004)
+    P, N = P[:-1], N[:-1]
     P, N = oriented(P, N, UP)
     g.join(wo.strip(P, N, 0.07, 0.008, part="leather", kind="leather", panel="belt"))
     j = int(np.argmin(P[:, 1]))
@@ -2002,9 +2085,11 @@ def barbarian_harness(body, M):
     fur.attrs = {}
     fur.smooth_edges(rounds=1)
     fur.rim(depth=0.016, back=0.02)
+    n_straps = g.n
     g.join(fur)
     g.attrs = {k: v for k, v in g.attrs.items() if k.startswith("paint_")}
-    wo.fit(g, body, loose=np.ones(g.n) * 0.3, smooth_rounds=3, clearance=0.005)
+    # (The straps and belt move with the skin under them; the fur follows the shoulder and arm.)
+    wo.fit(g, body, loose=(np.arange(g.n) >= n_straps) * 0.5, smooth_rounds=3, clearance=0.004, regions=TORSO, region_mask=np.arange(g.n) < n_straps)
     return g
 
 
