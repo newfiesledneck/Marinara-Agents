@@ -42,9 +42,19 @@ as they are for now; only the shape-built person is replaced.
 | Anthro                | A wolf's or dragon's body on the human one; own sliders and colours       |
 | Preset                | Start from a saved or built-in look; save the current look as one         |
 
-Every slider has a middle that looks like an ordinary person, so a look that sets nothing is fine. A
-look keeps only what was chosen by hand, as `checkLook` does today; anything left out comes from the
-person's name (seeded), so a crowd differs without anyone setting it.
+Every slider works the same way (`looks.js`): its value 0 is the model's own shape; to the right is bigger,
+longer, wider or more, and to the left smaller, shorter, narrower or less; and each says what its two ends
+are. A pair of keys is one slider with the model's shape in the middle (thin and heavy, `muzzle_short` and
+`muzzle`, `tail_short` and `tail_long`, `ears_small` and `ears_tall`, `horns_small` and `horns`,
+`neck_slim` and `neck`). A slider with one key runs it backwards for its left half (the `waist` key
+narrows, so its slider turns it round), and its track still has 0 in the middle (`toTrack`); a one-way
+slider (pointed ears, tail thickness) has 0 at the left end. `tests/wanderworld-avatar.regression.mjs`
+measures each key's direction on all six bodies.
+
+A look keeps only what was chosen by hand, as `checkLook` does today. For townsfolk, anything left out
+comes from the person's name (seeded), so a crowd differs without anyone setting it, and the card shows
+where each slider is. The player starts with every slider at the model's shape (`NEUTRAL_LOOK` under
+their look), and the card's Reset puts anyone's sliders back there.
 
 ### Anthro
 

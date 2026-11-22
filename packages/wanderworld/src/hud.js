@@ -29,12 +29,15 @@ import {
   EXTRAS,
   EYE_PICTURES,
   FACE,
+  fromTrack,
   hasSlider,
+  NEUTRAL_LOOK,
   SKINS,
   sliderRange,
   SLOT_OF,
   SPECIES,
   TINT,
+  toTrack,
   HAIR_COLOURS,
   HAIRSTYLES,
   HEIGHTS,
@@ -357,9 +360,10 @@ export function createHud(root, handlers) {
         line.textContent = text;
         rows.push(line);
       };
-      // A slider for the base avatar: its name and value, then the slider across the card, then what it
-      // changes. Dragged, the preview follows; let go, it's set.
-      const slider = (label, what, value, [least, most, step], shown, onLive, onSet) => {
+      // A slider for the base avatar: its name and value, then the slider across the card with what its two
+      // ends are under it (the right is always bigger, longer, wider or more), then what it changes. Dragged,
+      // the preview follows; let go, it's set.
+      const slider = (label, what, value, [least, most, step], shown, onLive, onSet, ends) => {
         const block = document.createElement("div");
         block.style.cssText = "display:flex;flex-direction:column;gap:2px;font-size:13px;";
         const head = document.createElement("div");
@@ -384,10 +388,18 @@ export function createHud(root, handlers) {
           onLive(Number(range.value));
         });
         range.addEventListener("change", () => onSet(Number(range.value)));
+        const sides = document.createElement("div");
+        sides.style.cssText = "display:flex;justify-content:space-between;font-size:11px;opacity:0.85;";
+        for (const end of ends) {
+          const side = document.createElement("span");
+          side.textContent = end;
+          sides.append(side);
+        }
+        range.setAttribute("aria-valuetext", `${shown(value)} (${ends[0]} to ${ends[1]})`);
         const hint = document.createElement("div");
         hint.style.cssText = "font-size:11px;opacity:0.7;line-height:1.3;";
         hint.textContent = what;
-        block.append(head, range, hint);
+        block.append(head, range, sides, hint);
         rows.push(block);
       };
       const signed = (value) => (value > 0 ? `+${value.toFixed(2)}` : value.toFixed(2));
@@ -727,22 +739,26 @@ export function createHud(root, handlers) {
         });
         // Build and face: shape keys, and the bones' lengths.
         const shapeSlider = (entry) => {
-          const [key, label, , , what] = entry;
-          // (A slider with a key each side of its middle, as an anthro's neck has, goes all the way down.)
-          const [least, most] = sliderRange(entry, bodyKeys ?? []);
-          const set1 = (value) => ({ shape: { ...chosen.shape, [key]: value } });
+          const [key, label, , , what, ends] = entry;
+          // Its track: −1 to 1 with the model's own shape in the middle (0 to 1 for a one-way slider),
+          // whatever the key's own reach each way on this body (looks.js toTrack).
+          const range = sliderRange(entry, bodyKeys ?? []);
+          const set1 = (at) => ({ shape: { ...chosen.shape, [key]: Math.round(fromTrack(at, range) * 1000) / 1000 } });
           slider(
             key === "chest" && shape.body === "female" ? "Bust" : label,
             what,
-            Math.max(least, shape.shape[key]),
-            [least, most, 0.05],
+            toTrack(Math.max(range[0], Math.min(range[1], shape.shape[key])), range),
+            [range[0] < 0 ? -1 : 0, 1, 0.05],
             signed,
-            (value) => previewSoon({ ...chosen, ...set1(value) }),
-            (value) => set(set1(value)),
+            (at) => previewSoon({ ...chosen, ...set1(at) }),
+            (at) => set(set1(at)),
+            ends,
           );
         };
         section("Build", () => {
-          says("Each slider's middle is an everyday person; anything you don't move comes from their name.");
+          says(
+            "Each slider's middle is the model's own shape: right is bigger, longer or wider, left is smaller, shorter or narrower. Townsfolk start a little off the middle, from their name, so they differ; Reset puts every slider back in the middle.",
+          );
           slider(
             "Height",
             "Shorter or taller, all of them at once.",
@@ -751,10 +767,11 @@ export function createHud(root, handlers) {
             share,
             (value) => previewSoon({ ...chosen, height: value }),
             (value) => set({ height: value }),
+            ["Short", "Tall"],
           );
-          for (const entry of offered1([...SHAPES, ...ANTHRO_SHAPES.filter((each) => each[5] === "build")]))
+          for (const entry of offered1([...SHAPES, ...ANTHRO_SHAPES.filter((each) => each[6] === "build")]))
             shapeSlider(entry);
-          for (const [key, label, least, most, what] of LIMBS) {
+          for (const [key, label, least, most, what, ends] of LIMBS) {
             const set1 = (value) => ({ limbs: { ...chosen.limbs, [key]: value } });
             slider(
               label,
@@ -764,11 +781,12 @@ export function createHud(root, handlers) {
               share,
               (value) => previewSoon({ ...chosen, ...set1(value) }),
               (value) => set(set1(value)),
+              ends,
             );
           }
         });
         section("Face", () => {
-          for (const entry of offered1([...FACE, ...ANTHRO_SHAPES.filter((each) => each[5] === "face")]))
+          for (const entry of offered1([...FACE, ...ANTHRO_SHAPES.filter((each) => each[6] === "face")]))
             shapeSlider(entry);
           // Brow and lash styles (MakeHuman's): the ones this body has. Their colour is under Colours.
           for (const [field, label, what] of [
@@ -1220,13 +1238,19 @@ export function createHud(root, handlers) {
       });
       const buttons = document.createElement("div");
       buttons.style.cssText = "display:flex;gap:8px;";
-      const reset = button("Reset", "Forget these choices: back to the look their name gives", () => {
-        picking = null;
-        chosen = {};
-        handlers.onSetLook(id, null);
-        showPreview({});
-        void handlers.lookOf(id).then(refresh);
-      });
+      // Reset: every choice forgotten, and every slider back at the model's own shape (its middle, or the left
+      // end of a one-way one), which is where the player starts; the colours, hair and clothes are their name's.
+      const reset = button(
+        "Reset",
+        "Forget these choices: every slider back to the model's own shape, the rest as their name gives",
+        () => {
+          picking = null;
+          chosen = avatar ? { ...NEUTRAL_LOOK } : {};
+          handlers.onSetLook(id, avatar ? chosen : null);
+          showPreview(chosen);
+          void handlers.lookOf(id).then(refresh);
+        },
+      );
       const done = button("Done", "Close", closeLook);
       for (const control of [reset, done]) control.style.cssText += "flex:1;padding:8px 10px;";
       buttons.append(reset, done);

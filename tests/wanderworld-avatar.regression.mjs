@@ -1246,6 +1246,108 @@ for (const sex of ["male", "female"]) {
   assert.equal(born({ species: "human" }).species, "human", "a body chosen by hand wins");
   assert.equal(born({ species: "wolf" }).species, "wolf");
 
+  // ── Every slider works one way, on every body ──
+  // Its 0 is the model's own shape; the right is bigger, longer, wider or more and the left smaller, shorter,
+  // narrower or less; a two-way slider's track has 0 in the middle, a one-way one's at the left end; and
+  // each says what its two ends are.
+  const SLIDERS = [...looks.SHAPES, ...looks.FACE, ...looks.ANTHRO_SHAPES];
+  for (const entry of [...SLIDERS, ...looks.LIMBS]) {
+    const [key, , least, most, what, ends] = entry;
+    assert.ok(what && ends?.length === 2 && ends[0] !== ends[1], `${key} says what it changes, and its two ends`);
+    assert.ok(least < most);
+  }
+  for (const [key, , least, most] of looks.LIMBS)
+    assert.ok(Math.abs((least + most) / 2 - 1) < 1e-9, `${key}'s middle is the model's own (1)`);
+  assert.ok(Math.abs((looks.HEIGHTS[0] + looks.HEIGHTS[1]) / 2 - 1) < 1e-9, "the height's middle is the model's own");
+  const bodyFiles = { "human-male": files.male, "human-female": files.female, ...anthro };
+  /** How far a look's shape keys move a body's surface, summed over it, measured `way` (metres × vertices). */
+  const moved = (file, weights, way) => {
+    let sum = 0;
+    for (const mesh of file.meshes.filter((each) => !each.piece)) {
+      const normal = arrayOf(Int8Array, mesh.normal);
+      const position = arrayOf(Int16Array, mesh.position);
+      for (const [key, morph] of Object.entries(mesh.morphs ?? {})) {
+        if (!weights[key]) continue;
+        const ids = arrayOf(mesh.count > 65535 ? Uint32Array : Uint16Array, morph.ids);
+        const delta = arrayOf(Int16Array, morph.delta);
+        ids.forEach((id, i) => {
+          const [x, y, z] = [0, 1, 2].map((c) => (delta[i * 3 + c] / morph.q) * morph.d[c] * weights[key]);
+          if (way === "outward")
+            sum += (x * normal[id * 3] + y * normal[id * 3 + 1] + z * normal[id * 3 + 2]) / 127; // (along the surface's own normal)
+          else if (way === "wider") {
+            // (The model is centred: left and right move apart.)
+            const side = mesh.box[0] + ((position[id * 3] + 32768) / 65535) * (mesh.box[3] - mesh.box[0]);
+            sum += x * (side > 0 ? 1 : -1);
+          } else sum += way === "up" ? y : z; // ("forward")
+        });
+      }
+    }
+    return sum;
+  };
+  // What "bigger" is for each slider. (Muscle and eyes aren't measured: more muscle is more shape, not more
+  // of everything, and larger eyes open the lids; both were looked at.)
+  const BIGGER = {
+    weight: "outward",
+    chest: "outward",
+    hips: "wider",
+    waist: "outward",
+    belly: "outward",
+    shoulders: "wider",
+    neck: "outward",
+    jaw: "outward",
+    cheeks: "outward",
+    nose: "outward",
+    ears: "up",
+    muzzle: "forward",
+    earSize: "up",
+    horns: "outward",
+    tailLength: "outward",
+    tail: "outward",
+  };
+  for (const [name, file] of Object.entries(bodyFiles)) {
+    const sex = name.split("-")[1];
+    const weightsAt = (shape) => keyWeights({ shape: { ...looks.NEUTRAL_LOOK.shape, ...shape } }, sex, file.keys);
+    assert.ok(
+      Object.values(weightsAt({})).every((weight) => weight === 0),
+      `the ${name} body with every slider at 0 is the model's own shape`,
+    );
+    for (const entry of SLIDERS) {
+      const [key] = entry;
+      if (!looks.hasSlider(key, file.keys, sex)) continue;
+      const [least, most] = looks.sliderRange(entry, file.keys);
+      // Its track: 0 in the middle of −1…1, or at the left end of 0…1, and back to the same value.
+      assert.equal(looks.toTrack(0, [least, most]), 0);
+      assert.equal(looks.toTrack(most, [least, most]), 1);
+      assert.equal(looks.toTrack(least, [least, most]), least < 0 ? -1 : 0, `${key}'s left end on the ${name} body`);
+      for (const at of [-1, -0.35, 0, 0.6, 1].filter((each) => each >= 0 || least < 0))
+        assert.ok(Math.abs(looks.toTrack(looks.fromTrack(at, [least, most]), [least, most]) - at) < 1e-9);
+      if (!BIGGER[key]) continue;
+      const right = moved(file, weightsAt({ [key]: most }), BIGGER[key]);
+      assert.ok(right > 0, `${key} to the right is bigger on the ${name} body (${right.toFixed(3)})`);
+      if (least < 0) {
+        const left = moved(file, weightsAt({ [key]: least }), BIGGER[key]);
+        assert.ok(left < 0, `${key} to the left is smaller on the ${name} body (${left.toFixed(3)})`);
+      }
+    }
+  }
+  // The player starts with every slider at the model's own shape (NEUTRAL_LOOK under their look, main.js),
+  // which is what Reset goes back to; townsfolk start from their name, so they differ.
+  const neutral = avatarLook("Rowan", "male", looks.NEUTRAL_LOOK);
+  assert.ok(
+    Object.values(neutral.shape).every((value) => value === 0),
+    "every shape slider at 0",
+  );
+  assert.deepEqual(neutral.limbs, { arms: 1, legs: 1, head: 1 });
+  assert.equal(neutral.height, 1);
+  assert.deepEqual(checkLook(looks.NEUTRAL_LOOK), looks.NEUTRAL_LOOK, "the neutral look is a checked look");
+  const own = avatarLook("Rowan", "male", mergeLooks(looks.NEUTRAL_LOOK, { shape: { weight: 0.4 } }));
+  assert.equal(own.shape.weight, 0.4, "a slider moved by hand sits on it");
+  assert.equal(own.shape.muscle, 0);
+  assert.ok(
+    Object.values(avatarLook("Rowan", "male").shape).some((value) => value !== 0),
+    "someone in town is a little off the middle",
+  );
+
   // Townsfolk stay human unless their look or lore says otherwise.
   for (const name of ["Bram", "Ivy", "Hank", "Lena", "Odo", "Sera"])
     assert.equal(avatarLook(name).species, "human", `${name} is human unless said`);

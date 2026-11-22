@@ -105,8 +105,16 @@ the browser that saved it first keeps it and the other one loads that save, so d
     dragon body if your build's race is Dragonborn and you haven't chosen a body.
   - **Build:** height, weight, muscle, chest (her bust), hips, waist, belly, shoulders, neck, arm length,
     leg length and head size. **Face:** jaw, cheekbones, nose, eyes and pointed ears, and a brow style
-    (of 12) and a lash style (of 4), MakeHuman's, blended softly. Each slider's middle
-    is an everyday person and says what it changes; dragged, the picture follows, and let go it's set.
+    (of 12) and a lash style (of 4), MakeHuman's, blended softly. Dragged, the picture follows, and let
+    go it's set.
+  - **Every slider works the same way:** its middle is the model's own shape, to the right is bigger,
+    longer, wider or more, and to the left smaller, shorter, narrower or less. Each says what it changes
+    and what its two ends are (Weight: Thin to Heavy; Waist: Narrow to Wide; Tail length: Short to Long).
+    A pair of shape keys is one slider (thin and heavy, a short and a long muzzle or tail, small and tall
+    ears, small and large horns, a slim and a thick neck). Pointed ears and tail thickness go one way,
+    from the left end. Your own sliders start at the model's shape; townsfolk start a little off it,
+    from their name, and the card shows where each of theirs is. Reset forgets the look's choices and
+    puts every slider back at the model's shape.
   - **Colours:** the skin is one of MakeHuman's skin pictures (Caucasian, African or Asian, each at
     their age) or the plain skin in a colour of your own; the eyes one of nine real eye pictures or the
     plain grey eye in a colour of your own; lips, nails and brows from a list or any colour (over a skin
@@ -124,7 +132,7 @@ the browser that saved it first keeps it and the other one loads that save, so d
     Unless chosen, they wear everyday clothes for their work, from their name: a townsperson's shirt and
     vest or dress, a farmer's tunic, a smith's apron, a guard's gambeson or brigandine, a noble's gown or
     long coat, a priest's robe, each in a dye of its own.
-  - Anything left unset comes from their name, within an everyday range, and from their lore's
+  - For townsfolk, anything left unset comes from their name, within an everyday range, and from their lore's
     `ww:looks:` keywords (tall, stocky, red hair, elf, old, middle-aged…): most townsfolk are young
     adults, some middle-aged and a few old, each with a skin picture of their age and brows and lashes
     of their own. A look saved before keeps its height, hair and colour, and its skin colour as a colour

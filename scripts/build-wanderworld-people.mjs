@@ -170,7 +170,8 @@ function skinnedPrimitives(gltf) {
         name: mesh.name,
         nodeName: node.name,
         extras: { ...mesh.extras, ...node.extras },
-        // (Shape keys: Blender's exporter names them in the mesh's extras.)
+        // (Shape keys: Blender's exporter names them in the mesh's extras. A mesh's default weights are
+        // left unread: the mesh is packed at rest, and the look drives every key.)
         targets: primitive.targets?.map((target) => ({
           position: gltf.accessor(target.POSITION),
           normal: target.NORMAL === undefined ? null : gltf.accessor(target.NORMAL),

@@ -306,33 +306,38 @@ export const SPECIES = [
 /** The clothing slots an anthro body leaves empty for now: head pieces don't fit a muzzle, nor shoes a paw. */
 export const ANTHRO_BARE_SLOTS = new Set(["head", "brow", "feet"]);
 
-/** The build sliders: [look field, label, least, most, what it changes]. 0 is an everyday person. */
+// Every slider works one way: its value 0 is the model's own shape, the right is bigger, longer, wider or
+// more, and the left smaller, shorter, narrower or less. A two-way slider has the model's shape in the
+// middle of its track; a one-way slider has it at the left end. Each says what its two ends are.
+// (tests/wanderworld-avatar.regression.mjs measures each key's direction on every body.)
+
+/** The build sliders: [look field, label, least, most, what it changes, its ends: [left, right]]. */
 export const SHAPES = [
-  ["weight", "Weight", -1, 1, "Thinner to heavier, all over."],
-  ["muscle", "Muscle", -0.5, 1, "Softer to more muscular."],
-  ["chest", "Chest", -0.5, 1, "A flatter or fuller chest (her bust)."],
-  ["hips", "Hips", -0.5, 1, "Narrower or wider hips and seat."],
-  ["waist", "Waist", -1, 0.5, "A narrower or wider waist."],
-  ["belly", "Belly", -0.5, 1, "A flatter or rounder belly."],
-  ["shoulders", "Shoulders", -0.5, 1, "Narrower or broader shoulders."],
-  ["neck", "Neck", -0.5, 1, "A slimmer or thicker neck."],
+  ["weight", "Weight", -1, 1, "Thinner to heavier, all over.", ["Thin", "Heavy"]],
+  ["muscle", "Muscle", -0.5, 1, "Softer to more muscular.", ["Soft", "Muscular"]],
+  ["chest", "Chest", -0.5, 1, "A flatter or fuller chest (her bust).", ["Flat", "Full"]],
+  ["hips", "Hips", -0.5, 1, "Narrower or wider hips and seat.", ["Narrow", "Wide"]],
+  ["waist", "Waist", -1, 0.5, "A narrower or wider waist.", ["Narrow", "Wide"]],
+  ["belly", "Belly", -0.5, 1, "A flatter or rounder belly.", ["Flat", "Round"]],
+  ["shoulders", "Shoulders", -0.5, 1, "Narrower or broader shoulders.", ["Narrow", "Broad"]],
+  ["neck", "Neck", -0.5, 1, "A slimmer or thicker neck.", ["Slim", "Thick"]],
 ];
 /** The face sliders, the same way. */
 export const FACE = [
-  ["jaw", "Jaw", -0.5, 1, "A softer or a squarer, stronger jaw and chin."],
-  ["cheeks", "Cheekbones", -0.5, 1, "Flatter or higher, fuller cheekbones."],
-  ["nose", "Nose", -0.5, 1, "A smaller or larger nose."],
-  ["eyes", "Eyes", -0.5, 1, "Smaller or larger eyes."],
-  ["ears", "Pointed ears", 0, 1, "Round ears to long, pointed ones, as an elf's."],
+  ["jaw", "Jaw", -0.5, 1, "A softer or a squarer, stronger jaw and chin.", ["Soft", "Strong"]],
+  ["cheeks", "Cheekbones", -0.5, 1, "Flatter or higher, fuller cheekbones.", ["Flat", "Full"]],
+  ["nose", "Nose", -0.5, 1, "A smaller or larger nose.", ["Small", "Large"]],
+  ["eyes", "Eyes", -0.5, 1, "Smaller or larger eyes.", ["Small", "Large"]],
+  ["ears", "Pointed ears", 0, 1, "Round ears to long, pointed ones, as an elf's.", ["Round", "Pointed"]],
 ];
 /** The anthro bodies' own sliders, the same way, and the card's section each is in. A body has those its
  *  model has the shape keys for (hasSlider). */
 export const ANTHRO_SHAPES = [
-  ["muzzle", "Muzzle", -1, 1, "A shorter or a longer muzzle.", "face"],
-  ["earSize", "Ears", -1, 1, "Smaller or taller ears.", "face"],
-  ["horns", "Horns", -1, 1, "Smaller or larger horns.", "face"],
-  ["tailLength", "Tail length", -1, 1, "A shorter or a longer tail.", "build"],
-  ["tail", "Tail thickness", 0, 1, "A thicker tail.", "build"],
+  ["muzzle", "Muzzle", -1, 1, "A shorter or a longer muzzle.", ["Short", "Long"], "face"],
+  ["earSize", "Ears", -1, 1, "Smaller or taller ears.", ["Small", "Tall"], "face"],
+  ["horns", "Horns", -1, 1, "Smaller or larger horns.", ["Small", "Large"], "face"],
+  ["tailLength", "Tail length", -1, 1, "A shorter or a longer tail.", ["Short", "Long"], "build"],
+  ["tail", "Tail thickness", 0, 1, "A slim tail to a thicker one.", ["Slim", "Thick"], "build"],
 ];
 /**
  * The shape keys a slider drives when they aren't one of its own name: [the key below the middle, the key
@@ -358,12 +363,36 @@ export const sliderRange = ([slider, , least, most], keys) => [
   keys.includes(KEY_PAIRS[slider]?.[0]) ? -1 : least,
   most,
 ];
-/** Arm and leg length and head size: [field, label, least, most, what it changes]; 1 is the usual. */
+/**
+ * Where a slider's value is on its track, and back: the track runs from −1 to 1 with the model's own shape
+ * in the middle (a one-way slider's from 0 to 1), whatever the key's own reach each way (`range`:
+ * sliderRange's). So a key that only runs backwards half way (muscle, to −0.5) still fills its left half.
+ */
+export const toTrack = (value, [least, most]) => (value < 0 ? -value / least : value / most);
+export const fromTrack = (at, [least, most]) => (at < 0 ? -at * least : at * most);
+/** Arm and leg length and head size: [field, label, least, most, what it changes, its ends]; 1, the middle,
+ *  is the model's own. */
 export const LIMBS = [
-  ["arms", "Arm length", 0.85, 1.15, "Shorter or longer arms, no thicker."],
-  ["legs", "Leg length", 0.85, 1.15, "Shorter or longer legs, no thicker. Longer legs stand taller."],
-  ["head", "Head size", 0.9, 1.1, "A smaller or larger head (and its hair)."],
+  ["arms", "Arm length", 0.85, 1.15, "Shorter or longer arms, no thicker.", ["Short", "Long"]],
+  [
+    "legs",
+    "Leg length",
+    0.85,
+    1.15,
+    "Shorter or longer legs, no thicker. Longer legs stand taller.",
+    ["Short", "Long"],
+  ],
+  ["head", "Head size", 0.9, 1.1, "A smaller or larger head (and its hair).", ["Small", "Large"]],
 ];
+/**
+ * Every slider at the model's own shape: where the player's own look starts, and what the Look card's
+ * Reset goes back to. (Townsfolk start from their name instead, so a crowd differs: avatar.js avatarLook.)
+ */
+export const NEUTRAL_LOOK = {
+  shape: Object.fromEntries([...SHAPES, ...FACE, ...ANTHRO_SHAPES].map(([key]) => [key, 0])),
+  limbs: Object.fromEntries(LIMBS.map(([key]) => [key, 1])),
+  height: 1,
+};
 
 // ── MakeHuman's system assets (CC0): ages, skins, eye pictures, brows and lashes ──
 /** Ages: [value, label]. All grown-ups; middle-aged and old have shape keys and skins of their own. */

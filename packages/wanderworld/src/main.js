@@ -61,7 +61,7 @@ import {
   worldFromLore,
 } from "./keywords.js";
 import { lookChoices, setGenderShares } from "./people.js";
-import { checkLook, mergeLooks, raceLook } from "./looks.js";
+import { checkLook, mergeLooks, NEUTRAL_LOOK, raceLook } from "./looks.js";
 // ── The base avatar (avatar.js): the player's own body, and the townsfolk's ──
 import { avatarChoices, avatarLook, createAvatar, setUnderwearByDefault } from "./avatar.js";
 import { lookFromWords } from "./keywords.js";
@@ -3601,8 +3601,7 @@ async function choosePersona(id, redress = false) {
     const character = model
       ? await loadModelCharacter(model)
       : await createAvatar(
-          // (Under their look, what their build's race says of the body: a dragonborn's is the dragon's.)
-          mergeLooks(raceLook(buildNow()), core.looks[persona?.id] ?? {}),
+          mergeLooks(playerLook(), core.looks[persona?.id] ?? {}),
           persona?.name ?? "",
           core.bodies[persona?.id] ?? "auto",
         );
@@ -4296,8 +4295,11 @@ function loreLookOf(character) {
   const written = character.appearance ? lookFromWords(character.appearance) : {};
   return mergeLooks(written, core.save?.loreLooks?.[character.id] ?? {});
 }
-/** What lies under `id`'s own look: the player's build's race (looks.js raceLook), or a character's lore. */
-const underLookOf = (id, character) => (id === core.personaId ? raceLook(buildNow()) : loreLookOf(character));
+/** What lies under the player's own look: every slider at the model's own shape (townsfolk start from
+ *  their name instead), and what their build's race says of the body (a dragonborn's is the dragon's). */
+const playerLook = () => mergeLooks(NEUTRAL_LOOK, raceLook(buildNow()));
+/** What lies under `id`'s own look: the player's start (playerLook), or what a character's lore says. */
+const underLookOf = (id, character) => (id === core.personaId ? playerLook() : loreLookOf(character));
 
 /** The base avatar of `id` with `chosen` (a look) for the Look card's preview: a walking character. */
 function previewAvatar(id, chosen) {
