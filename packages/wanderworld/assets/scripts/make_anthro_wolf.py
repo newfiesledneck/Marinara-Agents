@@ -73,7 +73,7 @@ FEMALE = {
     "tail_k": 0.94,
     "paw": 1.22,
     "eyes_open": 0.36,
-    "cheek_tufts": 13,
+    "cheek_tufts": 10,
     "ruff_tufts": 26,
 }
 
@@ -341,12 +341,14 @@ def head_sdf(B):
             nose = smax(nose, -nostril, 0.0015)
         d = smin(d, nose, 0.006)
         skull = ellipsoid(q, (0.0, -0.058, 0.0), (0.07, 0.096, 0.064), 2.5)
+        # (Narrowing below the cheekbones: from the front the head tapers into the muzzle and jaw.)
+        skull = smax(skull, (np.abs(q[:, 0]) - (0.07 + 0.55 * np.clip(q[:, 2] + 0.012, -0.08, 0.0))) * 0.8, 0.012)
         d = smin(d, skull, 0.03)
         qa = q * np.array([-1.0, 1.0, 1.0])
         for p in (q, qa):
             brow = ellipsoid(p, (0.034, 0.008, 0.022), (0.021, 0.016, 0.0095))
-            cheek = ellipsoid(p, (0.047, -0.008, -0.033), (0.029, 0.035, 0.024))
-            jowl = ellipsoid(p, (0.036, -0.045, -0.07), (0.02, 0.036, 0.022))
+            cheek = ellipsoid(p, (0.042, -0.035, -0.022), (0.022, 0.038, 0.02))
+            jowl = ellipsoid(p, (0.03, -0.05, -0.068), (0.018, 0.034, 0.02))
             d = smin(d, brow, 0.012)
             d = smin(d, cheek, 0.015)
             d = smin(d, jowl, 0.02)
@@ -920,23 +922,26 @@ def fur_volume(B, H, mesh, F):
     around = np.linalg.norm(rel[:, :2], axis=1)
     band = smoothstep(lower - 0.004, lower + 0.035, co[:, 2]) * smoothstep(upper + 0.03, upper - 0.02, co[:, 2]) * smoothstep(0.17, 0.11, around)
     band *= 1 - mesh.W[:, [BI[f"{b}_{s}"] for b in ("upperarm", "lowerarm", "hand") for s in "lr"]].sum(1)
-    band *= smoothstep(-0.06, -0.095, q[:, 2])  # (none on the face: the cheeks have fur of their own)
+    band *= smoothstep(-0.095, -0.13, q[:, 2])  # (from the throat down: none on the jaw and cheeks)
     thick = (0.012 + 0.016 * front) * ruff
     clumps = 1 + 0.35 * saw(theta * 11 / (2 * np.pi)) * smoothstep(neck[2] + 0.06, neck[2] - 0.02, co[:, 2])
     ruff_d = thick * band * clumps
     # The cheeks: fur flaring out and back below the ears, in tufts.
     ax = np.abs(q[:, 0])
-    cheek = smoothstep(0.028, 0.05, ax) * smoothstep(0.03, -0.01, q[:, 1]) * smoothstep(-0.1, -0.075, q[:, 1]) * smoothstep(-0.125, -0.085, q[:, 2]) * smoothstep(0.0, -0.035, q[:, 2])
-    tufts = saw((q[:, 2] - 0.4 * q[:, 1]) / 0.02 + 0.3) ** 2
-    cheek_d = (0.003 + 0.011 * tufts) * cheek * B.get("cheeks_k", 1.0) * mesh.W[:, BI["Head"]]
+    # (Behind the mouth's corner and below the ear, not under the eyes: a wolf's cheek fur grows from the
+    # back of the jaw and sweeps back and down towards the neck.)
+    cheek = smoothstep(0.035, 0.055, ax) * smoothstep(-0.02, -0.05, q[:, 1]) * smoothstep(-0.11, -0.085, q[:, 1]) * smoothstep(-0.125, -0.09, q[:, 2]) * smoothstep(-0.015, -0.045, q[:, 2])
+    tufts = saw((q[:, 2] - 0.6 * q[:, 1]) / 0.02 + 0.3) ** 2
+    cheek_d = (0.002 + 0.008 * tufts) * cheek * B.get("cheeks_k", 1.0) * mesh.W[:, BI["Head"]]
     d = d + ruff_d + cheek_d
     d *= furry
     # Lying down: the ruff and cheek fur point down and back as well as out.
     out = n * d[:, None]
     lie = np.c_[np.zeros(len(co)), np.full(len(co), 0.35), np.full(len(co), -0.55)]
     out += lie * (ruff_d * 0.6)[:, None]
-    side = np.c_[np.sign(co[:, 0]) * 0.3, np.full(len(co), 0.5), np.full(len(co), -0.15)]
-    out += side * (cheek_d * 0.7)[:, None]
+    side = np.c_[np.sign(co[:, 0]) * 0.1, np.full(len(co), 0.6), np.full(len(co), -0.55)]
+    out += side * (cheek_d * 0.8)[:, None]
+    out -= n * (cheek_d * 0.4)[:, None]
     mesh.co = co + out * furry[:, None]
     mesh.tags["fur_d"] = d
     # `ruff_flat`: the ruff's volume laid flat (to 3 mm of fur), for the game to set under a collar.
@@ -955,8 +960,13 @@ def pale_field(B, H, F, p, n, tail_on):
     m = B["muzzle"]
     J = H["J"]
     z = p[:, 2]
-    head = np.interp(q[:, 1], [-0.1, -0.06, -0.02, 0.01, 0.05, 0.1 * m, 0.16 * m], [-0.08, -0.045, -0.021, -0.024, -0.031, -0.038, -0.043])
+    # (Grey under the eyes and over the muzzle, the pale fur on the lips; behind the mouth's corner the
+    # line sweeps up and back towards the ear, so the pale cheek flows back round the jaw.)
+    head = np.interp(q[:, 1], [-0.12, -0.08, -0.04, 0.0, 0.05, 0.1 * m, 0.16 * m], [-0.03, -0.036, -0.05, -0.043, -0.036, -0.038, -0.043])
     head += 0.0045 * saw(q[:, 1] / 0.014) * smoothstep(0.02, -0.03, q[:, 1])
+    # (Lower towards the sides: from the front the pale fur follows the cheek's curve down and back
+    # instead of running straight across under the eyes.)
+    head -= 0.5 * np.clip(np.abs(q[:, 0]) - 0.03, 0, None) * smoothstep(0.08, 0.0, q[:, 1]) * smoothstep(-0.05, -0.02, q[:, 1])
     out = np.clip((head - q[:, 2]) * 30, -1, 1)
     on_head = (q[:, 1] > -0.13) & (np.abs(q[:, 0]) < 0.13) & (z > J["neck_01"][2] - 0.03)
     out = np.where(on_head, out, -1.0)
@@ -964,7 +974,8 @@ def pale_field(B, H, F, p, n, tail_on):
     width = np.interp(z, [J["pelvis"][2] - 0.1, J["spine_01"][2], J["spine_02"][2], J["spine_03"][2], J["neck_01"][2], J["Head"][2]], [0.0, 0.04, 0.05, 0.07, 0.085, 0.11])
     width += 0.014 * saw(z / 0.04) * (z > J["spine_02"][2])
     front = np.clip((width - np.abs(p[:, 0])) * 20, -1, 1)
-    front = np.where((n[:, 1] < -0.1) & (z < J["Head"][2] + 0.02) & (np.abs(p[:, 0]) < 0.16), front, -1.0)
+    # (From the throat down only: on the face the line above is what draws the mask.)
+    front = np.where((n[:, 1] < -0.1) & (q[:, 2] < -0.085) & (np.abs(p[:, 0]) < 0.16), front, -1.0)
     out = np.maximum(out, front)
     for s in (1, -1):
         brow = 1 - np.linalg.norm((q - np.array([0.029 * s, 0.014, 0.027])) / np.array([0.011, 0.012, 0.0055]), axis=1)
@@ -1133,6 +1144,9 @@ def paint(B, H, F, maps, eyes):
     height = np.full((S, S), 0.5)
     on = mat >= 0
     p, n, m, a = pos[on], nrm[on], mat[on], np.clip(ao[on], 0, 1)
+    if "ruff" in maps:
+        # (Little shading under the ruff's edge: laid flat by `ruff_flat`, that skin shows.)
+        a = np.maximum(a, 0.9 * smoothstep(0.05, 0.3, maps["ruff"][on][:, 0]))
     fl = unit(flow[on])
     v = np.ones(len(p))
     hgt = np.full(len(p), 0.5)
@@ -1341,7 +1355,7 @@ def tuft_card(root, normal, direction, length, width, cell, mesh, vi, mat, lift=
     keys = {k: np.repeat(v[vi][None], len(pts), 0) for k, v in mesh.keys.items()}
     if flat:
         # (This key draws the card down into the skin it grows from: it lies flat with the fur.)
-        keys[flat] = keys[flat] + (root - n * 0.004) - pts
+        keys[flat] = keys[flat] + (root - n * 0.012) - pts
     part = aw.Mesh(pts, faces, np.full(len(faces), mat), keys, W)
     part.uv = fuv
     part.normal = n
@@ -1365,13 +1379,13 @@ def tufts(B, H, F, mesh):
     out = []
     rng = np.random.default_rng(3 if not B["female"] else 4)
     head = mesh.W[:, BI["Head"]] > 0.9
-    # The cheeks: a fan of tufts below and behind each eye, reaching out and back.
+    # The cheeks: tufts behind the jaw, sweeping back and down towards the neck.
     for s in (1, -1):
-        sel = np.nonzero(head & (q[:, 0] * s > 0.045) & (q[:, 1] < -0.012) & (q[:, 1] > -0.085) & (q[:, 2] < -0.035) & (q[:, 2] > -0.115) & (n[:, 0] * s > 0.4))[0]
-        for j in farthest(mesh.co[sel], B.get("cheek_tufts", 16)):
+        sel = np.nonzero(head & (q[:, 0] * s > 0.045) & (q[:, 1] < -0.04) & (q[:, 1] > -0.1) & (q[:, 2] < -0.05) & (q[:, 2] > -0.12) & (n[:, 0] * s > 0.4))[0]
+        for j in farthest(mesh.co[sel], B.get("cheek_tufts", 12)):
             i = sel[j]
-            d = np.array([s * 0.5, 0.75, -0.45 - 1.5 * (q[i, 2] + 0.07)])
-            out.append(tuft_card(mesh.co[i], n[i], d, rng.uniform(0.026, 0.04) * k, rng.uniform(0.018, 0.024) * k, int(rng.integers(TUFT_CELLS)), mesh, i, P["fur2_tufts"], lift=0.4))
+            d = np.array([s * 0.15, 0.7, -0.7])
+            out.append(tuft_card(mesh.co[i], n[i], d, rng.uniform(0.024, 0.036) * k, rng.uniform(0.016, 0.022) * k, int(rng.integers(TUFT_CELLS)), mesh, i, colour(i), lift=0.22))
     # The ruff: round the neck just above where it ends, pointing down over the chest and shoulders.
     neck = J["neck_01"]
     rel = mesh.co - neck
@@ -1390,7 +1404,7 @@ def tufts(B, H, F, mesh):
         sel = sel[:0]
     for j in farthest(mesh.co[sel], 4):
         i = sel[j]
-        out.append(tuft_card(mesh.co[i], n[i], np.array([0.0, 0.0, -1.0]), rng.uniform(0.04, 0.055), rng.uniform(0.028, 0.036), int(rng.integers(TUFT_CELLS)), mesh, i, colour(i), lift=0.2))
+        out.append(tuft_card(mesh.co[i], n[i], np.array([0.0, 0.0, -1.0]), rng.uniform(0.04, 0.055), rng.uniform(0.028, 0.036), int(rng.integers(TUFT_CELLS)), mesh, i, colour(i), lift=0.2, flat="ruff_flat"))
     # Out of each ear's hollow.
     for side, (base, axis, fr, lat, hh) in H["ears"].items():
         sel = np.nonzero(mesh.tags["ear_in"] > 0.5)[0]
@@ -1917,6 +1931,11 @@ def build(B, export=True):
     obj.data.normals_split_custom_set_from_vertices(vn.tolist())
     attr = obj.data.attributes.new("flow", "FLOAT_VECTOR", "POINT")
     attr.data.foreach_set("vector", flow.ravel())
+    # How far the ruff stands out at each vertex (x 30, for the bake's -1..1), to keep its underside light.
+    ruff = np.zeros((len(mesh.co), 3))
+    ruff[:, 0] = np.clip(np.linalg.norm(mesh.keys["ruff_flat"], axis=1) * 30, 0, 1)
+    attr = obj.data.attributes.new("ruff", "FLOAT_VECTOR", "POINT")
+    attr.data.foreach_set("vector", ruff.ravel())
     co = mesh.co
     aw.log(f"{name}: {len(co)} vertices, {co[:, 2].max():.3f} m to the ear tips; underwear " + ", ".join(f"{g.name} {len(g.part.co)}" for g in wear))
     pieces = wear_objects(wear, order)
@@ -1938,13 +1957,18 @@ def build(B, export=True):
         SIZE = 2048
         for o in pieces:
             o.hide_render = True  # (the body's shading baked without the underwear over it)
-        maps = aw.bake_maps(obj, SIZE, vectors=("flow",))
+        # (Baked with the ruff laid flat: the skin under its edge, folded away at rest, then gets texture of
+        # its own rather than a sliver stretched when `ruff_flat` shows it; at rest it's hidden either way.)
+        flat_key = obj.data.shape_keys.key_blocks["ruff_flat"]
+        flat_key.value = 1.0
+        maps = aw.bake_maps(obj, SIZE, vectors=("flow", "ruff"))
         for o in pieces:
             o.hide_render = False
         aw.log("maps baked")
         rgb, height = paint(B, H, F, maps, eyes)
         aw.log("painted")
         normal = aw.bake_normal(obj, height, name)
+        flat_key.value = 0.0
         normal = aw.save_image(normal, name, "normal")
         tex = aw.save_image(aw.image_from(f"{name}-texture", np.repeat(rgb[..., None] ** (1 / 2.2), 3, axis=2)), name, "texture")
         # (The lashes' and tufts' own texture coordinates, into their own small textures, once the bakes

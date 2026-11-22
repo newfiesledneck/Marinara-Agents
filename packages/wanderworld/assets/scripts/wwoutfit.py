@@ -140,7 +140,15 @@ class Body:
     def __init__(self, sex):
         self.sex = sex
         before = set(bpy.data.objects)
-        bpy.ops.import_scene.gltf(filepath=os.path.join(ww.MODELS, f"avatar-{sex}.glb"), merge_vertices=True)
+        # (The body's file is rebuilt now and then: a read caught mid-write is tried again.)
+        for attempt in range(6):
+            try:
+                bpy.ops.import_scene.gltf(filepath=os.path.join(ww.MODELS, f"avatar-{sex}.glb"), merge_vertices=True)
+                break
+            except Exception:
+                if attempt == 5:
+                    raise
+                __import__("time").sleep(20)
         new = [o for o in bpy.data.objects if o not in before]
         self.rig = next(o for o in new if o.type == "ARMATURE")
         # (The body mesh by its name: the .glb also holds the underwear meshes, which have the keys too.)
@@ -163,9 +171,11 @@ class Body:
         me.vertices.foreach_get("co", a)
         self.co = a.reshape(-1, 3).copy()
         kb = me.shape_keys.key_blocks
-        self.key_names = [k.name for k in kb][1:]
+        # (Not the race_* keys: the game carries a race's build onto clothes itself, at run time.)
+        own = [k for k in kb[1:] if not k.name.startswith("race_")]
+        self.key_names = [k.name for k in own]
         self.keys = {}
-        for k in kb[1:]:
+        for k in own:
             k.data.foreach_get("co", a)
             self.keys[k.name] = a.reshape(-1, 3).copy() - self.co
         names = {g.index: g.name for g in self.obj.vertex_groups}
@@ -221,10 +231,26 @@ class Body:
         bvh, co = self.bvh_for(values or {})
         return nearest(bvh, points)
 
-    def sample(self, points):
-        """Bone weights, shape key offsets and the surface normal at the nearest body point of each point,
-        and its signed distance from the skin."""
-        loc, nrm, tri, d = self.nearest(points)
+    def region_tris(self, regions):
+        """The surface triangles whose corners are all in `regions` (indices into tris), cached."""
+        key = tuple(sorted(regions))
+        if key not in self._bvh_cache:
+            m = np.isin(self.region[self.tris], list(regions)).all(1)
+            idx = np.nonzero(m)[0]
+            self._bvh_cache[key] = (BVHTree.FromPolygons(self.co.tolist(), self.tris[idx].tolist()), idx)
+        return self._bvh_cache[key]
+
+    def nearest_in(self, points, regions):
+        """Nearest surface point among the skin of `regions` only (a strap round the ribs must not take the
+        arm beside it): (location, normal, triangle into tris, signed distance)."""
+        bvh, idx = self.region_tris(regions)
+        loc, nrm, tri, d = nearest(bvh, points)
+        return loc, nrm, idx[tri], d
+
+    def sample(self, points, regions=None):
+        """Bone weights, shape key offsets and the surface normal at the nearest body point of each point
+        (among `regions`' skin, if given), and its signed distance from the skin."""
+        loc, nrm, tri, d = self.nearest(points) if regions is None else self.nearest_in(points, regions)
         corners = self.tris[tri]
         w = bary(self.co[corners[:, 0]], self.co[corners[:, 1]], self.co[corners[:, 2]], loc)
         W = (self.W[corners] * w[..., None]).sum(1)
@@ -1522,19 +1548,46 @@ def resample(P, N, step, closed=True):
 # ── Fitting: weights and shape keys ──────────────────────────────────────────────────────────────────
 
 
-def fit(geo, body, loose=None, rigid=None, rigid_bones=None, smooth_rounds=0, keys_rounds=None, clearance=0.002, under=None, source=None, weights=None):
+def lift_off(geo, body, floor=0.0015, rounds=3):
+    """Moves every vertex nearer the skin than `floor` (or under it) out to `floor`, smoothing the moves a
+    little over its neighbours: cords, straps, bindings and trims laid along a curved body rest ON it
+    instead of sinking in where it curves away from them."""
+    nb = geo.neighbours()
+    for _ in range(rounds):
+        loc, nrm, _, d = body.nearest(geo.co)
+        push = np.maximum(floor - d, 0)
+        if push.max() < 1e-4:
+            break
+        move = nrm * push[:, None]
+        move = np.where((push > 0)[:, None], move, geo.smooth_values(move, 1, 0.5, None, nb) * 0.5)
+        geo.co = geo.co + move
+    return geo
+
+
+def fit(geo, body, loose=None, rigid=None, rigid_bones=None, smooth_rounds=0, keys_rounds=None, clearance=0.002, under=None, source=None, weights=None, groups=None, regions=None, region_mask=None, floor=0.0015):
     """Skins geo to the body and gives it the body's shape keys.
 
     Each vertex takes the weights and key offsets of the nearest body point (barycentric). `loose` (n,)
     in 0..1 smooths both over the piece where cloth hangs free (so a skirt doesn't tear between the legs);
     `rigid` (n,) in 0..1 replaces the weights with their average over the piece (a plate moves as one);
-    `rigid_bones` limits the bones a rigid piece may follow. `source` (a fitted Geo) is sampled instead of
+    `rigid_bones` limits the bones a rigid piece may follow; `groups` (n,) ints makes each group above 0 move
+    as one (each plate of a pauldron, a lame), with the average of its weights. `source` (a fitted Geo) is sampled instead of
     the body (for buckles and straps lying on a garment). Then every key is corrected so no vertex comes
     closer than `clearance` to the morphed skin (or than its rest distance to the morphed `under` pieces)."""
+    if floor and source is None:
+        lift_off(geo, body, floor)
     if source is not None:
         W, keys, d = sample_geo(source, geo.co)
     else:
         W, keys, nrm, d = body.sample(geo.co)
+        if regions is not None:
+            # (Vertices in region_mask, all by default, take the skin of `regions` alone: straps and strings
+            # round the body move with the skin under them, not with an arm hanging beside it.)
+            m = np.ones(geo.n, dtype=bool) if region_mask is None else np.asarray(region_mask, dtype=bool)
+            W2, keys2, _, _ = body.sample(geo.co[m], regions)
+            W[m] = W2
+            for k in keys:
+                keys[k][m] = keys2[k]
     if weights is not None:
         W = weights
     nb = geo.neighbours()
@@ -1551,6 +1604,15 @@ def fit(geo, body, loose=None, rigid=None, rigid_bones=None, smooth_rounds=0, ke
             avg = avg * keep
             avg /= max(avg.sum(), 1e-9)
         W = W * (1 - rigid[:, None]) + avg[None, :] * rigid[:, None]
+    if groups is not None:
+        groups = np.asarray(groups).astype(np.int64)
+        for gid in np.unique(groups):
+            if gid <= 0:
+                continue
+            m = groups == gid
+            W[m] = W[m].mean(0)
+            for k in keys:
+                keys[k][m] = keys[k][m] * 0.5 + keys[k][m].mean(0) * 0.5
     W[W < 0.01] = 0
     W /= np.maximum(W.sum(1, keepdims=True), 1e-9)
     # Keep at most four bones a vertex (glTF's limit).
@@ -1594,7 +1656,9 @@ def correct_keys(geo, body, clearance, under, nb, rounds=8):
     """Pushes each key's offsets out where the morphed piece would come within `clearance` of the morphed
     skin (or of a morphed piece it's worn over), smoothing the push so it leaves no dent."""
     rest_loc, rest_n, _, rest_d = body.nearest(geo.co)
-    need = np.minimum(np.maximum(rest_d * 0.8, clearance), np.maximum(rest_d, clearance))
+    # (A vertex keeps at least `clearance` off the morphed skin, never more than it had at rest: a hem's
+    # turned-in strip that sits at the skin at rest, hidden under the cloth, isn't pushed out through it.)
+    need = np.minimum(np.maximum(rest_d * 0.8, clearance), rest_d)
     for k in body.key_names:
         D = geo.keys[k]
         if np.abs(body.keys[k]).max() < 1e-6:

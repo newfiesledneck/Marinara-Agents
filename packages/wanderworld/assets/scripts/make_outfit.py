@@ -341,12 +341,13 @@ def shirt(body, M):
     # gathered at the wrist.
     end = M.hand_t + 0.035
     # (Room at the waist for trousers' waistband under it.)
-    torso_off = 0.0045 + 0.012 * smoothstep(M.chest_z, M.waist_z, P0[:, 2])
+    torso_off = 0.0045 + 0.004 * smoothstep(M.chest_z, M.waist_z, P0[:, 2])
     sleeve_off = 0.0055 + 0.009 * smoothstep(0.6, 1.5, t) - 0.01 * smoothstep(end - 0.17, end - 0.05, t)
     off = np.maximum(torso_off * (1 - on_arm) + sleeve_off * on_arm, 0.0045)
     wo.wrap(g, body, off, rounds=12)
     # Below the chest the shirt hangs from it and the seat instead of following the waist.
-    wo.drape(g, body, M.centre_y, M.chest_z - 0.02, hem_z - 0.05, 0.024, slope=0.3, weight=1 - on_arm)
+    # Below the waist the shirt eases over the hips instead of following them in.
+    wo.drape(g, body, M.centre_y, M.waist_z, hem_z - 0.05, 0.012, slope=0.5, weight=1 - on_arm)
     # The hem (a little lower at the front and back), the wrists, the neckline.
     ang = angle_round(P0, np.array([0, M.centre_y(hem_z), 0]))
     g.clip(hem_z - 0.02 * np.cos(ang) ** 2 - P0[:, 2])
@@ -943,7 +944,7 @@ def low_shoe(body, M, collar_z=None, offset=0.006, toe_cap=True, counter=True, s
 def boots(body, M):
     """Tall leather boots: a mid-calf shaft with a turned-down cuff, a strap and buckle at the ankle and a
     stout sole; roomy enough for trousers tucked in."""
-    return footwear(body, M, 1.4, 0.024, 0.008, cuff=True, strap_t=1.86)
+    return footwear(body, M, 1.4, 0.016, 0.008, cuff=True, strap_t=1.86)
 
 
 def shoes(body, M):
@@ -1065,6 +1066,8 @@ def skirt_loft(body, M, z_top, z_bottom, offset, flare=0.12, around=48, part="cl
 
     # (e1 to the front, e2 to the side: angle 0 is the front.)
     g = wo.loft(path, around, rad, up_hint=(0, -1, 0), seam_angle=math.pi, part=part, kind=kind, panel=panel, down=(0, 0, -1))
+    # (Cut from gores, so the texture runs straight down each and doesn't shear as the skirt flares.)
+    gore_uvs(g, around, max(4, around // 8), panel)
     ring = g.attrs["ring"][:, 0]
     ang = g.attrs["angle"][:, 0]
     depth = smoothstep(z_top - 0.08, z_bottom, g.co[:, 2])
@@ -1166,9 +1169,10 @@ def tunic(body, M):
     """A belted wool tunic to mid-thigh over the shirt: three-quarter sleeves, a round neck, contrasting
     trim at the neck, cuffs and hem, a leather belt with a buckle and a pouch."""
     waist = M.waist_z - 0.01
-    g, zn = top_shell(body, M, waist - 0.03, sleeve_t=1.5, kind="wool", torso_off=0.017, waist_off=0.026, sleeve_off=0.02, drape_off=0.032, neck_lift=0.012, decim=0.55)
+    # (Over a shirt: a little room, but shaped to the chest and taken in at the waist under the belt.)
+    g, zn = top_shell(body, M, waist - 0.03, sleeve_t=1.5, kind="wool", torso_off=0.011, waist_off=0.012, sleeve_off=0.014, drape_off=0.0, neck_lift=0.012, decim=0.55)
     hem = M.crotch - 0.17
-    sk = skirt_loft(body, M, waist + 0.02, hem, 0.034, flare=0.22, around=36, kind="wool", folds=0.01, n_folds=9, panel="skirt")
+    sk = skirt_loft(body, M, waist + 0.02, hem, 0.02, flare=0.24, around=36, kind="wool", folds=0.01, n_folds=9, panel="skirt")
     g.smooth_edges()
     loops = [g.co[lp].copy() for lp in g.edge_loops()]
     neck = max(loops, key=lambda p: p[:, 2].mean())
@@ -1328,9 +1332,11 @@ def chainmail(body, M):
     """A mail hauberk to mid-thigh with sleeves to the elbows, split front and back for riding, edged with
     a row of brass rings."""
     waist = M.waist_z - 0.01
-    g, zn = top_shell(body, M, waist - 0.03, sleeve_t=1.08, kind="chain", part="mail", torso_off=0.02, waist_off=0.034, sleeve_off=0.026, drape_off=0.04, neck_lift=0.016, decim=0.5)
+    # (Mail lies close: over a padded shirt it hangs from the shoulders and follows the figure.)
+    g, zn = top_shell(body, M, waist - 0.03, sleeve_t=1.08, kind="chain", part="mail", torso_off=0.007, waist_off=0.009, sleeve_off=0.009, drape_off=0.0, neck_lift=0.012, decim=0.5)
+    wo.drape(g, body, M.centre_y, M.waist_z + 0.02, waist - 0.08, 0.011, slope=0.5)
     hem = M.crotch - 0.15
-    sk = skirt_loft(body, M, waist + 0.03, hem, 0.044, flare=0.14, around=36, part="mail", kind="chain", folds=0.006, n_folds=8, slit=[(0.0, 0.16), (math.pi, 0.16)])
+    sk = skirt_loft(body, M, waist + 0.02, hem, 0.018, flare=0.2, around=40, part="mail", kind="chain", folds=0.005, n_folds=9, slit=[(0.0, 0.16), (math.pi, 0.16)])
     g.smooth_edges()
     g.join(sk)
     edges = [g.co[lp].copy() for lp in g.edge_loops()]
@@ -1343,181 +1349,220 @@ def chainmail(body, M):
         P2, N2 = wo.clean_loop(P, N, 0.022)
         P2, N2 = oriented(P2, N2, UP if c[2] < waist else -UP)
         g.join(wo.strip(P2 + N2 * 0.001, N2, 0.014, 0.004, part="trim", kind="metal", panel="trim"))
-    wo.fit(g, body, loose=smoothstep(waist, hem, g.co[:, 2]) * (g.co[:, 2] < waist), smooth_rounds=8, clearance=0.006)
+    wo.fit(g, body, loose=smoothstep(waist, hem, g.co[:, 2]) * (g.co[:, 2] < waist), smooth_rounds=8, clearance=0.004)
     return g
 
 
+def arm_frame(M, s):
+    """One shoulder's frame: the upper arm's joint, its direction down the arm (in the rest A-pose), and
+    the direction across it that is up (the outside of the arm once it hangs down)."""
+    S, E = M.J[f"upperarm_{s}"], M.J[f"lowerarm_{s}"]
+    d = unit(E - S)
+    up = unit(UP - d * (UP @ d))
+    return S, d, up
+
+
+def shoulder_lames(body, M, s, bands, offsets, part="plate", kind="plate", cap=None, width=1.75, group0=1, thickness=0.003, decim=0.7):
+    """Shoulder armour on one side: a cap over the shoulder and lames below it down the outside of the
+    upper arm, each a plate of its own (`bands`, (from, to) along the arm from its joint, metres), the
+    higher over the lower (`offsets` off the skin), each with a back face so it has thickness, each moving
+    as one (its own `group` from group0). `cap` (from, to, dome) makes the first a domed cap reaching over
+    the top of the shoulder. Only the outside of the arm, `width` radians either side of its top."""
+    sg = 1 if s == "l" else -1
+    S, d, up = arm_frame(M, s)
+    keep = np.isin(body.bone, [f"clavicle_{s}", f"upperarm_{s}", "spine_03"]) & (body.co[:, 0] * sg > 0.06)
+    base = wo.Geo.from_body(body, body_polys(body, keep))
+    base = wo.decimate(base, decim)
+    out = None
+    for k, ((a0, a1), off) in enumerate(zip(bands, offsets)):
+        g = base.copy()
+        g.attrs = {"P0": g.co.copy()}
+        wo.wrap(g, body, off, rounds=30, factor=0.6)
+        g.co = g.smooth_values(g.co, 8, 0.5)
+        wo.wrap(g, body, off, rounds=1, factor=0.1)
+        P0 = g.attrs["P0"]
+        along = (P0 - S) @ d
+        r = P0 - S - np.outer(along, d)
+        side = np.cross(d, up)
+        ang = np.arctan2(r @ side, r @ up)
+        w = width + (0.5 if (cap is not None and k == 0) else 0.0)
+        g.clip(np.maximum(np.maximum(a0 - along, along - a1), np.abs(ang) - w))
+        # (A clean inner edge towards the neck, not the body's ragged boundary.)
+        g.clip(0.085 - g.attrs["P0"][:, 0] * sg)
+        if not g.faces:
+            continue
+        if cap is not None and k == 0:
+            P0 = g.attrs["P0"]
+            along = (P0 - S) @ d
+            mid = (a0 + a1) / 2
+            bump = np.clip(1 - ((along - mid) / ((a1 - a0) / 2 + 1e-6)) ** 2, 0, 1)
+            g.displace(cap * bump)
+        g.co = g.smooth_values(g.co, 2, 0.4)
+        g.smooth_edges(rounds=4)
+        g.part = [part] * len(g.faces)
+        g.kind = [kind] * len(g.faces)
+        g.panel = [f"lame_{s}{k}"] * len(g.faces)
+        g.down = [tuple(d)] * len(g.faces)
+        g.attrs = {}
+        lined(g, part=part, kind=kind, depth=thickness)
+        g.attrs["group"] = np.full((g.n, 1), float(group0 + k))
+        out = g if out is None else out.join(g)
+    return out
+
+
+def lame_strap(g, M, s, a0, a1, part="leather", lift=0.0015, width=0.022, studs="metal"):
+    """A strap down the outside of the upper arm over its lames, riveted where it crosses each."""
+    S, d, up = arm_frame(M, s)
+    bvh, _ = wo.geo_bvh(g)
+    pts, nrm = [], []
+    for a in np.linspace(a0, a1, 10):
+        c = S + d * a
+        hit = bvh.ray_cast(wo.Vector(c + up * 0.3), wo.Vector(-up), 0.3)
+        if hit[0] is not None:
+            pts.append(np.array(hit[0]))
+            nrm.append(np.array(hit[1]))
+    if len(pts) < 3:
+        return
+    P, N = np.array(pts), unit(np.array(nrm))
+    st = wo.strip(P + N * lift, N, width, 0.003, part=part, kind="leather", closed=False, panel=f"strap_{s}")
+    st.attrs["group"] = np.zeros((st.n, 1))
+    g.join(st)
+    for p, n in zip(P[1:-1:2], N[1:-1:2]):
+        g.join(wo.stud(p + n * (lift + 0.003), n, 0.0045, 0.003, part=studs, kind="metal", sides=6))
+
+
+def lame_rivets(g, M, s, bands, spread=1.2, part="metal"):
+    """Rivets joining each lame to the one above, at the front and back of the arm and on top, so the
+    plates read as fixed together."""
+    S, d, up = arm_frame(M, s)
+    side = np.cross(d, up)
+    bvh, _ = wo.geo_bvh(g)
+    for a0, a1 in bands[1:]:
+        a = a0 + 0.012
+        for ang in (-spread, 0.0, spread):
+            dirn = up * math.cos(ang) + side * math.sin(ang)
+            hit = bvh.ray_cast(wo.Vector(S + d * a + dirn * 0.3), wo.Vector(-dirn), 0.3)
+            if hit[0] is not None:
+                n = unit(np.array(hit[1]))
+                g.join(wo.stud(np.array(hit[0]) + n * 0.0005, n, 0.0045, 0.0028, part=part, kind="metal", sides=6))
+
+
 def leather_armour(body, M):
-    """A sleeveless leather jerkin to the hips, buckled shut down the front with three straps, with layered
-    shoulder pads and studs."""
+    """A tailored leather jerkin to the hips: close over the chest and back, taken in at the waist and
+    easing over the hips, close at the armholes, edged in darker leather, buckled shut with three straps;
+    leather spaulders of a cap and two lames over each shoulder, riveted to a strap."""
     hem = M.crotch + 0.07
-    g, zn = top_shell(body, M, hem, sleeve_t=None, kind="leather", part="leather", torso_off=0.024, waist_off=0.04, drape_off=0.048, neck_lift=0.018, decim=0.7)
-    g.smooth_edges()
+    g, zn = top_shell(body, M, hem, sleeve_t=None, kind="leather", part="leather", torso_off=0.009, waist_off=0.009, drape_off=0.0, neck_lift=0.012, decim=0.6)
+    # Easing over the hips below the waist, not hanging from the bust.
+    wo.drape(g, body, M.centre_y, M.waist_z, hem - 0.05, 0.011, slope=0.6)
+    g.smooth_edges(rounds=3)
     edges = [g.co[lp].copy() for lp in g.edge_loops()]
-    if os.environ.get("WW_DEBUG_COUNT"):
-        wo.log("  leather loops: " + ", ".join(f"{len(P)}:{np.linalg.norm(np.diff(P, axis=0), axis=1).sum():.2f}m@z{P[:, 2].mean():.2f}" for P in edges))
-    g.rim(depth=0.006, back=0.0)
+    g.rim(depth=0.005, back=0.012)
     for P in edges:
+        if len(P) < 6:
+            continue
         c = P.mean(0)
         N = unit(P - c)
-        P2, N2 = wo.clean_loop(P, N, 0.022)
+        P2, N2 = wo.clean_loop(P, N, 0.014)
         P2, N2 = oriented(P2, N2, -UP if c[2] > M.chest_z else UP)
-        g.join(wo.strip(P2 + N2 * 0.001, N2, 0.016, 0.004, part="trim", kind="leather", panel="edge"))
+        T = np.roll(P2, -1, 0) - P2
+        B = unit(np.cross(N2, T))
+        g.join(wo.strip(P2 + N2 * 0.0008 + B * 0.005, N2, 0.014, 0.003, part="trim", kind="leather", panel="edge"))
     # Three straps with buckles across the front.
-    nrm = g.vertex_normals()
-    for k, z in enumerate(np.linspace(M.chest_z - 0.02, M.waist_z + 0.02, 3)):
+    for z in np.linspace(M.chest_z - 0.04, M.waist_z + 0.0, 3):
         nrm = g.vertex_normals()
         P, N = wo.surface_loop(g, g.co[:, 2] - z, nrm)
-        keep = (P[:, 1] < M.centre_y(z)) & (np.abs(P[:, 0]) < 0.1)
+        keep = (P[:, 1] < M.centre_y(z)) & (np.abs(P[:, 0]) < 0.06)
         P, N = P[keep], N[keep]
         if len(P) < 4:
             continue
         order = np.argsort(P[:, 0])
-        P, N = P[order], N[order]
-        P, N = wo.resample(P, N, 0.01, closed=False)
+        P, N = wo.resample(P[order], N[order], 0.008, closed=False)
         P, N = oriented(P, N, UP)
-        g.join(wo.strip(P + N * 0.003, N, 0.022, 0.004, part="trim", kind="leather", closed=False, panel="strap"))
-        j = len(P) // 2 + 2
-        g.join(wo.box_ring(P[j] + N[j] * 0.008, N[j], UP, 0.03, 0.032, 0.005, 0.004, part="metal", kind="metal"))
-    # Shoulder pads: three overlapping leather lames over each shoulder.
-    for s, sg in (("l", 1), ("r", -1)):
-        S, E = M.J[f"upperarm_{s}"], M.J[f"lowerarm_{s}"]
-        d = unit(E - S)
-        for k in range(3):
-            t0 = -0.02 + k * 0.045
-            keep = M.surf & np.isin(body.bone, [f"upperarm_{s}", f"clavicle_{s}"])
-            pts_d = (body.co - S) @ d
-            keep &= (pts_d > t0 - 0.03) & (pts_d < t0 + 0.06) & (body.co[:, 2] > S[2] - 0.06 - k * 0.03)
-            sub = wo.Geo.from_body(body, body_polys(body, keep))
-            if sub.n < 10:
-                continue
-            sub = wo.decimate(sub, 0.18)
-            wo.wrap(sub, body, 0.04 + 0.008 * (2 - k), rounds=20)
-            sub.clip(t0 - (sub.co - S) @ d)
-            sub.clip((sub.co - S) @ d - (t0 + 0.055))
-            # Only the top half of the arm.
-            sub.clip(S[2] - 0.05 - k * 0.035 - sub.co[:, 2])
-            sub.smooth_edges()
-            sub.part = ["leather"] * len(sub.faces)
-            sub.kind = ["leather"] * len(sub.faces)
-            sub.panel = [f"pad_{s}{k}"] * len(sub.faces)
-            sub.down = [tuple(d)] * len(sub.faces)
-            sub.attrs = {}
-            loops = sub.edge_loops()
-            sub.rim(depth=0.005, back=0.0)
-            g.join(sub)
-    wo.fit(g, body, loose=smoothstep(M.waist_z, hem, g.co[:, 2]) * 0.6, smooth_rounds=6, clearance=0.006)
+        g.join(wo.strip(P + N * 0.0015, N, 0.02, 0.0035, part="trim", kind="leather", closed=False, panel="strap"))
+        j = len(P) // 2 + 1
+        g.join(wo.box_ring(P[j] + N[j] * 0.0055, N[j], UP, 0.026, 0.028, 0.0045, 0.0035, part="metal", kind="metal"))
+    g.attrs = {}
+    g.attrs["group"] = np.zeros((g.n, 1))
+    for s, gid in (("l", 1), ("r", 10)):
+        sp = shoulder_lames(body, M, s, [(-0.07, 0.045), (0.03, 0.095), (0.08, 0.145)], [0.02, 0.016, 0.013], part="leather", kind="leather", cap=0.006, width=1.7, group0=gid, thickness=0.004)
+        lame_strap(sp, M, s, -0.03, 0.14, part="trim", studs="metal")
+        g.join(sp)
+    wo.fit(g, body, loose=smoothstep(M.waist_z, hem, g.co[:, 2]) * 0.4, smooth_rounds=4, clearance=0.004, groups=g.attrs["group"][:, 0])
     return g
 
 
 def plate_cuirass(body, M):
-    """A steel breastplate and backplate, smooth and rigid, with rolled edges, a central ridge and two
-    lames of faulds below the waist, riveted, with leather straps at the sides."""
+    """A steel breastplate and backplate shaped to the body (a breast for her, a chest for him), about a
+    centimetre off it, with rolled edges, a soft ridge down the front and two lames of faulds below the
+    waist, riveted, with leather straps at the sides."""
     hem = M.waist_z - 0.03
     sel = ["spine_01", "spine_02", "spine_03", "clavicle_l", "clavicle_r", "pelvis", "neck_01", "upperarm_l", "upperarm_r"]
     keep = np.isin(body.bone, sel)
-    g = wo.decimate(wo.Geo.from_body(body, body_polys(body, keep)), 0.7)
+    g = wo.decimate(wo.Geo.from_body(body, body_polys(body, keep)), 0.6)
     P0 = g.co.copy()
     g.attrs["P0"] = P0.copy()
-    wo.wrap(g, body, 0.05, rounds=40, factor=0.6)
-    wo.drape(g, body, M.centre_y, M.chest_z, hem - 0.05, 0.055, slope=0.15)
-    g.co = g.smooth_values(g.co, 6, 0.5)
-    wo.wrap(g, body, 0.045, rounds=2)
+    wo.wrap(g, body, 0.013, rounds=40, factor=0.6)
+    g.co = g.smooth_values(g.co, 8, 0.5)
+    wo.wrap(g, body, 0.012, rounds=2, factor=0.2)
     g.clip(hem - P0[:, 2])
     P0 = g.attrs["P0"]
-    g.clip(M.armhole(P0) + 0.045)
+    g.clip(M.armhole(P0) + 0.04)
     P0 = g.attrs["P0"]
     zn = neckline(body, M, lift=0.0)
-    g.clip(P0[:, 2] - (zn(P0) - 0.03))
+    g.clip(P0[:, 2] - (zn(P0) - 0.025))
     P0 = g.attrs["P0"]
     g.split(P0[:, 1] - M.centre_y(P0[:, 2]), edge_class="cut")
     P0 = g.attrs["P0"]
     for i, f in enumerate(g.faces):
         c = P0[f].mean(0)
         g.panel[i] = "back" if c[1] > M.centre_y(c[2]) else "breast"
-    # A soft central ridge down the breastplate.
     front = g.co[:, 1] < M.centre_y(g.co[:, 2])
-    g.co[:, 1] -= 0.008 * np.exp(-((g.co[:, 0] / 0.05) ** 2)) * front
+    g.co[:, 1] -= 0.004 * np.exp(-((g.co[:, 0] / 0.04) ** 2)) * front
     g.part = ["plate"] * len(g.faces)
     g.kind = ["plate"] * len(g.faces)
     g.smooth_edges(rounds=6)
     edges = [g.co[lp].copy() for lp in g.edge_loops()]
-    g.rim(depth=0.004, back=0.0)
+    g.attrs = {}
+    lined(g, part="plate", kind="plate", depth=0.003)
     for P in edges:
         c = P.mean(0)
         N = unit(P - c)
-        P2, N2 = wo.clean_loop(P, N, 0.018)
-        P2, N2 = oriented(P2, N2, -UP if c[2] > M.chest_z else UP)
-
-        g.join(wo.tube(np.concatenate([P2, P2[:1]]) + N2[np.r_[np.arange(len(P2)), 0]] * 0.003, 0.005, sides=6, part="plate", kind="plate", panel="roll", caps=False))
-    # Faulds: two lames hanging from the waist.
+        P2, N2 = wo.clean_loop(P, N, 0.016)
+        g.join(wo.tube(np.concatenate([P2, P2[:1]]) + N2[np.r_[np.arange(len(P2)), 0]] * 0.002, 0.0042, sides=6, part="plate", kind="plate", panel="roll", caps=False))
     for k in range(2):
-        zt = hem + 0.01 - k * 0.05
-        lame = skirt_loft(body, M, zt, zt - 0.06, 0.06 + 0.006 * k, flare=0.25, around=40, part="plate", kind="plate", folds=0.0, panel=f"fauld{k}")
+        zt = hem + 0.01 - k * 0.045
+        lame = skirt_loft(body, M, zt, zt - 0.055, 0.016 + 0.005 * k, flare=0.3, around=40, part="plate", kind="plate", folds=0.0, panel=f"fauld{k}")
         lame.attrs = {}
         top = lame.co[:40].copy()
-        lame.rim(depth=0.004, back=0.0)
+        lined(lame, part="plate", kind="plate", depth=0.003)
         g.join(lame)
         for a in np.linspace(-math.pi, math.pi, 10, endpoint=False):
             i = int((a + math.pi) / (2 * math.pi) * 40) % 40
-            p = top[i] - UP * 0.012
+            p = top[i] - UP * 0.01
             n = unit((p - np.array([0, M.centre_y(p[2]), p[2]])) * np.array([1, 1, 0]))
-            g.join(wo.stud(p + n * 0.001, n, 0.005, 0.003, part="metal", kind="metal"))
-    # Side straps joining the plates.
+            g.join(wo.stud(p + n * 0.001, n, 0.0045, 0.0028, part="metal", kind="metal"))
     for sg in (1, -1):
-        for z in (M.chest_z - 0.06, M.waist_z + 0.04):
-            p, n = near_surface(g, np.array([sg * 0.4, M.centre_y(z), z]), 0.002, direction=(-sg, 0, 0))
-            pts = np.array([p + np.array([0, -0.035, 0]), p, p + np.array([0, 0.035, 0])])
-            g.join(wo.strip(pts, np.repeat(n[None], 3, 0), 0.02, 0.004, part="leather", kind="leather", closed=False))
-            g.join(wo.box_ring(p + np.array([0, -0.03, 0]) + n * 0.005, n, UP, 0.024, 0.026, 0.004, 0.003, part="metal", kind="metal"))
-    rigid = np.ones(g.n)
-    wo.fit(g, body, rigid=rigid * 0.85, rigid_bones=["spine_02", "spine_03", "spine_01"], clearance=0.01)
+        for z in (M.chest_z - 0.06, M.waist_z + 0.03):
+            p, n = near_surface(g, np.array([sg * 0.4, M.centre_y(z), z]), 0.001, direction=(-sg, 0, 0))
+            pts = np.array([p + np.array([0, -0.03, 0]), p, p + np.array([0, 0.03, 0])])
+            g.join(wo.strip(pts, np.repeat(n[None], 3, 0), 0.02, 0.0035, part="leather", kind="leather", closed=False))
+            g.join(wo.box_ring(p + np.array([0, -0.025, 0]) + n * 0.0045, n, UP, 0.022, 0.024, 0.004, 0.003, part="metal", kind="metal"))
+    rigid = smoothstep(hem - 0.01, hem + 0.03, g.co[:, 2])
+    wo.fit(g, body, rigid=rigid * 0.85, rigid_bones=["spine_02", "spine_03", "spine_01"], loose=1 - rigid, smooth_rounds=4, clearance=0.008)
     return g
 
 
 def pauldrons(body, M):
-    """Steel pauldrons: a domed cap over each shoulder and three lames below it, riveted, on a strap."""
-    g_all = None
-    for s, sg in (("l", 1), ("r", -1)):
-        S, E = M.J[f"upperarm_{s}"], M.J[f"lowerarm_{s}"]
-        d = unit(E - S)
-        C = M.J[f"clavicle_{s}"]
-        for k in range(4):
-            t0 = -0.07 + k * 0.05
-            keep = M.surf & np.isin(body.bone, [f"upperarm_{s}", f"clavicle_{s}", "spine_03"]) & (body.co[:, 0] * sg > 0.04)
-            dd0 = (body.co - S) @ d
-            keep &= (dd0 > t0 - 0.05) & (dd0 < t0 + 0.08)
-            sub = wo.Geo.from_body(body, body_polys(body, keep))
-            if sub.n < 10:
-                continue
-            sub = wo.decimate(sub, 0.2)
-            wo.wrap(sub, body, 0.06 + 0.012 * (3 - k) * (k > 0) + 0.03 * (k == 0), rounds=30, factor=0.6)
-            sub.co = sub.smooth_values(sub.co, 6, 0.5)
-            width = 0.07 if k == 0 else 0.055
-            sub.clip(t0 - (sub.co - S) @ d)
-            sub.clip((sub.co - S) @ d - (t0 + width))
-            sub.clip(S[2] - 0.07 - 0.03 * k - sub.co[:, 2])
-            sub.clip(np.abs(sub.co[:, 0]) * -1 + 0.07)
-            if not sub.faces:
-                continue
-            sub.smooth_edges(rounds=5)
-            sub.part = ["plate"] * len(sub.faces)
-            sub.kind = ["plate"] * len(sub.faces)
-            sub.panel = [f"lame_{s}{k}"] * len(sub.faces)
-            sub.down = [tuple(d)] * len(sub.faces)
-            sub.attrs = {}
-            loops = [sub.co[lp].copy() for lp in sub.edge_loops()]
-            sub.rim(depth=0.004, back=0.0)
-            for P in loops[:1]:
-                P2, N2 = wo.clean_loop(P, unit(P - (S + d * (t0 + width / 2))), 0.018)
-                tube = wo.tube(np.concatenate([P2, P2[:1]]), 0.004, sides=6, part="plate", kind="plate", panel="roll", caps=False)
-                sub.join(tube)
-                for j in range(0, len(P2), max(1, len(P2) // 5)):
-                    nrm = unit(P2[j] - (S + d * (t0 + width / 2)))
-                    sub.join(wo.stud(P2[j] + nrm * 0.004 + d * 0.008, nrm, 0.005, 0.003, part="metal", kind="metal"))
-            g_all = sub if g_all is None else g_all.join(sub)
-    g = g_all
-    wo.fit(g, body, loose=np.ones(g.n), smooth_rounds=6, clearance=0.012)
+    """Steel pauldrons: a domed cap over each shoulder with a rolled lower edge, and three lames below it
+    down the outside of the upper arm, each tucked under the one above, riveted to a leather strap that
+    runs down the arm; each plate moves as one and the set follows the arm."""
+    g = None
+    for s, gid in (("l", 1), ("r", 10)):
+        sp = shoulder_lames(body, M, s, [(-0.08, 0.05), (0.035, 0.1), (0.085, 0.15), (0.135, 0.2)], [0.026, 0.021, 0.018, 0.015], part="plate", kind="plate", cap=0.01, width=1.8, group0=gid, thickness=0.003)
+        lame_rivets(sp, M, s, [(-0.08, 0.05), (0.035, 0.1), (0.085, 0.15), (0.135, 0.2)])
+        g = sp if g is None else g.join(sp)
+    wo.fit(g, body, clearance=0.008, groups=g.attrs["group"][:, 0])
     return g
 
 
@@ -1548,7 +1593,7 @@ def bracers(body, M):
     g_all = None
     for s in ("l", "r"):
         E, W = M.J[f"lowerarm_{s}"], M.J[f"hand_{s}"]
-        g, path = limb_loft(body, M, (E, W), 0.3, 0.9, [f"lowerarm_{s}"], lambda t: 0.024 - 0.004 * t, around=20, rings=10, panel=f"bracer_{s}")
+        g, path = limb_loft(body, M, (E, W), 0.3, 0.9, [f"lowerarm_{s}"], lambda t: 0.017 - 0.003 * t, around=20, rings=10, panel=f"bracer_{s}")
         ang = g.attrs["angle"][:, 0]
         ring = g.attrs["ring"][:, 0]
         # The splint: the top third, out over the leather a little.
@@ -1600,7 +1645,7 @@ def greaves(body, M):
     g_all = None
     for s in ("l", "r"):
         K, A = M.J[f"calf_{s}"], M.J[f"foot_{s}"]
-        g, path = limb_loft(body, M, (K, A), 0.12, 0.9, [f"calf_{s}"], lambda t: 0.042, around=24, rings=12, panel=f"greave_{s}", part="plate", kind="plate")
+        g, path = limb_loft(body, M, (K, A), 0.12, 0.9, [f"calf_{s}"], lambda t: 0.026, around=24, rings=12, panel=f"greave_{s}", part="plate", kind="plate")
         ang = np.angle(np.exp(1j * g.attrs["angle"][:, 0]))
         # Open behind.
         g.clip(np.abs(ang) - 2.3)

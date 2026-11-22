@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.55 — 2026-11-20
+
+- Clothes, the first batch refitted: leather armour and the brigandine are tailored to the body instead of hanging off it, the pauldrons, the leather armour's shoulder pads and the tassets are overlapping plates fixed in place, and the bikini's cords go all the way round with bows on the hips (they used to sink under the skin). Bikini armour and the barbarian harness sit on the body too.
+- Faces and beards: elf and tiefling women lose the gaunt shelf under the eyes, halfling and gnome women have smooth human faces, the half-orc woman is a woman, and beards grow from the cheeks and chin and turn with the head.
+- Anthro wolf: the head tapers into the muzzle from the front, without the puffy cheeks under the eyes. Anthro dragon: a much deeper neck, underwear that fits before any slider moves, and a neck that draws in under a collar.
+
 ## 0.7.54 — 2026-11-20
 
 - Standing and walking, relaxed: the animation library's own stance has the feet wide, the arms held out and the elbows bent, as if ready for a fight. People now let their arms hang by their sides and stand with their feet nearer together, a female body a little more so, with a narrower walk. Menu → Settings → Display → Standing and walking: By their body, Relaxed or Graceful for all, or As recorded. Running, working and fighting are unchanged.
