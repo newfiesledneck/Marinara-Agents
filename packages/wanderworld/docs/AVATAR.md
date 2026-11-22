@@ -214,8 +214,20 @@ Budget: up to about 30,000 vertices for a body, 2,000 to 4,000 for a hair style.
   - **Who has one:** townsfolk stay human unless their look or lore says otherwise
     (`ww:looks:wolfkin`, `wolf-folk`, `dragonborn`); a player whose build's race is Dragonborn has the
     dragon body unless one is chosen (`looks.js raceLook`).
+- **Races** (`looks.js RACES`, `raceLook`; `make_avatar.py`): six shape keys on both bodies, `race_dwarf`,
+  `race_halfling`, `race_gnome`, `race_elf`, `race_halforc` and `race_tiefling` (a half-elf is the elf's at a
+  half). A key holds what scaling can't give (the build, the girth of trunk and limbs, hands and feet, the
+  face) and leaves the skull alone, so hair, hats and horns fit every race; the game completes it by scaling
+  the whole figure, the legs, the arms and the head (a dwarf: 0.87, 0.70, 0.80, 1.18). With them come pieces
+  of the body's own file, shown by the look: `tusks-01/02`, `horns-01` to `-04`, `tail-tiefling` (on bones
+  `tail_01` to `tail_05`, swaying like an anthro's), `beard-01` to `-05` and `moustache-01` (cards cut out by
+  their texture, tinted as the hair). The look has `race`, `facialHair`, `tusks`, `horns` and `tail`; what a
+  race usually has comes from the name. **Clothes, underwear and hair carry no race keys:** each vertex
+  moves as the skin nearest it does (`avatar.js carried`: the four nearest skin vertices, worked out once a
+  piece), which costs the kit nothing; the packer leaves the race keys off the underwear for the same
+  reason, and leaves out the halfling's foot hair until it's remade.
 - **Not yet:** anthro hair, head pieces and footwear, patterns for fur and scales, wings that open, a hole
-  for the tail in what covers it, facial hair, townsfolk's clothes following where they work (it's from the
+  for the tail in what covers it, solid or glowing eyes for a tiefling, townsfolk's clothes following where they work (it's from the
   name, so the Look card and the world agree), live shape keys while a slider is dragged in the world (the
   preview is made again instead), and a cheaper body far away (each person costs the same at any
   distance; the crowd's own spacing of animation updates applies).
@@ -223,4 +235,3 @@ Budget: up to about 30,000 vertices for a body, 2,000 to 4,000 for a hair style.
 ## Open questions
 
 - Which anthro kinds after canine, feline, vulpine and lapine?
-- Facial hair: meshes like hair, or painted in the texture?

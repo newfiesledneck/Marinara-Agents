@@ -45,7 +45,13 @@ import {
   EYE_PICTURES,
   FACE,
   FUR_COLOURS,
+  HALF_ORC_SKINS,
+  HORNS,
+  RACE_PARTS,
+  RACES,
+  raceOf,
   SKINS,
+  TIEFLING_SKINS,
   TINT,
   HAIR_COLOURS,
   HAIRSTYLES,
@@ -227,7 +233,8 @@ const mixHex = (a, b, t) => {
 /**
  * Everything about how `name` looks as the base avatar, filled in: what was `chosen` (a checked look,
  * with any lore words' look under it, looks.js mergeLooks) over what the name gives. `gender`: the People
- * menu's ("male", "female", "custom" or "auto"). Plain data: { body, species, wings, gender, shape, limbs,
+ * menu's ("male", "female", "custom" or "auto"). Plain data: { body, species, wings, race, facialHair, tusks,
+ * horns, tail, gender, shape, limbs,
  * height, colours, hair, hairColour (0xRRGGBB), underwear, clothes, age, skin, brows, lashes, eyePicture,
  * seed }. The Look card shows these. An anthro body has no hair, no eye or skin picture, and nothing worn
  * that's made for a human head or foot.
@@ -236,6 +243,17 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
   const { sex, gender: own } = sexFor(name, gender, chosen);
   const species = SPECIES.some(([kind]) => kind === chosen.species) ? chosen.species : "human";
   const anthro = species !== "human";
+  // A human body's race (looks.js RACES), and what it usually has, a roll of its own again.
+  const race = !anthro && RACES.some(([value]) => value === chosen.race) ? chosen.race : "human";
+  const folk = rng(hashString(`${name || "wanderer"}:avatar-race`));
+  const oneOf = (list) => list[Math.floor(folk() * list.length)];
+  const usualParts = {
+    facialHair: race === "dwarf" && sex === "male" ? oneOf(["beard-02", "beard-03", "beard-04", "beard-04"]) : BARE,
+    tusks: race === "halforc" ? (sex === "male" ? oneOf(["tusks-01", "tusks-02"]) : "tusks-01") : BARE,
+    horns: race === "tiefling" ? oneOf(HORNS.slice(1))[0] : BARE,
+  };
+  const raceSkin = { halforc: HALF_ORC_SKINS, tiefling: TIEFLING_SKINS }[race];
+  const usualRaceSkin = raceSkin ? oneOf(raceSkin)[0] : undefined;
   const random = rng(hashString(`${name || "wanderer"}:avatar`));
   // About an everyday middle: most near it, a few further out (the sum of two rolls).
   const around = (spread) => (random() + random() - 1) * spread;
@@ -251,7 +269,9 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
   };
   const shape = {};
   for (const [key, , least, most] of [...SHAPES, ...FACE]) {
-    const usual = key === "ears" ? 0 : clamp(around(NATURAL[key] ?? 0.35), least, most);
+    // (Pointed ears are an elf's, and half as much a half-elf's.)
+    const usual =
+      key === "ears" ? ({ elf: 1, halfelf: 0.5 }[race] ?? 0) : clamp(around(NATURAL[key] ?? 0.35), least, most);
     shape[key] = chosen.shape?.[key] ?? Math.round(usual * 100) / 100;
   }
   const limbs = {};
@@ -267,13 +287,14 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
   // (An older look's skin and hair carry over: a tone's place in the list, or a colour of one's own.)
   const ownSkin =
     chosen.colours?.skin ?? chosen.skinTint ?? (Number.isInteger(chosen.skin) ? SKIN_TONES[chosen.skin][0] : undefined);
-  const skin = ownSkin ?? SKIN_TONES[usualSkin][0];
+  // (A half-orc's or tiefling's skin is a colour of their race's, unless a skin is chosen.)
+  const skin = ownSkin ?? usualRaceSkin ?? SKIN_TONES[usualSkin][0];
   // The skin picture: the look's, else "custom" for a colour of one's own (an older look's), else the one
   // nearest the name's tone. The age, brows and lashes the name gives are a roll of their own, so the rest
   // of the name's look stays as it was.
   const kind = SKINS.some(([value]) => value === chosen.skin)
     ? chosen.skin
-    : ownSkin !== undefined
+    : (ownSkin ?? usualRaceSkin) !== undefined
       ? "custom"
       : ["caucasian", "asian", "african"][Math.floor((usualSkin * 3) / SKIN_TONES.length)];
   const picture = kind !== "custom"; // (its lips and nails are the picture's own unless coloured by hand)
@@ -307,7 +328,8 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
   }
   const colours = {
     skin,
-    eyes: said.eyes ?? (anthro ? beastEyes : usualEyes),
+    eyes: said.eyes ?? (anthro ? beastEyes : ({ halforc: 0xb08a2a, tiefling: 0xe8c040 }[race] ?? usualEyes)),
+    ...(anthro ? {} : { horns: said.horns ?? HORN_COLOURS[3][0] }),
     ...(species === "wolf"
       ? {
           fur,
@@ -324,7 +346,14 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
         }
       : {}),
     // (Lips a little redder and darker than the skin, nails a little paler, brows a little darker than the hair.)
-    lips: chosen.colours?.lips ?? (picture ? WHITE : mixHex(mixHex(skin, 0xa04040, 0.35), 0x000000, 0.12)),
+    // (On a race's own skin colour the lips are the skin, darker.)
+    lips:
+      chosen.colours?.lips ??
+      (picture
+        ? WHITE
+        : skin === usualRaceSkin
+          ? mixHex(skin, 0x000000, 0.3)
+          : mixHex(mixHex(skin, 0xa04040, 0.35), 0x000000, 0.12)),
     nails: chosen.colours?.nails ?? (picture ? WHITE : mixHex(skin, 0xf6e6e0, 0.4)),
     brows: chosen.colours?.brows ?? mixHex(hairColour, 0x000000, 0.25),
     underwear:
@@ -338,6 +367,9 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
     body: sex,
     species,
     wings: chosen.wings !== false,
+    race,
+    ...Object.fromEntries(RACE_PARTS.map(([field]) => [field, anthro ? BARE : (chosen[field] ?? usualParts[field])])),
+    tail: !anthro && (chosen.tail ?? race === "tiefling"),
     gender: own,
     shape,
     limbs,
@@ -385,6 +417,9 @@ export function keyWeights(look, sex, keys, flat = false) {
       weights[high] = Math.max(0, value);
     } else weights[high] = value;
   }
+  // A race's own key (a half-elf's is the elf's, half as far).
+  const { key: raceKey, weight: raceWeight } = raceOf(look.race);
+  if (raceKey) weights[raceKey] = raceWeight;
   // (Only the keys the body has: a human piece on an anthro body follows the ones they share.)
   for (const key of Object.keys(weights)) if (!keys.includes(key)) delete weights[key];
   return weights;
@@ -451,16 +486,18 @@ function bodyKit(sex, species = "human") {
         .sort(
           (a, b) =>
             !!a.mesh.alpha - !!b.mesh.alpha ||
+            String(a.mesh.alpha).localeCompare(String(b.mesh.alpha)) ||
             String(a.mesh.texture).localeCompare(String(b.mesh.texture)) ||
             a.i - b.i,
         );
       const total = order.reduce((sum, { mesh }) => sum + mesh.count, 0);
       // (A long neck's skin is partly on the chest's bones, a dragon's most of all: what's above the neck
       // joint is neck all the same, so a tunic that hides the chest leaves it.)
-      const neckTop =
+      const jointAt = (joint) =>
         new Vector3().setFromMatrixPosition(
-          new Matrix4().fromArray(file.inverseBind, file.joints.indexOf("neck_01") * 16).invert(),
-        ).y + 0.03;
+          new Matrix4().fromArray(file.inverseBind, file.joints.indexOf(joint) * 16).invert(),
+        );
+      const neckTop = jointAt("neck_01").y + 0.03;
       const position = new Float32Array(total * 3);
       const normal = new Float32Array(total * 3);
       const uv = new Float32Array(total * 2);
@@ -499,7 +536,7 @@ function bodyKit(sex, species = "human") {
           start: offset,
           index,
           far: far ? at(far) : index,
-          group: `${mesh.alpha ? "cut" : "solid"}:${mesh.texture}`,
+          group: `${mesh.alpha || "solid"}:${mesh.texture}`,
         });
         geometry.dispose();
         offset += mesh.count;
@@ -545,6 +582,15 @@ function bodyKit(sex, species = "human") {
         brows: styles.brows.sort((a, b) => a - b),
         lashes: styles.lashes.sort((a, b) => a - b),
         eyeUvs: new Map(), // an eye picture's texture places (eyeUvsOf)
+        // (Where the head begins, for what a race's key is carried onto: carried. And a place inside the
+        // head and one in the hips, where a race's parts are tucked when they aren't worn.)
+        headBase: jointAt("Head").y,
+        tucked: {
+          head: jointAt("Head")
+            .add(new Vector3(0, 0.08, 0))
+            .toArray(),
+          hips: jointAt("pelvis").toArray(),
+        },
       };
     });
     made.catch(() => bodies.delete(name)); // (tried again next time)
@@ -553,11 +599,14 @@ function bodyKit(sex, species = "human") {
   return bodies.get(name);
 }
 
-/** Whether a mesh of the body shows with this look's underwear, brows, lashes and wings: the body's own
- *  always, a style only if chosen. */
-function worn(mesh, look, sex) {
+/** Whether a mesh of the body shows with this look's underwear, brows, lashes, wings and race's parts (facial
+ *  hair, tusks, horns, a tail): the body's own always, a style only if chosen. */
+function isWorn(mesh, look, sex) {
   if (!mesh.piece) return true;
   if (mesh.piece === "wings") return look.wings;
+  if (mesh.piece === "tail-tiefling") return look.tail;
+  const racePart = /^(beard|moustache|tusks|horns)-\d+$/u.exec(mesh.piece);
+  if (racePart) return mesh.piece === look[{ tusks: "tusks", horns: "horns" }[racePart[1]] ?? "facialHair"];
   const face = /^eye(brows|lashes)-(\d+)$/u.exec(mesh.piece);
   if (face) return Number(face[2]) === look[face[1]];
   const { underwear } = look;
@@ -570,7 +619,7 @@ function worn(mesh, look, sex) {
 /** The body's triangles that show (shared by everyone wearing the same and hiding the same), in groups. */
 function trianglesOf(kit, look, hides) {
   const { underwear } = look;
-  const key = `${underwear.top}|${underwear.bottom}|${look.brows}|${look.lashes}|${look.wings}|${[...hides].sort().join(",")}`;
+  const key = `${underwear.top}|${underwear.bottom}|${look.brows}|${look.lashes}|${look.wings}|${look.facialHair}|${look.tusks}|${look.horns}|${look.tail}|${[...hides].sort().join(",")}`;
   if (!kit.indices.has(key)) {
     const hidden = (mesh) => {
       if (
@@ -592,7 +641,7 @@ function trianglesOf(kit, look, hides) {
       }
     };
     for (const mesh of kit.meshes) {
-      if (!worn(mesh, look, kit.sex)) continue;
+      if (!isWorn(mesh, look, kit.sex)) continue;
       const hide = hidden(mesh);
       if (groups.at(-1)?.name !== mesh.group)
         groups.push({ name: mesh.group, start: kept.length, count: 0, farStart: far.length, farCount: 0, mesh });
@@ -718,6 +767,15 @@ export async function avatarChoices(sex, species = "human") {
   return {
     keys: kit.file.keys,
     wings: kit.meshes.some((mesh) => mesh.piece === "wings"),
+    // (A race's parts this body's model has: the styles of facial hair, tusks and horns, and a tail.)
+    ...Object.fromEntries(
+      RACE_PARTS.map(([field, list]) => [
+        field,
+        list.map(([style]) => style).filter((style) => kit.meshes.some((mesh) => mesh.piece === style)),
+      ]),
+    ),
+    tail: kit.meshes.some((mesh) => mesh.piece === "tail-tiefling"),
+    races: RACES.map(([race]) => race).filter((race) => !raceOf(race).key || kit.file.keys.includes(raceOf(race).key)),
     tops: kit.tops,
     bottoms: kit.bottoms,
     brows: kit.brows,
@@ -770,6 +828,113 @@ function swayOf(bones, seed) {
   };
 }
 
+// ── A race's build carried onto what's worn ──
+// A race's shape key is the skin's, and the face's own pieces'. Underwear, hair and clothes carry none: on
+// every piece they'd add several megabytes to the kit. Each of their vertices moves instead as the skin
+// nearest it does (its four nearest vertices, the closer the more), worked out once a piece and shared.
+// Above the base of the head nothing is carried: a race's key leaves the skull as it is, so hair and hats
+// fit as they are, and the face is its own.
+// ponytail: a carried move leaves the piece's normals as they were (a change of girth barely turns them);
+// if a race ever needs more, bake its key into the pieces (scripts/build-wanderworld-people.mjs).
+const CARRY_CELL = 0.04; // metres: the cells the skin's vertices are sorted into
+const CARRY_NEAREST = 4;
+const CARRY_REACH = 8; // cells: further than this from any skin, a vertex stays where it is
+const cellAt = (x, y, z) => ((x + 512) << 20) | ((y + 512) << 10) | (z + 512);
+
+/** A body's skin vertices sorted into cells, made once: cell → the vertices in it. */
+function skinCells(kit) {
+  if (!kit.cells) {
+    kit.cells = new Map();
+    for (const mesh of kit.meshes) {
+      if (mesh.piece || mesh.part !== "skin") continue;
+      for (let v = mesh.start; v < mesh.start + mesh.count; v++) {
+        const cell = cellAt(
+          Math.floor(kit.position[v * 3] / CARRY_CELL),
+          Math.floor(kit.position[v * 3 + 1] / CARRY_CELL),
+          Math.floor(kit.position[v * 3 + 2] / CARRY_CELL),
+        );
+        if (!kit.cells.has(cell)) kit.cells.set(cell, []);
+        kit.cells.get(cell).push(v);
+      }
+    }
+  }
+  return kit.cells;
+}
+
+/** For each vertex of `positions`, the body's skin vertices nearest it and their shares: { ids, shares }. */
+function nearestSkin(kit, positions) {
+  const cells = skinCells(kit);
+  const skin = kit.position;
+  const count = positions.length / 3;
+  const ids = new Uint32Array(count * CARRY_NEAREST);
+  const shares = new Float32Array(count * CARRY_NEAREST);
+  const best = new Float64Array(CARRY_NEAREST); // the nearest so far, nearest first: how far (squared), and who
+  const who = new Uint32Array(CARRY_NEAREST);
+  for (let v = 0; v < count; v++) {
+    const [x, y, z] = [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]];
+    const [cx, cy, cz] = [x, y, z].map((value) => Math.floor(value / CARRY_CELL));
+    let found = 0;
+    // (Wider and wider, until the nearest few can't be bettered by a cell not yet looked in.)
+    for (let reach = 1; reach <= CARRY_REACH; reach++) {
+      found = 0;
+      for (let i = -reach; i <= reach; i++)
+        for (let j = -reach; j <= reach; j++)
+          for (let k = -reach; k <= reach; k++)
+            for (const id of cells.get(cellAt(cx + i, cy + j, cz + k)) ?? []) {
+              const d = (skin[id * 3] - x) ** 2 + (skin[id * 3 + 1] - y) ** 2 + (skin[id * 3 + 2] - z) ** 2;
+              if (found === CARRY_NEAREST && d >= best[found - 1]) continue;
+              let at = found < CARRY_NEAREST ? found++ : found - 1;
+              for (; at > 0 && best[at - 1] > d; at--) {
+                best[at] = best[at - 1];
+                who[at] = who[at - 1];
+              }
+              best[at] = d;
+              who[at] = id;
+            }
+      if (found === CARRY_NEAREST && best[found - 1] <= (reach * CARRY_CELL) ** 2) break;
+    }
+    let total = 0;
+    for (let n = 0; n < found; n++) total += 1 / (best[n] + 1e-6);
+    for (let n = 0; n < found; n++) {
+      ids[v * CARRY_NEAREST + n] = who[n];
+      shares[v * CARRY_NEAREST + n] = 1 / (best[n] + 1e-6) / total;
+    }
+  }
+  return { ids, shares };
+}
+
+/**
+ * Shape key `key` of the body as a key for other vertices (`positions`, with their `near`est skin, numbered
+ * from `offset`), in morphsOf's form: each moves as the skin near it does, less and less above the base of the
+ * head and not at all past it.
+ */
+function carried(kit, key, positions, near, offset = 0) {
+  kit.moves ??= new Map(); // a key's moves, a vertex of the body each
+  if (!kit.moves.has(key)) {
+    const moves = new Float32Array(kit.position.length);
+    for (const { ids, delta } of kit.morphs[key] ?? [])
+      for (let i = 0; i < ids.length; i++) for (let c = 0; c < 3; c++) moves[ids[i] * 3 + c] += delta[i * 3 + c];
+    kit.moves.set(key, moves);
+  }
+  const moves = kit.moves.get(key);
+  const ids = [];
+  const delta = [];
+  for (let v = 0; v < positions.length / 3; v++) {
+    const fade = clamp((kit.headBase + 0.03 - positions[v * 3 + 1]) / 0.06, 0, 1);
+    if (!fade) continue;
+    const move = [0, 0, 0];
+    for (let n = 0; n < CARRY_NEAREST; n++) {
+      const share = near.shares[v * CARRY_NEAREST + n] * fade;
+      const id = near.ids[v * CARRY_NEAREST + n];
+      for (let c = 0; c < 3; c++) move[c] += moves[id * 3 + c] * share;
+    }
+    if (Math.max(Math.abs(move[0]), Math.abs(move[1]), Math.abs(move[2])) < 1e-4) continue;
+    ids.push(v + offset);
+    delta.push(...move);
+  }
+  return { ids: Uint32Array.from(ids), delta: Float32Array.from(delta), normal: new Float32Array(ids.length * 3) };
+}
+
 // ── Making one ───────────────────────────────────────────────────────────────
 
 /**
@@ -794,13 +959,26 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   for (const piece of pieces) for (const word of piece.hides) hides.add(word);
   const flat = hides.has("neck") || hides.has("torso") || pieces.some((piece) => RUFF_SLOTS.has(piece.slot));
   const weights = keyWeights(filled, sex, kit.file.keys, flat);
+  // A race: its key on the skin, carried onto the underwear worn (and, below, the hair and clothes), and its
+  // sizes: the legs, arms and head with the look's own, and the whole figure.
+  const race = raceOf(filled.race);
+  const raceKey = weights[race.key] ? race.key : "";
+  if (raceKey)
+    for (const mesh of kit.meshes) {
+      if (!/^underwear/u.test(mesh.piece ?? "") || mesh.morphs?.[raceKey] || !isWorn(mesh, filled, sex)) continue;
+      mesh.carried ??= new Set();
+      if (mesh.carried.has(raceKey)) continue;
+      mesh.carried.add(raceKey);
+      const own = kit.position.subarray(mesh.start * 3, (mesh.start + mesh.count) * 3);
+      (kit.morphs[raceKey] ??= []).push(carried(kit, raceKey, own, (mesh.near ??= nearestSkin(kit, own)), mesh.start));
+    }
 
   // Arm and leg length: each bone of the limb stretched along itself in its own space (its inverse bind
   // matrix), and the next one moved out to match, so the limb grows longer, not thicker, and the hands and
   // feet stay their size. The head is scaled from its joint at the neck.
   const stretch = new Map();
   for (const [limb, chain] of Object.entries(LIMB_BONES)) {
-    const k = filled.limbs[limb] - 1;
+    const k = filled.limbs[limb] * race[limb] - 1;
     if (!k) continue;
     for (const [boneName, nextName] of chain) {
       const next = bones.get(nextName);
@@ -830,8 +1008,8 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
       next.position.multiplyScalar(1 + k);
     }
   }
-  if (filled.limbs.head !== 1)
-    stretch.set("Head", new Matrix4().makeScale(filled.limbs.head, filled.limbs.head, filled.limbs.head));
+  const head = filled.limbs.head * race.head;
+  if (head !== 1) stretch.set("Head", new Matrix4().makeScale(head, head, head));
   root.updateMatrixWorld(true);
 
   const owned = []; // what this person alone has, to let go of with them
@@ -850,6 +1028,13 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   // an eye picture is drawn white, in place of the model's own tinted texture, loaded the first time
   // someone wears it and shared.
   const { position, normal } = shaped(kit.position, kit.normal, kit.morphs, weights);
+  // (A race's part that isn't worn is drawn by no triangle, but its vertices would still count in the
+  // person's size, tall horns most of all: they're tucked inside the head, a tail's in the hips.)
+  for (const mesh of kit.meshes) {
+    if (!/^(?:beard|moustache|tusks|horns|tail)-/u.test(mesh.piece ?? "") || isWorn(mesh, filled, sex)) continue;
+    const place = kit.tucked[mesh.piece.startsWith("tail") ? "hips" : "head"];
+    for (let v = mesh.start; v < mesh.start + mesh.count; v++) position.set(place, v * 3);
+  }
   const textureOfPart = (part) => kit.meshes.find((mesh) => mesh.part === part)?.texture;
   const swapped = new Map();
   if (filled.skin !== "custom")
@@ -877,6 +1062,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
       scales: filled.colours.scales,
       scales2: filled.colours.scales2,
       horns: filled.colours.horns,
+      hair: filled.hairColour, // (facial hair)
     })[part];
   const colour = new Uint16Array(position.length);
   const tint = new Color();
@@ -906,6 +1092,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
       far: { start: group.farStart, count: group.farCount },
     };
     const cut = !!group.mesh.alpha;
+    const masked = group.mesh.alpha === "MASK"; // (a beard's cards: cut out by their texture, solid otherwise)
     // Brows and lashes (MakeHuman's) are blended by their texture's alpha, softer than a cut-out: drawn
     // with the see-through things, after everything solid, without hiding what's behind them. Every part is
     // seen from both sides, as the model's materials say: some faces (the irises) face inwards, and shown
@@ -918,7 +1105,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
       vertexColors: true,
       side: DoubleSide,
       // (The faint alpha test leaves the empty parts of a card out of shadows too.)
-      ...(cut ? { transparent: true, depthWrite: false, alphaTest: 0.05 } : {}),
+      ...(masked ? { alphaTest: 0.5 } : cut ? { transparent: true, depthWrite: false, alphaTest: 0.05 } : {}),
     });
   });
   geometry.boundingBox = kit.boundingBox.clone();
@@ -936,7 +1123,13 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   // outfit piece is one mesh coloured by vertex, each of its parts (cloth, trim, metal…) the look's colour
   // or as made, those colours shared by everyone wearing the same.
   const wearPart = ({ key, part, pictures, slot, piece }, colourFor) => {
-    for (const { mesh, geometry: shared, morphs, colours } of partMeshes(key, part, SMALL_SLOTS.has(slot))) {
+    for (const made of partMeshes(key, part, SMALL_SLOTS.has(slot))) {
+      const { mesh, geometry: shared, morphs, colours } = made;
+      // (A race's build, carried onto the piece from the skin the first time one of that race wears it.)
+      if (raceKey && !morphs[raceKey]) {
+        const own = shared.attributes.position.array;
+        morphs[raceKey] = [carried(kit, raceKey, own, (made.near ??= nearestSkin(kit, own)))];
+      }
       let geometry = shared;
       let colour = null;
       if (mesh.partOf) {
@@ -1001,7 +1194,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   for (const piece of pieces) wearPart(piece, (mesh) => (mesh.partOf ? 0xffffff : new Color().setRGB(...mesh.colour)));
 
   const sway = swayOf(bones, filled.seed);
-  const character = humanoidFromSkeleton(root, humanoidNodes(bones), () => filled.height, filled.seed);
+  const character = humanoidFromSkeleton(root, humanoidNodes(bones), () => filled.height * race.height, filled.seed);
   if (sway) {
     const updateRest = character.update;
     character.update = (dt, speed, ...rest) => {

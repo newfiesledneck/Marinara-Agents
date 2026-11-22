@@ -46,6 +46,9 @@ import {
   PIECES,
   PRESET_FIELDS,
   presetFile,
+  RACE_COLOURS,
+  RACE_PARTS,
+  RACES,
   readPresetFile,
   SHAPES,
   SKIN_TONES,
@@ -715,6 +718,49 @@ export function createHud(root, handlers) {
           says(
             "Which model they are: a human, an anthro wolf or an anthro dragon, male or female. An anthro body has a muzzle, a tail and its own colours, and stands on its toes; it wears most clothes, but no hair, hats or shoes yet. As their gender, they're human unless their lore says wolfkin, wolf-folk or dragonborn (or your own build's race is Dragonborn).",
           );
+          // A human body's race, of those the model has a shape for, and its parts: tusks, horns, a tail.
+          // (Facial hair is with the hair.)
+          const races = avatar.choices?.races ?? [];
+          if (!anthro && races.length > 1) {
+            const raceName = RACES.find(([race]) => race === shape.race)[1].toLowerCase();
+            pick(
+              "Race",
+              "race",
+              [
+                ["", `As their lore or build says (${raceName})`],
+                ...RACES.filter(([race]) => races.includes(race)).map(([race, name]) => [race, name]),
+              ],
+              chosen.race ?? "",
+              (text) => text || undefined,
+            );
+            says(
+              "A dwarf, a halfling and a gnome are each their own shape, not a small human: a dwarf broad and short-legged, a halfling small with big feet, a gnome small with a big head and long fingers. An elf is slim, a half-orc heavy with a strong brow. Clothes follow. Unless chosen, it comes from their lore (ww:looks:dwarf) or, for you, your build's race.",
+            );
+            for (const [field, list, label, what] of RACE_PARTS) {
+              const have = avatar.choices?.[field] ?? [];
+              if (field === "facialHair" || !have.length) continue;
+              pick(
+                label,
+                field,
+                list.filter(([style]) => style === BARE || have.includes(style)),
+                shape[field],
+              );
+              says(`${what} Anyone may have them; unless chosen, their race decides.`);
+            }
+            if (avatar.choices?.tail) {
+              pick(
+                "Tail",
+                "tail",
+                [
+                  ["yes", "Shown"],
+                  ["no", "Hidden"],
+                ],
+                shape.tail ? "yes" : "no",
+                (text) => text === "yes",
+              );
+              says("A tiefling's tail, which sways. It passes through what's worn over it for now.");
+            }
+          }
           if (avatar.choices?.wings) {
             pick(
               "Wings",
@@ -823,6 +869,11 @@ export function createHud(root, handlers) {
             return;
           }
           const picture = shape.skin !== "custom";
+          for (const [part, label, list, what] of RACE_COLOURS)
+            if (shape[part] && shape[part] !== BARE)
+              colourRow(label, what, list, shape.colours[part], `colour:${part}`, (colour) =>
+                set({ colours: { ...chosen.colours, [part]: colour } }),
+              );
           for (const [part, label, list, what] of AVATAR_COLOURS) {
             if (part === "underwear") continue; // (with the underwear, below)
             if (part === "skin") {
@@ -896,6 +947,17 @@ export function createHud(root, handlers) {
             "hairTint",
             (colour, at) => (at >= 0 ? set({ hairColour: at, hairTint: undefined }) : set({ hairTint: colour })),
           );
+          const [field, list, label, what] = RACE_PARTS.find(([part]) => part === "facialHair");
+          const beards = avatar.choices?.[field] ?? [];
+          if (beards.length) {
+            pick(
+              label,
+              field,
+              list.filter(([beard]) => beard === BARE || beards.includes(beard)),
+              shape[field],
+            );
+            says(`${what} Unless chosen, a dwarf man has a beard and no one else does.`);
+          }
         });
         // Clothes and armour: a piece a slot (or none) of those the kit has for this body, each of its parts'
         // colours, and the way it's worn (a cloak's hood). Unless chosen, the everyday clothes of their work.

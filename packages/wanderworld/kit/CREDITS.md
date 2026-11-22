@@ -45,6 +45,10 @@ distant version, made from it when it's packed.
 `scripts/build-wanderworld-people.mjs --avatar`. MakeHuman's hm08 base mesh and morph targets are public
 domain (CC0 1.0); they're read as data, and MakeHuman itself is neither run nor copied.
 
+In the same files, made in Blender by ThatOneCan (`make_avatar.py`): the races' shapes (dwarf, halfling,
+gnome, elf, half-orc, tiefling), the tusks, horns, the tiefling's tail, the beards and the moustache, with
+their two small textures.
+
 `generic/avatar/anthro-wolf-<sex>.pack.png` and `anthro-dragon-<sex>.pack.png`, textures in them: made in
 Blender by ThatOneCan, built on MakeHuman's CC0 base mesh, with
 `packages/wanderworld/assets/scripts/make_anthro_wolf.py` and `make_anthro_dragon.py`: the anthro wolf and

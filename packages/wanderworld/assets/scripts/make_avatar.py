@@ -1,5 +1,6 @@
-"""The player's base avatar: a man 1.78 m tall and a woman 1.68 m, bald, with a choice of underwear, on
-the people's skeleton so every recorded animation plays on them. Writes assets/models/avatar-male.glb and
+"""The player's base avatar: a man 1.78 m tall and a woman 1.68 m, bald, with a choice of underwear, the
+5e races' shapes and parts (tusks, horns, a tail, beards), on the people's skeleton so every recorded
+animation plays on them. Writes assets/models/avatar-male.glb and
 avatar-female.glb (and a debug .blend and the texture's JPEG in assets/build). Run (BLENDER: your
 Blender executable; add `-- male` or `-- female` for one of them):
 
@@ -48,6 +49,20 @@ eye pictures, eyebrows and eyelashes: MakeHuman's system assets (CC0), read as d
   ears_pointed; and age_middle (about 50) and age_old (about 72), MakeHuman's age macro with a stoop,
   the soles and the skull kept where they are, one of them set with the skin of that age. Height, limb
   length and head size are the game's to set by scaling bones.
+- The races (the 5e SRD's; a dragonborn is a body of its own): six more shape keys after those, race_dwarf,
+  race_halfling, race_gnome, race_elf, race_halforc and race_tiefling (a half-elf is race_elf and
+  ears_pointed at a half; a human none). Each is MakeHuman's targets (`race_mixes`) plus shaping of our own
+  (`race_shapes`: girth, the size of the hands and feet, a brow ridge, the shoulders' slope), holding what
+  scaling bones can't give; nothing above the hairline moves, so hair and hats fit every race. The game
+  completes each by scaling the figure, the legs, the arms and the head (RACE_SCALES). Every piece beside
+  the body carries them too.
+- The races' parts, each a mesh of its own beside the body, with its shape keys: tusks-01 and -02 (material
+  teeth); horns-01 to -04 (horns: swept back, a ram's curl, nubs, tall), on the Head bone; tail-tiefling
+  (skin, drawn with a patch of the back's own skin, on bones tail_01 to tail_05 under the pelvis, swaying in
+  the model's own Idle); beard-01 to -05 (short, full, long, a dwarf's long beard with braids, a moustache
+  with a goatee), moustache-01 and foothair-01 (a halfling's feet) (hair: cards and patches cut out of a
+  near-white texture of strands by an alpha test, glTF MASK, for the game to tint as it tints the hair).
+  The horns and tusks share a small texture of their own.
 """
 
 import math
@@ -58,7 +73,7 @@ import types
 import bmesh
 import bpy
 import numpy as np
-from mathutils import Vector
+from mathutils import Quaternion, Vector
 from mathutils.bvhtree import BVHTree
 from mathutils.kdtree import KDTree
 
@@ -77,6 +92,10 @@ PARTS = [
     ("lips", 0xB8746C, 0.35),
     ("nails", 0xE6B3A4, 0.3),
     ("underwear_trim", 0xDCD6CC, 0.6),
+    # (The races' parts: tusks, horns, and facial hair.)
+    ("teeth", 0xE9E1CF, 0.3),
+    ("horns", 0x3A3230, 0.45),
+    ("hair", 0x6B4A32, 0.8),
 ]
 PART = {p[0]: i for i, p in enumerate(PARTS)}
 APOSE = 45  # the arms' angle below level at rest
@@ -257,7 +276,241 @@ def key_mixes(B, macro):
     keys["age_middle"] = macro_change(age=AGE_MIDDLE)
     keys["age_old"] = macro_change(age=AGE_OLD)
     order = ["thin", "heavy", "muscle", "bust" if female else "chest", "hips", "waist", "belly", "shoulders", "neck", "jaw", "cheeks", "nose", "eyes", "ears_pointed", "age_middle", "age_old"]
-    return {k: keys[k] for k in order}
+    # The races, after every other key (so those keep their places): MakeHuman's macro moved by a little
+    # weight or muscle, plus its detail targets; `settle_races` adds shaping of our own and keeps the skull
+    # where it is.
+    for name, (moved, mix) in race_mixes(B).items():
+        change = macro_change(**{k: min(1.0, max(0.0, macro[k] + d)) for k, d in moved.items()})
+        keys[name] = (lambda c, m: lambda n: c(n) + wa.offsets(n, m))(change, mix)
+    return {k: keys[k] for k in order + list(RACES)}
+
+
+# The 5e SRD's races as shape keys (each 0-1; a half-elf is `race_elf` at a half with `ears_pointed` at a
+# half; a human is none of them). A key holds what scaling bones can't give: build, girth, the size of the
+# hands and feet, and the face. The game completes each look by scaling the whole figure, the legs, the
+# arms and the head (RACE_SCALES: what the keys are shaped for).
+RACES = ("race_dwarf", "race_halfling", "race_gnome", "race_elf", "race_halforc", "race_tiefling")
+# What the game sets with each key at 1 (the script itself doesn't use it): the whole figure's scale, then each
+# leg and arm bone stretched along itself and the head bone scaled from the neck (as the Look card's limb
+# lengths and head size do), on top of the look's own. The man then stands about 1.33 m as a dwarf, 0.97 m as
+# a halfling and 1.05 m as a gnome; the woman 1.27 m, 0.92 m and 1.0 m.
+RACE_SCALES = {
+    "race_dwarf": dict(height=0.87, legs=0.7, arms=0.8, head=1.18),
+    "race_halfling": dict(height=0.58, legs=0.86, arms=0.9, head=1.2),
+    "race_gnome": dict(height=0.62, legs=0.85, arms=0.98, head=1.4),
+    "race_elf": dict(height=1.0, legs=1.03, arms=1.02, head=0.97),
+    "race_halforc": dict(height=1.05, legs=1.0, arms=1.03, head=1.0),
+    "race_tiefling": dict(height=1.0, legs=1.0, arms=1.0, head=1.0),
+}
+
+
+def race_mixes(B):
+    """Each race's MakeHuman part: ({macro setting: how far it moves}, {detail target: weight})."""
+    S = wa.sided
+    f = B["female"]
+    out = {}
+    # Dwarf: broad and stocky (the girth is `race_shapes`'). Muscled forearms and calves, thick wrists and
+    # ankles, thick fingers; a broad strong face with a large nose, a heavy brow and a wide jaw.
+    out["race_dwarf"] = (
+        dict(weight=0.2, muscle=0.15 if not f else 0.25),
+        {
+            "torso/measure-waist-circ-incr": 0.5,
+            "stomach/stomach-pregnant-incr": 0.1,
+            "torso/torso-vshape-decr": 0.5,
+            **S("arms/upperarm-shoulder-muscle-incr", 0.5),
+            **S("arms/upperarm-muscle-incr", 0.4),
+            **S("arms/lowerarm-muscle-incr", 0.7),
+            "hands/measure-wrist-circ-incr": 0.6,
+            **S("hands/hand-fingers-diameter-incr", 0.8),
+            **S("legs/lowerleg-muscle-incr", 0.15),
+            "feet/measure-ankle-circ-incr": 0.6,
+            "head/head-square": 0.5,
+            "head/head-age-incr": 0.3,
+            "forehead/forehead-scale-vert-decr": 0.3,
+            "eyebrows/eyebrows-trans-forward": 0.7,
+            "eyebrows/eyebrows-trans-down": 0.35,
+            **S("eyes/eye-push1-in", 0.3),
+            "nose/nose-scale-horiz-incr": 0.75,
+            "nose/nose-scale-depth-incr": 0.5,
+            "nose/nose-scale-vert-incr": 0.3,
+            "nose/nose-volume-incr": 0.6,
+            "nose/nose-point-width-incr": 0.6,
+            "nose/nose-hump-incr": 0.3,
+            **S("cheek/cheek-bones-incr", 0.4),
+            **S("cheek/cheek-volume-incr", 0.3),
+            "chin/chin-width-incr": 0.7,
+            "chin/chin-bones-incr": 0.6,
+            "mouth/mouth-scale-horiz-incr": 0.3,
+            **S("ears/ear-scale-incr", 0.25),
+        },
+    )
+    # Halfling: a sturdy little adult. A soft round face with full cheeks, a rounded nose and smile lines, a
+    # slightly round belly, ears slightly pointed (the big feet and small hands are `race_shapes`').
+    out["race_halfling"] = (
+        dict(weight=0.17, muscle=-0.15),
+        {
+            "stomach/stomach-pregnant-incr": 0.2,
+            "torso/measure-waist-circ-incr": 0.45,
+            "torso/torso-vshape-decr": 0.35,
+            "hip/hip-scale-horiz-incr": 0.3,
+            "buttocks/buttocks-volume-incr": 0.3,
+            "head/head-round": 0.45,
+            "head/head-age-incr": 0.15,
+            **S("cheek/cheek-volume-incr", 0.6),
+            **S("cheek/cheek-bones-decr", 0.2),
+            "chin/chin-bones-decr": 0.3,
+            "nose/nose-point-up": 0.3,
+            "nose/nose-point-width-incr": 0.5,
+            "nose/nose-volume-incr": 0.3,
+            "nose/nose-hump-decr": 0.3,
+            **S("eyes/eye-scale-incr", 0.12),
+            "eyebrows/eyebrows-trans-up": 0.2,
+            "mouth/mouth-angles-up": 0.4,
+            "mouth/mouth-scale-horiz-incr": 0.25,
+            "mouth/mouth-laugh-lines-in": 0.35,
+            "mouth/mouth-dimples-in": 0.3,
+            **S("ears/ear-shape-pointed", 0.4),
+            **S("ears/ear-scale-vert-incr", 0.2),
+        },
+    )
+    # Gnome: slight and wiry. A big strong nose, large bright eyes under raised brows, long pointed ears, high
+    # cheekbones over lean cheeks, a pointed chin, the lines of a grown face; long nimble fingers.
+    out["race_gnome"] = (
+        dict(weight=-0.14, muscle=-0.05),
+        {
+            **S("hands/hand-fingers-length-incr", 0.8),
+            **S("hands/hand-fingers-diameter-decr", 0.3),
+            "head/head-age-incr": 0.4 if not f else 0.25,
+            "nose/nose-scale-depth-incr": 1.0 if not f else 0.8,
+            "nose/nose-scale-vert-incr": 0.6,
+            "nose/nose-scale-horiz-incr": 0.4,
+            "nose/nose-hump-incr": 0.5,
+            "nose/nose-point-down": 0.3,
+            "nose/nose-volume-incr": 0.5,
+            **S("eyes/eye-scale-incr", 0.85),
+            **S("eyes/eye-height2-incr", 0.3),
+            **S("eyes/eye-bag-incr", 0.3),
+            "eyebrows/eyebrows-trans-up": 0.4,
+            "eyebrows/eyebrows-angle-up": 0.25,
+            **S("cheek/cheek-bones-incr", 0.7),
+            **S("cheek/cheek-volume-decr", 0.4),
+            "chin/chin-triangle": 0.45,
+            "chin/chin-prominent-incr": 0.35,
+            "mouth/mouth-scale-horiz-incr": 0.3,
+            "mouth/mouth-angles-up": 0.2,
+            "mouth/mouth-laugh-lines-in": 0.4 if not f else 0.2,
+            **S("ears/ear-shape-pointed", 0.9),
+            **S("ears/ear-scale-incr", 0.5),
+            **S("ears/ear-scale-vert-incr", 0.5),
+            **S("ears/ear-wing-incr", 0.35),
+        },
+    )
+    # Elf: slender and fine-boned. High cheekbones, an angular elegant face, slightly larger almond eyes, a
+    # slim neck and long fingers (the ears are `ears_pointed`).
+    out["race_elf"] = (
+        dict(weight=-0.2, muscle=-0.12),
+        {
+            "torso/measure-shoulder-dist-decr": 0.3,
+            "torso/measure-waist-circ-decr": 0.35,
+            "neck/neck-scale-horiz-decr": 0.5,
+            "neck/neck-scale-depth-decr": 0.3,
+            "hands/measure-wrist-circ-decr": 0.5,
+            **S("hands/hand-fingers-length-incr", 0.4),
+            **S("hands/hand-fingers-diameter-decr", 0.4),
+            "feet/measure-ankle-circ-decr": 0.4,
+            "head/head-oval": 0.4,
+            **S("cheek/cheek-bones-incr", 0.8),
+            **S("cheek/cheek-volume-decr", 0.5),
+            **S("cheek/cheek-inner-decr", 0.35),
+            "chin/chin-triangle": 0.4,
+            "chin/chin-width-decr": 0.4,
+            "chin/chin-bones-decr": 0.25,
+            "nose/nose-scale-horiz-decr": 0.5,
+            "nose/nose-point-width-decr": 0.4,
+            "nose/nose-greek-incr": 0.4,
+            "nose/nose-hump-decr": 0.2,
+            **S("eyes/eye-scale-incr", 0.35),
+            **S("eyes/eye-corner2-up", 0.6),
+            **S("eyes/eye-height2-decr", 0.2),
+            "eyebrows/eyebrows-angle-up": 0.45,
+            "mouth/mouth-scale-horiz-decr": 0.2,
+        },
+    )
+    # Half-orc: a big frame with powerful shoulders and neck; a heavy brow, a strong jaw with an underbite, a
+    # flatter, broader nose.
+    out["race_halforc"] = (
+        dict(weight=0.1, muscle=0.15 if not f else 0.3),
+        {
+            "torso/measure-shoulder-dist-incr": 0.6,
+            "torso/torso-muscle-dorsi-incr": 0.7,
+            **({} if f else {"torso/torso-muscle-pectoral-incr": 0.4}),
+            **S("arms/upperarm-shoulder-muscle-incr", 0.8),
+            **S("arms/upperarm-muscle-incr", 0.7),
+            **S("arms/lowerarm-muscle-incr", 0.6),
+            "hands/measure-wrist-circ-incr": 0.5,
+            **S("hands/hand-fingers-diameter-incr", 0.5),
+            **S("legs/upperleg-muscle-incr", 0.5),
+            **S("legs/lowerleg-muscle-incr", 0.4),
+            "head/head-rectangular": 0.4,
+            "forehead/forehead-trans-backward": 0.5,
+            "eyebrows/eyebrows-trans-forward": 1.0,
+            "eyebrows/eyebrows-trans-down": 0.6,
+            "eyebrows/eyebrows-angle-down": 0.3,
+            **S("eyes/eye-push1-in", 0.5),
+            **S("eyes/eye-push2-in", 0.3),
+            **S("eyes/eye-scale-decr", 0.15),
+            "nose/nose-scale-horiz-incr": 0.9,
+            "nose/nose-flaring-incr": 0.7,
+            "nose/nose-scale-depth-decr": 0.6,
+            "nose/nose-point-up": 0.3,
+            "nose/nose-width1-incr": 0.5,
+            "nose/nose-width2-incr": 0.5,
+            **S("cheek/cheek-bones-incr", 0.5),
+            "chin/chin-width-incr": 1.0,
+            "chin/chin-bones-incr": 1.0,
+            "chin/chin-prognathism-incr": 0.8,
+            "chin/chin-prominent-incr": 0.4,
+            "chin/chin-height-incr": 0.3,
+            "mouth/mouth-scale-horiz-incr": 0.5,
+            "mouth/mouth-lowerlip-volume-incr": 0.5,
+            "mouth/mouth-upperlip-volume-decr": 0.3,
+            **S("ears/ear-shape-pointed", 0.3),
+        },
+    )
+    # Tiefling: sharper cheekbones and chin, a subtly angular face; the body mostly human.
+    out["race_tiefling"] = (
+        dict(),
+        {
+            **S("cheek/cheek-bones-incr", 0.7),
+            **S("cheek/cheek-inner-decr", 0.5),
+            **S("cheek/cheek-volume-decr", 0.3),
+            "chin/chin-triangle": 0.35,
+            "chin/chin-prominent-incr": 0.3,
+            "chin/chin-width-decr": 0.35,
+            "head/head-invertedtriangular": 0.3,
+            "eyebrows/eyebrows-angle-up": 0.5,
+            **S("eyes/eye-corner2-up", 0.3),
+            "nose/nose-point-width-decr": 0.4,
+            "nose/nose-scale-horiz-decr": 0.2,
+            "nose/nose-greek-incr": 0.2,
+            **S("ears/ear-shape-pointed", 0.25),
+        },
+    )
+    return out
+
+
+# Each race's girth, of our own (MakeHuman's targets don't reach this far): how much wider and deeper the
+# trunk is at each of its bones, how much thicker the neck and each part of a limb (round its bone, not
+# longer), how much bigger the hands (from the wrist) and feet (from under the ankle, the soles staying on
+# the ground), how high the shoulders' slope is built up towards the neck (metres), and how far the calves
+# and thighs are evened out along themselves (`evened`: for legs the game shortens).
+RACE_GIRTH = {
+    "race_dwarf": dict(pelvis=(1.2, 1.2), spine_01=(1.24, 1.28), spine_02=(1.22, 1.3), spine_03=(1.2, 1.26), neck=1.34, upperarm=1.2, lowerarm=1.3, hand=1.24, thigh=1.12, calf=1.14, foot=1.26, traps=0.016, even_calf=0.65, even_thigh=0.2),
+    "race_halfling": dict(pelvis=(1.08, 1.08), spine_01=(1.07, 1.1), spine_02=(1.0, 1.04), spine_03=(0.94, 1.02), neck=1.14, upperarm=1.04, lowerarm=1.04, hand=0.9, thigh=1.1, calf=1.14, foot=1.4, even_calf=0.35),
+    "race_gnome": dict(pelvis=(0.94, 0.95), spine_01=(0.93, 0.94), spine_02=(0.91, 0.94), spine_03=(0.87, 0.95), neck=1.22, upperarm=0.86, lowerarm=0.88, hand=1.12, thigh=0.88, calf=0.88, foot=1.12),
+    "race_elf": dict(upperarm=0.96, lowerarm=0.95, thigh=0.97, calf=0.95),
+    "race_halforc": dict(spine_01=(1.03, 1.03), spine_02=(1.06, 1.07), spine_03=(1.09, 1.07), neck=1.22, upperarm=1.08, lowerarm=1.12, hand=1.1, calf=1.05, foot=1.06, traps=0.014),
+}
 
 
 def seal_lips(co, faces, mats):
@@ -737,6 +990,169 @@ def settle_age(body, used, W, J):
         log(f"{name}: skull moved {np.linalg.norm(head) * 1000:.1f} mm, soles {np.linalg.norm(feet) * 1000:.1f} mm, evened out")
 
 
+# Where hair sits, as wwhair.py has it: the hairline's height over eye level by the angle round the head from
+# the front (0) to the back (180). A race's key moves nothing above it, so hair hung on the head still fits.
+HAIRLINE = {
+    False: [(0, 0.074), (32, 0.066), (50, 0.040), (66, 0.000), (82, -0.028), (92, 0.012), (110, 0.016), (126, -0.046), (150, -0.078), (180, -0.086)],
+    True: [(0, 0.072), (32, 0.068), (50, 0.046), (66, 0.008), (82, -0.016), (92, 0.018), (110, 0.022), (126, -0.040), (150, -0.072), (180, -0.080)],
+}
+
+
+def hair_cap(B, body, used, W):
+    """How much of each vertex (MakeHuman's whole list) lies under the hair: 1 over the skull above the
+    hairline, easing to 0 two centimetres below it; the ears are left out (they stand clear of it)."""
+    co = body.co
+    eye_z = body.eye["l"]["centre"][2]
+    on_head = W[:, BONE_INDEX["Head"]]
+    skull = used[(on_head[used] > 0.99) & (co[used, 2] > eye_z)]
+    centre_y = (co[skull, 1].min() + co[skull, 1].max()) / 2
+    az = np.degrees(np.arctan2(np.abs(co[:, 0]), -(co[:, 1] - centre_y)))
+    table = HAIRLINE[B["female"]]
+    line = eye_z + np.interp(az, [t[0] for t in table], [t[1] for t in table])
+    cap = wa.smoothstep(line - 0.022, line - 0.002, co[:, 2]) * wa.smoothstep(0.3, 0.9, on_head)
+    ears = np.zeros(len(co))
+    for s_ in ("l", "r"):
+        idx, d = wa.target(f"ears/{s_}-ear-scale-incr")
+        ears[idx] = np.maximum(ears[idx], wa.smoothstep(0.0, 0.02, np.linalg.norm(d, axis=1)))
+    return cap * (1 - ears)
+
+
+def settle_races(B, body, used, W, J):
+    """The races' keys made ready to wear: shaping of our own added to MakeHuman's (`race_shapes`), then all
+    of it eased out under the hair (`hair_cap`), so the skull stays as it is and hair, hats and horns fit
+    every race. (A larger head for the small folk is the game's, by scaling the head bone.)"""
+    W_all = np.zeros((len(body.co), W.shape[1]))
+    W_all[:, BONE_INDEX["Head"]] = 1.0
+    W_all[used] = W
+    cap = hair_cap(B, body, used, W_all)
+    shapes = race_shapes(B, body, used, W_all, J)
+    for name in RACES:
+        d = body.keys[name] + shapes.get(name, 0.0)
+        body.keys[name] = d * (1 - cap)[:, None]
+        moved = np.linalg.norm(body.keys[name][used], axis=1)
+        log(f"{name}: moves the skin up to {moved.max() * 1000:.1f} mm")
+
+
+def girth_offsets(co, W, J, spec):
+    """How far each vertex moves for a girth (RACE_GIRTH's): every bone's own change (a trunk bone wider and
+    deeper about the spine, a limb bone thicker round itself, a hand or foot bigger), each vertex taking its
+    bones' by weight, the limbs carried out with the trunk where they join it. No joint moves, so nothing
+    grows longer."""
+    I3 = np.eye(3)
+    scale = {b: I3 for b in BONE_NAMES}
+    pivot = {b: J[b] for b in BONE_NAMES}
+    shift = {b: np.zeros(3) for b in BONE_NAMES}
+
+    def round_bone(b, tail, k):
+        d = _unit(J[tail] - J[b])
+        scale[b] = I3 + (k - 1) * (I3 - np.outer(d, d))
+
+    for b in ("pelvis", "spine_01", "spine_02", "spine_03"):
+        sx, sy = spec.get(b, (1.0, 1.0))
+        scale[b] = np.diag([sx, sy, 1.0])
+        pivot[b] = np.array([0.0, J[b][1], J[b][2]])
+    round_bone("neck_01", "Head", spec.get("neck", 1.0))
+    pivot["neck_01"] = np.array([0.0, (J["neck_01"][1] + J["Head"][1]) / 2, J["neck_01"][2]])
+    for s_ in ("l", "r"):
+        scale[f"clavicle_{s_}"], pivot[f"clavicle_{s_}"] = scale["spine_03"], pivot["spine_03"]
+        carried = (scale["spine_03"] - I3) @ (J[f"upperarm_{s_}"] - pivot["spine_03"])
+        round_bone(f"upperarm_{s_}", f"lowerarm_{s_}", spec.get("upperarm", 1.0))
+        round_bone(f"lowerarm_{s_}", f"hand_{s_}", spec.get("lowerarm", 1.0))
+        scale[f"hand_{s_}"] = I3 * spec.get("hand", 1.0)
+        for b in ("upperarm", "lowerarm", "hand"):
+            shift[f"{b}_{s_}"] = carried
+        carried = (scale["pelvis"] - I3) @ (J[f"thigh_{s_}"] - pivot["pelvis"])
+        round_bone(f"thigh_{s_}", f"calf_{s_}", spec.get("thigh", 1.0))
+        round_bone(f"calf_{s_}", f"foot_{s_}", spec.get("calf", 1.0))
+        k = spec.get("foot", 1.0)
+        ground = np.array([J[f"foot_{s_}"][0], J[f"foot_{s_}"][1], 0.0])
+        for b in ("foot", "ball"):
+            scale[f"{b}_{s_}"] = np.diag([k, k, 1 + (k - 1) * 0.45])
+            pivot[f"{b}_{s_}"] = ground
+        for b in ("thigh", "calf", "foot", "ball"):
+            shift[f"{b}_{s_}"] = carried
+    out = np.zeros_like(co)
+    for b, i in BONE_INDEX.items():
+        w = W[:, i]
+        sel = w > 0
+        if sel.any() and (not np.allclose(scale[b], I3) or np.abs(shift[b]).max() > 0):
+            out[sel] += w[sel, None] * ((co[sel] - pivot[b]) @ (scale[b] - I3).T + shift[b])
+    for b, tail, amount in (("thigh", "calf", spec.get("even_thigh", 0.0)), ("calf", "foot", spec.get("even_calf", 0.0))):
+        for s_ in ("l", "r"):
+            if amount:
+                out += evened(co, W[:, BONE_INDEX[f"{b}_{s_}"]], J[f"{b}_{s_}"], J[f"{tail}_{s_}"], amount)
+    return out
+
+
+def evened(co, w, a, b, amount):
+    """Offsets that even out a limb's girth along itself: each ring of it drawn in or out towards a straight
+    taper from its top to its bottom, by `amount`. (The game shortens a short race's legs along their bones;
+    a calf's belly squeezed that way would bulge like a ball.)"""
+    d = b - a
+    length = np.linalg.norm(d)
+    d = d / length
+    t = ((co - a) @ d) / length
+    radial = (co - a) - np.outer(t * length, d)
+    r = np.linalg.norm(radial, axis=1)
+    sel = (w > 0.5) & (t > 0.0) & (t < 1.0)
+    edges = np.linspace(0, 1, 17)
+    mid = (edges[:-1] + edges[1:]) / 2
+    rings = [r[sel & (t >= e0) & (t < e1)] for e0, e1 in zip(edges[:-1], edges[1:])]
+    have = np.array([len(ring) > 0 for ring in rings])
+    mid, prof = mid[have], np.array([ring.mean() for ring in rings if len(ring)])
+    mean = np.interp(t, mid, prof)
+    line = np.interp(t, [mid[1], mid[-2]], [prof[1], prof[-2]])
+    fade = wa.smoothstep(0.03, 0.2, t) * wa.smoothstep(0.97, 0.82, t)
+    return (w * fade * amount * (line / np.maximum(mean, 1e-6) - 1))[:, None] * radial
+
+
+def bump(co, line, radius, move, mask=None):
+    """A soft ridge: `move` (a vector) at its most along a polyline, easing to nothing `radius` away."""
+    d, _ = wa.polyline_distance(co, np.asarray(line, dtype=np.float64))
+    w = np.clip(1 - (d / radius) ** 2, 0.0, 1.0) ** 2
+    if mask is not None:
+        w = w * mask
+    return w[:, None] * np.asarray(move, dtype=np.float64)
+
+
+def race_shapes(B, body, used, W, J):
+    """Shaping of our own for the races, where MakeHuman's targets don't reach: {key: offsets} over MakeHuman's
+    whole vertex list, in the body's space at rest. Girth (RACE_GIRTH), the shoulders built up towards the
+    neck, and a heavier brow ridge."""
+    co = body.co
+    I = BONE_INDEX
+    out = {}
+    on_head = W[:, I["Head"]]
+    trunk = W[:, [I[b] for b in ("spine_02", "spine_03", "neck_01", "clavicle_l", "clavicle_r")]].sum(1)
+    eye = {1.0: body.eye["l"]["centre"], -1.0: body.eye["r"]["centre"]}
+    r = body.eye["l"]["radius"]
+    softer = 0.85 if B["female"] else 1.0
+    for name in RACES:
+        spec = RACE_GIRTH.get(name, {})
+        if B["female"]:
+            # (Hers a little less: the trunk's and limbs' changes at `softer` of his.)
+            spec = {k: (tuple(1 + (x - 1) * softer for x in v) if isinstance(v, tuple) else (v if k in ("hand", "foot", "traps", "even_calf", "even_thigh") else 1 + (v - 1) * softer)) for k, v in spec.items()}
+        d = girth_offsets(co, W, J, spec)
+        if spec.get("traps"):
+            # The shoulders' slope built up from the neck's side out to the collarbone's end, and a little back.
+            for s_, sign in (("l", 1.0), ("r", -1.0)):
+                a = np.array([sign * 0.035, J["neck_01"][1] + 0.01, J["neck_01"][2] + 0.035])
+                b = J[f"clavicle_{s_}"] * 0.4 + J[f"upperarm_{s_}"] * 0.6 + np.array([0.0, 0.005, 0.03])
+                d += bump(co, [a, (a + b) / 2 + np.array([0.0, 0.0, 0.008]), b], 0.075, [0.0, 0.004, spec["traps"]], trunk)
+        out[name] = d
+    # A heavier brow: a ridge over each eye and across the bridge between them, pushed forward and a little
+    # down, on the face only.
+    face = wa.smoothstep(0.5, 0.95, on_head) * (co[:, 1] < eye[1.0][1] + r * 0.6)
+    for name, amount in (("race_dwarf", 0.0035), ("race_halforc", 0.0055)):
+        ridge = []
+        for sign in (1.0, -1.0):
+            e = eye[sign]
+            ridge.append([np.array([e[0] + sign * r * 1.5, e[1] - r * 0.5, e[2] + r * 1.25]), np.array([e[0] + sign * r * 0.3, e[1] - r * 1.0, e[2] + r * 1.45]), np.array([sign * r * 0.25, e[1] - r * 1.15, e[2] + r * 1.2])])
+        line = ridge[0] + ridge[1][::-1]
+        out[name] = out[name] + bump(co, line, r * 1.25, [0.0, -amount * softer, -amount * 0.3], face)
+    return out
+
+
 # ── Building the mesh ────────────────────────────────────────────────────────────────────────────────
 
 
@@ -855,6 +1271,9 @@ def join(name, parts, key_names):
     uv_layer.data.foreach_set("uv", np.array(flat, dtype=np.float64).ravel())
     mesh.validate()
     mesh.update()
+    if all(getattr(p, "normals", None) is not None for p in parts):
+        # (Normals of the part's own: hair cards lit as the skin under them, not each as a flat strip.)
+        mesh.normals_split_custom_set_from_vertices([tuple(n) for n in np.concatenate([p.normals for p in parts])])
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.scene.collection.objects.link(obj)
     obj.shape_key_add(name="Basis", from_mix=False)
@@ -865,7 +1284,7 @@ def join(name, parts, key_names):
         sk.slider_min, sk.slider_max = 0.0, 1.0
         sk.value = 0.0
     W = np.concatenate([p.weights for p in parts])
-    groups = [obj.vertex_groups.new(name=b) for b in BONE_NAMES]
+    groups = [obj.vertex_groups.new(name=b) for b in ALL_BONES[: W.shape[1]]]  # (the tail's weights have its bones too)
     for b, g in enumerate(groups):
         idx = np.nonzero(W[:, b] > 0)[0]
         for i in idx:
@@ -2482,10 +2901,11 @@ def srgb_to_linear(c):
     return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
 
 
-def materials(atlas=None, cards=None, normal=None, gatlas=None, gnormal=None, eyes=None):
+def materials(atlas=None, cards=None, normal=None, gatlas=None, gnormal=None, eyes=None, parts=None, beard=None):
     """One material per part: the part's colour (exported as its glTF base colour factor) times its
-    texture (the skin's, the garments' or the hair strokes'), with a normal map for the skin and the
-    garments; the eyebrows and eyelashes cut out by their texture's alpha."""
+    texture (the skin's, the garments', the hair strokes', the horns' and tusks' or the facial hair's), with
+    a normal map for the skin and the garments; the eyebrows and eyelashes cut out by their texture's alpha
+    (BLEND), the facial hair by an alpha test (MASK)."""
     out = []
     for name, colour, roughness in PARTS:
         m = bpy.data.materials.new(name)
@@ -2496,6 +2916,8 @@ def materials(atlas=None, cards=None, normal=None, gatlas=None, gnormal=None, ey
         rgb = [srgb_to_linear(c) for c in ww.hex_rgb(colour)]
         garment = name.startswith("underwear")
         image = cards if name in ("eyebrows", "eyelashes") else (gatlas if garment else (eyes if eyes is not None and name in ("iris", "eye_white") else atlas))
+        if name in ("teeth", "horns", "hair"):
+            image = beard if name == "hair" else parts
         bump = gnormal if garment else (normal if name in ("skin", "lips", "nails") else None)
         if image is None:
             bsdf.inputs["Base Color"].default_value = (*rgb, 1.0)
@@ -2515,6 +2937,19 @@ def materials(atlas=None, cards=None, normal=None, gatlas=None, gnormal=None, ey
                 m.surface_render_method = "BLENDED"
                 # (No shine: a strip seen edge on would catch the light as a white glint.)
                 bsdf.inputs["Specular IOR Level"].default_value = 0.0
+            if name == "hair":
+                # (Cut out where the texture's alpha is under HAIR_CUTOFF: exported as glTF alpha mode MASK.)
+                less = nodes.new("ShaderNodeMath")
+                less.operation = "LESS_THAN"
+                less.inputs[1].default_value = HAIR_CUTOFF
+                links.new(tex.outputs["Alpha"], less.inputs[0])
+                inv = nodes.new("ShaderNodeMath")
+                inv.operation = "SUBTRACT"
+                inv.inputs[0].default_value = 1.0
+                links.new(less.outputs[0], inv.inputs[1])
+                links.new(inv.outputs[0], bsdf.inputs["Alpha"])
+                m.surface_render_method = "DITHERED"
+                bsdf.inputs["Specular IOR Level"].default_value = 0.15
         if bump is not None:
             nt = nodes.new("ShaderNodeTexImage")
             nt.image = bump
@@ -2572,6 +3007,785 @@ def landmarks(co, body, J, mats, faces, hair, rims):
         marks["leg"][s] = _unit(J[f"foot_{n}"] - J[f"calf_{n}"])
     marks["knuckles"] = body.knuckles
     return marks
+
+
+# ── The races' parts: tusks, horns, a tail, facial hair ──────────────────────────────────────────────
+#
+# Each a mesh of its own beside the body, for the game to show or leave out, with the body's shape keys (it
+# follows the skin it sits on) and a material of its own to colour: tusks-01 and -02 (`teeth`), horns-01 to
+# -04 (`horns`), tail-tiefling (`skin`, on bones of its own under the pelvis), beard-01 to -05, moustache-01
+# and foothair-01 (`hair`: cards cut out of a near-white texture of strands, alpha MASK, tinted as the hair
+# is).
+
+TAIL = [f"tail_{i:02d}" for i in range(1, 6)]
+ALL_BONES = BONE_NAMES + TAIL
+HAIR_CUTOFF = 0.5  # the facial hair's alpha test
+STILL = 0.0003  # a key's move under this is dropped (invisible, and the file then stores only what moves)
+
+
+def _tri(u):
+    """0..1 there and back: a texture wrapped round a part with no seam."""
+    return 1 - np.abs(2 * np.mod(u, 1.0) - 1)
+
+
+def _mirrored(co, faces, uv):
+    """A left part and its mirror image on the right, as one."""
+    n = len(co)
+    return np.concatenate([co, co * np.array([-1.0, 1.0, 1.0])]), [list(f) for f in faces] + [[v + n for v in reversed(f)] for f in faces], [list(c) for c in uv] + [list(reversed(c)) for c in uv]
+
+
+class Face:
+    """The head's landmarks and directions the parts are placed by, and the skin of the head alone (what a
+    part on the head follows through the shape keys, not the chest it may hang over)."""
+
+    def __init__(self, B, skin, body, J, marks, mats, faces, inside):
+        self.B, self.skin, self.J, self.marks = B, skin, J, marks
+        self.inside = np.array(inside, dtype=bool)  # each face: inside the mouth
+        self.k = B["height"] / 1.78
+        co = skin.co
+        head = skin.W[:, BONE_INDEX["Head"]]
+        self.eye_z = body.eye["l"]["centre"][2]
+        self.eye = body.eye["l"]["centre"]
+        skull = (head > 0.99) & (co[:, 2] > self.eye_z)
+        self.C = np.array([0.0, (co[skull, 1].min() + co[skull, 1].max()) / 2, self.eye_z + 0.012])
+        mid = (np.abs(co[:, 0]) < 0.004) & (head > 0.5) & (co[:, 1] < self.C[1])
+        nose, mouth, chin = marks["nose"], marks["mouth"], marks["chin"]
+        band = mid & (co[:, 2] < nose[2] - 0.002) & (co[:, 2] > mouth[2] + 0.006)
+        self.sub = co[band][np.argmax(co[band, 1])]  # under the nose, where it meets the lip
+        band = mid & (co[:, 2] < chin[2] + 0.005) & (co[:, 1] < chin[1] + 0.035)
+        self.menton = co[band][np.argmin(co[band, 2])]  # the chin's underside
+        self.nose, self.mouth, self.chin = nose, mouth, chin
+        lipv = np.unique([v for f, m in zip(faces, mats) if m == PART["lips"] for v in f])
+        self.lip_half = np.abs(co[lipv, 0]).max()
+        self.lips = co[lipv]
+        self.ear = marks["ear"][1]
+        self.tri_mat = np.array([-1 if hidden else m for f, m, hidden in zip(faces, mats, inside) for _ in range(1, len(f) - 1)])
+        on_head = (head[skin.tris] >= 0.5).all(1)
+        self.head_tris = skin.tris[on_head]
+        self.head_bvh = BVHTree.FromPolygons(co.tolist(), self.head_tris.tolist())
+
+    def az(self, p):
+        """The angle round the head from the front (0) to the back (180), in degrees."""
+        return np.degrees(np.arctan2(np.abs(p[:, 0]), -(p[:, 1] - self.C[1])))
+
+    def scalp(self, az, el):
+        """The skin's point and normal in a direction from the head's middle (az: degrees from the front
+        towards the body's left; el: up from level)."""
+        a, e = math.radians(az), math.radians(el)
+        d = Vector((math.sin(a) * math.cos(e), -math.cos(a) * math.cos(e), math.sin(e)))
+        loc, nrm, _, _ = self.skin.bvh.ray_cast(Vector(self.C), d, 0.5)
+        n = np.array(nrm)
+        return np.array(loc), n if n @ np.array(d) > 0 else -n
+
+    def front(self, x, z):
+        """The skin's frontmost point at (x, z)."""
+        loc, _, _, _ = self.skin.bvh.ray_cast(Vector((x, self.C[1] - 0.4, z)), Vector((0, 1, 0)), 1.0)
+        return np.array(loc)
+
+    def follow(self, points, key_names, head=True, rigid=None):
+        """Shape key offsets for `points`: those of the skin's nearest point to each (the head's alone if
+        `head`); with `rigid` (a point) the whole part moves as that one point does."""
+        skin = self.skin
+        P = np.asarray(points if rigid is None else [rigid], dtype=np.float64)
+        if head:
+            hits = [self.head_bvh.find_nearest(Vector(p)) for p in P]
+            tri = np.array([h[2] for h in hits])
+            loc = np.array([h[0] for h in hits])
+            tv = self.head_tris[tri]
+            bary = np.clip(wa.bary_attach(self.head_tris, skin.co, tri, loc), 0.0, 1.0)
+            bary /= np.maximum(bary.sum(1, keepdims=True), 1e-9)
+        else:
+            _, _, tv, bary = skin.nearest(P)
+        keys = {}
+        for k in key_names:
+            d = (skin.keys[k][tv] * bary[:, :, None]).sum(1)
+            keys[k] = np.repeat(d, len(points), axis=0) if rigid is not None else d
+        return keys, (skin.W[tv] * bary[:, :, None]).sum(1)
+
+    def keep_clear(self, points, keys, sel):
+        """The keys' offsets at `points[sel]` put right where a key's skin (a deeper chest, a fuller neck)
+        would come through what hangs over it: pushed out to the distance it hangs at rest."""
+        skin = self.skin
+        P = points[sel]
+        loc, n, _, _ = skin.nearest(P)
+        rest = np.clip(((P - loc) * n).sum(1), 0.0008, 0.012)
+        for k in keys:
+            if np.abs(skin.keys[k]).max() < 1e-6:
+                continue
+            if k not in skin.keyed:
+                skin.keyed[k] = Skin(skin.co + skin.keys[k], skin.faces, skin.W, {})
+            was = keys[k][sel]
+            pushed = skin.keyed[k].clear(P + was, rest) - P
+            # (Only where it's pushed by more than half a millimetre: less is the measuring, not the skin.)
+            keys[k][sel] = np.where((np.linalg.norm(pushed - was, axis=1) > 0.0005)[:, None], pushed, was)
+
+
+def _unit_rows(v):
+    return v / np.maximum(np.linalg.norm(v, axis=1, keepdims=True), 1e-12)
+
+
+def _still(keys):
+    for k in keys:
+        keys[k][np.linalg.norm(keys[k], axis=1) < STILL] = 0.0
+    return keys
+
+
+def _head_weights(n):
+    W = np.zeros((n, len(BONE_NAMES)))
+    W[:, BONE_INDEX["Head"]] = 1.0
+    return W
+
+
+def _parts_uv(uv, tooth=False):
+    """A tube's texture coordinates laid into the horn's half of the parts' texture, or the tooth's."""
+    return [[((0.5 if tooth else 0.0) + 0.01 + 0.48 * _tri(u), 0.01 + 0.98 * v) for u, v in c] for c in uv]
+
+
+def tusks(F, key_names):
+    """A half-orc's lower tusks, small and large: each rises from behind the lower lip a little in from the
+    mouth's corner, over the upper lip, curving out and back in."""
+    out = []
+    mz, half = F.mouth[2], F.lip_half
+    for number, (length, r0) in enumerate(((0.011, 0.0048), (0.019, 0.0066)), 1):
+        x = half * 0.56
+        low = F.front(x, mz - 0.004)
+        high = F.front(x * 1.04, mz + length * 0.6)
+        y = min(low[1], high[1]) - r0 * 0.25
+        pts = wa.curve([[x * 0.94, low[1] + 0.008, mz - 0.013], [x, low[1] + 0.002, mz - 0.004], [x * 1.09, y, mz + length * 0.5], [x * 1.06, y + 0.002, mz + length]], 10)
+        t = np.linspace(0, 1, len(pts))
+        co, faces, uv = wa.tube(pts, r0 * (1 - t**1.5) + 0.0011, [1.0, 0.0, 0.0], segments=10, squash=0.86)
+        co, faces, uv = _mirrored(co, faces, _parts_uv(uv, tooth=True))
+        keys = {}
+        for sign in (1.0, -1.0):
+            k, _ = F.follow(co[: len(co) // 2], key_names, rigid=pts[1] * np.array([sign, 1.0, 1.0]))
+            for name, d in k.items():
+                keys[name] = d if sign > 0 else np.concatenate([keys[name], d])
+        out.append((f"tusks-{number:02d}", Part(co, faces, [PART["teeth"]] * len(faces), uv, _still(keys), _head_weights(len(co)))))
+    return out
+
+
+# Each horn style: where it stands on the skull (the angle round from the front and up from level), its radius
+# at the root and the tip, and its line from there as (out of the skull, up, back, to its side) in metres.
+HORNS = [
+    # Swept back along the skull, the tips turning up.
+    dict(at=(34, 33), r=(0.019, 0.0035), n=64, line=[(-0.008, 0, 0, 0), (0.022, 0.01, 0.004, 0), (0.034, 0.04, 0.04, 0.01), (0.03, 0.062, 0.09, 0.02), (0.024, 0.078, 0.135, 0.028), (0.024, 0.104, 0.165, 0.032)]),
+    # A ram's curl: back, down round the ear and forward again.
+    dict(at=(56, 34), r=(0.021, 0.004), n=80, curl=dict(radius=(0.043, 0.024), turns=1.05, out=0.024)),
+    # Short nubs.
+    dict(at=(30, 31), r=(0.014, 0.004), n=28, rings=0.5, line=[(-0.006, 0, 0, 0), (0.014, 0.006, 0, 0), (0.028, 0.016, 0.006, 0.002), (0.036, 0.026, 0.012, 0.003)]),
+    # Tall and upright, the tips leaning in.
+    dict(at=(32, 34), r=(0.019, 0.0035), n=72, line=[(-0.008, 0, 0, 0), (0.03, 0.018, 0, 0), (0.035, 0.085, 0.018, 0.026), (0.03, 0.155, 0.03, 0.034), (0.03, 0.215, 0.03, 0.024), (0.03, 0.26, 0.022, 0.008)]),
+]
+
+
+def horns(F, key_names):
+    """A tiefling's horns, each style a pair: a ridged tube from the skull along the style's line."""
+    out = []
+    for number, style in enumerate(HORNS, 1):
+        base, n0 = F.scalp(*style["at"])
+        up, back, side = np.array([0.0, 0.0, 1.0]), np.array([0.0, 1.0, 0.0]), np.array([1.0, 0.0, 0.0])
+        if "curl" in style:
+            c = style["curl"]
+            centre = base + back * 0.03 - up * 0.028 + n0 * 0.012
+            a0 = math.atan2((base - centre) @ up, (base - centre) @ back)
+            ctrl = [base - n0 * 0.008]
+            for i in range(1, 15):
+                u = i / 14
+                a = a0 - 2 * math.pi * c["turns"] * u  # (over the top to the back, then down and forward)
+                rad = c["radius"][0] + (c["radius"][1] - c["radius"][0]) * u
+                rad = rad * min(1.0, 0.75 + u * 2) if u < 0.12 else rad
+                ctrl.append(centre + (back * math.cos(a) + up * math.sin(a)) * rad + side * (0.012 + c["out"] * u) + n0 * 0.01)
+        else:
+            ctrl = [base + n0 * o + up * u_ + back * b + side * s_ for o, u_, b, s_ in style["line"]]
+        pts = wa.curve(np.array(ctrl) * 1.0, style["n"])
+        t = np.linspace(0, 1, len(pts))
+        r0, r1 = style["r"]
+        radii = (r1 + (r0 - r1) * (1 - t) ** 0.85) * (1 + 0.14 * np.exp(-t / 0.035)) * (1 - 0.075 * style.get("rings", 1.0) * wa.horn_rings(t))
+        co, faces, uv = wa.tube(pts, radii, side, segments=12)
+        co, faces, uv = _mirrored(co, faces, _parts_uv(uv))
+        keys = {}
+        for sign in (1.0, -1.0):
+            k, _ = F.follow(co[: len(co) // 2], key_names, rigid=base * np.array([sign, 1.0, 1.0]))
+            for name, d in k.items():
+                keys[name] = d if sign > 0 else np.concatenate([keys[name], d])
+        out.append((f"horns-{number:02d}", Part(co, faces, [PART["horns"]] * len(faces), uv, _still(keys), _head_weights(len(co)))))
+    return out
+
+
+def back_patch(skin, faces, uv, J):
+    """A patch of plain skin in the texture (the small of the back, left of the spine), as (u0, v0, u1, v1):
+    what the tail is drawn with, so it has every skin's own colour and grain."""
+    co = skin.co
+    z0 = J["pelvis"][2]
+    pts = []
+    for f, c in zip(faces, uv):
+        p = co[f].mean(0)
+        if 0.02 < p[0] < 0.06 and p[1] > J["spine_01"][1] and z0 + 0.13 < p[2] < z0 + 0.19:
+            pts += [tuple(x) for x in c]
+    pts = np.array(pts)
+    lo, hi = np.percentile(pts, 20, axis=0), np.percentile(pts, 80, axis=0)
+    log(f"the tail's patch of skin: u {lo[0]:.3f}-{hi[0]:.3f}, v {lo[1]:.3f}-{hi[1]:.3f} ({len(pts)} corners)")
+    return lo[0], lo[1], hi[0], hi[1]
+
+
+def tail(F, key_names, patch):
+    """A tiefling's tail: long and slim, from the base of the spine back and down, the end curling up to a spade
+    tip. Returns (name, Part, the tail bones' joints: six points along it)."""
+    k, J = F.k, F.J
+    z0 = J["pelvis"][2] + 0.03 * k
+    loc, _, _, _ = F.skin.bvh.ray_cast(Vector((0.0, 0.6, z0)), Vector((0, -1, 0)), 1.0)
+    base = np.array(loc)
+    line = [(0, -0.03, 0.01), (0, 0.035, -0.004), (0, 0.12, -0.085), (0.0, 0.2, -0.25), (0.005, 0.25, -0.44), (0.02, 0.305, -0.6), (0.045, 0.39, -0.69), (0.07, 0.49, -0.69), (0.085, 0.57, -0.62), (0.09, 0.61, -0.53)]
+    pts = wa.curve(base + np.array(line) * k, 64)
+    s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))])
+    t = s / s[-1]
+    # Its girth: full where it leaves the body, slimming to the spade; the spade flat and wide, to a point.
+    r = (0.0085 + 0.02 * (1 - t) ** 1.3) * (1 + 0.25 * np.exp(-t / 0.03)) * k
+    u = np.clip((t - 0.9) / 0.1, 0, 1)
+    wide = np.where(u > 0, np.interp(u, [0, 0.12, 0.38, 1.0], [0.0095, 0.012, 0.032, 0.0015]) * k, r)
+    thick = np.where(u > 0, np.interp(u, [0, 0.38, 1.0], [0.0095, 0.006, 0.001]) * k, r)
+    co, faces, uv = wa.tube(pts, wide, [1.0, 0.0, 0.0], segments=12, squash=thick / wide)
+    u0, v0, u1, v1 = patch
+    fuv = [[(u0 + (u1 - u0) * _tri(a), v0 + (v1 - v0) * _tri(b * 5.0)) for a, b in c] for c in uv]
+    tv = np.concatenate([np.repeat(t, 12), [1.0]])
+    W = np.zeros((len(co), len(ALL_BONES)))
+    q = tv * len(TAIL)
+    past = [np.ones(len(co))] + [wa.smoothstep(j - 0.3, j + 0.3, q) for j in range(1, len(TAIL))] + [np.zeros(len(co))]
+    for j, bone in enumerate(TAIL):
+        W[:, ALL_BONES.index(bone)] = past[j] * (1 - past[j + 1])
+    W /= W.sum(1, keepdims=True)
+    keys, _ = F.follow(co, key_names, head=False, rigid=base)
+    joints = [np.array([np.interp(f, t, pts[:, i]) for i in range(3)]) for f in np.linspace(0, 1, len(TAIL) + 1)]
+    return "tail-tiefling", Part(co, faces, [PART["skin"]] * len(faces), fuv, _still(keys), W), joints
+
+
+def add_tail_bones(rig, joints):
+    """The tail's bones (TAIL) added under the pelvis, every other bone left as it is."""
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.mode_set(mode="EDIT")
+    parent = rig.data.edit_bones["pelvis"]
+    for i, bone in enumerate(TAIL):
+        eb = rig.data.edit_bones.new(bone)
+        eb.head, eb.tail = Vector(joints[i]), Vector(joints[i + 1])
+        eb.parent = parent
+        eb.use_connect = False
+        eb.align_roll(Vector((1, 0, 0)))
+        parent = eb
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+
+def sway_tail(rig):
+    """A gentle sway of the tail, looping, in the model's own Idle (its other bones' keys left as they are):
+    a slow wave running down it, side to side with a little lift."""
+    action = bpy.data.actions.get("Idle")
+    if action is None:
+        return
+    rig.animation_data.action = action
+    if hasattr(rig.animation_data, "action_slot") and rig.animation_data.action_slot is None and len(action.slots):
+        rig.animation_data.action_slot = action.slots[0]
+    rest = {b: rig.data.bones[b].matrix_local.to_3x3().inverted() for b in TAIL}
+    for j in range(9):
+        u = j / 8
+        for i, bone in enumerate(TAIL):
+            pb = rig.pose.bones[bone]
+            pb.rotation_mode = "QUATERNION"
+            swing = math.radians(3.5 + 1.2 * i) * math.sin(2 * math.pi * u - 0.8 * i)
+            lift = math.radians(1.2) * math.sin(2 * math.pi * u - 0.8 * i + 1.3)
+            pb.rotation_quaternion = Quaternion(rest[bone] @ Vector((0, 0, 1)), swing) @ Quaternion(rest[bone] @ Vector((1, 0, 0)), lift)
+            pb.keyframe_insert("rotation_quaternion", frame=1 + 59 * u, group=bone)
+    rig.animation_data.action = None
+    for bone in TAIL:
+        rig.pose.bones[bone].rotation_quaternion = Quaternion()
+
+
+class Hair:
+    """Facial hair being made: cards (strips of strands cut out by the texture) grown from roots on the skin
+    along its flow, shingled over each other; under them an undercoat of soft patches of short hair lying on
+    the skin; and solid pieces (a long beard's body, braids). Each card moves as the skin at its root does
+    through the shape keys, each patch with the skin under it."""
+
+    def __init__(self, F, seed):
+        self.F, self.skin = F, F.skin
+        self.rng = np.random.default_rng(seed)
+        self.co, self.faces, self.uv = [], [], []
+        self.anchor = []  # each vertex's own place for following the skin, or its card's root
+        self.normal = []  # each vertex's normal: the skin's under it (so the cards are lit as one soft mass)
+        self.hang = []  # whether it hangs clear of the face (kept off the chest in every key)
+        self.n = 0
+        self.also = []  # other surfaces the cards lie over (a long beard's body)
+        tris = self.skin.tris
+        co = self.skin.co
+        a, b, c = (co[tris[:, i]] for i in range(3))
+        self.tri_area = np.linalg.norm(np.cross(b - a, c - a), axis=1) / 2
+        self.tri_centre = (a + b + c) / 3
+
+    def add(self, co, faces, uv, anchor=None, hang=False, normal=None):
+        co = np.asarray(co, dtype=np.float64)
+        self.co.append(co)
+        if normal is None:
+            normal = wa.vertex_normals_of(co, faces)
+        self.normal.append(np.asarray(normal, dtype=np.float64))
+        self.faces += [[v + self.n for v in f] for f in faces]
+        self.uv += uv
+        self.anchor.append(co if anchor is None else np.asarray(anchor, dtype=np.float64))
+        self.hang.append(np.full(len(co), hang) if np.isscalar(hang) else np.asarray(hang))
+        self.n += len(co)
+
+    def roots(self, cover, spacing, part="skin", bones=("Head",)):
+        """Points scattered evenly over the skin where `cover` (a field over points, 0..1) is over a half,
+        about `spacing` apart (many more are thrown than kept: one too near those already kept is dropped, so
+        they leave neither gaps nor clumps): (points, the skin's normals there, cover there)."""
+        skin = self.skin
+        on = np.isin(self.F.tri_mat, [PART[part]]) & (skin.W[skin.tris][:, :, [BONE_INDEX[b] for b in bones]].sum(2).min(1) > 0.3)
+        on &= cover(self.tri_centre) > 0.5
+        idx = np.nonzero(on)[0]
+        if not len(idx):
+            return np.zeros((0, 3)), np.zeros((0, 3)), np.zeros(0)
+        area = self.tri_area[idx]
+        count = 6 * int(area.sum() / spacing**2)
+        pick = idx[self.rng.choice(len(idx), size=count, p=area / area.sum())]
+        r1, r2 = np.sqrt(self.rng.random(count)), self.rng.random(count)
+        bary = np.stack([1 - r1, r1 * (1 - r2), r1 * r2], axis=1)
+        tv = skin.tris[pick]
+        P = (skin.co[tv] * bary[:, :, None]).sum(1)
+        kept = np.zeros((0, 3))
+        keep = []
+        for i, q in enumerate(P):
+            if not len(keep) or ((kept - q) ** 2).sum(1).min() > (0.85 * spacing) ** 2:
+                keep.append(i)
+                kept = np.concatenate([kept, q[None]])
+        P, tv, bary = kept, tv[keep], bary[keep]
+        N = (skin.sn[tv] * bary[:, :, None]).sum(1)
+        N /= np.linalg.norm(N, axis=1, keepdims=True)
+        return P, N, cover(P)
+
+    def clear(self, P, gap):
+        P = self.skin.clear(P, gap)
+        for surface in self.also:
+            P = surface.clear(P, gap)
+        return P
+
+    def off_skin(self, P):
+        """Whether each point lies over the lips or the mouth's inside (where no hair lies)."""
+        tri = np.array([self.skin.bvh.find_nearest(Vector(p))[2] for p in P])
+        m = self.F.tri_mat[tri]
+        return (m == PART["lips"]) | (m < 0)
+
+    def from_lips(self, P):
+        """Each point's distance from the lips."""
+        lips = self.F.lips
+        return np.array([np.sqrt(((lips - p) ** 2).sum(1).min()) for p in P])
+
+    def patches(self, cover, size=0.036, spacing=0.0108, grid=3, flow=None):
+        """The undercoat: soft patches of short hair laid on the skin, overlapping, wherever `cover` is over
+        a third: dense in its middle, thinner towards its edge (the texture's three patches), smaller near the
+        lips so none lies over them. Each a small grid pressed onto the skin, its hair pointing down."""
+        P, N, c = self.roots(lambda p: np.clip(cover(p) + 0.12, 0, 1), spacing)
+        if not len(P):
+            return
+        rng = self.rng
+        n = len(P)
+        tile = np.where(c > 0.72, 0, np.where(c > 0.5, 1, 2))
+        s = np.minimum(size * (0.5 + 0.5 * wa.smoothstep(0.4, 0.95, c)), np.maximum(self.from_lips(P) * 3.0, 0.012)) * rng.uniform(0.85, 1.15, n)
+        d = (flow or Beards.down)(P, N)
+        d = d - N * (d * N).sum(1, keepdims=True)
+        weak = np.linalg.norm(d, axis=1) < 0.3
+        d[weak] = np.array([0.0, -1.0, 0.0]) - N[weak] * (-N[weak, 1])[:, None]
+        d = _unit_rows(d)
+        turn = np.radians(rng.uniform(-18, 18, n))
+        d = d * np.cos(turn)[:, None] + np.cross(N, d) * np.sin(turn)[:, None]
+        side = np.cross(d, N)
+        gap = rng.uniform(0.0009, 0.0019, n)
+        ab = np.linspace(-0.5, 0.5, grid)
+        co = np.zeros((n, grid, grid, 3))
+        for i, b in enumerate(ab):
+            for j, a in enumerate(ab):
+                co[:, i, j] = P + side * (s * a)[:, None] + d * (s * b)[:, None]
+        flat = co.reshape(-1, 3)
+        # (A corner that would lie over the lips is drawn back towards its patch's middle, to the lip's edge.)
+        centre = np.repeat(P, grid * grid, axis=0)
+        over = np.nonzero(self.off_skin(flat))[0]
+        if len(over):
+            lo, hi = np.zeros(len(over)), np.ones(len(over))
+            for _ in range(5):
+                mid = (lo + hi) / 2
+                bad = self.off_skin(centre[over] + (flat[over] - centre[over]) * mid[:, None])
+                hi = np.where(bad, mid, hi)
+                lo = np.where(bad, lo, mid)
+            flat[over] = centre[over] + (flat[over] - centre[over]) * lo[:, None]
+        loc, nrm, _, _ = self.skin.nearest(flat, smooth=True)
+        flat = loc + nrm * np.repeat(gap, grid * grid)[:, None]
+        faces, uv = [], []
+        for k in range(n):
+            region = f"patch{tile[k]}"
+            for i in range(grid - 1):
+                for j in range(grid - 1):
+                    a0 = k * grid * grid + i * grid + j
+                    faces.append([a0, a0 + 1, a0 + grid + 1, a0 + grid])
+                    u0, u1, v0, v1 = j / (grid - 1), (j + 1) / (grid - 1), 1 - i / (grid - 1), 1 - (i + 1) / (grid - 1)
+                    uv.append([wa.hair_region(region, u0, v0), wa.hair_region(region, u1, v0), wa.hair_region(region, u1, v1), wa.hair_region(region, u0, v1)])
+        self.add(flat, faces, uv, normal=nrm)
+
+    def cards(self, P, N, flow, length, width, lift, steps, locks, hang=(0.0, -0.18, -1.0), free=0.02, spread=14.0, rows=2, root_gap=0.0008, taper=0.75, rigid=False, edge=None, on_face=True):
+        """A card from each root: `length` long and `width` wide (each a number or one per root), stepping
+        along `flow(points, normals)` (lying on the skin), turning to hang (`hang`) past `free` metres or
+        where the skin faces down, lifting to `lift` off the skin by its tip, the roots turned `spread`
+        degrees either way at random. `rows` points across (3: its middle raised, a rounded lock). `edge` (the
+        cover at each root) makes it smaller towards the edge of where it grows; `rigid` is for a card that
+        hangs from something other than the skin (a long beard's body); off the face, `on_face` is False."""
+        n = len(P)
+        if not n:
+            return
+        rng = self.rng
+        length = np.broadcast_to(length, (n,)) * rng.uniform(0.75, 1.15, n)
+        width = np.broadcast_to(width, (n,)) * rng.uniform(0.8, 1.2, n)
+        if edge is not None:
+            # (Shorter and narrower towards the edge of where it grows: `edge` is the cover at each root.)
+            k = wa.smoothstep(0.5, 0.95, edge)
+            length, width = length * (0.45 + 0.55 * k), width * (0.65 + 0.35 * k)
+        lips = on_face and not rigid  # (on the face: narrower by the lips, and never over them)
+        if lips:
+            width = np.minimum(width, np.maximum(self.from_lips(P) * 2.2, 0.004))
+        stopped = np.zeros(n, dtype=bool)
+        lift = np.broadcast_to(lift, (n,)) * rng.uniform(0.6, 1.3, n)
+        hang_dir = _unit(hang)
+        yaw = np.radians(rng.uniform(-spread, spread, n))
+        pts = [self.skin.clear(P + N * root_gap, np.full(n, root_gap))]
+        dirs, norms = [], []
+        nrm = N
+        for i in range(steps):
+            p = pts[-1]
+            if i:
+                _, nrm, _, _ = self.skin.nearest(p, smooth=True)
+            d = flow(p, nrm)
+            d = d - nrm * (d * nrm).sum(1, keepdims=True)
+            flat = np.linalg.norm(d, axis=1, keepdims=True)
+            d = d / np.maximum(flat, 1e-9)
+            # (Turned about the skin's normal by its root's own angle.)
+            d = d * np.cos(yaw)[:, None] + np.cross(nrm, d) * np.sin(yaw)[:, None]
+            run = length * i / steps
+            h = np.clip(np.maximum((run - free) / 0.02, (0.35 - flat[:, 0]) / 0.25), 0.0, 1.0)[:, None]
+            d = d * (1 - h) + hang_dir * h
+            d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
+            nxt = p + d * (length / steps)[:, None]
+            gap = root_gap + lift * ((i + 1) / steps) ** 1.2
+            nxt = self.clear(nxt, gap)
+            if lips:
+                # (A hair that would lie over the lips ends where it is: a moustache's trimmed line.)
+                stopped |= self.off_skin(nxt) & (run < 0.02)
+                nxt[stopped] = p[stopped] + d[stopped] * 0.0004
+            pts.append(nxt)
+            dirs.append(d)
+            norms.append(nrm)
+        dirs.append(dirs[-1])
+        _, last, _, _ = self.skin.nearest(pts[-1], smooth=True)
+        norms.append(last)
+        column = rng.choice(np.concatenate([wa.LOCKS[name] for name in locks]), size=n)
+        cross = np.linspace(-0.5, 0.5, rows)
+        co = np.zeros((n, steps + 1, rows, 3))
+        vn = np.zeros((n, steps + 1, rows, 3))
+        for i in range(steps + 1):
+            nrm, d = norms[i], dirs[i]
+            side = np.cross(d, nrm)
+            weak = np.linalg.norm(side, axis=1) < 0.35
+            if weak.any():
+                # (Where a strand stands straight off the skin, its card faces out from the head's middle.)
+                out = pts[i][weak] - self.F.C
+                out[:, 2] *= 0.3
+                side[weak] = np.cross(d[weak], out / np.linalg.norm(out, axis=1, keepdims=True))
+            side /= np.maximum(np.linalg.norm(side, axis=1, keepdims=True), 1e-9)
+            face_n = np.cross(side, d)
+            w = width * (1 - (1 - taper) * (i / steps) ** 2)
+            lit = N if rigid else nrm
+            for j, x in enumerate(cross):
+                co[:, i, j] = pts[i] + side * (w * x)[:, None] + face_n * ((0.25 - x * x) * 0.5 * w)[:, None] * (rows > 2)
+                vn[:, i, j] = _unit_rows(lit * 0.75 + face_n * 0.25 + side * (x * 0.5))
+        faces, uv = [], []
+        per = (steps + 1) * rows
+        for c in range(n):
+            lock = f"lock{column[c]}"
+            for i in range(steps):
+                for j in range(rows - 1):
+                    a = c * per + i * rows + j
+                    faces.append([a, a + 1, a + rows + 1, a + rows])
+                    u0, u1, va, vb = j / (rows - 1), (j + 1) / (rows - 1), 1 - i / steps, 1 - (i + 1) / steps
+                    uv.append([wa.hair_region(lock, u0, va), wa.hair_region(lock, u1, va), wa.hair_region(lock, u1, vb), wa.hair_region(lock, u0, vb)])
+        flat_co = co.reshape(-1, 3)
+        # (Each card moves as its root does through the shape keys: stiff, so it never folds.)
+        anchor = np.repeat(P, per, axis=0)
+        run = np.broadcast_to((np.arange(steps + 1)[None, :] * (length / steps)[:, None])[:, :, None], (n, steps + 1, rows)).reshape(-1)
+        self.add(flat_co, faces, uv, anchor=anchor, hang=run > free + 0.012, normal=vn.reshape(-1, 3))
+
+    def solid(self, pts, radii, side, segments=7, squash=1.0, region="solid", v=(1.0, 0.3), anchor=None, tip=True):
+        """A solid piece round a curve (a braid's strand, a tie), drawn with hair that has no gaps."""
+        co, faces, uv = wa.tube(pts, radii, side, segments=segments, squash=squash, tip=tip)
+        fuv = [[wa.hair_region(region, a, v[0] + (v[1] - v[0]) * b) for a, b in c] for c in uv]
+        self.add(co, faces, fuv, anchor=np.repeat([anchor if anchor is not None else pts[0]], len(co), axis=0), hang=True)
+
+    def part(self, key_names, head=True):
+        co = np.concatenate(self.co)
+        anchor = np.concatenate(self.anchor)
+        hang = np.concatenate(self.hang)
+        keys, W = self.F.follow(anchor, key_names, head=head)
+        if hang.any():
+            self.F.keep_clear(co, keys, hang)
+        order = np.argsort(-W, axis=1)
+        keep = np.zeros_like(W, dtype=bool)
+        np.put_along_axis(keep, order[:, :4], True, axis=1)
+        W[~keep | (W < 0.01)] = 0.0
+        W /= W.sum(1, keepdims=True)
+        part = Part(co, self.faces, [PART["hair"]] * len(self.faces), self.uv, _still(keys), W)
+        part.normals = np.concatenate(self.normal)
+        return part
+
+
+class Beards:
+    """The facial hair's shapes on this face: where each grows (fields over the skin, 0..1), how the hair
+    lies, and each style built from them."""
+
+    def __init__(self, F):
+        self.F = F
+        f = F
+        mz = f.mouth[2]
+        self.top = lambda az: np.interp(az, [0, 10, 20, 32, 48, 64, 78, 92], [f.sub[2] - 0.002, f.sub[2] - 0.003, mz + 0.017, mz + 0.011, mz + 0.015, mz + 0.032, f.ear[2] - 0.006, f.ear[2] + 0.002])
+        self.bottom = lambda az: np.interp(az, [0, 30, 55, 75, 95], [f.menton[2] - 0.04, f.menton[2] - 0.04, f.menton[2] - 0.027, f.menton[2] - 0.002, f.menton[2] + 0.024])
+
+    def full(self, p, low=0.0, high=0.0):
+        """A full beard: under a line from the nose's base round the mouth's corner up to the ear, down to a
+        line under the jaw (`high` lowers its cheek line, `low` raises its neck line)."""
+        az = self.F.az(p)
+        d = np.minimum(self.top(az) - high * wa.smoothstep(24, 40, az) - p[:, 2], (p[:, 2] - self.bottom(az) - low) * 2.0)
+        d = np.minimum(d, (88 - az) * 0.0012)
+        return np.clip(0.5 + d / 0.006, 0, 1)
+
+    def moustache(self, p, reach=0.012):
+        f = self.F
+        x = np.abs(p[:, 0])
+        top = np.interp(x, [0, 0.4 * f.lip_half, f.lip_half, f.lip_half + reach], [f.sub[2] - 0.001, f.sub[2] - 0.002, f.mouth[2] + 0.013, f.mouth[2] + 0.004])
+        d = np.minimum(np.minimum(top - p[:, 2], f.lip_half + reach - x), p[:, 2] - (f.mouth[2] - 0.004 - 0.02 * wa.smoothstep(f.lip_half * 0.9, f.lip_half + reach, x)))
+        d = np.minimum(d, (f.C[1] - 0.045) - p[:, 1])
+        return np.clip(0.5 + d / 0.004, 0, 1)
+
+    def goatee(self, p):
+        f = self.F
+        x = np.abs(p[:, 0])
+        mz = f.mouth[2]
+        under_lip = mz - 0.012
+        half = np.interp(p[:, 2], [f.menton[2] - 0.03, f.chin[2], under_lip], [f.lip_half * 0.75, f.lip_half * 0.98, f.lip_half * 0.92])
+        chin = np.minimum(np.minimum(half - x, under_lip - p[:, 2]), p[:, 2] - (f.menton[2] - 0.026))
+        link = np.minimum(np.minimum(x - (f.lip_half - 0.001), f.lip_half + 0.013 - x), np.minimum(mz + 0.01 - p[:, 2], p[:, 2] - (f.chin[2] - 0.005)))
+        d = np.maximum(chin, link)
+        d = np.minimum(d, (f.C[1] - 0.03) - p[:, 1])
+        return np.clip(0.5 + d / 0.004, 0, 1)
+
+    @staticmethod
+    def down(p, n):
+        return np.broadcast_to(np.array([0.0, -0.1, -1.0]), p.shape).copy()
+
+    def outward(self, p, n):
+        """A moustache's lie: from under the nose out along the lip and a little down."""
+        d = np.stack([np.sign(p[:, 0]) * (0.25 + 0.75 * wa.smoothstep(0.0, 0.006, np.abs(p[:, 0]))), np.full(len(p), 0.1), np.full(len(p), -0.42)], axis=1)
+        return d
+
+    def make(self, key_names):
+        F = self.F
+        out = []
+
+        def start(seed):
+            return Hair(F, seed)
+
+        def moustache(h, spacing, length, width, lift, reach=0.012, locks=("dense",), steps=3):
+            cover = lambda p: self.moustache(p, reach)  # noqa: E731
+            P, N, c = h.roots(cover, spacing)
+            # (None from the nose's wings, whose skin faces the way the hair lies: it would stand straight off.)
+            lies = np.abs((_unit_rows(self.outward(P, N)) * N).sum(1)) < 0.7
+            P, N, c = P[lies], N[lies], c[lies]
+            x = np.abs(P[:, 0]) / F.lip_half
+            h.cards(P, N, self.outward, length * (0.65 + 0.5 * np.clip(x, 0, 1.2)), width, lift, steps, locks, hang=(0.0, -0.1, -1.0), free=length * 1.2, spread=9.0, edge=c)
+
+        both = lambda p: np.maximum(self.full(p), self.moustache(p))  # noqa: E731
+        # (Shorter up the cheek towards the ear, where a beard meets the hair's sideburn.)
+        sideburn = lambda p: 1 - 0.55 * wa.smoothstep(52, 80, F.az(p))  # noqa: E731
+
+        # 01: short, close to the face (a week or two's growth).
+        h = start(11)
+        h.patches(both, spacing=0.0095)
+        h.patches(self.moustache, size=0.016, spacing=0.0065)
+        P, N, c = h.roots(both, 0.0115)
+        h.cards(P, N, self.down, 0.011, 0.012, 0.0018, 2, ("tuft", "wispy"), free=1.0, spread=28.0, taper=0.9, edge=c)
+        out.append(("beard-01", h.part(key_names)))
+
+        # 02: a full beard, trimmed: longer on the chin than on the cheeks, its moustache joined to it.
+        h = start(12)
+        h.patches(both)
+        h.patches(self.moustache, size=0.016, spacing=0.0065)
+        P, N, c = h.roots(self.full, 0.0098)
+        chin = wa.smoothstep(F.mouth[2] + 0.005, F.chin[2] - 0.005, P[:, 2]) * wa.smoothstep(70, 30, F.az(P))
+        h.cards(P, N, self.down, (0.016 + 0.02 * chin) * sideburn(P), 0.016, 0.0035 + 0.004 * chin, 3, ("dense", "coarse", "tuft"), free=0.02, spread=18.0, edge=c)
+        moustache(h, 0.0052, 0.016, 0.0095, 0.0025)
+        out.append(("beard-02", h.part(key_names)))
+
+        # 03: a long beard, to a point on the chest.
+        h = start(13)
+        h.patches(both)
+        h.patches(self.moustache, size=0.016, spacing=0.0065)
+        self.long(h, length=0.17, half=F.lip_half * 1.55, depth=0.042, seed_spacing=0.0115)
+        moustache(h, 0.006, 0.024, 0.012, 0.003, reach=0.016)
+        out.append(("beard-03", h.part(key_names)))
+
+        # 04: a dwarf's: long, broad and bushy, a braid hanging at either side of the mouth, a big moustache.
+        h = start(14)
+        h.patches(both)
+        h.patches(self.moustache, size=0.016, spacing=0.0065)
+        hull = self.long(h, length=0.215, half=F.lip_half * 2.15, depth=0.05, seed_spacing=0.0115, high=-0.004, bushy=True)
+        self.braids(h, hull)
+        moustache(h, 0.006, 0.04, 0.013, 0.004, reach=0.02, locks=("dense", "coarse"), steps=4)
+        out.append(("beard-04", h.part(key_names)))
+
+        # 05: a moustache with a goatee, joined round the mouth.
+        h = start(15)
+        both5 = lambda p: np.maximum(self.goatee(p), self.moustache(p))  # noqa: E731
+        h.patches(both5, size=0.022, spacing=0.009)
+        P, N, c = h.roots(self.goatee, 0.0065)
+        chin = wa.smoothstep(F.chin[2] + 0.012, F.chin[2] - 0.006, P[:, 2])
+        h.cards(P, N, self.down, 0.012 + 0.02 * chin, 0.013, 0.002 + 0.004 * chin, 3, ("dense", "tuft"), free=0.016, spread=12.0, edge=c)
+        moustache(h, 0.0052, 0.016, 0.0095, 0.0022)
+        out.append(("beard-05", h.part(key_names)))
+
+        # A moustache alone: full, its ends a little past the mouth's corners.
+        h = start(16)
+        h.patches(lambda p: self.moustache(p, 0.012), size=0.018, spacing=0.008, flow=self.outward)
+        moustache(h, 0.0048, 0.022, 0.0095, 0.003, reach=0.015)
+        out.append(("moustache-01", h.part(key_names)))
+        for name, part in out:
+            log(f"{name}: {len(part.co)} vertices")
+        return out
+
+    def long(self, h, length, half, depth, seed_spacing, high=0.0, bushy=False):
+        """A long beard on `h`: cards over the cheeks and jaw, then its body hanging from the jaw (a shell
+        of solid hair, open behind, narrowing to a point `length` under the chin) with long locks down it."""
+        F = self.F
+        cover = lambda p: self.full(p, high=high)  # noqa: E731
+        P, N, c = h.roots(cover, seed_spacing)
+        chin = wa.smoothstep(F.mouth[2] + 0.005, F.chin[2] - 0.005, P[:, 2]) * wa.smoothstep(75, 35, F.az(P))
+        side = 1 - 0.5 * wa.smoothstep(55, 82, F.az(P))
+        h.cards(P, N, self.down, (0.02 + 0.045 * chin + (0.01 if bushy else 0.0)) * side, 0.019, 0.005 + 0.006 * chin, 3, ("dense", "coarse") if not bushy else ("coarse", "dense", "curly"), free=0.022, spread=20.0 if bushy else 15.0, edge=c)
+        # Its body: rings round a line from inside the jaw down and a little forward.
+        rows, cols, wrap = 13, 13, math.radians(118)
+        c0 = np.array([0.0, F.menton[1] + 0.034, F.menton[2] + 0.016])
+        hang = _unit([0.0, -0.16, -1.0])
+        s = np.linspace(0, 1, rows)
+        prof = (1 + (0.3 if bushy else 0.18) * np.sin(np.pi * np.minimum(s / 0.6, 1.0))) * (1 - s**2.4) ** 0.75 + 0.04
+        theta = np.linspace(-wrap, wrap, cols)
+        ring = np.stack([np.sin(theta), -np.cos(theta), np.zeros(cols)], axis=1)
+        co = c0 + (s * length)[:, None, None] * hang + ring[None] * (np.stack([half * prof, depth * (0.55 + 0.45 * prof), np.zeros(rows)], axis=1))[:, None, :]
+        # (In lobes, like thick locks lying side by side, each a little longer or shorter.)
+        lobes = 1 + (0.07 if bushy else 0.05) * np.sin(theta[None, :] * 5.2 + 1.3 * np.sin(s[:, None] * 4.0)) * wa.smoothstep(0.05, 0.3, s)[:, None]
+        co = c0 + (s * length)[:, None, None] * hang + (co - c0 - (s * length)[:, None, None] * hang) * lobes[:, :, None]
+        co = co.reshape(-1, 3)
+        gap = np.repeat(0.002 + 0.006 * wa.smoothstep(0.1, 0.4, s), cols)
+        co = h.skin.clear(co, gap)
+        faces, uv = [], []
+        for i in range(rows - 1):
+            for j in range(cols - 1):
+                a = i * cols + j
+                faces.append([a, a + cols, a + cols + 1, a + 1])
+                uv.append([wa.hair_region("solid", j / (cols - 1), 1 - s[i]), wa.hair_region("solid", j / (cols - 1), 1 - s[i + 1]), wa.hair_region("solid", (j + 1) / (cols - 1), 1 - s[i + 1]), wa.hair_region("solid", (j + 1) / (cols - 1), 1 - s[i])])
+        anchor = np.repeat([F.menton], len(co), axis=0)
+        hull = Skin(co, faces, None, {})
+        if (hull.vn[cols // 2] @ np.array([0.0, -1.0, 0.0])) < 0:
+            hull.vn, hull.sn = -hull.vn, -hull.sn
+        h.add(co, faces, uv, anchor=anchor, hang=True, normal=hull.sn)
+        h.also.append(hull)
+        # Long locks down its body, from all over it, the lower ones running past its end.
+        tris = hull.tris
+        a, b, c_ = (co[tris[:, i]] for i in range(3))
+        area = np.linalg.norm(np.cross(b - a, c_ - a), axis=1) / 2
+        count = int(area.sum() / (0.015 if bushy else 0.016) ** 2)
+        pick = h.rng.choice(len(tris), size=count, p=area / area.sum())
+        r1, r2 = np.sqrt(h.rng.random(count)), h.rng.random(count)
+        bary = np.stack([1 - r1, r1 * (1 - r2), r1 * r2], axis=1)
+        P = (co[tris[pick]] * bary[:, :, None]).sum(1)
+        N = (hull.sn[tris[pick]] * bary[:, :, None]).sum(1)
+        N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9)
+        depth_down = np.clip(((P - c0) @ hang) / length, 0, 1)
+        flow = lambda p, n: np.broadcast_to(hang, p.shape).copy()  # noqa: E731
+        h.cards(P + N * 0.001, N, flow, 0.05 + 0.035 * (1 - depth_down) + (0.012 if bushy else 0.0), 0.028, 0.004, 3, ("dense", "coarse") if not bushy else ("coarse", "curly", "dense"), free=0.0, spread=9.0 if not bushy else 14.0, rows=2, rigid=True, hang=tuple(hang))
+        h.anchor[-1] = np.repeat([F.menton], len(h.anchor[-1]), axis=0)
+        return dict(c0=c0, hang=hang, length=length, half=half, depth=depth, surface=hull)
+
+    def braids(self, h, hull):
+        """Two braids, one hanging from either side of the mouth down the beard's front: three strands
+        plaited, tied near the end, a tuft under the tie."""
+        F = self.F
+        for sign in (1.0, -1.0):
+            x = sign * (F.lip_half + 0.004)
+            top = F.front(x, F.mouth[2] - 0.022)
+            n = 26
+            length = hull["length"] * 0.72
+            line = top + np.array([0.0, -0.004, 0.0]) + np.linspace(0, 1, n)[:, None] * length * _unit([sign * 0.1, -0.12, -1.0])
+            line = h.clear(line, np.full(n, 0.011))
+            for _ in range(8):
+                line[1:-1] = line[1:-1] * 0.5 + (line[:-2] + line[2:]) * 0.25
+            T, S, N = wa.frames(line, [1.0, 0.0, 0.0])
+            s = np.linspace(0, 1, n)
+            phase = 2 * np.pi * s * length / 0.05
+            amp = 0.0052 * (1 - 0.25 * s)
+            for i in range(3):
+                a = phase + 2 * np.pi * i / 3
+                strand = line + S * (amp * np.sin(a))[:, None] + N * (0.6 * amp * np.sin(2 * a))[:, None]
+                h.solid(strand[: int(n * 0.9)], 0.0056 * (1 - 0.25 * s[: int(n * 0.9)]), [1.0, 0.0, 0.0], segments=6, v=(1.0, 0.35), anchor=F.menton, tip=False)
+            at = int(n * 0.86)
+            h.solid(line[at : at + 3], np.full(3, 0.0088), [1.0, 0.0, 0.0], segments=9, region="tie", v=(1.0, 0.0), anchor=F.menton, tip=False)
+            # The tuft under the tie.
+            m = 7
+            ang = h.rng.uniform(0, 2 * np.pi, m)
+            P = line[at + 2] + S[at + 2] * (0.004 * np.cos(ang))[:, None] + N[at + 2] * (0.004 * np.sin(ang))[:, None]
+            Nn = S[at + 2] * np.cos(ang)[:, None] + N[at + 2] * np.sin(ang)[:, None]
+            flow = lambda p, nn, d=T[at + 2]: np.broadcast_to(d, p.shape).copy()  # noqa: E731
+            before = len(h.anchor)
+            h.cards(P, Nn, flow, 0.04, 0.012, 0.002, 3, ("tuft", "wispy"), free=0.0, spread=6.0, rigid=True, hang=tuple(T[at + 2]))
+            h.anchor[before] = np.repeat([F.menton], len(h.anchor[before]), axis=0)
+
+
+def foot_hair(F, key_names):
+    """A halfling's hairy feet: wisps of hair lying over the top of each foot towards the toes, from the
+    ankle's front to the toes' roots, the skin showing through."""
+    J = F.J
+    h = Hair(F, 21)
+
+    def cover(p):
+        out = np.zeros(len(p))
+        for s_ in ("l", "r"):
+            ankle, tip = J[f"foot_{s_}"], J[f"ball_{s_}.tail"]
+            t = along(p, ankle, tip)
+            mid = ankle + np.outer(np.clip(t, 0, 1), tip - ankle)
+            across = np.abs(p[:, 0] - mid[:, 0])
+            d = np.minimum(np.minimum(t - 0.12, 0.8 - t) * 0.1, 0.034 - across)
+            d = np.minimum(d, p[:, 2] - mid[:, 2] + 0.004)
+            out = np.maximum(out, np.clip(0.5 + d / 0.005, 0, 1) * (np.abs(p[:, 0] - ankle[0]) < 0.08))
+        return out
+
+    bones = ("foot_l", "foot_r", "ball_l", "ball_r")
+    flow = lambda p, n: np.broadcast_to(np.array([0.0, -1.0, -0.1]), p.shape).copy()  # noqa: E731
+    P, N, c = h.roots(cover, 0.0105, bones=bones)
+    P, N, c = P[N[:, 2] > 0.35], N[N[:, 2] > 0.35], c[N[:, 2] > 0.35]
+    h.cards(P, N, flow, 0.024, 0.0125, 0.0022, 3, ("wispy", "dense", "wispy"), free=1.0, spread=26.0, edge=c, on_face=False)
+    part = h.part(key_names, head=False)
+    log(f"foothair-01: {len(part.co)} vertices")
+    return [("foothair-01", part)]
+
+
+def race_parts(B, skin, body, J, marks, mats, faces, uv, inside, key_names):
+    """Every race part for this body: [(name, Part)], and the tail's joints. (`inside`: each face of the
+    skin, whether it's inside the mouth.)"""
+    F = Face(B, skin, body, J, marks, mats, faces, inside)
+    out = tusks(F, key_names) + horns(F, key_names)
+    name, part, joints = tail(F, key_names, back_patch(skin, faces, uv, J))
+    out.append((name, part))
+    out += Beards(F).make(key_names)
+    out += foot_hair(F, key_names)
+    return out, joints
 
 
 # ── MakeHuman's system assets: skins, eyes, eyebrows and eyelashes (CC0, read as data) ───────────────────
@@ -2875,6 +4089,7 @@ def make(B):
         e["aim"] = (e["aim"] - shift) * s
         e["radius"] *= s
     settle_age(body, used, W, J)
+    settle_races(B, body, used, W, J)
     co = smooth_private(B, body.co[used], J, nbrs)
     body.co[used] = co
 
@@ -2902,6 +4117,7 @@ def make(B):
     W = apply(W)
     W /= W.sum(1, keepdims=True)
     mats = [int(mats[f]) for f, _ in corners]
+    inside = [bool(mouth[f]) for f, _ in corners]
     uv = [[w @ uv[f] for w in ws] for f, ws in corners]
     co = seal_lips(co, faces, mats)
     parts = [Part(co, faces, mats, uv, body_keys, W)]
@@ -2959,12 +4175,19 @@ def make(B):
     log("skins and eyes: " + ", ".join(f"{k} {v // 1024} KB" for k, v in sizes.items()))
     eye_image = save_texture(f"{name}-eyes", grey, EYE_SIZE)
     cards = hair_texture(name)
-    shared = materials(atlas, cards, normal, gatlas, gnormal, eye_image)
+    # The races' parts, with their two textures (the horns' and tusks', and the facial hair's strands).
+    extras, tail_joints = race_parts(B, skin, body, J, marks, mats, faces, uv, inside, key_names)
+    parts_image = save_texture(f"{name}-parts", wa.parts_texture(), 512)
+    beard_image = bpy.data.images.new(f"{name}-facial-hair", wa.HAIR_SIZE, wa.HAIR_SIZE, alpha=True)
+    beard_image.pixels.foreach_set(wa.facial_hair_texture().astype(np.float32).ravel())
+    beard_image.file_format = "PNG"
+    beard_image.pack()
+    shared = materials(atlas, cards, normal, gatlas, gnormal, eye_image, parts_image, beard_image)
     # (Our own strip brows and lashes, `hair`, still place the painted lash line and brow shadow; MakeHuman's
     # styles are what the model wears.)
     obj = join(name, parts + [to_eye_texture(e) for e in eyes], key_names)
     brows = [join(n, [part], key_names) for n, part in mh_hair(B, body, co, body_keys, key_names, roots, len(co0))]
-    pieces = [join(g.name, [g.part], key_names) for g in wear] + brows
+    pieces = [join(g.name, [g.part], key_names) for g in wear] + brows + [join(n, [part], key_names) for n, part in extras]
     for o in [obj] + pieces:
         o.data.name = o.name
         for m in shared:
@@ -2972,10 +4195,12 @@ def make(B):
     log(f"{len(obj.data.vertices)} vertices; underwear " + ", ".join(f"{g.name} {len(g.part.co)}" for g in wear))
 
     rig = make_rig(name, J)
+    add_tail_bones(rig, tail_joints)
     for o in [obj] + pieces:
         o.parent = rig
         o.modifiers.new("Armature", "ARMATURE").object = rig
     ww.Animator(rig).key_all(ww.humanoid_actions(arm_down=72 - APOSE))
+    sway_tail(rig)
     export(name, [obj] + pieces, rig)
     return obj, rig, body
 

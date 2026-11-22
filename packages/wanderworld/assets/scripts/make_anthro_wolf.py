@@ -563,7 +563,15 @@ def toes(B, H, mesh):
             y = r0[1] * math.sin(phi)
             return b + np.outer(c0[0] + x, out) + np.outer(np.full(len(ang), c0[1] + y), fw) + np.outer(c0[2] + z, up)
 
-        aw.grow(mesh, loop, (out, up, fw), dome, 7, P["fur"], lambda p, Wl=Wl: np.repeat(Wl[None], len(p), 0), lambda p, keys_l=keys_l: {kk: np.repeat(v[None], len(p), 0) for kk, v in keys_l.items()})
+        rings = aw.grow(mesh, loop, (out, up, fw), dome, 7, P["fur"], lambda p, Wl=Wl: np.repeat(Wl[None], len(p), 0), lambda p, keys_l=keys_l: {kk: np.repeat(v[None], len(p), 0) for kk, v in keys_l.items()})
+        # (The join smoothed, so no step shows where the dome meets the foot.)
+        seam = np.zeros(len(mesh.co))
+        seam[np.array(loop)] = 1.0
+        E = mesh.edges()
+        seam = np.clip(aw.neighbour_mean(len(mesh.co), E, seam) * 2, 0, 1)
+        for _ in range(6):
+            mesh.co += (aw.neighbour_mean(len(mesh.co), E, mesh.co) - mesh.co) * (0.5 * seam)[:, None]
+            mesh.co -= (aw.neighbour_mean(len(mesh.co), E, mesh.co) - mesh.co) * (0.52 * seam)[:, None]
         for x, f, length, girth in PAW_TOES:
             x, f, length, girth = x * k, f * k, length * k, girth * k
             # (The root: on the paw's front, a little below its middle.)
@@ -595,7 +603,7 @@ def toes(B, H, mesh):
             mesh.tags["toe_pad"] = np.maximum(np.resize(mesh.tags["toe_pad"], len(mesh.co)), pad)
             tip = mesh.co[rings[-1][0]]
             ctop = tip + vert * girth * 0.55 - d * girth * 0.55
-            cl = claw(ctop, d - vert * 0.25, -vert, 0.0125 * k, girth * 0.33, f"ball_{s}")
+            cl = claw(ctop, d - vert * 0.25, -vert, 0.011 * k, girth * 0.42, f"ball_{s}")
             claws.append(cl)
             H.setdefault("claw_axes", []).append((cl.co[0], cl.co[-2]))
         # The pads: under each toe, and the big heart-shaped pad under the paw behind them.
@@ -795,6 +803,19 @@ def hand_claws_and_pads(B, H, mesh):
         nail_faces = hf & (mesh.fmat == P["claws"])
         nails = islands(mesh, nail_faces)
         mesh.fmat[nail_faces] = P["fur"]
+        # The nails' grooves smoothed away (they would bake as dark creases under the fur).
+        nv = np.zeros(len(mesh.co))
+        for f in np.nonzero(nail_faces)[0]:
+            nv[mesh.faces[f]] = 1.0
+        E = mesh.edges()
+        nv = np.clip(aw.neighbour_mean(len(mesh.co), E, nv) * 3, 0, 1)
+        nv = np.clip(aw.neighbour_mean(len(mesh.co), E, nv) * 2, 0, 1)
+        for _ in range(10):
+            lap = aw.neighbour_mean(len(mesh.co), E, mesh.co) - mesh.co
+            mesh.co += lap * (0.5 * nv)[:, None]
+            lap = aw.neighbour_mean(len(mesh.co), E, mesh.co) - mesh.co
+            mesh.co -= lap * (0.52 * nv)[:, None]
+        normals = mesh.normals()
         backs = []
         for g in nails:
             vs = np.unique(np.concatenate([mesh.faces[f] for f in g]))
@@ -805,15 +826,13 @@ def hand_claws_and_pads(B, H, mesh):
             along = unit(along - nrm * (along @ nrm))
             ext = (p - centre) @ along
             size = min(np.ptp(ext), 0.014)
-            front = centre + along * ext.max() * 0.85
-            # The fold over the claw's root, at the front of where the nail was: the skin raised a little.
-            root = front - along * 0.003
-            d = mesh.co - root
-            fold = smoothstep(0.006, 0.0, np.linalg.norm(d, axis=1)) * (d @ nrm > -0.0015) * hand
-            mesh.co += normals * (0.0007 * fold)[:, None]
-            base = front - along * 0.0025 - nrm * 0.0004
-            length = 0.0125 * (0.92 if B["female"] else 1.0)
-            width = 0.0033 * (0.92 if B["female"] else 1.0)
+            # The fingertip's very end: the skin furthest along the finger near the nail.
+            near = np.nonzero(hand & (np.linalg.norm(mesh.co - centre, axis=1) < 0.02))[0]
+            tip = mesh.co[near[np.argmax((mesh.co[near] - centre) @ along)]]
+            # The claw comes out of the top of that end, its root a few millimetres inside.
+            base = tip - along * 0.0035 + nrm * 0.0012
+            length = 0.0115 * (0.92 if B["female"] else 1.0)
+            width = 0.0042 * (0.92 if B["female"] else 1.0)
             out.append(claw(base, along, -nrm, length, width, f"hand_{s}"))
             H["claw_axes"].append((base, base + along * length - nrm * length * 0.45))
             backs.append((centre, nrm, size * 0.5))
@@ -901,6 +920,7 @@ def fur_volume(B, H, mesh, F):
     around = np.linalg.norm(rel[:, :2], axis=1)
     band = smoothstep(lower - 0.004, lower + 0.035, co[:, 2]) * smoothstep(upper + 0.03, upper - 0.02, co[:, 2]) * smoothstep(0.17, 0.11, around)
     band *= 1 - mesh.W[:, [BI[f"{b}_{s}"] for b in ("upperarm", "lowerarm", "hand") for s in "lr"]].sum(1)
+    band *= smoothstep(-0.06, -0.095, q[:, 2])  # (none on the face: the cheeks have fur of their own)
     thick = (0.012 + 0.016 * front) * ruff
     clumps = 1 + 0.35 * saw(theta * 11 / (2 * np.pi)) * smoothstep(neck[2] + 0.06, neck[2] - 0.02, co[:, 2])
     ruff_d = thick * band * clumps
@@ -1497,6 +1517,8 @@ def surface_point(mesh, origin, direction):
     tris = [(f[0], f[i], f[i + 1]) for f in mesh.faces for i in range(1, len(f) - 1)]
     bvh = BVHTree.FromPolygons(mesh.co.tolist(), tris)
     loc, nrm, *_ = bvh.ray_cast(Vector(tuple(origin)), Vector(tuple(unit(direction))), 1.0)
+    if loc is None:
+        loc, nrm, *_ = bvh.find_nearest(Vector(tuple(origin)))
     return np.array(loc), np.array(nrm)
 
 
@@ -1798,6 +1820,60 @@ def wear_objects(wear, order):
     return objs
 
 
+def eye_keys(mesh, eyes, n_body, n_eyes):
+    """Each eyeball's keys from the socket round it: for every key, the turn-free move and scale that best
+    takes the skin of the lids (between one and two eye radii from its centre) to where the key puts it,
+    applied to the eyeball. So the eyes follow `eyes` (larger) and any key that moves the face round
+    them, and nothing else moves them."""
+    for c, r, _ in eyes:
+        d = np.linalg.norm(mesh.co[:n_body] - c, axis=1)
+        ring = np.nonzero((d > r * 1.0) & (d < r * 1.9))[0]
+        ball = np.nonzero(np.linalg.norm(mesh.co - c, axis=1) < r * 1.1)[0]
+        ball = ball[(ball >= n_body) & (ball < n_eyes)]
+        P0 = mesh.co[ring] - c
+        for name, K in mesh.keys.items():
+            k = K[ring]
+            t = k.mean(0)
+            moved = P0 + k - t
+            sc = np.linalg.norm(moved, axis=1).mean() / np.linalg.norm(P0, axis=1).mean()
+            out = t + (mesh.co[ball] - c) * (sc - 1)
+            if np.linalg.norm(out, axis=1).max() < 3e-4:
+                out[:] = 0.0
+            K[ball] = out
+
+
+def split_eyes(obj, name):
+    """The eyeballs as a mesh of their own (`<name>-eyes`), keeping only the keys that move them."""
+    import bpy
+
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    eye_slot = next(i for i, m in enumerate(obj.data.materials) if m.name.split(".")[0] == "eyes")
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="DESELECT")
+    obj.active_material_index = eye_slot
+    bpy.ops.object.material_slot_select()
+    bpy.ops.mesh.separate(type="SELECTED")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    eyes = next(o for o in bpy.context.selected_objects if o is not obj)
+    eyes.name = eyes.data.name = f"{name}-eyes"
+    # (Only the eyes' material left on it.)
+    keep = eyes.data.materials[eye_slot]
+    eyes.data.materials.clear()
+    eyes.data.materials.append(keep)
+    eyes.data.polygons.foreach_set("material_index", [0] * len(eyes.data.polygons))
+    base = np.array([v.co for v in eyes.data.vertices])
+    for kb in list(eyes.data.shape_keys.key_blocks[1:]):
+        d = np.array([v.co for v in kb.data]) - base
+        if np.linalg.norm(d, axis=1).max() < 3e-4:
+            eyes.shape_key_remove(kb)
+    for kb in eyes.data.shape_keys.key_blocks:
+        kb.value = 0.0
+    aw.log(f"{eyes.name}: {len(eyes.data.vertices)} vertices, keys " + ", ".join(k.name for k in eyes.data.shape_keys.key_blocks[1:]))
+    return eyes
+
+
 def build(B, export=True):
     ww.reset()
     name = B["name"]
@@ -1810,10 +1886,12 @@ def build(B, export=True):
     extras = extras + tufts(B, H, F, mesh)
     eyes = []
     for e in extras[:2]:
-        c = e.co.mean(0)
-        eyes.append((c, np.linalg.norm(e.co - c, axis=1).mean(), unit(e.co[0] - c)))
+        # (The sphere's own centre: halfway between its front and back poles.)
+        c = (e.co[0] + e.co[-1]) / 2
+        eyes.append((c, np.linalg.norm(e.co[0] - c), unit(e.co[0] - c)))
     own_uv = []
     card_normals = {}
+    n_body = len(mesh.co)
     for e in extras:
         n0 = len(mesh.faces)
         v0 = len(mesh.co)
@@ -1825,6 +1903,9 @@ def build(B, export=True):
             own_uv += list(zip(range(n0, n0 + len(e.faces)), e.uv))
     flow = np.concatenate([flow, np.zeros((len(mesh.co) - len(flow), 3))])
     muzzle_keys(F, mesh)
+    # (`eyes` twice the human's: on a furred face its eyes' size is what reads.)
+    mesh.keys["eyes"] = mesh.keys["eyes"] * 2.0
+    eye_keys(mesh, eyes, n_body, n_body + len(extras[0].co) + len(extras[1].co))
     order = [k for k in KEY_ORDER if k in mesh.keys]
     mesh.W = aw.limit_weights(mesh.W)
     obj = aw.to_object(name, mesh, order)
@@ -1906,6 +1987,7 @@ def build(B, export=True):
             for m in old:
                 aw.bpy.data.materials.remove(m)
         aw.log("textured")
+    eyes_obj = split_eyes(obj, name)
     joints = dict(H["J"])
     tj = H["tail_joints"]
     for i, b in enumerate(aw.TAIL):
@@ -1913,7 +1995,7 @@ def build(B, export=True):
     joints["tail_04.tail"] = tj[4]
     rig_obj = aw.rig(name, joints)
     if export:
-        aw.export(name, [obj] + pieces, rig_obj, aw.actions(arm_down=72 - aw.APOSE))
+        aw.export(name, [obj, eyes_obj] + pieces, rig_obj, aw.actions(arm_down=72 - aw.APOSE))
     return H, mesh, obj, rig_obj, pieces
 
 

@@ -214,6 +214,10 @@ export function checkLook(raw) {
   // Which kind of body (missing: a human, unless lore or their race says otherwise), and a dragon's wings.
   if (SPECIES.some(([species]) => species === raw.species)) look.species = raw.species;
   if (typeof raw.wings === "boolean") look.wings = raw.wings;
+  // A human body's race (missing: human, unless lore or their build says otherwise) and its parts.
+  if (RACES.some(([race]) => race === raw.race)) look.race = raw.race;
+  for (const [field, list] of RACE_PARTS) if (list.some(([style]) => style === raw[field])) look[field] = raw[field];
+  if (typeof raw.tail === "boolean") look.tail = raw.tail;
   for (const [field, list] of [
     ["shape", [...SHAPES, ...FACE, ...ANTHRO_SHAPES]],
     ["limbs", LIMBS],
@@ -228,7 +232,7 @@ export function checkLook(raw) {
     if (Object.keys(kept).length) look[field] = kept;
   }
   const colours = {};
-  for (const [part] of [...AVATAR_COLOURS, ...Object.values(ANTHRO_COLOURS).flat()])
+  for (const [part] of [...AVATAR_COLOURS, ...RACE_COLOURS, ...Object.values(ANTHRO_COLOURS).flat()])
     if (isRecord(raw.colours) && isColour(raw.colours[part])) colours[part] = raw.colours[part];
   if (Object.keys(colours).length) look.colours = colours;
   const underwear = {};
@@ -271,6 +275,9 @@ export function checkLook(raw) {
 //   { body,                          "male" or "female": which of a kind's two models is loaded
 //     species,                       "human", or an anthro kind, "wolf" or "dragon" (SPECIES)
 //     wings,                         a dragon's wings shown (missing: yes) or left off
+//     race,                          a human body's race (RACES): a shape key and proportions of its own
+//     facialHair, tusks, horns,      a style of each (FACIAL_HAIR, TUSKS, HORNS), or "none"
+//     tail,                          a tiefling's tail shown or left off (missing: a tiefling has one)
 //     shape: { weight, muscle, … },  the build and face sliders (SHAPES, FACE, ANTHRO_SHAPES), each within its range
 //     limbs: { arms, legs, head },   arm and leg length and head size, as a share of the usual
 //     colours: { skin, eyes, … },    each part's colour (0xRRGGBB): AVATAR_COLOURS
@@ -302,6 +309,66 @@ export const SPECIES = [
   ["human", "Human"],
   ["wolf", "Anthro wolf"],
   ["dragon", "Anthro dragon"],
+];
+/**
+ * The races a human body can be, the 5e SRD's (a dragonborn has the dragon body): [value, label, its shape
+ * key, how far the key goes, what completes it: the whole figure's size and the legs', arms' and head's, each
+ * as a share of a human's]. The key holds what scaling can't give: the build, the girth of trunk and limbs,
+ * the hands and feet, and the face (assets/scripts/make_avatar.py RACE_SCALES). So a dwarf, a halfling and a
+ * gnome are each their own shape, not a small human. A half-elf is half an elf.
+ */
+export const RACES = [
+  ["human", "Human"],
+  ["dwarf", "Dwarf", "race_dwarf", 1, { height: 0.87, legs: 0.7, arms: 0.8, head: 1.18 }],
+  ["halfling", "Halfling", "race_halfling", 1, { height: 0.58, legs: 0.86, arms: 0.9, head: 1.2 }],
+  ["gnome", "Gnome", "race_gnome", 1, { height: 0.62, legs: 0.85, arms: 0.98, head: 1.4 }],
+  ["elf", "Elf", "race_elf", 1, { height: 1, legs: 1.03, arms: 1.02, head: 0.97 }],
+  ["halfelf", "Half-elf", "race_elf", 0.5, { height: 1, legs: 1.015, arms: 1.01, head: 0.985 }],
+  ["halforc", "Half-orc", "race_halforc", 1, { height: 1.05, legs: 1, arms: 1.03, head: 1 }],
+  ["tiefling", "Tiefling", "race_tiefling", 1, { height: 1, legs: 1, arms: 1, head: 1 }],
+];
+/** What a race is made of: { key, weight, height, legs, arms, head } (a human: no key, every size 1). */
+export const raceOf = (race) => {
+  const [, , key = "", weight = 0, sizes = {}] = RACES.find(([value]) => value === race) ?? RACES[0];
+  return { key, weight, height: 1, legs: 1, arms: 1, head: 1, ...sizes };
+};
+/** Facial hair, tusks and horns: [value (the model's mesh), label]. Any race may wear any. */
+export const FACIAL_HAIR = [
+  [BARE, "None"],
+  ["moustache-01", "Moustache"],
+  ["beard-05", "Moustache and goatee"],
+  ["beard-01", "Short beard"],
+  ["beard-02", "Full beard"],
+  ["beard-03", "Long beard"],
+  ["beard-04", "Long beard with braids"],
+];
+export const TUSKS = [
+  [BARE, "None"],
+  ["tusks-01", "Small"],
+  ["tusks-02", "Large"],
+];
+export const HORNS = [
+  [BARE, "None"],
+  ["horns-03", "Nubs"],
+  ["horns-01", "Swept back"],
+  ["horns-02", "Ram's curl"],
+  ["horns-04", "Tall"],
+];
+/** A race's parts in a look: [field, its list, label, what it is]. */
+export const RACE_PARTS = [
+  ["facialHair", FACIAL_HAIR, "Facial hair", "A beard or moustache, in the hair's colour."],
+  ["tusks", TUSKS, "Tusks", "A half-orc's lower tusks."],
+  ["horns", HORNS, "Horns", "A tiefling's horns."],
+];
+/** A tiefling's skin colours, and a half-orc's, which a name picks among: [hex, label]. */
+export const TIEFLING_SKINS = [
+  [0xb3423a, "Red"],
+  [0x4a6aa8, "Blue"],
+  [0x7a4a9a, "Purple"],
+];
+export const HALF_ORC_SKINS = [
+  [0x7d8c6a, "Grey-green"],
+  [0x8a8f82, "Grey"],
 ];
 /** The clothing slots an anthro body leaves empty for now: head pieces don't fit a muzzle, nor shoes a paw. */
 export const ANTHRO_BARE_SLOTS = new Set(["head", "brow", "feet"]);
@@ -562,6 +629,8 @@ export const HORN_COLOURS = [
   [0x8a8884, "Grey"],
   [0xc8a050, "Gold"],
 ];
+/** A race's parts that can be coloured, when worn: [field, label, its list, what it changes]. */
+export const RACE_COLOURS = [["horns", "Horns", HORN_COLOURS, "The horns."]];
 /** An anthro kind's parts that can be coloured (with its underwear, AVATAR_COLOURS): [field, label, its list,
  *  what it changes]. */
 export const ANTHRO_COLOURS = {
@@ -582,10 +651,15 @@ export const ANTHRO_COLOURS = {
 
 /**
  * The look a character's race gives when nothing else says (build.js: an SRD race, and a draconic ancestry
- * if the build names one): a dragonborn has the dragon body, its scales in its ancestry's colour. Laid
+ * if the build names one): a dragonborn has the dragon body, its scales in its ancestry's colour, and a
+ * dwarf, elf, gnome, half-elf, half-orc, halfling or tiefling the human body as that race (RACES). Laid
  * under what lore and the Look card choose (mergeLooks).
  */
 export function raceLook(build) {
+  // (The other races are the human body's own: an elf's ears are a slider, so they can still be changed.)
+  const race = String(build?.race ?? "").replace("-", "");
+  if (race !== "human" && RACES.some(([value]) => value === race))
+    return { race, ...(race === "elf" || race === "halfelf" ? { shape: { ears: race === "elf" ? 1 : 0.5 } } : {}) };
   if (build?.race !== "dragonborn") return {};
   const ancestry = String(build.ancestry ?? "").toLowerCase();
   const scales = SCALE_COLOURS.find(([, label]) => label.toLowerCase() === ancestry)?.[0];
@@ -812,6 +886,11 @@ export const PRESET_FIELDS = [
   "body",
   "species",
   "wings",
+  "race",
+  "facialHair",
+  "tusks",
+  "horns",
+  "tail",
   "figure",
   "shape",
   "limbs",
@@ -898,6 +977,7 @@ export const BUILT_IN_PRESETS = [
     name: "Male elf",
     look: {
       body: "male",
+      race: "elf",
       shape: { weight: -0.35, jaw: -0.2, cheeks: 0.6, ears: 1 },
       hair: "long",
       hairColour: 4,
@@ -918,12 +998,19 @@ export const BUILT_IN_PRESETS = [
     name: "Female elf",
     look: {
       body: "female",
+      race: "elf",
       shape: { weight: -0.4, cheeks: 0.6, eyes: 0.3, ears: 1 },
       hair: "long",
       hairColour: 4,
       height: 1.04,
     },
   },
+  // The other races, on the body their gender gives: each brings its own build, and what it usually has
+  // (a dwarf man's beard, a half-orc's tusks and skin, a tiefling's horns, tail and skin).
+  ...["dwarf", "halfling", "gnome", "halfelf", "halforc", "tiefling"].map((race) => ({
+    name: RACES.find(([value]) => value === race)[1],
+    look: { race },
+  })),
   // The anthro bodies, each in a coat or an ancestry's colours (the body follows their gender).
   ...[
     ["Grey wolf", 0, 0xd99a2b],

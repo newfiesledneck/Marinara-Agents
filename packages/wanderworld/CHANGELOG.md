@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.53 — 2026-11-20
+
+- Races for the built-in body: dwarf, halfling, gnome, elf, half-elf, half-orc and tiefling, each its own shape instead of a human made smaller (a dwarf broad and short-legged, a gnome with a big head and long fingers). The Look card has Race, Tusks, Horns, Tail and Facial hair (a moustache, a goatee and four beards); anyone may wear any. Clothes, underwear and long hair follow a race's build. Lore words (ww:looks:dwarf) and your build's race set it, and there's a ready-made preset for each.
+- Anthro wolf: the tail sweeps back and away from the legs, the claws grow from the fingertips and toes, and the eyes follow the Eyes slider.
+
 ## 0.7.52 — 2026-11-20
 
 - Anthro bodies in the Look card: a wolf and a dragon, male and female, with their own sliders (muzzle, ears or horns, tail length and thickness), fur or scale colours (the dragon's in the ten draconic ancestries), wings shown or hidden, and presets. They wear the human clothes, apart from hats, hair and footwear for now. A dragonborn gets the dragon body unless another is chosen.

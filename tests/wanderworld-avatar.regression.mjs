@@ -3,7 +3,8 @@
 // shape key, a person built from each in Node (pictures stubbed), shape keys, limb lengths, underwear and
 // outfit pieces applied, looks checked and older ones carried over, presets read back as written, and
 // townsfolk's looks the same every time from their name and lore. The anthro bodies (a wolf, a dragon) too:
-// their kit files, two-way sliders, colours, wings, and human outfit pieces worn on them.
+// their kit files, two-way sliders, colours, wings, and human outfit pieces worn on them. And the races of
+// the human body: their keys, sizes and parts, and their build carried onto what's worn.
 // Run: node tests/wanderworld-avatar.regression.mjs
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
@@ -51,6 +52,12 @@ const KEYS = [
   "ears_pointed",
   "age_middle",
   "age_old",
+  "race_dwarf",
+  "race_halfling",
+  "race_gnome",
+  "race_elf",
+  "race_halforc",
+  "race_tiefling",
 ];
 const PARTS = ["skin", "underwear", "eye_white", "iris", "eyebrows", "eyelashes", "lips", "nails"];
 const files = {};
@@ -75,7 +82,9 @@ for (const sex of ["male", "female"]) {
   );
   // (Only one underwear top and one bottom, and one brow and one lash style, are ever shown, so the body is
   // counted without them, and each style on its own.)
-  const isUnder = (mesh) => /^(?:underwear|eyebrows|eyelashes)-/u.test(mesh.piece ?? "");
+  // (The same for a race's parts: one beard, one pair of tusks and horns, a tail.)
+  const isUnder = (mesh) =>
+    /^(?:underwear|eyebrows|eyelashes|beard|moustache|tusks|horns|tail)-/u.test(mesh.piece ?? "");
   const vertices = file.meshes.filter((mesh) => !isUnder(mesh)).reduce((sum, mesh) => sum + mesh.count, 0);
   assert.ok(vertices < 32000, `the ${sex} body stays within its budget (${vertices} vertices)`);
   for (const mesh of file.meshes.filter(isUnder))
@@ -666,7 +675,7 @@ for (const sex of ["male", "female"]) {
   assert.equal(readKeyword("ww:looks:tall").problem, "");
   assert.match(readKeyword("ww:looks:purple").problem, /a look is one of/u);
   const lore = lookFromWords(["looks tall", "looks red hair", "looks elf", "lives in home3"]);
-  assert.deepEqual(lore, { height: 1.08, hairColour: 6, shape: { ears: 1 } });
+  assert.deepEqual(lore, { height: 1.08, hairColour: 6, race: "elf", shape: { ears: 1 } });
   const shaped = avatarLook("Bram", "auto", mergeLooks(lore, { shape: { weight: 0.2 } }));
   assert.equal(shaped.height, 1.08);
   assert.equal(shaped.shape.ears, 1, "an elf has pointed ears");
@@ -675,7 +684,8 @@ for (const sex of ["male", "female"]) {
   assert.deepEqual(lookFromWords("A short, stocky half-elf with short hair and blue eyes."), {
     hair: "short",
     height: 0.92,
-    shape: { weight: 0.4, muscle: 0.4, shoulders: 0.4, neck: 0.4, ears: 0.6 },
+    shape: { weight: 0.4, muscle: 0.4, shoulders: 0.4, neck: 0.4, ears: 0.5 },
+    race: "halfelf",
     limbs: { legs: 0.94 },
     colours: { eyes: 0x3f6f8a },
   });
@@ -882,7 +892,8 @@ for (const sex of ["male", "female"]) {
         `${where}'s pieces`,
       );
       // On the people's skeleton, with tail (and wing) bones, each on a parent.
-      for (const joint of [...files[sex].skeleton.names, ...bones])
+      // (The human body's own tail bones are a tiefling's: an anthro body has its own, as many as its tail needs.)
+      for (const joint of [...files[sex].skeleton.names.filter((name) => !/^tail_/u.test(name)), ...bones])
         assert.ok(file.skeleton.names.includes(joint), `${where} has the ${joint} bone`);
       assert.ok(file.skeleton.parents[file.skeleton.names.indexOf("tail_01")] >= 0, "the tail is on the body");
       // Its pictures are inside the file, none bigger than the body's 2,048 pixels would make it.
@@ -1234,7 +1245,7 @@ for (const sex of ["male", "female"]) {
     species: "dragon",
     colours: { scales: looks.SCALE_COLOURS[5][0] },
   });
-  assert.deepEqual(raceLook({ race: "elf" }), {});
+  assert.deepEqual(raceLook({ race: "human" }), {});
   assert.deepEqual(raceLook(undefined), {});
   assert.deepEqual(
     checkLook(raceLook({ race: "dragonborn", ancestry: "red" })),
@@ -1361,6 +1372,253 @@ for (const sex of ["male", "female"]) {
     "human",
     "their Look card's choice sits on lore",
   );
+}
+
+// ── The races of the human body: a shape of their own, not a small human ────
+{
+  const { RACES, RACE_PARTS, raceOf, raceLook, FACIAL_HAIR, TUSKS, HORNS, TIEFLING_SKINS, HALF_ORC_SKINS, BARE } =
+    looks;
+  const RACE_KEYS = KEYS.filter((key) => key.startsWith("race_"));
+  assert.equal(RACE_KEYS.length, 6);
+  // The kit: the skin has every race's key; the underwear has none (the game carries them); the races' parts
+  // are pieces of the body's own file, and the halfling's foot hair is left out.
+  for (const sex of ["male", "female"]) {
+    const pieces = files[sex].meshes.map((mesh) => mesh.piece).filter(Boolean);
+    for (const [, list] of RACE_PARTS)
+      for (const [style] of list) assert.ok(style === BARE || pieces.includes(style), `the ${sex} body has ${style}`);
+    assert.ok(pieces.includes("tail-tiefling"), `the ${sex} body has a tiefling's tail`);
+    assert.ok(!pieces.some((piece) => piece.startsWith("foothair")), "no foot hair yet");
+    assert.ok(
+      ["tail_01", "tail_05"].every((name) => files[sex].skeleton.names.includes(name)),
+      "the tail has bones of its own",
+    );
+    for (const mesh of files[sex].meshes) {
+      const under = /^underwear-/u.test(mesh.piece ?? "");
+      for (const key of RACE_KEYS)
+        if (under) assert.ok(!mesh.morphs?.[key], `the ${sex} ${mesh.piece} is packed without ${key}`);
+      if (/^beard-/u.test(mesh.piece ?? "")) {
+        assert.equal(mesh.alpha, "MASK", "a beard is cut out by its texture");
+        assert.ok(mesh.morphs?.race_dwarf, `the ${sex} ${mesh.piece} follows a dwarf's face`);
+      }
+    }
+  }
+
+  // Every race is listed with its key and sizes; a half-elf is half an elf; a human has no key.
+  assert.deepEqual(
+    RACES.map(([race]) => race),
+    ["human", "dwarf", "halfling", "gnome", "elf", "halfelf", "halforc", "tiefling"],
+  );
+  assert.deepEqual(raceOf("human"), { key: "", weight: 0, height: 1, legs: 1, arms: 1, head: 1 });
+  assert.deepEqual(raceOf("nonsense"), raceOf("human"));
+  assert.equal(raceOf("halfelf").key, "race_elf");
+  assert.equal(raceOf("halfelf").weight, 0.5);
+  for (const [race] of RACES.slice(1)) assert.ok(RACE_KEYS.includes(raceOf(race).key), `${race} has a key`);
+  const weightsFor = (race, sex = "male") => keyWeights(avatarLook("Rowan", sex, { race }), sex, files[sex].keys);
+  assert.equal(weightsFor("dwarf").race_dwarf, 1);
+  assert.equal(weightsFor("halfelf").race_elf, 0.5);
+  assert.equal(weightsFor("human").race_dwarf, undefined);
+  assert.equal(weightsFor("dwarf").race_elf, undefined);
+
+  // Built: each stands on the ground at its own height, and a dwarf's legs are short for its body.
+  const person = (look, name = "Rowan", sex = "male") => createAvatar({ ...EVERYDAY, body: sex, ...look }, name, sex);
+  const stood = (character) => {
+    character.update(1 / 60, 0);
+    character.object.updateMatrixWorld(true);
+    return new Box3().setFromObject(character.object, true);
+  };
+  const human = await person({});
+  const tall = stood(human).max.y;
+  const heights = { dwarf: 1.33, halfling: 0.97, gnome: 1.05, halforc: 1.87 };
+  for (const [race, metres] of Object.entries(heights)) {
+    const one = await person({ race, facialHair: BARE, horns: BARE });
+    const box = stood(one);
+    assert.ok(Math.abs(box.min.y) < 0.05, `a ${race} stands on the ground (${box.min.y.toFixed(3)})`);
+    assert.ok(
+      Math.abs(box.max.y / tall - metres / 1.78) < 0.04,
+      `a ${race} man is about ${metres} m to a human's 1.78 (${((box.max.y / tall) * 1.78).toFixed(2)})`,
+    );
+    one.dispose();
+  }
+  const dwarf = await person({ race: "dwarf" });
+  stood(dwarf);
+  const legShare = (character) =>
+    (bone(character, "pelvis").y - bone(character, "foot_l").y) /
+    (bone(character, "Head").y - bone(character, "foot_l").y);
+  assert.ok(legShare(dwarf) < legShare(human) * 0.9, "a dwarf's legs are short for its body, not a human's made small");
+  const widthOf = (character) => {
+    const { array } = bodyMesh(character).geometry.attributes.position;
+    let [least, most] = [Infinity, -Infinity];
+    // (The trunk between the hips and the chest, in the model's own space.)
+    for (let i = 0; i < array.length; i += 3)
+      if (array[i + 1] > 0.95 && array[i + 1] < 1.25 && Math.abs(array[i]) < 0.3) {
+        least = Math.min(least, array[i]);
+        most = Math.max(most, array[i]);
+      }
+    return most - least;
+  };
+  assert.ok(widthOf(dwarf) > widthOf(human) * 1.08, "a dwarf's trunk is broader than a human's");
+
+  // What a race usually has, from the name, the same every time; a look's own choice wins.
+  const look = (race, sex = "male", chosen = {}) => avatarLook("Rowan", sex, { race, ...chosen });
+  assert.deepEqual(look("dwarf"), look("dwarf"));
+  assert.match(look("dwarf").facialHair, /^beard-0[234]$/u, "a dwarf man has a beard");
+  assert.equal(look("dwarf", "female").facialHair, BARE, "a dwarf woman has none unless chosen");
+  assert.equal(look("dwarf", "female", { facialHair: "beard-01" }).facialHair, "beard-01");
+  assert.equal(look("dwarf", "male", { facialHair: BARE }).facialHair, BARE, "shaved by choice");
+  assert.equal(look("human").facialHair, BARE);
+  assert.ok(
+    TUSKS.slice(1).some(([style]) => style === look("halforc").tusks),
+    "a half-orc has tusks",
+  );
+  assert.ok(
+    HALF_ORC_SKINS.some(([hex]) => hex === look("halforc").colours.skin),
+    "and its race's skin",
+  );
+  assert.equal(look("halforc").skin, "custom");
+  assert.equal(look("halforc", "male", { skin: "african" }).skin, "african", "unless a skin picture is chosen");
+  const tiefling = look("tiefling");
+  assert.ok(
+    HORNS.slice(1).some(([style]) => style === tiefling.horns),
+    "a tiefling has horns",
+  );
+  assert.equal(tiefling.tail, true, "and a tail");
+  assert.ok(TIEFLING_SKINS.some(([hex]) => hex === tiefling.colours.skin));
+  assert.equal(look("tiefling", "male", { tail: false }).tail, false);
+  assert.equal(look("human").tail, false);
+  assert.equal(look("human", "male", { horns: "horns-02", tail: true }).horns, "horns-02", "anyone may have them");
+  assert.equal(look("elf").shape.ears, 1, "an elf's ears are pointed");
+  assert.equal(look("halfelf").shape.ears, 0.5);
+  assert.equal(look("elf", "male", { shape: { ears: 0 } }).shape.ears, 0, "unless the slider says otherwise");
+  // An anthro body has no race, and none of its parts.
+  const wolf = avatarLook("Rowan", "male", { species: "wolf", race: "dwarf", facialHair: "beard-01", tail: true });
+  assert.deepEqual([wolf.race, wolf.facialHair, wolf.tusks, wolf.horns, wolf.tail], ["human", BARE, BARE, BARE, false]);
+
+  // The parts show only when the look has them: more triangles with a beard, horns, tusks and a tail.
+  const triangles = (character) => bodyMesh(character).geometry.groups.reduce((sum, group) => sum + group.count, 0);
+  const bare = await person({ race: "tiefling", horns: BARE, tail: false });
+  const horned = await person({ race: "tiefling", horns: "horns-04", tail: false });
+  const tailed = await person({ race: "tiefling", horns: BARE, tail: true });
+  const bearded = await person({ facialHair: "beard-04" });
+  const tusked = await person({ tusks: "tusks-02" });
+  assert.equal(triangles(bare), triangles(human), "nothing of a race's shows unless worn");
+  for (const [name, one] of Object.entries({ horned, tailed, bearded, tusked }))
+    assert.ok(triangles(one) > triangles(human), `${name}: its part is drawn`);
+  // The beard is drawn cut out and solid (it hides what's behind it), in the hair's colour.
+  const beardMaterial = bodyMesh(bearded).material.find((material) => material.alphaTest === 0.5);
+  assert.ok(beardMaterial && !beardMaterial.transparent, "a beard is cut out, not blended");
+  // The tail sways on its own bones.
+  const tailAt = () => bone(tailed, "tail_05").x;
+  tailed.update(1 / 60, 0);
+  tailed.object.updateMatrixWorld(true);
+  const before = tailAt();
+  for (let i = 0; i < 40; i++) tailed.update(1 / 30, 0);
+  tailed.object.updateMatrixWorld(true);
+  assert.ok(Math.abs(tailAt() - before) > 1e-4, "a tiefling's tail sways");
+
+  // A race's build is carried onto what's worn: the underwear and a tunic move with a dwarf's skin, below
+  // the head; a hat, on the skull, stays as it is.
+  const dressed = { clothes: ["tunic", "trousers", "mh_fedora"], hair: "none" };
+  const [plainMan, dwarfMan] = [
+    await person({ ...dressed }),
+    await person({ ...dressed, race: "dwarf", facialHair: BARE }),
+  ];
+  const sizeOf = (mesh) => {
+    mesh.geometry.computeBoundingBox();
+    return mesh.geometry.boundingBox.getSize(new Vector3());
+  };
+  const piecesBy = (character) => piecesOn(character).map((mesh) => sizeOf(mesh));
+  const [plainSizes, dwarfSizes] = [piecesBy(plainMan), piecesBy(dwarfMan)];
+  assert.equal(plainSizes.length, dwarfSizes.length);
+  const grown = plainSizes.map((size, i) => dwarfSizes[i].x / size.x);
+  assert.ok(Math.max(...grown) > 1.05, `a dwarf's tunic is broader than a human's (${Math.max(...grown).toFixed(2)})`);
+  assert.ok(Math.min(...grown) < 1.005 && Math.min(...grown) > 0.995, "the hat fits every race as it is");
+  // (The underwear: its vertices are the body's own, moved with the skin under them.)
+  const under = files.male.meshes.find((mesh) => mesh.piece === "underwear-bottom-briefs");
+  assert.ok(under, "the briefs are in the kit");
+  const [bareMan, bareDwarf] = [await person({}), await person({ race: "dwarf", facialHair: BARE })];
+  const span = (character) => {
+    const { array } = bodyMesh(character).geometry.attributes.position;
+    const { index, groups } = bodyMesh(character).geometry;
+    // (The underwear's group: the one whose triangles the bare body hasn't got; measured by its colour.)
+    const colour = bodyMesh(character).geometry.attributes.color;
+    const [r, g, b] = [colour.getX(0), colour.getY(0), colour.getZ(0)];
+    let [least, most] = [Infinity, -Infinity];
+    for (const group of groups)
+      for (let i = group.start; i < group.start + group.count; i++) {
+        const v = index.getX(i);
+        if (array[v * 3 + 1] < 0.8 || array[v * 3 + 1] > 1.1) continue;
+        if (colour.getX(v) === r && colour.getY(v) === g && colour.getZ(v) === b) continue; // (skin)
+        least = Math.min(least, array[v * 3]);
+        most = Math.max(most, array[v * 3]);
+      }
+    return most - least;
+  };
+  assert.ok(span(bareDwarf) > span(bareMan) * 1.05, "a dwarf's underwear is as broad as the dwarf");
+
+  // Looks: the race and its parts are kept when they're on the lists, and left out otherwise.
+  assert.deepEqual(
+    checkLook({ race: "gnome", facialHair: "beard-02", tusks: "tusks-01", horns: "horns-03", tail: true }),
+    {
+      race: "gnome",
+      facialHair: "beard-02",
+      tusks: "tusks-01",
+      horns: "horns-03",
+      tail: true,
+    },
+  );
+  assert.deepEqual(checkLook({ race: "orc", facialHair: "beard-99", tusks: 2, horns: "yes", tail: "yes" }), {});
+  assert.deepEqual(checkLook({ colours: { horns: 0x2a2826 } }), { colours: { horns: 0x2a2826 } });
+  for (const field of ["race", "facialHair", "tusks", "horns", "tail"])
+    assert.ok(looks.PRESET_FIELDS.includes(field), `a preset carries ${field}`);
+  for (const race of ["dwarf", "halfling", "gnome", "halfelf", "halforc", "tiefling"])
+    assert.ok(
+      BUILT_IN_PRESETS.some((preset) => preset.look.race === race),
+      `a ready-made ${race}`,
+    );
+
+  // Lore's words and the build's race (the SRD's ids), with no AI call.
+  assert.equal(lookFromWords("dwarf").race, "dwarf");
+  assert.equal(lookFromWords("a stout dwarven smith").race, "dwarf");
+  assert.equal(lookFromWords("half-orc").race, "halforc");
+  assert.equal(lookFromWords("halfling").race, "halfling");
+  assert.equal(lookFromWords("tiefling").race, "tiefling");
+  assert.deepEqual(lookFromWords("half-elf"), { race: "halfelf", shape: { ears: 0.5 } });
+  assert.deepEqual(raceLook({ race: "dwarf" }), { race: "dwarf" });
+  assert.deepEqual(raceLook({ race: "half-orc" }), { race: "halforc" });
+  assert.deepEqual(raceLook({ race: "half-elf" }), { race: "halfelf", shape: { ears: 0.5 } });
+  assert.deepEqual(raceLook({ race: "elf" }), { race: "elf", shape: { ears: 1 } });
+  assert.deepEqual(checkLook(raceLook({ race: "tiefling" })), raceLook({ race: "tiefling" }));
+  const built = (chosen) => avatarLook("Rowan", "auto", mergeLooks(raceLook({ race: "gnome" }), chosen));
+  assert.equal(built({}).race, "gnome", "a gnome by their build");
+  assert.equal(built({ race: "human" }).race, "human", "a race chosen by hand wins");
+
+  // The Look card is offered the races and parts the body's model has; an anthro body none of them.
+  const offered = await avatarChoices("male");
+  assert.deepEqual(
+    offered.races,
+    RACES.map(([race]) => race),
+  );
+  assert.deepEqual(
+    offered.facialHair,
+    FACIAL_HAIR.slice(1).map(([style]) => style),
+  );
+  assert.deepEqual(
+    offered.tusks,
+    TUSKS.slice(1).map(([style]) => style),
+  );
+  assert.deepEqual(
+    offered.horns,
+    HORNS.slice(1).map(([style]) => style),
+  );
+  assert.equal(offered.tail, true);
+  const beast = await avatarChoices("male", "wolf");
+  assert.deepEqual(
+    [beast.races, beast.facialHair, beast.tusks, beast.horns, beast.tail],
+    [["human"], [], [], [], false],
+  );
+
+  for (const one of [human, dwarf, bare, horned, tailed, bearded, tusked, plainMan, dwarfMan, bareMan, bareDwarf])
+    one.dispose();
 }
 
 console.log("wanderworld avatar: ok");
