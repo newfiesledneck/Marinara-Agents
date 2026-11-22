@@ -1,6 +1,7 @@
 """Helpers for make_avatar.py: reading MakeHuman's base mesh and morph targets (CC0 data files, read
 with our own code; MakeHuman and its add-on are not run or copied), blending its macro targets into a
-body, and the small bits of geometry the avatar script needs.
+body, the small bits of geometry the avatar script needs, and the races' parts' curves, tubes and
+textures (facial hair's strands; horn and tooth).
 
 MakeHuman's data lives outside the repository. The scripts look for it in `MAKEHUMAN_DATA`, else in
 `_planning/Wanderworld asset packs/MakeHuman/src/mpfb/data` in this folder or any folder above it.
@@ -394,6 +395,18 @@ def vertex_normals(co, quads):
     return n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
 
 
+def vertex_normals_of(co, faces):
+    """Vertex normals of a mesh whose faces have any number of corners."""
+    n = np.zeros_like(co)
+    for f in faces:
+        p = co[list(f)]
+        fn = np.zeros(3)
+        for i in range(1, len(f) - 1):
+            fn += np.cross(p[i] - p[0], p[i + 1] - p[0])
+        n[list(f)] += fn
+    return n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
+
+
 def subdivide_region(co, quads, region):
     """One Catmull-Clark step over the quads in `region` (a mask), leaving the faces outside it as they are,
     except that those sharing an edge with the region gain that edge's new point (a fifth corner). Every
@@ -598,3 +611,260 @@ def chains(edges):
         if len(run) > 1:
             out.append(run)
     return out
+
+
+# ── Race parts: curves, tubes and the facial hair's texture ──────────────────────────────────────────
+
+
+def curve(points, n):
+    """`n` points evenly spaced along a smooth curve through `points` (Catmull-Rom)."""
+    pts = np.asarray(points, dtype=np.float64)
+    dense = []
+    for i in range(len(pts) - 1):
+        a, b = pts[i], pts[i + 1]
+        p0 = pts[i - 1] if i > 0 else a - (b - a)
+        p3 = pts[i + 2] if i + 2 < len(pts) else b + (b - a)
+        for t in np.linspace(0, 1, 24, endpoint=False):
+            dense.append(0.5 * ((2 * a) + (-p0 + b) * t + (2 * p0 - 5 * a + 4 * b - p3) * t * t + (-p0 + 3 * a - 3 * b + p3) * t**3))
+    dense.append(pts[-1])
+    dense = np.array(dense)
+    s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(dense, axis=0), axis=1))])
+    t = np.linspace(0, s[-1], n)
+    return np.stack([np.interp(t, s, dense[:, i]) for i in range(3)], axis=1)
+
+
+def frames(pts, side):
+    """A frame at each point of a curve that doesn't twist along it: (tangents, sides, normals), the first
+    side as near `side` as the curve allows."""
+    T = np.gradient(pts, axis=0)
+    T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-12)
+    S = np.zeros_like(pts)
+    s = np.asarray(side, dtype=np.float64)
+    for i in range(len(pts)):
+        s = s - T[i] * (s @ T[i])
+        s /= max(np.linalg.norm(s), 1e-12)
+        S[i] = s
+    return T, S, np.cross(T, S)
+
+
+def tube(pts, radii, side, segments=12, squash=1.0, tip=True):
+    """A tube round a curve: a ring of `segments` points at each of `pts` (radius `radii[i]`, `squash` times
+    that along its frame's normal: one number, or one for each point), closed to a point at its end if `tip`. Returns (points, faces, uv): uv
+    per face corner, u once round (0..1) and v along (0 at the start, 1 at the end)."""
+    T, S, N = frames(pts, side)
+    n = len(pts)
+    ang = 2 * np.pi * np.arange(segments) / segments
+    squash = np.broadcast_to(np.asarray(squash, dtype=np.float64), (n,))[:, None, None]
+    ring = np.cos(ang)[None, :, None] * S[:, None, :] + squash * np.sin(ang)[None, :, None] * N[:, None, :]
+    co = (pts[:, None, :] + ring * np.asarray(radii)[:, None, None]).reshape(-1, 3)
+    faces, uv = [], []
+    for i in range(n - 1):
+        for j in range(segments):
+            k = (j + 1) % segments
+            faces.append([i * segments + j, i * segments + k, (i + 1) * segments + k, (i + 1) * segments + j])
+            uv.append([(j / segments, i / (n - 1)), ((j + 1) / segments, i / (n - 1)), ((j + 1) / segments, (i + 1) / (n - 1)), (j / segments, (i + 1) / (n - 1))])
+    if tip:
+        end = len(co)
+        co = np.concatenate([co, pts[-1:] + T[-1:] * radii[-1] * 0.6])
+        for j in range(segments):
+            k = (j + 1) % segments
+            faces.append([(n - 1) * segments + j, (n - 1) * segments + k, end])
+            uv.append([(j / segments, 1.0), ((j + 1) / segments, 1.0), ((j + 0.5) / segments, 1.0)])
+    return co, faces, uv
+
+
+class _Strands:
+    """Strands drawn into a picture (rows from the top): grey and alpha, each strand over those before it."""
+
+    def __init__(self, w, h, wrap=False):
+        self.w, self.h, self.wrap = w, h, wrap
+        self.p = np.zeros((h, w))
+        self.a = np.zeros((h, w))
+
+    def stroke(self, ys, xs, width, alpha, grey):
+        ys = np.asarray(ys, dtype=np.int64)
+        keep = (ys >= 0) & (ys < self.h)
+        ys, xs = ys[keep], np.asarray(xs, dtype=np.float64)[keep]
+        width = np.broadcast_to(width, keep.shape)[keep]
+        alpha = np.broadcast_to(alpha, keep.shape)[keep]
+        grey = np.broadcast_to(grey, keep.shape)[keep]
+        xi = np.floor(xs).astype(np.int64)
+        for dx in range(-2, 3):
+            xx = xi + dx
+            d = (xx + 0.5 - xs) / width
+            cov = alpha * np.exp(-2.2 * d * d)
+            if self.wrap:
+                xx = xx % self.w
+                ok = np.ones(len(xx), dtype=bool)
+            else:
+                ok = (xx >= 0) & (xx < self.w)
+            y, x, c, g = ys[ok], xx[ok], cov[ok], grey[ok]
+            self.p[y, x] = self.p[y, x] * (1 - c) + g * c
+            self.a[y, x] = self.a[y, x] * (1 - c) + c
+
+    def under(self, alpha, grey):
+        """A layer under everything drawn so far."""
+        self.p = self.p + grey * alpha * (1 - self.a)
+        self.a = self.a + alpha * (1 - self.a)
+
+    def result(self):
+        grey = np.where(self.a > 1e-4, self.p / np.maximum(self.a, 1e-4), 0.0)
+        # (Grey bled into the see-through texels, so filtering doesn't darken the strands' edges.)
+        pb, ab = self.p.copy(), self.a.copy()
+        for _ in range(3):
+            pb = sum(np.roll(np.roll(pb, dy, 0), dx, 1) for dy in (-2, 0, 2) for dx in (-2, 0, 2)) / 9
+            ab = sum(np.roll(np.roll(ab, dy, 0), dx, 1) for dy in (-2, 0, 2) for dx in (-2, 0, 2)) / 9
+        fill = np.where(ab > 1e-4, pb / np.maximum(ab, 1e-4), 0.6)
+        grey = np.where(self.a > 0.02, grey, fill)
+        return np.clip(grey, 0, 1), np.clip(self.a, 0, 1)
+
+
+def _lock(rng, w, h, n, tips, wave, clump, width=(1.0, 1.7), bright=(0.5, 1.0), curl=0.0):
+    """A lock of `n` strands down a column: roots across the top (fading in), tips ragged between `tips`
+    (fractions of the height), waving by `wave` pixels, gathered towards `clump` points at their tips;
+    `curl` coils each strand tightly (a coarse beard)."""
+    st = _Strands(w, h)
+    centres = rng.uniform(0.2, 0.8, max(clump, 1)) * w
+    order = []
+    for _ in range(n):
+        u = rng.beta(2.3, 2.3)
+        # (Strands at a lock's sides end sooner, so a card's outline is a lock's, not a strip's.)
+        reach = 1 - 0.45 * abs(2 * u - 1) ** 1.5 * rng.uniform(0.3, 1.0)
+        order.append((rng.uniform(*bright), 4 + u * (w - 8), rng.uniform(-0.01, 0.12) * h, rng.uniform(*tips) * reach * h))
+    order.sort()
+    for g, x0, y0, y1 in order:
+        ys = np.arange(int(y0), int(y1))
+        if len(ys) < 4:
+            continue
+        t = (ys - y0) / max(1.0, y1 - y0)
+        c = centres[np.argmin(np.abs(centres - x0))] + rng.normal(0, 2.0)
+        k = (0.55 if clump else 0.0) * rng.uniform(0.4, 1.0)
+        xs = x0 * (1 - k * t * t) + c * k * t * t + rng.uniform(-6, 6) * t
+        xs = xs + rng.uniform(0.4, 1.0) * wave * np.sin(2 * np.pi * ys / rng.uniform(70, 150) + rng.uniform(0, 6.3))
+        if curl:
+            lam = rng.uniform(26, 44)
+            ph = rng.uniform(0, 6.3)
+            xs = xs + curl * rng.uniform(0.6, 1.0) * np.sin(2 * np.pi * ys / lam + ph)
+            g = g * (0.8 + 0.2 * np.abs(np.sin(2 * np.pi * ys / lam + ph)))
+        tip = np.clip((t - 0.7) / 0.3, 0, 1)
+        a = rng.uniform(0.8, 0.97) * (1 - tip**1.4) * np.clip((ys - y0) / (0.05 * h), 0, 1)
+        gg = g * (1 + 0.06 * np.sin(ys / rng.uniform(12, 36) + rng.uniform(0, 6)))
+        st.stroke(ys, xs, rng.uniform(*width) * (1 - 0.5 * tip), a, gg)
+    return st.result()
+
+
+# The facial hair's texture (1,024 px, rows from the top): eight columns of locks (128 by 560 px each, roots
+# at the top); under them three patches of short hair lying close (dense, thinner, sparse: each fades out
+# towards its edges, so patches laid over each other on the skin make an even undercoat with a soft edge),
+# hair with no gaps (a braid's strands, a long beard's body; its last fifth ragged) and a tie.
+HAIR_SIZE = 1024
+HAIR_REGIONS = {
+    **{f"lock{i}": (i * 128, 0, 128, 560) for i in range(8)},
+    "patch0": (0, 560, 256, 256),
+    "patch1": (256, 560, 256, 256),
+    "patch2": (512, 560, 256, 256),
+    "solid": (768, 560, 256, 464),
+    "tie": (0, 816, 128, 64),
+}
+# (Which locks suit what: straight and dense, coarse and wavy, coiled, wispy, short tufts.)
+LOCKS = {"dense": (0, 1, 2), "coarse": (3, 4), "curly": (5,), "wispy": (6,), "tuft": (7,)}
+
+
+def hair_region(name, u, v):
+    """A place in one of the texture's regions as texture coordinates: u across (0..1), v from its bottom (0:
+    a lock's tips) to its top (1: its roots)."""
+    x, y, w, h = HAIR_REGIONS[name]
+    pad = 2.0
+    return ((x + pad + u * (w - 2 * pad)) / HAIR_SIZE, 1 - (y + pad + (1 - v) * (h - 2 * pad)) / HAIR_SIZE)
+
+
+def facial_hair_texture(seed=7):
+    """The texture as (1024, 1024, 4) RGBA, rows from the bottom (as Blender stores pictures): near-white grey
+    strands for the game to tint, cut out by alpha."""
+    rng = np.random.default_rng(seed)
+    S = HAIR_SIZE
+    grey = np.full((S, S), 0.6)
+    alpha = np.zeros((S, S))
+
+    def put(name, ga):
+        x, y, w, h = HAIR_REGIONS[name]
+        grey[y : y + h, x : x + w], alpha[y : y + h, x : x + w] = ga
+
+    for i in LOCKS["dense"]:
+        put(f"lock{i}", _lock(rng, 128, 560, 100, (0.55, 1.0), 2.5, 3, width=(1.1, 1.8)))
+    for i in LOCKS["coarse"]:
+        put(f"lock{i}", _lock(rng, 128, 560, 84, (0.5, 1.0), 6.0, 2, width=(1.2, 2.0)))
+    for i in LOCKS["curly"]:
+        put(f"lock{i}", _lock(rng, 128, 560, 70, (0.55, 1.0), 2.0, 0, width=(1.2, 1.9), curl=8.0))
+    for i in LOCKS["wispy"]:
+        put(f"lock{i}", _lock(rng, 128, 560, 40, (0.45, 1.0), 4.0, 2))
+    for i in LOCKS["tuft"]:
+        put(f"lock{i}", _lock(rng, 128, 560, 76, (0.35, 0.95), 3.5, 0, width=(1.3, 2.1)))
+    # The undercoat's patches: short hairs lying close, pointing down, thinning out towards the patch's edges.
+    for i, count in enumerate((3000, 1900, 1000)):
+        x, y, w, h = HAIR_REGIONS[f"patch{i}"]
+        st = _Strands(w, h)
+        done = 0
+        while done < count:
+            x0, y0 = rng.uniform(0, w), rng.uniform(0, h)
+            r = max(abs(x0 / w - 0.5), abs(y0 / h - 0.5)) * 2 * 0.6 + np.hypot(x0 / w - 0.5, y0 / h - 0.5) * 2 * 0.4
+            if rng.random() > np.clip((1.02 - r) / 0.45, 0, 1) ** 1.3:
+                continue
+            done += 1
+            n = int(rng.uniform(14, 36))
+            ys = np.arange(int(y0) - n // 2, int(y0) - n // 2 + n)
+            t = np.linspace(0, 1, n)
+            xs = x0 + rng.uniform(-6, 6) * (t - 0.5) + rng.uniform(0, 1.5) * np.sin(t * rng.uniform(2, 6))
+            keep = (ys > 3) & (ys < h - 3) & (xs > 3) & (xs < w - 3)
+            st.stroke(ys[keep], xs[keep], rng.uniform(1.0, 1.7), (0.92 * np.sin(np.pi * np.clip(t * 1.1, 0, 1)) ** 0.6)[keep], rng.uniform(0.45, 0.95))
+        put(f"patch{i}", st.result())
+    # Hair with no gaps, its ends ragged.
+    x, y, w, h = HAIR_REGIONS["solid"]
+    st = _Strands(w, h, wrap=True)
+    for _ in range(900):
+        x0 = rng.uniform(0, w)
+        y1 = h * (1.0 if rng.random() < 0.55 else rng.uniform(0.8, 1.0))
+        ys = np.arange(0, int(y1))
+        t = ys / h
+        xs = x0 + rng.uniform(-7, 7) * t + rng.uniform(0.4, 1.6) * np.sin(ys / rng.uniform(30, 90) + rng.uniform(0, 6))
+        tip = np.clip((ys - (y1 - 30)) / 30, 0, 1)
+        st.stroke(ys, xs, rng.uniform(1.0, 1.6), 0.92 * (1 - tip**1.5), rng.uniform(0.45, 1.0) * (1 + 0.07 * np.sin(ys / rng.uniform(10, 30))))
+    st.under(np.broadcast_to((np.arange(h)[:, None] < h * 0.8) * 1.0, (h, w)), 0.34)
+    put("solid", st.result())
+    x, y, w, h = HAIR_REGIONS["tie"]
+    yy = np.linspace(-1, 1, h)[:, None]
+    put("tie", (np.broadcast_to(0.34 + 0.3 * (1 - yy**2) + 0.05 * np.sin(np.arange(w)[None, :] / 2.5), (h, w)), np.ones((h, w))))
+    rgba = np.stack([grey, grey, grey, alpha], axis=2)
+    return rgba[::-1].copy()
+
+
+def parts_texture(size=512):
+    """The horns' and tusks' texture as (size, size, 3), rows from the bottom, near white for their colours to
+    tint. Left half, horn: fine grain along it, darker in the grooves between its rings (HORN_RINGS of them
+    over the first three quarters, as the horns' own shape has them), darker at the root and paler, polished,
+    at the tip. Right half, tooth: ivory with faint lines along it, stained towards the gum. Each mirrors
+    across its middle, so a part wraps it round with no seam; v runs from root (0) to tip (1)."""
+    half = size // 2
+    v = (np.arange(size) + 0.5) / size
+    u = (np.arange(half) + 0.5) / half
+    U, V = np.meshgrid(u, v)
+    P = np.stack([U * 4.0, np.zeros_like(U), V * 0.6], axis=-1).reshape(-1, 3)
+    grain = fbm(P * np.array([14.0, 1.0, 1.0]), 1.0, 3, seed=51).reshape(size, half)
+    mottle = fbm(np.stack([U * 2.0, V * 5.0, np.zeros_like(U)], axis=-1).reshape(-1, 3), 1.0, 3, seed=52).reshape(size, half)
+    ring = horn_rings(V)
+    horn = 0.86 + 0.07 * grain + 0.05 * mottle - 0.2 * ring * smoothstep(0.85, 0.5, V)
+    horn *= 0.8 + 0.2 * smoothstep(0.0, 0.25, V)
+    horn = horn * (1 - smoothstep(0.75, 1.0, V)) + (0.95 + 0.03 * grain) * smoothstep(0.75, 1.0, V)
+    lines = fbm(P * np.array([30.0, 1.0, 0.3]), 1.0, 2, seed=53).reshape(size, half)
+    tooth = 0.95 + 0.025 * lines - 0.16 * smoothstep(0.35, 0.0, V) - 0.03 * mottle
+    out = np.concatenate([horn, tooth], axis=1)
+    return np.clip(np.repeat(out[..., None], 3, axis=2), 0, 1)
+
+
+HORN_RINGS = 13
+
+
+def horn_rings(t):
+    """How deep in a groove between two rings a point `t` along a horn is (0..1): the rings stand over the
+    first three quarters and fade out towards the tip."""
+    return (0.5 - 0.5 * np.cos(2 * np.pi * HORN_RINGS * np.clip(t, 0, 0.78) / 0.78)) ** 2 * smoothstep(0.8, 0.55, t) * smoothstep(0.0, 0.04, t)

@@ -5216,7 +5216,7 @@
         },
         "id": "wanderworld",
         "name": "Wanderworld",
-        "version": "0.7.52",
+        "version": "0.7.53",
         "description": "A walkable low-poly 3D world on its own Home tab: towns, farms and wild land made from a seed, lived in by your characters, who keep their own days. Walk it as your persona, talk to people with AI replies, start scenes, and illustrate the moment. Alpha. Install it, restart Marinara Engine when prompted, then open Home → Wanderworld.",
         "engine": {
           "min": "2.4.6",
@@ -5351,7 +5351,7 @@
               "kit/generic/avatar/anthro-wolf-female.pack.png",
               "kit/generic/avatar/anthro-wolf-male.pack.png",
               "kit/generic/avatar/avatar-eyes.webp",
-              "kit/generic/avatar/avatar-female-3.webp",
+              "kit/generic/avatar/avatar-female-5.webp",
               "kit/generic/avatar/avatar-female-skin-middle-african.webp",
               "kit/generic/avatar/avatar-female-skin-middle-asian.webp",
               "kit/generic/avatar/avatar-female-skin-middle-caucasian.webp",
@@ -5369,6 +5369,8 @@
               "kit/generic/avatar/avatar-male-1.webp",
               "kit/generic/avatar/avatar-male-2.webp",
               "kit/generic/avatar/avatar-male-3.webp",
+              "kit/generic/avatar/avatar-male-4.webp",
+              "kit/generic/avatar/avatar-male-5.webp",
               "kit/generic/avatar/avatar-male-skin-middle-african.webp",
               "kit/generic/avatar/avatar-male-skin-middle-asian.webp",
               "kit/generic/avatar/avatar-male-skin-middle-caucasian.webp",
@@ -5424,8 +5426,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "08f61a3d27e68ff22f4cc7acab180f73386a60d8658fa4225c246b21d104124b",
-            "bytes": 3531169
+            "sha256": "1b45e2563f5feb365b456455dffa8fa8df4abb18cf607eb44bcd00ba18e0104c",
+            "bytes": 3539576
           },
           {
             "path": "server.mjs",
@@ -5479,33 +5481,33 @@
           },
           {
             "path": "kit/fantasy/avatar/avatar-outfits-accessories.pack.png",
-            "sha256": "bdce191dc074ef8be281424aff63da960e5eafc77b0bb93c90d258bcd486630d",
-            "bytes": 902268
+            "sha256": "a3671b8749dd63bd5c18ab9ec085b1cb13e0c8c477aa364cfcf1cea459fd9337",
+            "bytes": 901125
           },
           {
             "path": "kit/fantasy/avatar/avatar-outfits-armour.pack.png",
-            "sha256": "ba23b2df307f8541e9d89d0bf6a8ad45dfbdb5f9c709b6d5a3f75238e9629aec",
-            "bytes": 5083311
+            "sha256": "b344648e4fdf898b8cf9ec27592334a338f815127042f6ef6f8f73a6bf10232b",
+            "bytes": 5071679
           },
           {
             "path": "kit/fantasy/avatar/avatar-outfits-body.pack.png",
-            "sha256": "de0abba173ab80f2ca20d76aa0b5d5bdd3b11fbeb924d34a374434399b475dfc",
-            "bytes": 4083446
+            "sha256": "3eda8c66dd9baee52d88a47410c6f6d9ff15a90e2945a1f448fdd40df08c3e53",
+            "bytes": 4074643
           },
           {
             "path": "kit/fantasy/avatar/avatar-outfits-feet.pack.png",
-            "sha256": "7282c9af9acfeebfd210ba2fe3ae96f7f9e4a10093b05268ec1299661f95e651",
-            "bytes": 2959839
+            "sha256": "be40fe9c4292b1df638fc3fb30b6c9ff2620e20111d318d83db98636e4ab5e15",
+            "bytes": 2952640
           },
           {
             "path": "kit/fantasy/avatar/avatar-outfits-hands.pack.png",
-            "sha256": "1af1794adec7ccafd539bf6dd094474b112bcfeb6b054025882a3aabc03dbf65",
-            "bytes": 1083543
+            "sha256": "02b599369a32eb10f5b41157429a87e06563f209987a1f59790f86e2e80389a9",
+            "bytes": 1080806
           },
           {
             "path": "kit/fantasy/avatar/avatar-outfits-head.pack.png",
-            "sha256": "7b179be99bc964e87d64d9b562d26dec9108a612d220982238f9592d558ebce9",
-            "bytes": 1120996
+            "sha256": "e1cd0d99e1471a357e81a174729244c98071342d6da81c8e8a4b669df9e4ad21",
+            "bytes": 1147787
           },
           {
             "path": "kit/fantasy/avatar/avatar-outfits-index.json",
@@ -5514,13 +5516,13 @@
           },
           {
             "path": "kit/fantasy/avatar/avatar-outfits-legs.pack.png",
-            "sha256": "18dc2289620eb5a57a7b6729aad912f6d515208d59796ecde7b840b65b2d2d4b",
-            "bytes": 4964538
+            "sha256": "ee77026cfb1ea9b6b54a5deca0d9e0abff416294ada4beb2c9dd7db5ea5f8375",
+            "bytes": 4952673
           },
           {
             "path": "kit/fantasy/avatar/avatar-outfits-tops.pack.png",
-            "sha256": "78bd8ba5f54dee49a734c8bde1281ad771794a47ce8bbf074cceb2dfdba02479",
-            "bytes": 7629772
+            "sha256": "27ff081f580b40384b9f9bedf21bcc269a6179331b2b217f1597463e8990a5e2",
+            "bytes": 7612871
           },
           {
             "path": "kit/fantasy/dungeon/index.json",
@@ -5964,13 +5966,13 @@
           },
           {
             "path": "kit/generic/avatar/anthro-wolf-female.pack.png",
-            "sha256": "18b08a8250969b90d1db90decc0c0283f77cda87b2ac7430cceef112428b9813",
-            "bytes": 3044079
+            "sha256": "0f8be5a8b25bf71af3b0ab48f497e2bf1d5a2fcb5bc77e1e58a17eebafcb38c7",
+            "bytes": 2967652
           },
           {
             "path": "kit/generic/avatar/anthro-wolf-male.pack.png",
-            "sha256": "ddd7efff5363aeb21df2fb0f347eed23f929bc8c4762f7952ed90f7b8aa38759",
-            "bytes": 2324939
+            "sha256": "13f69254ab9d40662c5a66e8495be2cca0c521c85dc62de6720d50299ef2f925",
+            "bytes": 2215280
           },
           {
             "path": "kit/generic/avatar/avatar-eyes.webp",
@@ -5978,7 +5980,7 @@
             "bytes": 153766
           },
           {
-            "path": "kit/generic/avatar/avatar-female-3.webp",
+            "path": "kit/generic/avatar/avatar-female-5.webp",
             "sha256": "811eb0a68f84cca0577f5220d805089776deec58e9726aaac741316064c297db",
             "bytes": 293766
           },
@@ -6029,8 +6031,8 @@
           },
           {
             "path": "kit/generic/avatar/avatar-female.pack.png",
-            "sha256": "3ee7fe83fd873ce335d27b02d235e4c40c7213b7cd7e173a3be23b1c689b1a26",
-            "bytes": 4155604
+            "sha256": "ff36f7078813cea0cbe91610ae38930917d5add352f0f35ae300009f3f2878db",
+            "bytes": 5706282
           },
           {
             "path": "kit/generic/avatar/avatar-female.webp",
@@ -6044,13 +6046,13 @@
           },
           {
             "path": "kit/generic/avatar/avatar-hair-long.pack.png",
-            "sha256": "870a5ea13c8ceaed2dce37ddfd46b98f0b0feeac925dcd6b2cbdfbb9cbe2166e",
-            "bytes": 2747434
+            "sha256": "40774d78973bb4b553f535748458eb664662182db876775e553f918ac4365419",
+            "bytes": 2762017
           },
           {
             "path": "kit/generic/avatar/avatar-hair-short.pack.png",
-            "sha256": "66162b7b48c8d338d879372c3205586c0e1c5cc810b1b2fd4e1c86bc09dcf33c",
-            "bytes": 2118272
+            "sha256": "d029ef54b46ba3e9118acfdb58823dca55b66927f45643bd4ede163948369378",
+            "bytes": 2116856
           },
           {
             "path": "kit/generic/avatar/avatar-male-1.webp",
@@ -6059,11 +6061,21 @@
           },
           {
             "path": "kit/generic/avatar/avatar-male-2.webp",
+            "sha256": "7de46d07b6ef4208db4291119ef36d0dbdcb3a384d6c5f16581c6b9166dbb98b",
+            "bytes": 561922
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male-3.webp",
             "sha256": "8e2f26aa00f0a63bf7ee60c53f6c3749f853f8fb0d9c44342c87d4408149a666",
             "bytes": 563406
           },
           {
-            "path": "kit/generic/avatar/avatar-male-3.webp",
+            "path": "kit/generic/avatar/avatar-male-4.webp",
+            "sha256": "63ea3fe4c76b4bb8cbb6f61da58d643b447d765e6ffd712b6208be70fbcefbdb",
+            "bytes": 3278
+          },
+          {
+            "path": "kit/generic/avatar/avatar-male-5.webp",
             "sha256": "e8ef5283d1b416f2800ae4c134d23fb422c099bf4b74c5e06d27f4c9a6b5c153",
             "bytes": 169836
           },
@@ -6114,8 +6126,8 @@
           },
           {
             "path": "kit/generic/avatar/avatar-male.pack.png",
-            "sha256": "2aa91b2d1eaec348f26f49e728dd5d6bfb5abe1c104c71c6e910fb302a276287",
-            "bytes": 1954105
+            "sha256": "bfdb16a65b9b92be7352c89a14c16a0deaacb1c48673b08f4d370a1ae9e8a6c9",
+            "bytes": 3548069
           },
           {
             "path": "kit/generic/avatar/avatar-male.webp",
@@ -6300,9 +6312,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/wanderworld.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.7.52.zip",
-        "sha256": "6513ccd3632060f9232b9ac24dcf610e2621547412d49ddc4d09ad57d5ed90b3",
-        "bytes": 81458825
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/wanderworld-0.7.53.zip",
+        "sha256": "3b017e5832d2bcf2e0d9700cb58388fec6acb7df12d0ea0ad919b8f582d0e1c7",
+        "bytes": 84971410
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/wanderworld/README.md"
     },
