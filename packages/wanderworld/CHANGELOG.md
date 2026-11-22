@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.54 — 2026-11-20
+
+- Standing and walking, relaxed: the animation library's own stance has the feet wide, the arms held out and the elbows bent, as if ready for a fight. People now let their arms hang by their sides and stand with their feet nearer together, a female body a little more so, with a narrower walk. Menu → Settings → Display → Standing and walking: By their body, Relaxed or Graceful for all, or As recorded. Running, working and fighting are unchanged.
+- Hair fits every race: the skin no longer shows through the hairline and temples of an elf, a halfling or a gnome.
+
 ## 0.7.53 — 2026-11-20
 
 - Races for the built-in body: dwarf, halfling, gnome, elf, half-elf, half-orc and tiefling, each its own shape instead of a human made smaller (a dwarf broad and short-legged, a gnome with a big head and long fingers). The Look card has Race, Tusks, Horns, Tail and Facial hair (a moustache, a goatee and four beards); anyone may wear any. Clothes, underwear and long hair follow a race's build. Lore words (ww:looks:dwarf) and your build's race set it, and there's a ready-made preset for each.

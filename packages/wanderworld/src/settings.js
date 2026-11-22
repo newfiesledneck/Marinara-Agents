@@ -65,6 +65,9 @@ export const SETTINGS = {
   lookPresets: { value: [], check: checkPresets },
   /** "recorded" plays the Universal Animation Library clips; "builtin" the hand-made motion. */
   animation: { value: "recorded", options: ["recorded", "builtin"] },
+  // How people stand and walk over the recorded clips (clips.js CARRIAGES): by their body, one way for all,
+  // or the clips as recorded.
+  carriage: { value: "body", options: ["body", "relaxed", "graceful", "recorded"] },
   /** Your walking and running speed, as a multiple. */
   walkSpeed: { value: 1, min: 0.5, max: 2 },
   runSpeed: { value: 1, min: 0.5, max: 2 },
@@ -488,6 +491,7 @@ export const DEVICE_SETTINGS = new Set([
   "people",
   "newBodies",
   "animation",
+  "carriage",
   "lookSpeed",
   "invertLook",
   "restKey",

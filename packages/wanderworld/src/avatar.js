@@ -582,9 +582,7 @@ function bodyKit(sex, species = "human") {
         brows: styles.brows.sort((a, b) => a - b),
         lashes: styles.lashes.sort((a, b) => a - b),
         eyeUvs: new Map(), // an eye picture's texture places (eyeUvsOf)
-        // (Where the head begins, for what a race's key is carried onto: carried. And a place inside the
-        // head and one in the hips, where a race's parts are tucked when they aren't worn.)
-        headBase: jointAt("Head").y,
+        // (A place inside the head and one in the hips, where a race's parts are tucked when they aren't worn.)
         tucked: {
           head: jointAt("Head")
             .add(new Vector3(0, 0.08, 0))
@@ -832,8 +830,9 @@ function swayOf(bones, seed) {
 // A race's shape key is the skin's, and the face's own pieces'. Underwear, hair and clothes carry none: on
 // every piece they'd add several megabytes to the kit. Each of their vertices moves instead as the skin
 // nearest it does (its four nearest vertices, the closer the more), worked out once a piece and shared.
-// Above the base of the head nothing is carried: a race's key leaves the skull as it is, so hair and hats
-// fit as they are, and the face is its own.
+// On the head too: a race's key leaves the skull as it is, but moves the brow, temples and nape under a
+// hairline or a helm's edge, which would show through hair that stayed behind. The ears are left out of
+// the skin that's followed: an elf's grow by centimetres, and would drag the hair beside them along.
 // ponytail: a carried move leaves the piece's normals as they were (a change of girth barely turns them);
 // if a race ever needs more, bake its key into the pieces (scripts/build-wanderworld-people.mjs).
 const CARRY_CELL = 0.04; // metres: the cells the skin's vertices are sorted into
@@ -841,13 +840,19 @@ const CARRY_NEAREST = 4;
 const CARRY_REACH = 8; // cells: further than this from any skin, a vertex stays where it is
 const cellAt = (x, y, z) => ((x + 512) << 20) | ((y + 512) << 10) | (z + 512);
 
-/** A body's skin vertices sorted into cells, made once: cell → the vertices in it. */
+/** A body's skin vertices (but the ears': what the pointed-ears key moves) sorted into cells, made once:
+ *  cell → the vertices in it. */
 function skinCells(kit) {
   if (!kit.cells) {
     kit.cells = new Map();
+    const ears = new Set();
+    for (const { ids, delta } of kit.morphs.ears_pointed ?? [])
+      for (let i = 0; i < ids.length; i++)
+        if (Math.hypot(delta[i * 3], delta[i * 3 + 1], delta[i * 3 + 2]) > 0.001) ears.add(ids[i]);
     for (const mesh of kit.meshes) {
       if (mesh.piece || mesh.part !== "skin") continue;
       for (let v = mesh.start; v < mesh.start + mesh.count; v++) {
+        if (ears.has(v)) continue;
         const cell = cellAt(
           Math.floor(kit.position[v * 3] / CARRY_CELL),
           Math.floor(kit.position[v * 3 + 1] / CARRY_CELL),
@@ -905,8 +910,7 @@ function nearestSkin(kit, positions) {
 
 /**
  * Shape key `key` of the body as a key for other vertices (`positions`, with their `near`est skin, numbered
- * from `offset`), in morphsOf's form: each moves as the skin near it does, less and less above the base of the
- * head and not at all past it.
+ * from `offset`), in morphsOf's form: each moves as the skin near it does.
  */
 function carried(kit, key, positions, near, offset = 0) {
   kit.moves ??= new Map(); // a key's moves, a vertex of the body each
@@ -920,11 +924,9 @@ function carried(kit, key, positions, near, offset = 0) {
   const ids = [];
   const delta = [];
   for (let v = 0; v < positions.length / 3; v++) {
-    const fade = clamp((kit.headBase + 0.03 - positions[v * 3 + 1]) / 0.06, 0, 1);
-    if (!fade) continue;
     const move = [0, 0, 0];
     for (let n = 0; n < CARRY_NEAREST; n++) {
-      const share = near.shares[v * CARRY_NEAREST + n] * fade;
+      const share = near.shares[v * CARRY_NEAREST + n];
       const id = near.ids[v * CARRY_NEAREST + n];
       for (let c = 0; c < 3; c++) move[c] += moves[id * 3 + c] * share;
     }
@@ -1194,7 +1196,20 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   for (const piece of pieces) wearPart(piece, (mesh) => (mesh.partOf ? 0xffffff : new Color().setRGB(...mesh.colour)));
 
   const sway = swayOf(bones, filled.seed);
-  const character = humanoidFromSkeleton(root, humanoidNodes(bones), () => filled.height * race.height, filled.seed);
+  // How they stand and walk (clips.js CARRIAGES): by their body, the arms coming in less on a broad one.
+  const room = clamp(
+    1 -
+      0.8 * Math.max(0, filled.shape.weight) -
+      0.4 * Math.max(0, filled.shape.muscle) -
+      0.3 * Math.max(0, filled.shape.hips) -
+      (filled.race === "dwarf" || filled.race === "halforc" ? 0.5 : 0),
+    0,
+    1,
+  );
+  const character = humanoidFromSkeleton(root, humanoidNodes(bones), () => filled.height * race.height, filled.seed, {
+    body: sex,
+    room,
+  });
   if (sway) {
     const updateRest = character.update;
     character.update = (dt, speed, ...rest) => {

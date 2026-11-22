@@ -341,7 +341,7 @@ export async function createPerson(name, build = "auto", chosen = {}) {
   };
   for (const [at, part] of rest.entries())
     skinOnto(root, bones, part, (mesh) => materialFor(mesh.texture, parts[at + 1]));
-  return humanoidFromSkeleton(root, humanoidNodes(bones), () => look.height, look.seed);
+  return humanoidFromSkeleton(root, humanoidNodes(bones), () => look.height, look.seed, { body: look.sex });
 }
 
 /** A body's skeleton in bind pose (each joint's world matrix is its inverse bind matrix inverted): { root, bones }. */
