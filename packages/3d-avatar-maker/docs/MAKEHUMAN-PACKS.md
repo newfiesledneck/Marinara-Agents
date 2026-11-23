@@ -20,11 +20,16 @@ The package uses data from these items, read by `assets/scripts/make_avatar.py` 
   elvs_ladies_elbow_dimples).
 - Skins (`COMMUNITY_SKINS`): skins01_cc0 (skalldyrssuppe_creamy_female,
   onlytheghosts_young/middle_aged/old_eurasian_female, toigo_light_skin_female_freckles / _ginger / _bronze,
-  flower-angel_red_head_skin, toigo_light_skin_with_natural_makeup, toigo_light_skin_with_makeup,
-  toigo_light_skin_female_with_violet_makeup, toigo_light_skin_female_bronze_with_makeup); skins02_cc0
-  (ken1138_caucasian_male_tattooed_skin, mindfront_aksel_skin,
-  onlytheghosts_old_eurasian_male, toigo_light_skin_male_bronze / _freckles / _ginger / _with_eyeliner /
-  _with_goth_makeup / _with_emo_eyes).
+  flower-angel_red_head_skin); skins02_cc0 (ken1138_caucasian_male_tattooed_skin, mindfront_aksel_skin,
+  onlytheghosts_old_eurasian_male, toigo_light_skin_male_bronze / _freckles / _ginger). Beside them, MakeHuman's
+  own young_caucasian_female2 (system assets, CC0 in its .mhmat; its picture and thumbnail carry no licence
+  text) as the "light" skin.
+- Makeup masks (`scripts/build-3d-avatar-maker-masks.mjs` MADE_UP), read as data and not shipped: skins01_cc0
+  toigo_light_skin_with_natural_makeup, toigo_light_skin_with_makeup, toigo_light_skin_female_with_violet_makeup,
+  toigo_light_skin_female_bronze_with_makeup, toigo_light_skin_female_ginger_with_makeup; skins02_cc0
+  toigo_light_skin_male_with_eyeliner / _with_goth_makeup / _with_emo_eyes. Each is compared with the plain skin
+  it was painted on, so the maker's eyeshadow, eyeliner and blush go where these paint them. The made-up
+  pictures themselves left the kit: the maker paints makeup on any skin.
 - Eye pictures (`COMMUNITY_EYES`): system_eye_materials01_cc0 (bobby_03_diffuse_amber/hazel/sea_breeze/blue/grey_eyes,
   mindfront_brown_eye_02, nyloseth_sapphire_blue_eyes, spamrakuen_sr_anime_eyes_navy); system_eye_materials02_cc0
   (nyloseth_blue/brown/green/sapphire/yellow cat eyes, hatshj_reptile_eyes, bobby_03_daz_dragon_eyes). Left out

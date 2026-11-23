@@ -52,7 +52,9 @@ node scripts/build-3d-avatar-maker-masks.mjs
 The first writes the models into `assets/models/`; the second packs them into `kit/avatar` and
 `kit/wardrobe` (ffmpeg on `PATH`, or `FFMPEG`); the third makes each body's paint masks
 (`kit/avatar/avatar-<sex>-masks.png`: where the nails and lips are in the skin picture, so `src/skin.js`
-colours them with a clean edge). Run the third whenever a body is repacked. The packer reads and writes only under
+colours them with a clean edge), and the makeup mask (`kit/avatar/avatar-makeup-masks.png`, from the
+community packs' made-up skins; kept as it is when MakeHuman's pictures aren't found). Run the third whenever a
+body is repacked. The packer reads and writes only under
 `packages/3d-avatar-maker/`. The body script reads MakeHuman's data from the user's asset folder
 (`MAKEHUMAN_DATA` and `MAKEHUMAN_ASSETS`, else `_planning/Wanderworld asset packs/MakeHuman`).
 

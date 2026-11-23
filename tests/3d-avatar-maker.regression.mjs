@@ -125,10 +125,10 @@ for (const body of ["male", "female"]) {
 // ── Each body has its paint mask: the lips in green (scripts/build-3d-avatar-maker-masks.mjs) ──
 {
   const { inflateSync } = await import("node:zlib");
-  for (const body of ["male", "female"]) {
-    const png = await readFile(join(kitRoot, `avatar/avatar-${body}-masks.png`));
+  /** A mask PNG as written by the masks script (RGB, every row unfiltered): its width and (x, y, channel) → byte. */
+  const maskOf = async (name) => {
+    const png = await readFile(join(kitRoot, `avatar/${name}`));
     const width = png.readUInt32BE(16);
-    assert.equal(width, 2048, `${body}: masks are 2048 across, the size the skin is painted at`);
     let at = 8;
     const data = [];
     while (at < png.length) {
@@ -137,16 +137,148 @@ for (const body of ["male", "female"]) {
       at += 12 + length;
     }
     const rows = inflateSync(Buffer.concat(data));
+    return { width, at: (x, y, c) => rows[y * (width * 3 + 1) + 1 + x * 3 + c] };
+  };
+  const lipsAt = {};
+  for (const body of ["male", "female"]) {
+    const { width, at } = await maskOf(`avatar-${body}-masks.png`);
+    assert.equal(width, 2048, `${body}: masks are 2048 across, the size the skin is painted at`);
+    lipsAt[body] = at;
     let lips = 0;
-    for (let y = 0; y < width; y++)
-      for (let x = 0; x < width; x++) {
-        const i = y * (width * 3 + 1) + 1 + x * 3;
-        if (rows[i + 1] > 128) lips++;
-      }
+    for (let y = 0; y < width; y++) for (let x = 0; x < width; x++) if (at(x, y, 1) > 128) lips++;
     assert.ok(lips > 1000, `${body}: the mask has the lips (${lips} texels)`);
   }
-  const { canPaint } = await import("../packages/3d-avatar-maker/src/skin.js");
+  // The makeup mask, one for both bodies: red the eyeshadow, green the eyeliner, blue the blush, each in its
+  // place in MakeHuman's skin layout (the eyes about x 1717, y 990 and 1127; the cheeks beside them, towards
+  // the mouth), and none on another's place or the lips.
+  {
+    const { width, at } = await maskOf("avatar-makeup-masks.png");
+    assert.equal(width, 2048, "the makeup mask is 2048 across");
+    const places = {
+      eyeshadow: { channel: 0, x: [1680, 1745], y: [945, 1175], least: 1000 },
+      eyeliner: { channel: 1, x: [1695, 1740], y: [955, 1160], least: 1500 },
+      blush: { channel: 2, x: [1710, 1870], y: [840, 1280], least: 10000 },
+    };
+    for (const [
+      layer,
+      {
+        channel,
+        x: [x0, x1],
+        y: [y0, y1],
+        least,
+      },
+    ] of Object.entries(places)) {
+      let full = 0;
+      let astray = 0;
+      for (let y = 0; y < width; y++)
+        for (let x = 0; x < width; x++) {
+          const value = at(x, y, channel);
+          if (!value) continue;
+          if (value > 128) full++;
+          if (x < x0 || x > x1 || y < y0 || y > y1) astray++;
+          assert.ok(!lipsAt.female(x, y, 1) && !lipsAt.male(x, y, 1), `${layer} keeps off the lips (${x}, ${y})`);
+          if (layer === "blush") assert.ok(!at(x, y, 0) && !at(x, y, 1), `the blush keeps off the eyes (${x}, ${y})`);
+        }
+      assert.ok(full >= least, `the ${layer} has its place (${full} texels at more than half)`);
+      assert.equal(astray, 0, `the ${layer} stays in its place`);
+    }
+    // Both eyes have their eyeliner, each round its own oval.
+    for (const eye of [990, 1127]) assert.ok(at(1717, eye, 1) > 200, `eyeliner at the eye at y ${eye}`);
+  }
+  const { canPaint, makeupLayers, makeupTexel } = await import("../packages/3d-avatar-maker/src/skin.js");
   assert.equal(canPaint(), false, "in Node there's no canvas, so the builder colours by vertex");
+  // The makeup paints over: at full strength through a full mask a texel is the colour; half, half way; none, as it was.
+  const layers = makeupLayers({ eyeliner: { colour: 0x102030, amount: 1 }, blush: { colour: 0xff0000, amount: 0.5 } });
+  const texels = new Uint8ClampedArray([200, 100, 50, 255, 200, 100, 50, 255, 200, 100, 50, 255]);
+  makeupTexel(texels, 0, layers, [0, 255, 0], 0); // eyeliner
+  makeupTexel(texels, 4, layers, [0, 0, 255], 0); // blush
+  makeupTexel(texels, 8, layers, [255, 0, 0], 0); // eyeshadow, which this makeup hasn't
+  assert.deepEqual([...texels.subarray(0, 3)], [0x10, 0x20, 0x30], "full eyeliner is its colour");
+  assert.deepEqual([...texels.subarray(4, 7)], [228, 50, 25], "half blush is half way to its colour");
+  assert.deepEqual([...texels.subarray(8, 11)], [200, 100, 50], "no eyeshadow leaves the skin");
+  assert.deepEqual(makeupLayers({}), [null, null, null], "no makeup, nothing to paint");
+}
+
+// ── Makeup in a look: checked, bounded, and the made-up skins there were opening as their plain skin ──
+{
+  const { MADE_UP_SKINS, MAKEUP_LAYERS, MAKEUP_PRESETS, makeupPreset, readDesign } = looks;
+  assert.equal(checkLook({ body: "female" }).makeup, undefined, "no makeup unless chosen");
+  const checked = checkLook({
+    makeup: {
+      eyeshadow: { colour: 0x4577bc, amount: 1.7 }, // too strong: full
+      eyeliner: { colour: 0x050505, amount: 0.12345 }, // rounded
+      blush: { colour: 0xe584b2, amount: -0.3 }, // below none: none
+      lipstick: { amount: 2 },
+      glitter: { colour: 0xffffff, amount: 1 }, // not a layer
+    },
+  });
+  assert.deepEqual(checked.makeup, {
+    eyeshadow: { colour: 0x4577bc, amount: 1 },
+    eyeliner: { colour: 0x050505, amount: 0.123 },
+    lipstick: { amount: 1 },
+  });
+  for (const bad of [
+    { eyeshadow: { colour: "blue", amount: 0.5 } },
+    { eyeshadow: { colour: 0x1000000, amount: 0.5 } },
+    { eyeshadow: { colour: 0x4577bc } },
+    { eyeshadow: { colour: 0x4577bc, amount: "0.5" } },
+    { eyeshadow: { colour: 0x4577bc, amount: 0 } },
+    { eyeshadow: [0x4577bc, 0.5] },
+    { lipstick: { amount: Number.NaN } },
+  ])
+    assert.equal(checkLook({ makeup: bad }).makeup, undefined, `refused: ${JSON.stringify(bad)}`);
+  // The AI's design writes colours as "#rrggbb".
+  assert.deepEqual(readDesign({ makeup: { blush: { colour: "#e584b2", amount: 0.5 } } }).makeup, {
+    blush: { colour: 0xe584b2, amount: 0.5 },
+  });
+  // Every preset is in range, and a look keeps it as it is.
+  assert.ok(MAKEUP_PRESETS.length >= 7, "a preset for each made-up skin there was");
+  const layerNames = MAKEUP_LAYERS.map(([layer]) => layer);
+  for (const [value, label, layers] of MAKEUP_PRESETS) {
+    assert.ok(label && Object.keys(layers).length, `${value}: has a label and makeup`);
+    for (const [layer, entry] of Object.entries(layers)) {
+      if (layer === "lips") {
+        assert.ok(Number.isInteger(entry) && entry >= 0 && entry <= 0xffffff, `${value}: its lips are a colour`);
+        continue;
+      }
+      assert.ok(layerNames.includes(layer), `${value}: ${layer} is a layer`);
+      const [colour, amount] = entry;
+      assert.ok(Number.isInteger(colour) && colour >= 0 && colour <= 0xffffff, `${value}: its ${layer} is a colour`);
+      assert.ok(amount > 0 && amount <= 1, `${value}: its ${layer} strength is in range (${amount})`);
+    }
+    const { makeup, lips } = makeupPreset(value);
+    assert.deepEqual(checkLook({ makeup }).makeup, makeup, `${value}: kept as it is`);
+    assert.equal(lips, layers.lips);
+  }
+  // A made-up skin there was opens as its plain skin with its preset's makeup and lipstick.
+  for (const [old, [skin, preset]] of Object.entries(MADE_UP_SKINS)) {
+    const look = checkLook({ body: skin === "caucasian" ? "male" : "female", skin: old });
+    const { makeup, lips } = makeupPreset(preset);
+    assert.equal(look.skin, skin, `${old} opens as ${skin}`);
+    assert.deepEqual(look.makeup, makeup, `${old} brings the ${preset} makeup`);
+    assert.equal(look.colours?.lips, lips, `${old} brings its lipstick`);
+    assert.ok(
+      looks.skinsFor(look.body).some(([value]) => value === skin) &&
+        !looks.skinsFor("female").some(([value]) => value === old) &&
+        !looks.skinsFor("male").some(([value]) => value === old),
+      `${old}: its plain skin is offered, the made-up one no longer`,
+    );
+  }
+  // …unless the look has makeup or lips of its own.
+  const own = checkLook({ skin: "classic-makeup", makeup: {}, colours: { lips: 0x4a2a2a } });
+  assert.deepEqual([own.skin, own.makeup, own.colours.lips], ["light", undefined, 0x4a2a2a]);
+  // A lipstick's strength mixes its colour with the lips it's on; the built look carries the makeup.
+  const { avatarLook } = await import("../packages/3d-avatar-maker/src/avatar.js");
+  const lipstick = (amount) =>
+    avatarLook(
+      "a",
+      "auto",
+      checkLook({ body: "female", skin: "light", colours: { lips: 0x000000 }, makeup: { lipstick: { amount } } }),
+    );
+  assert.equal(lipstick(1).colours.lips, 0x000000, "full lipstick is its colour");
+  assert.equal(lipstick(0.5).colours.lips, 0x808080, "half way to the skin picture's own lips (white: as painted)");
+  assert.equal(lipstick(0).colours.lips, 0xffffff, "none: the picture's own lips");
+  assert.deepEqual(lipstick(1).makeup, { lipstick: { amount: 1 } });
 }
 
 // ── A figure stands on the floor, on a full humanoid skeleton, in each pose ──

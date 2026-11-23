@@ -22,7 +22,7 @@ const DRAFT_KEY = (owner) => `${PACKAGE_ID}:draft:${owner ? `${owner.type}:${own
 const LAST_KEY = `${PACKAGE_ID}:last`;
 const TERMS_KEY = `${PACKAGE_ID}:vrm-terms`; // (the author's VRM terms, the same for every avatar they save)
 /** The look's fields that are records, merged part by part when a control changes one part. */
-const RECORDS = ["shape", "limbs", "colours", "underwear", "clothColours", "variants"];
+const RECORDS = ["shape", "limbs", "colours", "makeup", "underwear", "clothColours", "variants"];
 
 const rows = (list) => (Array.isArray(list) ? list : Array.isArray(list?.items) ? list.items : []);
 /** A character card's name: rows keep the card as JSON in `data` (text or already read). */
