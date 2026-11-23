@@ -520,6 +520,36 @@ The maker's code waits for its 0.1.11 release; the packs that use it are Clothes
   leaves them off, a pack's briefs show under the skirt or not the same way, and the Underwear colour dyes a
   tintable pack bra.
 
+## Community hair (the kit and the Accessories pack; the maker's version unchanged)
+
+- **What was tried.** The 31 community hair styles whose files don't say AGPL-3, each fitted with
+  `make_mh_hair.py` to the bodies it was made for and rendered front, side, back and close at the hairline and
+  ears. `docs/MAKEHUMAN-PACKS.md` "The hair pass" lists each one and why it's in or out.
+- **The kit (CC0): six bobs.** MargaretToigo's blunt, curled-under and inverted bobs, each with and without a
+  fringe (looks.js HAIRSTYLES `bob_blunt` to `bob_inverted_bangs`), on both bodies. They swing as the kit's bob
+  does (`SWINGING_HAIR`, 0.03). They're packed in a bundle of their own, `avatar-hair-bobs.pack.png`, so wearing
+  the long or short styles doesn't fetch them.
+- **The Accessories pack (CC BY 4.0): 14 styles by Elvaerwyn**, 0.2.01. Eleven are for the female body, two for
+  both, one for the male. The ten that hang loose have `swing: 0.03`; the two updos, the braided bun and the
+  short men's cut stay rigid.
+- **Fitting.** `make_mh_hair.py` now fits a pack's styles from `assets/packs.json` (`-- packs`) into
+  `assets/models/packs/<pack id>/`, each to its own bodies. It drops faces a vertex twice or repeated
+  (`whole_faces`, which elvs_lady_hippy_hair needed), and tucks the bobs' fringe under the main sheet at the crown
+  (`tucked_fringe`), where its back edge stood up as a ridge.
+- **Left out after rendering (7):** faydaen_hair_1 (flat strips standing off the head), elvs_grump_hair (cards
+  standing off), elvs_inverted_curly_bob (the neck shows through at the nape), elvs_micky_afro (faceted, with a
+  speckled picture), elvs_reverse_french_braid_bun (smudgy picture, covers an eye), o4saken_chinesebob01 and
+  o4saken_long01 (ragged cards at the crown). Four more were too heavy (16k to 123k vertices).
+- **Checked** in the regression test: every style the Hair tab offers on a body loads there from its bundle,
+  the kit's and the pack's; every kit style in `SWINGING_HAIR` and every pack style with a `swing` rests exactly
+  where it was made, swings as the head turns and settles, and the rest have no springs.
+- **Sizes.** The bobs' bundle is 4.6 MiB, its pictures 1,024 pixels like the kit's other hair. That puts the
+  maker's zip at about 57 MiB when it's next built, from 52.5 MiB (0.1.10). The Accessories pack's zip went from
+  13.1 MiB to 25.2 MiB.
+- **Not built yet:** the maker itself. Its manifest still lists the 0.1.10 kit, so `validate-catalog.mjs` fails
+  on `avatar-hair-index.json` until the next maker build. The pack's `maker` stays 0.1.04: an older maker
+  shows its pieces and leaves out the hair.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -532,7 +562,7 @@ The maker's code waits for its 0.1.11 release; the packs that use it are Clothes
 4. **More expressions.** Visemes beyond VRM's five vowels, a wink and a smirk as custom expressions.
 5. **Colliders that allow for what's worn:** a cloak over a dress swings on its own chains through the
    dress's, and hair passes into a thick cloak.
-6. **More to change:** the community objects, jewellery, horns, wings, tails and hair styles fitted into
+6. **More to change:** the community objects, jewellery, horns, wings and tails fitted into
    packs for the new slots; a grip for a hand that holds something; skin texture layers (freckles, scars,
    tattoos) painted as the makeup is, patterns and pictures on clothing, more face sliders.
 7. **Generate avatar.** A server part with one route that asks a chosen model for a look from the card's

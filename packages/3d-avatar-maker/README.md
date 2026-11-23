@@ -41,7 +41,7 @@ file you save, and you import that file yourself.
 | Body | Body, age, height; a race preset (human, dwarf, halfling, gnome, elf, half-elf, half-orc, tiefling) and six race sliders to mix; eight build sliders; arms, legs, torso and hips, and her bust in detail; arm and leg length, head size |
 | Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (66 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: beards, tusks, horns, a tail |
 | Skin and eyes | 24 skin pictures (MakeHuman's nine in three ages, and 15 more) or a colour of your own; makeup on any skin: eyeshadow, eyeliner, blush and lipstick, each in a colour and strength of your own, or one of seven ready-made looks; 24 pictured eyes or a colour; nail length, toenails and nail colour |
-| Hair | 14 styles in any colour, and any styles a wardrobe pack adds. Long, ponytail, braid, bob and angled bob swing as the avatar moves, and so do a pack's long styles |
+| Hair | 20 styles in any colour, and any styles a wardrobe pack adds (the Accessories pack has 14). Long, ponytail, braid and every bob swing as the avatar moves, and so do a pack's long styles |
 | Clothes | Underwear (a top and a bottom, shown under clothes or hidden by them, as you choose), ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus what any wardrobe packs you install add. Skirts, dresses, the gown and robe, the long coat, the cloak, the tunic's tails, the loincloth and the apron hang from the hips and swing as one piece, out of the legs' way; trousers, leggings and shorts follow each leg. Glasses, a face mask, earrings, rings and socks have places of their own, which the Accessories pack fills. Horns or antlers, a necklace, the wrists, the belly, the ankles, a tail, the back (wings, a backpack), the hip and each hand have places of their own too, for packs to fill. Something held in a hand and horns are fixed to the hand or head, so they move with it and never bend |
 
 Every slider's middle is the body's own shape, and each control says what it changes. Makeup starts at
@@ -132,12 +132,13 @@ use and share however you like, with no credit required:
 
 - The bodies' base mesh and shapes, the skins, eyes, eyebrows and eyelashes, ten of the hair styles and
   the modern clothes are from [MakeHuman](http://www.makehumancommunity.org/) (CC0), used as data.
-- Extra face and body shapes, 14 more skins, 15 more eye pictures, the nails and six brow and lash styles are from MakeHuman's community packs
-  (CC0), by Elvaerwyn, jujube, habanero, RehmanPolanski, Mindfront, skalldyrssuppe,
-  onlytheghosts, toigo, flower-angel, ken1138, bobby_03, Nyloseth, Hatshj and spamrakuen. Where the makeup
-  goes was found in toigo's made-up skins.
+- Extra face and body shapes, 14 more skins, 15 more eye pictures, the nails, six brow and lash styles and six
+  bobs are from MakeHuman's community packs (CC0), by Elvaerwyn, jujube, habanero, RehmanPolanski, Mindfront,
+  skalldyrssuppe, onlytheghosts, toigo (MargaretToigo), flower-angel, ken1138, bobby_03, Nyloseth, Hatshj and
+  spamrakuen. Where the makeup goes was found in toigo's made-up skins.
 - The races' shapes and parts, four hair styles and the fantasy clothing and armour were made in Blender
-  by ThatOneCan, who also fitted the nails and baked the new brows and lashes; all released as CC0 1.0 too.
+  by ThatOneCan, who also fitted the nails and the six community bobs and baked the new brows and lashes; all
+  released as CC0 1.0 too.
 
 - Most of the preview's animations are clips from Quaternius's Universal Animation Library and Universal
   Animation Library 2 (CC0). They play in the preview only; a saved file doesn't carry them.

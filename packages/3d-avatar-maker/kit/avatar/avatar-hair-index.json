@@ -13,6 +13,48 @@
    "female"
   ]
  },
+ "bob_blunt": {
+  "bundle": "avatar-hair-bobs",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "bob_blunt_bangs": {
+  "bundle": "avatar-hair-bobs",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "bob_curled": {
+  "bundle": "avatar-hair-bobs",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "bob_curled_bangs": {
+  "bundle": "avatar-hair-bobs",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "bob_inverted": {
+  "bundle": "avatar-hair-bobs",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
+ "bob_inverted_bangs": {
+  "bundle": "avatar-hair-bobs",
+  "bodies": [
+   "male",
+   "female"
+  ]
+ },
  "braid": {
   "bundle": "avatar-hair-long",
   "bodies": [

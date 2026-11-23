@@ -33,6 +33,12 @@ export const SWINGING_HAIR = new Map([
   ["ponytail", 0.03],
   ["bob", 0.03],
   ["bob_angled", 0.03],
+  ["bob_blunt", 0.03],
+  ["bob_blunt_bangs", 0.03],
+  ["bob_curled", 0.03],
+  ["bob_curled_bangs", 0.03],
+  ["bob_inverted", 0.03],
+  ["bob_inverted_bangs", 0.03],
   ["braid", 0.12],
 ]);
 /**

@@ -39,6 +39,8 @@ The package uses data from these items, read by `assets/scripts/make_avatar.py` 
   mindfront_nails_03_long, mindfront_nails_toes_01.
 - Brows and lashes, baked onto MakeHuman's cards (`bake_brows.py` STYLES): eyebrows01_cc0 mindfront_eyebrows_02, _04,
   _07, _09; eyelashes01_cc0 mindfront_eyelashes_01, _05.
+- Hair (`make_mh_hair.py` STYLES): hair01_cc0 toigo_blunt_bob, toigo_curled_under_bob, toigo_inverted_bob and the
+  three `_with_bangs`. Every file of each says CC0 or names no licence. See "The hair pass" below.
 
 ## In the wardrobe packs
 
@@ -46,7 +48,7 @@ Two packages carry the community clothes, listed with their authors in `assets/p
 README, fitted by `make_mh_packs.py`: `3d-avatar-maker-wardrobe-clothes` (every garment: dresses, suits and
 bodysuits, tops, trousers, shorts, skirts, underwear and lingerie, swimwear and shoes) and
 `3d-avatar-maker-wardrobe-accessories` (hats and helmets, hoods, the circlet and a feather headdress, glasses,
-goggles and masks, earrings, a choker, rings, gloves and socks). CC0 and CC BY pieces share a pack; each piece
+goggles and masks, earrings, a choker, rings, gloves and socks, and since 0.2.02 hair styles). CC0 and CC BY pieces share a pack; each piece
 carries its own licence and credit. Until the merge (Clothes 0.1.00, Accessories 0.2.00) there were five packs,
 described below as they were built; every piece kept its id when it moved. Since Clothes 0.1.01, bras, bikini
 tops, briefs, thongs and bikini bottoms are in the slots `underwear_top` and `underwear_bottom`, which the maker
@@ -206,6 +208,41 @@ fitter flagged again on the heavy, muscular body (heavy, muscle, belly and bust 
 - Left out by choice: elvs_basic_brave_feathers1, a "brave" feather headdress (a costume stereotype; it fits;
   added in the underwear pass).
 - Not tried here, for later passes: objects (equipment), jewellery needing new slots, body parts and all hair.
+
+### The hair pass (2026-11-23)
+
+The three hair packs (hair01_cc0, hair02_ccby, hair03_ccby, 60 items) were extracted whole and every file of
+every item read again for a licence line. The 29 with an AGPL-3 line were already listed below and stay out.
+That left 31: the 29 first counted (7 CC0, 22 CC BY) and the two under "Other" whose files say CC BY.
+The rest were fitted the way the kit's MakeHuman hair is (`make_mh_hair.py`) to each body the item was made for
+(both, unless its catalogue or tags say female or male models), then rendered in Blender (EEVEE) front, side
+and back with close-ups of the hairline and both ears. CC0 styles go in the kit; CC BY ones in the Accessories
+pack (`assets/packs.json` `hair`, fitted with `make_mh_hair.py -- packs`).
+
+- Added to the kit (CC0): toigo_blunt_bob, toigo_curled_under_bob, toigo_inverted_bob and each `_with_bangs`,
+  by MargaretToigo, on both bodies. Their fringe is a sheet of its own over the crown; its back edge is tucked
+  8 mm under the main sheet, where it stood up as a ridge.
+- Added to the Accessories pack (CC BY 4.0; the files say "CC_by" or "CC-BY"), by Elvaerwyn: elvs_50s_updo,
+  elvs_adrienne_hair, elvs_ashley_may_hair, elvs_braid_bun, elvs_daisy_hair, elvs_hazel_hair,
+  elvs_island_princess_hair, elvs_katherine_hair, elvs_lady_hippy_hair, elvs_short_daisy_hair, elvs_wavy_bob
+  (female), elvs_keylth_hair, elvs_that_80s_babe_hair (both) and elvs_maxwell_hair (male). elvs_lady_hippy_hair has
+  8 repeated faces, dropped as the fitter reads it (`whole_faces`).
+- Left out for licence: the 29 AGPL-3 items (culturalibre_hair_01, _02, _05, _06, _11 to _14, _17 and _18, cortu's four,
+  elvs_double_mh_braid, elvs_french_braid_variation, elvs_unkempt_french_braid, elvs_witchy_lil_bob,
+  learning_anime_hair, littleright_bobcut_hair, rehmanpolanski_hair_bun_brown, sonntag78's two, grinsegold's two
+  and punkduck_alpha7's four; see the two AGPL lists).
+- Left out as too heavy (over about 15k vertices): elvs_braided_rows (21.7k), elvs_lara_hair (16.0k, and named
+  for a film character), elvs_short_side_do (50.3k), o4saken_curly01 (123k).
+- Left out after rendering:
+  - faydaen_hair_1 (CC0): a 541-vertex updo whose loose locks are flat strips standing off the head, and its bun
+    faceted;
+  - elvs_grump_hair: layered cards stand off the sides and a tuft stands up at the crown;
+  - elvs_inverted_curly_bob: sparse at the nape, where the neck shows through, and its locks hang over the face;
+  - elvs_micky_afro: two faceted puffs, and its picture's speckle reads as dirt once the maker colours it;
+  - elvs_reverse_french_braid_bun (catalogue CC0, files CC BY; under "Other" below): its picture's dark blotches read
+    as smudges, and its swoop covers one eye;
+  - o4saken_chinesebob01 and o4saken_long01 (the latter catalogue CC0, files CC BY 4.0; 15.0k vertices): the
+    "base scalp" cards at the crown stand up ragged.
 
 ### The five packs before the merge
 
