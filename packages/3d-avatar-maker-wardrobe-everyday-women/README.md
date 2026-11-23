@@ -1,7 +1,7 @@
 # 3D Avatar Maker: Everyday Women's Clothes
 
-26 more pieces of clothing for [3D Avatar Maker](../3d-avatar-maker/README.md), all for the female body:
-nine dresses, seven tops, four skirts, harem trousers and five pairs of shoes. They come from the MakeHuman
+25 more pieces of clothing for [3D Avatar Maker](../3d-avatar-maker/README.md), all for the female body:
+nine dresses, seven tops, four skirts, harem trousers and four pairs of shoes. They come from the MakeHuman
 community and are public domain (CC0), so an avatar wearing them can be shared freely, like one made from
 the maker's own clothes.
 
@@ -46,7 +46,6 @@ A maker whose bodies have changed since then leaves the pack out until the pack 
 | Ballet flats with bows | Feet | Their own colour |
 | Ankle boots | Feet | Their own colour |
 | Mary Jane cloth shoes | Feet | Their own colour |
-| T-bar shoes | Feet | Their own colour |
 
 "Any colour" pieces are plain cloth the maker dyes. The others keep their own picture, which a colour of
 your own tints.
@@ -56,6 +55,7 @@ your own tints.
 Every piece is CC0 1.0 (public domain) by its MakeHuman community catalogue and by its own files. No credit
 is required; the authors are named as thanks. Each piece was fitted to the maker's body in Blender by
 ThatOneCan (`packages/3d-avatar-maker/assets/scripts/make_mh_packs.py`), and that fitting is CC0 as well.
+Version 0.1.01 took out Cortu's T-bar shoes, because its model file says AGPL-3.
 
 | Piece | Author | Source |
 | --- | --- | --- |
@@ -84,7 +84,6 @@ ThatOneCan (`packages/3d-avatar-maker/assets/scripts/make_mh_packs.py`), and tha
 | Ballet flats with bows (`toigo_ballet_flats_with_bows`) | MargaretToigo | http://www.makehumancommunity.org/node/1735 |
 | Ankle boots (`toigo_ankle_boots_female`) | MargaretToigo | http://www.makehumancommunity.org/node/1738 |
 | Mary Jane cloth shoes (`toigo_mj_cloth_shoes`) | MargaretToigo | http://www.makehumancommunity.org/node/1700 |
-| T-bar shoes (`cortu_t-bar`) | Cortu | http://www.makehumancommunity.org/node/2801 |
 
 The names in brackets are the MakeHuman items. The pieces come from the community packs dress01_cc0,
 shirts01_cc0, skirts01_cc0, pants01_cc0 and shoes01_cc0; `packages/3d-avatar-maker/docs/MAKEHUMAN-PACKS.md`

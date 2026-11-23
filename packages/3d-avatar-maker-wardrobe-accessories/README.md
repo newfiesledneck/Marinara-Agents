@@ -1,7 +1,7 @@
 # 3D Avatar Maker: Accessories
 
-22 accessories for [3D Avatar Maker](../3d-avatar-maker/README.md): six pairs of glasses, two eye masks, a
-medical mask, two pairs of earrings, two rings, gloves in three lengths, four kinds of socks and two hats.
+19 accessories for [3D Avatar Maker](../3d-avatar-maker/README.md): six pairs of glasses, a medical mask,
+pearl earrings, two rings, gloves in three lengths, four kinds of socks and two hats.
 They come from the MakeHuman community and are public domain (CC0), so an avatar wearing them can be shared
 freely, like one made from the maker's own clothes.
 
@@ -32,11 +32,8 @@ All pieces fit both bodies except the diamond ring, which is made for the female
 | Glasses, cat-eye | Glasses | Any colour frame |
 | Glasses, thin frames | Glasses | Any colour frame |
 | Round sunglasses, leopard print | Glasses | Its own picture |
-| Cat mask | Glasses | Any colour |
-| Hero mask | Glasses | Any colour |
 | Medical mask | Face mask | Its own picture |
 | Pearl earrings | Earrings | Their own picture |
-| Lightning earrings | Earrings | Any colour |
 | Plain ring | Rings | Any colour |
 | Diamond ring | Rings | Its own picture |
 | Gloves, short | Hands | Any colour |
@@ -54,10 +51,11 @@ your own tints. The glasses' lenses are clear, except the leopard sunglasses'. T
 
 ## Credits
 
-Every piece is CC0 1.0 (public domain) by its MakeHuman community catalogue, and its own files say CC0 or
-name no licence. No credit is required; the authors are named as thanks. Each piece was fitted to the maker's
-bodies in Blender by ThatOneCan (`packages/3d-avatar-maker/assets/scripts/make_mh_packs.py`), and that
-fitting is CC0 as well.
+Every piece is CC0 1.0 (public domain) by its MakeHuman community catalogue, and all of its own files say CC0
+or name no licence. No credit is required; the authors are named as thanks. Each piece was fitted to the
+maker's bodies in Blender by ThatOneCan (`packages/3d-avatar-maker/assets/scripts/make_mh_packs.py`), and that
+fitting is CC0 as well. Version 0.1.01 took out the two eye masks and the lightning earrings, because their
+model files say AGPL-3.
 
 | Piece | Author | Source |
 | --- | --- | --- |
@@ -67,11 +65,8 @@ fitting is CC0 as well.
 | Glasses, cat-eye (`spamrakuen_sagerfrogs_glasses_04`) | spamrakuen | http://www.makehumancommunity.org/node/3334 |
 | Glasses, thin frames (`spamrakuen_tbm_glasses_frames_01`) | spamrakuen | http://www.makehumancommunity.org/node/3330 |
 | Round sunglasses, leopard print (`toigo_round_glasses_leopard`) | MargaretToigo | http://www.makehumancommunity.org/node/1070 |
-| Cat mask (`culturalibre_hero_mask_4`) | culturalibre | http://www.makehumancommunity.org/node/2220 |
-| Hero mask (`culturalibre_hero_mask_3`) | culturalibre | http://www.makehumancommunity.org/node/2202 |
 | Medical mask (`joepal_medical_mouth_protection`) | Joel Palmius | http://www.makehumancommunity.org/node/2369 |
 | Pearl earrings (`toigo_pearl_earrings`) | MargaretToigo | http://www.makehumancommunity.org/node/1029 |
-| Lightning earrings (`culturalibre_heroine_lightning_earrings`) | culturalibre | http://www.makehumancommunity.org/node/2857 |
 | Plain ring (`joachip_ring_1`) | joachip | http://www.makehumancommunity.org/node/3119 |
 | Diamond ring (`wolgade_diamond_ring_01`) | wolgade | http://www.makehumancommunity.org/node/558 |
 | Gloves, short (`toigo_gloves_short`) | MargaretToigo | http://www.makehumancommunity.org/node/1852 |

@@ -26,6 +26,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.05",
+          "date": "2026-11-23",
+          "notes": "- Took out two skins, Mid-toned and Viking tattoos. Their material files say AGPL-3, which doesn't match the CC0 their catalogue gives. An avatar saved with one of them opens with the default skin instead.",
+          "highlight": false
+        },
+        {
           "version": "0.1.04",
           "date": "2026-11-23",
           "notes": "- New places to wear things: glasses, a face mask, earrings, rings and socks. The new Accessories pack fills them, and adds gloves and two hats.\n- Gloves hide rings, and socks hide the toenails, the way gloves and shoes already hide the nails.",
@@ -60,6 +66,12 @@
     "3d-avatar-maker-wardrobe-accessories": {
       "versions": [
         {
+          "version": "0.1.01",
+          "date": "2026-11-23",
+          "notes": "- Took out the cat mask, the hero mask and the lightning earrings. Their model files say AGPL-3, which doesn't match the CC0 their catalogue gives, so they are left out like other such items. 19 pieces remain.",
+          "highlight": false
+        },
+        {
           "version": "0.1.00",
           "date": "2026-11-23",
           "notes": "- First version: 22 accessories for 3D Avatar Maker's Clothes tab: six pairs of glasses, two eye masks, a medical mask, pearl and lightning earrings, two rings, three lengths of gloves, four kinds of socks and leg warmers, a cloche hat and a Christmas hat.\n- Every piece is from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.04 or later.",
@@ -69,6 +81,12 @@
     },
     "3d-avatar-maker-wardrobe-everyday-men": {
       "versions": [
+        {
+          "version": "0.1.01",
+          "date": "2026-11-23",
+          "notes": "- Took out the cargo trousers and denim shorts. Their model files say AGPL-3, which doesn't match the CC0 their catalogue gives, so they are left out like other such items. 10 pieces remain.",
+          "highlight": false
+        },
         {
           "version": "0.1.00",
           "date": "2026-11-23",
@@ -80,9 +98,35 @@
     "3d-avatar-maker-wardrobe-everyday-women": {
       "versions": [
         {
+          "version": "0.1.01",
+          "date": "2026-11-23",
+          "notes": "- Took out the T-bar shoes. Their model file says AGPL-3, which doesn't match the CC0 their catalogue gives, so they are left out like other such items. 25 pieces remain.",
+          "highlight": false
+        },
+        {
           "version": "0.1.00",
           "date": "2026-11-23",
           "notes": "- First version: 26 pieces of clothing for 3D Avatar Maker's Clothes tab, for the female body: nine dresses, seven tops, four skirts, harem trousers and five pairs of shoes.\n- Every piece is from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.03 or later.",
+          "highlight": false
+        }
+      ]
+    },
+    "3d-avatar-maker-wardrobe-historical-fantasy": {
+      "versions": [
+        {
+          "version": "0.1.00",
+          "date": "2026-11-23",
+          "notes": "- First version: 17 pieces of clothing for 3D Avatar Maker's Clothes tab: a monk's robe with two hoods, a medieval dress, three goddess dresses, a peasant blouse, a tunic with a sash, a maid's headband, a veil, a top hat, a pith helmet, a brass circlet, and medieval boots, riding boots and felt elf shoes.\n- From the MakeHuman community. The robe and hoods are CC0; the rest are CC BY 4.0, and a saved avatar names the maker of each one it wears. Needs 3D Avatar Maker 0.1.03 or later.",
+          "highlight": false
+        }
+      ]
+    },
+    "3d-avatar-maker-wardrobe-modern-casual": {
+      "versions": [
+        {
+          "version": "0.1.00",
+          "date": "2026-11-23",
+          "notes": "- First version: 34 pieces of clothing for 3D Avatar Maker's Clothes tab: tops, shirts, a knitted sweater, a hooded jacket and a winter coat; jeans, chinos, denim shorts and five skirts; trainers, Oxford shoes, biker boots and winter boots; and four hats.\n- From the MakeHuman community, under CC BY 3.0 or 4.0. A saved avatar names the maker of each piece it wears. Needs 3D Avatar Maker 0.1.03 or later.",
           "highlight": false
         }
       ]

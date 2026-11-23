@@ -10,8 +10,8 @@
   },
   "id": "3d-avatar-maker-wardrobe-accessories",
   "name": "3D Avatar Maker: Accessories",
-  "version": "0.1.00",
-  "description": "22 more accessories for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.04 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+  "version": "0.1.01",
+  "description": "19 more accessories for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.04 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
   "engine": {
     "min": "2.4.6",
     "maxExclusive": "4.0.0"
@@ -36,18 +36,18 @@
   "files": [
     {
       "path": "agents.json",
-      "sha256": "16075af625b4e54a16e0b89ca3c20360d012e440c8155a19b2f444c2c41b331d",
+      "sha256": "a135d3153f09453d3a56818718c348ed85514b5599ad3dc94234c904b9c5590a",
       "bytes": 723
     },
     {
       "path": "avatar-pack.json",
-      "sha256": "bae21055b9df7c8d601ba06839bcffc1bf72309698012a49cd6dec9d4b51957d",
-      "bytes": 11359
+      "sha256": "1725cbd61ef99302ed5ac4a6226cc7126d7f7fb13eade10e06bc0dfa67f69497",
+      "bytes": 9832
     },
     {
       "path": "wardrobe/accessories.pack.png",
-      "sha256": "3e539efffb1aeb6d854a5c45ae583c0641cf4851a653454157af8bb5ae334f1f",
-      "bytes": 2607002
+      "sha256": "3bd4a15c73a60dd30a9183971fd8f44345208d4c2b5a02e96667b2922ea55929",
+      "bytes": 2095362
     },
     {
       "path": "wardrobe/feet.pack.png",

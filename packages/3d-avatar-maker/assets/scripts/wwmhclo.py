@@ -127,6 +127,12 @@ class Proxy:
                 key = words[0]
                 if key in ("x_scale", "y_scale", "z_scale"):
                     scales[key[0]] = (int(words[1]), int(words[2]), float(words[3]))
+                elif key in ("l_shear_x", "l_shear_y", "l_shear_z"):
+                    # MakeClothes 2's form: two vertices and their coordinates on the axis, so the scale is
+                    # their distance now over then, as x_scale's. ponytail: only the left side's is read and
+                    # its translation dropped (MakeHuman moves the offsets by the scale alone); a piece whose
+                    # r_shear differs from l_shear would need a scale per side.
+                    scales.setdefault(key[-1], (int(words[1]), int(words[2]), abs(float(words[4]) - float(words[3]))))
                 elif key == "obj_file":
                     obj_file = words[1]
                 elif key == "material":

@@ -1,0 +1,501 @@
+{
+ "format": 1,
+ "for": "3d-avatar-maker",
+ "body": 1,
+ "maker": "0.1.03",
+ "name": "Historical and Fantasy Clothes",
+ "pieces": {
+  "donitz_monk_robe": {
+   "label": "Monk's robe",
+   "slot": "body",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "torso",
+    "upperarms",
+    "forearms",
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      5982270
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      5982270
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Donitz",
+   "source": "http://www.makehumancommunity.org/node/3238",
+   "credit": null
+  },
+  "donitz_monk_robe_hood": {
+   "label": "Monk's hood, up",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      5258552
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      5258552
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Donitz",
+   "source": "http://www.makehumancommunity.org/node/3235",
+   "credit": null
+  },
+  "donitz_monk_robe_hood_down": {
+   "label": "Monk's hood, pulled low",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      5192759
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      5192759
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Donitz",
+   "source": "http://www.makehumancommunity.org/node/3236",
+   "credit": null
+  },
+  "drednicolson_asymmetric_tunic_and_sash": {
+   "label": "Tunic with a sash",
+   "slot": "over",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top"
+   ],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/tops.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "DredNicolson",
+   "source": "http://www.makehumancommunity.org/node/409",
+   "credit": "\"drednicolson_asymmetric_tunic_and_sash\" by DredNicolson (http://www.makehumancommunity.org/node/409), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "drednicolson_pith_helmet": {
+   "label": "Pith helmet",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "DredNicolson",
+   "source": "http://www.makehumancommunity.org/node/415",
+   "credit": "\"drednicolson_pith_helmet\" by DredNicolson (http://www.makehumancommunity.org/node/415), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_basic_felt_elf_shoes": {
+   "label": "Felt elf shoes",
+   "slot": "feet",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "feet"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      8563776
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      8563776
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1279",
+   "credit": "\"elvs_basic_felt_elf_shoes\" by Elvaerwyn (http://www.makehumancommunity.org/node/1279), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_charity_veil1": {
+   "label": "Veil",
+   "slot": "head",
+   "bodies": [
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      3947580
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2610",
+   "credit": "\"elvs_charity_veil1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2610), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_dirty_lil_maid_bonnet": {
+   "label": "Maid's frilled headband",
+   "slot": "head",
+   "bodies": [
+    "female"
+   ],
+   "layer": 4,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1575",
+   "credit": "\"elvs_dirty_lil_maid_bonnet\" by Elvaerwyn (http://www.makehumancommunity.org/node/1575), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_goddess_dress1": {
+   "label": "Goddess dress, draped",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2558",
+   "credit": "\"elvs_goddess_dress1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2558), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_goddess_dress2": {
+   "label": "Goddess dress, long",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2559",
+   "credit": "\"elvs_goddess_dress2\" by Elvaerwyn (http://www.makehumancommunity.org/node/2559), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_goddess_dress7": {
+   "label": "Goddess dress, short",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2564",
+   "credit": "\"elvs_goddess_dress7\" by Elvaerwyn (http://www.makehumancommunity.org/node/2564), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_ruffle_sleeve_peasant_blouse_1": {
+   "label": "Peasant blouse, ruffled sleeves",
+   "slot": "top",
+   "bodies": [
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "underwear-top"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      5008740
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/tops.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1256",
+   "credit": "\"elvs_ruffle_sleeve_peasant_blouse_1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1256), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_tophat1": {
+   "label": "Top hat",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      4080470
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      4080470
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1360",
+   "credit": "\"elvs_tophat1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1360), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_brass_circlet_crown": {
+   "label": "Brass circlet",
+   "slot": "brow",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/1383",
+   "credit": "\"punkduck_brass_circlet_crown\" by punkduck (http://www.makehumancommunity.org/node/1383), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_medieval_boots": {
+   "label": "Medieval boots",
+   "slot": "feet",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "feet"
+   ],
+   "parts": {
+    "male": [
+     [
+      "shoe",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "shoe",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/1381",
+   "credit": "\"punkduck_medieval_boots\" by punkduck (http://www.makehumancommunity.org/node/1381), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_medieval_dress": {
+   "label": "Medieval dress",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/1379",
+   "credit": "\"punkduck_medieval_dress\" by punkduck (http://www.makehumancommunity.org/node/1379), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_riding_boots": {
+   "label": "Riding boots",
+   "slot": "feet",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "feet"
+   ],
+   "parts": {
+    "female": [
+     [
+      "shoe",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/1566",
+   "credit": "\"punkduck_riding_boots\" by punkduck (http://www.makehumancommunity.org/node/1566), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  }
+ }
+}

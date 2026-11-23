@@ -31,29 +31,6 @@
    "source": "http://www.makehumancommunity.org/node/581",
    "credit": null
   },
-  "cortu_t_bar": {
-   "label": "T-bar shoes",
-   "slot": "feet",
-   "bodies": [
-    "female"
-   ],
-   "layer": 2,
-   "hides": [],
-   "parts": {
-    "female": [
-     [
-      "shoe",
-      16777215
-     ]
-    ]
-   },
-   "variants": [],
-   "bundle": "wardrobe/feet.pack.png",
-   "licence": "CC0-1.0",
-   "author": "Cortu",
-   "source": "http://www.makehumancommunity.org/node/2801",
-   "credit": null
-  },
   "joepal_crude_t_shirt_female": {
    "label": "Plain T-shirt",
    "slot": "top",

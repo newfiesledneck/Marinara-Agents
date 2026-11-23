@@ -4695,10 +4695,10 @@ def skin_textures(B, shade):
 
 
 # Skins from MakeHuman's community packs, for each body: (our name, the pack, its item, size). All CC0 by the
-# packs' catalogues. Left out: the five whose descriptions say genitals are painted in.
+# packs' catalogues. Left out: the five whose descriptions say genitals are painted in, and those whose own .mhmat
+# says AGPLv3 (callharvey3d_midtoned_female, rehmanpolanski_skin_viking_tattoos; docs/MAKEHUMAN-PACKS.md).
 COMMUNITY_SKINS = {
     "female": [
-        ("midtoned", "skins01_cc0", "callharvey3d_midtoned_female", 2048),
         ("creamy", "skins01_cc0", "skalldyrssuppe_creamy_female", 2048),
         ("eurasian-young", "skins01_cc0", "onlytheghosts_young_eurasian_female", 1024),
         ("eurasian-middle", "skins01_cc0", "onlytheghosts_middle_aged_eurasian_female", 2048),
@@ -4715,7 +4715,6 @@ COMMUNITY_SKINS = {
     "male": [
         ("tattooed", "skins02_cc0", "ken1138_caucasian_male_tattooed_skin", 2048),
         ("aksel", "skins02_cc0", "mindfront_aksel_skin", 2048),
-        ("viking-tattoos", "skins02_cc0", "rehmanpolanski_skin_viking_tattoos", 2048),
         ("eurasian-old", "skins02_cc0", "onlytheghosts_old_eurasian_male", 2048),
         ("bronze", "skins02_cc0", "toigo_light_skin_male_bronze", 1024),
         ("freckles", "skins02_cc0", "toigo_light_skin_male_freckles", 2048),

@@ -1,7 +1,7 @@
 # 3D Avatar Maker: Everyday Men's Clothes and Suits
 
-12 more pieces of clothing for [3D Avatar Maker](../3d-avatar-maker/README.md): four men's suits, two
-women's trouser suits, a polo shirt, a T-shirt, wool and cargo trousers, denim shorts and ankle boots. They
+10 more pieces of clothing for [3D Avatar Maker](../3d-avatar-maker/README.md): four men's suits, two
+women's trouser suits, a polo shirt, a T-shirt, wool trousers and ankle boots. They
 come from the MakeHuman community and are public domain (CC0), so an avatar wearing them can be shared
 freely, like one made from the maker's own clothes.
 
@@ -30,8 +30,6 @@ maker whose bodies have changed since then leaves the pack out until the pack is
 | Polo shirt | Male | Shirt or top | Any colour |
 | Plain T-shirt | Male | Shirt or top | Any colour |
 | Wool trousers | Male | Legs | Any colour |
-| Cargo trousers | Both | Legs | Any colour |
-| Denim shorts | Both | Legs | Any colour |
 | Ankle boots | Male | Feet | Their own colour |
 
 A suit is one piece: jacket, shirt, tie and trousers together. "Any colour" pieces are plain cloth the maker
@@ -42,6 +40,7 @@ dyes. The others keep their own picture, which a colour of your own tints.
 Every piece is CC0 1.0 (public domain) by its MakeHuman community catalogue and by its own files. No credit
 is required; the authors are named as thanks. Each piece was fitted to the maker's bodies in Blender by
 ThatOneCan (`packages/3d-avatar-maker/assets/scripts/make_mh_packs.py`), and that fitting is CC0 as well.
+Version 0.1.01 took out Cortu's cargo trousers and denim shorts, because their model files say AGPL-3.
 
 | Piece | Author | Source |
 | --- | --- | --- |
@@ -54,8 +53,6 @@ ThatOneCan (`packages/3d-avatar-maker/assets/scripts/make_mh_packs.py`), and tha
 | Polo shirt (`namuhekam_male_polo_shirt`) | namuhekam | http://www.makehumancommunity.org/node/2909 |
 | Plain T-shirt (`elvs_crude_t-shirt_male`) | Elvaerwyn | http://www.makehumancommunity.org/node/1416 |
 | Wool trousers (`toigo_wool_pants`) | MargaretToigo | http://www.makehumancommunity.org/node/1194 |
-| Cargo trousers (`cortu_cargo_pants`) | Cortu | http://www.makehumancommunity.org/node/2798 |
-| Denim shorts (`cortu_jeans_shorts`) | Cortu | http://www.makehumancommunity.org/node/2800 |
 | Ankle boots (`toigo_ankle_boots_male`) | MargaretToigo | http://www.makehumancommunity.org/node/1743 |
 
 The names in brackets are the MakeHuman items. The pieces come from the community packs suits01_cc0,
