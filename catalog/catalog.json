@@ -56,6 +56,325 @@
         "schemaVersion": 2,
         "capabilityApi": {
           "major": 1,
+          "minor": 66
+        },
+        "builtAgainst": {
+          "engineVersion": "2.5.2",
+          "engineCommit": "fc0333c3fe978cda5e0b919bd6faec985901704e"
+        },
+        "id": "3d-avatar-maker",
+        "name": "3D Avatar Maker",
+        "version": "0.1.00",
+        "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the face doesn't move yet. Install it, then open Home → 3D Avatar Maker.",
+        "engine": {
+          "min": "2.4.6",
+          "maxExclusive": "4.0.0"
+        },
+        "kind": [
+          "agent"
+        ],
+        "entrypoints": {
+          "agents": "agents.json",
+          "client": "client.js"
+        },
+        "contributions": {
+          "slots": [
+            "home-browser-tab"
+          ],
+          "homeBrowserTab": {
+            "label": "3D Avatar Maker",
+            "ariaLabel": "Open 3D Avatar Maker",
+            "iconPaths": [
+              "3d-avatar-maker-icon.webp"
+            ]
+          },
+          "assets": {
+            "paths": [
+              "kit/avatar/avatar-eyes.webp",
+              "kit/avatar/avatar-female-5.webp",
+              "kit/avatar/avatar-female-skin-middle-african.webp",
+              "kit/avatar/avatar-female-skin-middle-asian.webp",
+              "kit/avatar/avatar-female-skin-middle-caucasian.webp",
+              "kit/avatar/avatar-female-skin-old-african.webp",
+              "kit/avatar/avatar-female-skin-old-asian.webp",
+              "kit/avatar/avatar-female-skin-old-caucasian.webp",
+              "kit/avatar/avatar-female-skin-young-african.webp",
+              "kit/avatar/avatar-female-skin-young-asian.webp",
+              "kit/avatar/avatar-female-skin-young-caucasian.webp",
+              "kit/avatar/avatar-female.pack.png",
+              "kit/avatar/avatar-female.webp",
+              "kit/avatar/avatar-hair-index.json",
+              "kit/avatar/avatar-hair-long.pack.png",
+              "kit/avatar/avatar-hair-short.pack.png",
+              "kit/avatar/avatar-male-1.webp",
+              "kit/avatar/avatar-male-2.webp",
+              "kit/avatar/avatar-male-3.webp",
+              "kit/avatar/avatar-male-4.webp",
+              "kit/avatar/avatar-male-5.webp",
+              "kit/avatar/avatar-male-skin-middle-african.webp",
+              "kit/avatar/avatar-male-skin-middle-asian.webp",
+              "kit/avatar/avatar-male-skin-middle-caucasian.webp",
+              "kit/avatar/avatar-male-skin-old-african.webp",
+              "kit/avatar/avatar-male-skin-old-asian.webp",
+              "kit/avatar/avatar-male-skin-old-caucasian.webp",
+              "kit/avatar/avatar-male-skin-young-african.webp",
+              "kit/avatar/avatar-male-skin-young-asian.webp",
+              "kit/avatar/avatar-male-skin-young-caucasian.webp",
+              "kit/avatar/avatar-male.pack.png",
+              "kit/avatar/avatar-male.webp",
+              "kit/wardrobe/avatar-outfits-accessories.pack.png",
+              "kit/wardrobe/avatar-outfits-armour.pack.png",
+              "kit/wardrobe/avatar-outfits-body.pack.png",
+              "kit/wardrobe/avatar-outfits-feet.pack.png",
+              "kit/wardrobe/avatar-outfits-hands.pack.png",
+              "kit/wardrobe/avatar-outfits-head.pack.png",
+              "kit/wardrobe/avatar-outfits-index.json",
+              "kit/wardrobe/avatar-outfits-legs.pack.png",
+              "kit/wardrobe/avatar-outfits-tops.pack.png"
+            ]
+          }
+        },
+        "files": [
+          {
+            "path": "agents.json",
+            "sha256": "e2e1b7896733580cb8351a334450a84b267f90e0ba612f75000db4bc83c1cfb4",
+            "bytes": 764
+          },
+          {
+            "path": "client.js",
+            "sha256": "0c41de9d457bff733ad4e3b420f53098e1fef506ae4f734258277cb29d61ea0d",
+            "bytes": 679678
+          },
+          {
+            "path": "3d-avatar-maker-icon.webp",
+            "sha256": "68b0a919c2a0cf0fc69bafa5b6786ab78b1943e614da50bf03b81ab1ebccc908",
+            "bytes": 5468
+          },
+          {
+            "path": "kit/avatar/avatar-eyes.webp",
+            "sha256": "ebce478bc0fc47310fea5eee1a81a44cd52712597df5be776a83ed64a19d2dd7",
+            "bytes": 153766
+          },
+          {
+            "path": "kit/avatar/avatar-female-5.webp",
+            "sha256": "811eb0a68f84cca0577f5220d805089776deec58e9726aaac741316064c297db",
+            "bytes": 293766
+          },
+          {
+            "path": "kit/avatar/avatar-female-skin-middle-african.webp",
+            "sha256": "e715cc769136a9321f432f707c464a19cb286a1f08e250ffe80f79a52534e9cd",
+            "bytes": 111998
+          },
+          {
+            "path": "kit/avatar/avatar-female-skin-middle-asian.webp",
+            "sha256": "f6a0038256fed03e1f599b57532c25b7b3ab6ffdbe97adf5a993a03051d7aa1c",
+            "bytes": 165368
+          },
+          {
+            "path": "kit/avatar/avatar-female-skin-middle-caucasian.webp",
+            "sha256": "9e8a64a96c72f9f7cb74f7dcb650506ad97a143b5afe4e29a0099398f883bf1f",
+            "bytes": 197514
+          },
+          {
+            "path": "kit/avatar/avatar-female-skin-old-african.webp",
+            "sha256": "ce582c92ca021c3b3767ec61db70c374194e975bb291bc38cf5a36574c724681",
+            "bytes": 119966
+          },
+          {
+            "path": "kit/avatar/avatar-female-skin-old-asian.webp",
+            "sha256": "78bd6b14122217d30ae1223791218715df9312241fa148addd6b549cc5ac7e04",
+            "bytes": 303972
+          },
+          {
+            "path": "kit/avatar/avatar-female-skin-old-caucasian.webp",
+            "sha256": "a1b9ec6080e8872807deccc7609c03d712084bb51cebf60051f4d60136926d47",
+            "bytes": 295774
+          },
+          {
+            "path": "kit/avatar/avatar-female-skin-young-african.webp",
+            "sha256": "ca7f84fd2796d39ad1db5b34e03c2f5201d2713b830e320983cb72aad6d83940",
+            "bytes": 35728
+          },
+          {
+            "path": "kit/avatar/avatar-female-skin-young-asian.webp",
+            "sha256": "6144c030b94ec2f4a05b63094502f0eca52d1d3ba0874e172156e17a2c8dab7a",
+            "bytes": 55502
+          },
+          {
+            "path": "kit/avatar/avatar-female-skin-young-caucasian.webp",
+            "sha256": "a640d410e14568d55835f725424228dd501a066946c3a4cf1133b9723ebaf169",
+            "bytes": 66132
+          },
+          {
+            "path": "kit/avatar/avatar-female.pack.png",
+            "sha256": "8f3c8c2a4f6396b0570580b63a1dc8a3ca8007fe4cd018260a1670cd28c63d1f",
+            "bytes": 5911244
+          },
+          {
+            "path": "kit/avatar/avatar-female.webp",
+            "sha256": "7ba60b4c58eaedc670ead6a3bb882cd7906ec05d3775c8926e6ef52d5f350558",
+            "bytes": 65060
+          },
+          {
+            "path": "kit/avatar/avatar-hair-index.json",
+            "sha256": "ae626a5769bcbc356dce06fb98dfdf61e403c42b449fdf6655f609e85002b4ba",
+            "bytes": 1265
+          },
+          {
+            "path": "kit/avatar/avatar-hair-long.pack.png",
+            "sha256": "27c0bb7d213109d6852573463ced4de96fc1ce1c16997a35d034228979576c3c",
+            "bytes": 2760293
+          },
+          {
+            "path": "kit/avatar/avatar-hair-short.pack.png",
+            "sha256": "df3e0228b5f02888e081fc131ee32ec2ef17fad43ffbab4cd2910e68af3468f7",
+            "bytes": 2115372
+          },
+          {
+            "path": "kit/avatar/avatar-male-1.webp",
+            "sha256": "6f252d6d48024d65b416f7c2d3ce6ba2e6fef553681d9b6f2ada6bab9515dc5f",
+            "bytes": 13948
+          },
+          {
+            "path": "kit/avatar/avatar-male-2.webp",
+            "sha256": "7de46d07b6ef4208db4291119ef36d0dbdcb3a384d6c5f16581c6b9166dbb98b",
+            "bytes": 561922
+          },
+          {
+            "path": "kit/avatar/avatar-male-3.webp",
+            "sha256": "8e2f26aa00f0a63bf7ee60c53f6c3749f853f8fb0d9c44342c87d4408149a666",
+            "bytes": 563406
+          },
+          {
+            "path": "kit/avatar/avatar-male-4.webp",
+            "sha256": "63ea3fe4c76b4bb8cbb6f61da58d643b447d765e6ffd712b6208be70fbcefbdb",
+            "bytes": 3278
+          },
+          {
+            "path": "kit/avatar/avatar-male-5.webp",
+            "sha256": "e8ef5283d1b416f2800ae4c134d23fb422c099bf4b74c5e06d27f4c9a6b5c153",
+            "bytes": 169836
+          },
+          {
+            "path": "kit/avatar/avatar-male-skin-middle-african.webp",
+            "sha256": "160753e866cb314b497512db0284cb69a26fcb96ca51d51d965114071b46b069",
+            "bytes": 122170
+          },
+          {
+            "path": "kit/avatar/avatar-male-skin-middle-asian.webp",
+            "sha256": "535786a9d74b321bf8fb91f2d4bc98b1aba7a1d9cd900c6fba1f408ca86bafdc",
+            "bytes": 219088
+          },
+          {
+            "path": "kit/avatar/avatar-male-skin-middle-caucasian.webp",
+            "sha256": "399b069c2b7caa7320f6b441a928a3932de61f2f57c6dae6e38d830fb982a630",
+            "bytes": 202284
+          },
+          {
+            "path": "kit/avatar/avatar-male-skin-old-african.webp",
+            "sha256": "2ca93f14586c37f3055649e474c0f6a89ebe042f5ca02366c9de4e13b489d476",
+            "bytes": 176596
+          },
+          {
+            "path": "kit/avatar/avatar-male-skin-old-asian.webp",
+            "sha256": "172303bfa322ab67ce6725afda342442ebff3eb4edfd7da8bbd4cdf8d889a7da",
+            "bytes": 276110
+          },
+          {
+            "path": "kit/avatar/avatar-male-skin-old-caucasian.webp",
+            "sha256": "08ba73d77a1427c37a74a93480cdb87292c7ebc6f901e15c3763b9cdb91ac260",
+            "bytes": 355156
+          },
+          {
+            "path": "kit/avatar/avatar-male-skin-young-african.webp",
+            "sha256": "bcb4d89e38ba9e794c292307b0759fd0fa6f20e1b32aa24349cbd8ec8fee327e",
+            "bytes": 36804
+          },
+          {
+            "path": "kit/avatar/avatar-male-skin-young-asian.webp",
+            "sha256": "7fa61bfdeda32d0f874e71f07c1c65c92e09c1abadb4a40eaa8c227520358910",
+            "bytes": 55668
+          },
+          {
+            "path": "kit/avatar/avatar-male-skin-young-caucasian.webp",
+            "sha256": "e723f2e9ef21294000f19089af7478ec4edd6b34b0e3ca13e0db17a7d3c3887c",
+            "bytes": 60940
+          },
+          {
+            "path": "kit/avatar/avatar-male.pack.png",
+            "sha256": "7635d91516921c8cee86654ee80caffd3b92d006cbaa8b398c97df1f71f4fb1d",
+            "bytes": 3895118
+          },
+          {
+            "path": "kit/avatar/avatar-male.webp",
+            "sha256": "387b1a297f5f2658c5c9b9319a8b2e2c3da52d0316a85e20842bf81f9caf03be",
+            "bytes": 66580
+          },
+          {
+            "path": "kit/wardrobe/avatar-outfits-accessories.pack.png",
+            "sha256": "6c89ad621f323b3d50117fe8fc777857d27d82cae680caea14b8b291001259ec",
+            "bytes": 876107
+          },
+          {
+            "path": "kit/wardrobe/avatar-outfits-armour.pack.png",
+            "sha256": "a579acf496d4dcfb91b301b01618b663253d464999a9bbef38659d9d658c2eee",
+            "bytes": 4738424
+          },
+          {
+            "path": "kit/wardrobe/avatar-outfits-body.pack.png",
+            "sha256": "5de0fd483ae625f367b076ede9ef09f8155ae865a6ed9268043e5677f9402146",
+            "bytes": 3417384
+          },
+          {
+            "path": "kit/wardrobe/avatar-outfits-feet.pack.png",
+            "sha256": "90d81c07dedd7b804a8c3cad5c0a15d683625a88a6a17a3f73b89c0f4518f803",
+            "bytes": 2730756
+          },
+          {
+            "path": "kit/wardrobe/avatar-outfits-hands.pack.png",
+            "sha256": "3292d8c3ddf5dce9e17b0637292d17d1479594e5a7586ad8716d4939e5ec45c8",
+            "bytes": 1069145
+          },
+          {
+            "path": "kit/wardrobe/avatar-outfits-head.pack.png",
+            "sha256": "795cafe63825cce53322099dcbd4ed7d9e973bf2a0b974fa466792807b322f6c",
+            "bytes": 1041382
+          },
+          {
+            "path": "kit/wardrobe/avatar-outfits-index.json",
+            "sha256": "eda60f9816a8623c5302b374a8af050955412ddec3a473a32f74a98fc589bfd6",
+            "bytes": 24255
+          },
+          {
+            "path": "kit/wardrobe/avatar-outfits-legs.pack.png",
+            "sha256": "f78f41a4fae9a52dc2233fcbc387765e4aadd4394ecd011ff89d63732d234894",
+            "bytes": 4412533
+          },
+          {
+            "path": "kit/wardrobe/avatar-outfits-tops.pack.png",
+            "sha256": "c1fc46bc0fd2accdb104a6ecc7ff73128ddb8eaea52a4d89916681e089ed5ecd",
+            "bytes": 6333768
+          }
+        ],
+        "permissions": [
+          "ui"
+        ],
+        "restartRequired": false
+      },
+      "category": "misc",
+      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker.png",
+      "artifact": {
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-0.1.00.zip",
+        "sha256": "a535d1294809e1b9fbc9dc46d7c22e7943c12c3bee9b1d0cbfd593dc76461f97",
+        "bytes": 44779134
+      },
+      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker/README.md"
+    },
+    {
+      "manifest": {
+        "schemaVersion": 2,
+        "capabilityApi": {
+          "major": 1,
           "minor": 73
         },
         "builtAgainst": {

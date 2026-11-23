@@ -9,6 +9,13 @@
       "bannerPath": "../../store/banners/2d-avatars.webp",
       "bannerSmallPath": "../../store/banners/2d-avatars-1200.webp"
     },
+    "3d-avatar-maker": {
+      "section": "alive",
+      "tagline": "Build a 3D avatar for any character or persona.",
+      "iconPath": "../../store/icons/3d-avatar-maker.webp",
+      "bannerPath": "../../store/banners/3d-avatar-maker.webp",
+      "bannerSmallPath": "../../store/banners/3d-avatar-maker-1200.webp"
+    },
     "3d-avatars": {
       "section": "alive",
       "tagline": "3D models that move and talk.",
