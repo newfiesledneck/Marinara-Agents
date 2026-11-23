@@ -503,6 +503,46 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
     );
     const big = await eyeOf({ limbs: { head: 1.2 } });
     assert.ok(Math.abs(big.length() / usual.length() - 1.2) < 0.02, "a bigger head takes its eyes out with it");
+    // Each eye turns about the middle of its eyeball, whatever the sliders (a female look turned male once put
+    // it 7 to 11 mm off, and a glance swung the iris up under the lid), and the eyeball rests where it was made.
+    {
+      const { sphereThrough } = await import("../packages/3d-avatar-maker/src/avatar.js");
+      const sliders = [...looks.SHAPES, ...looks.FACE, ...looks.FACE_DETAIL].map(([key]) => key);
+      const shape = Object.fromEntries(sliders.map((key, i) => [key, ((i * 37) % 21) / 10 - 1]));
+      // (The head as built: a bigger one moves the eyeballs out with it, by design.)
+      const female = startOf("female", { shape });
+      for (const look of [female, checkLook({ ...female, body: "male" })]) {
+        const one = await createAvatar(look, "Test", "auto");
+        one.root.updateMatrixWorld(true);
+        const body = one.meshes.find((mesh) => mesh.name === "body");
+        const { position } = body.geometry.attributes;
+        for (const side of ["l", "r"]) {
+          const bone = one.bones.get(`eye_${side}`);
+          const left = bone.getWorldPosition(new Vector3()).x > 0;
+          const points = [];
+          let off = 0;
+          for (const mesh of one.kit.meshes.filter((each) => each.part === "eye_white"))
+            for (let v = mesh.start; v < mesh.start + mesh.count; v++) {
+              const listed = new Vector3().fromBufferAttribute(position, v).applyMatrix4(body.matrixWorld);
+              const p = body
+                .applyBoneTransform(v, new Vector3().fromBufferAttribute(position, v))
+                .applyMatrix4(body.matrixWorld);
+              off = Math.max(off, p.distanceTo(listed));
+              if (p.x > 0 === left) points.push(p);
+            }
+          const gap = sphereThrough(points).centre.distanceTo(bone.getWorldPosition(new Vector3()));
+          assert.ok(
+            gap < 0.0005,
+            `${look.body}: eye_${side} turns about its eyeball's middle (off by ${(gap * 1000).toFixed(1)} mm)`,
+          );
+          assert.ok(
+            off < 0.0005,
+            `${look.body}: the eyeballs rest where they were made (off by ${(off * 1000).toFixed(2)} mm)`,
+          );
+        }
+        one.dispose();
+      }
+    }
     figure.dispose();
   }
 

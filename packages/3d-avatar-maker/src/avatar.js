@@ -1130,6 +1130,67 @@ function moveJoints(root, bones, moves, weights) {
   return new Map([...by].map(([name, move]) => [name, new Matrix4().makeTranslation(-move.x, -move.y, -move.z)]));
 }
 
+/** The centre and radius of the sphere nearest `points` (least squares; null for too few points or no sphere). */
+export function sphereThrough(points) {
+  if (points.length < 8) return null;
+  // x²+y²+z² = 2ax + 2by + 2cz + d, solved through its normal equations.
+  const sums = new Array(16).fill(0);
+  const right = [0, 0, 0, 0];
+  for (const p of points) {
+    const row = [2 * p.x, 2 * p.y, 2 * p.z, 1];
+    const square = p.lengthSq();
+    for (let i = 0; i < 4; i++) {
+      right[i] += row[i] * square;
+      for (let j = 0; j < 4; j++) sums[i * 4 + j] += row[i] * row[j];
+    }
+  }
+  const matrix = new Matrix4().set(...sums);
+  if (Math.abs(matrix.determinant()) < 1e-30) return null;
+  const e = matrix.invert().elements; // (column-major)
+  const [a, b, c, d] = [0, 1, 2, 3].map((i) => [0, 1, 2, 3].reduce((sum, j) => sum + e[j * 4 + i] * right[j], 0));
+  const centre = new Vector3(a, b, c);
+  const square = d + centre.lengthSq();
+  return square > 0 ? { centre, radius: Math.sqrt(square) } : null;
+}
+
+/**
+ * Each eye bone moved to the middle of its eyeball as this body is shaped, the eyeball left where it is: the
+ * face sliders and a head made bigger move the eyeball and the bone by different amounts, and an eye turned
+ * about a point beside its centre swings out of its socket, its iris under the lid (a female look turned male
+ * put it 7 to 11 mm off). `body` is the body's mesh, bound, at the bind pose.
+ */
+function centreEyes(body, kit, bones) {
+  const position = body.geometry.attributes.position;
+  const at = new Vector3();
+  for (const side of ["l", "r"]) {
+    const bone = bones.get(`eye_${side}`);
+    if (!bone) continue;
+    bone.updateMatrixWorld(true);
+    const left = bone.getWorldPosition(at).x > 0;
+    const points = [];
+    for (const mesh of kit.meshes.filter((each) => each.part === "eye_white"))
+      for (let v = mesh.start; v < mesh.start + mesh.count; v++) {
+        const p = new Vector3().fromBufferAttribute(position, v);
+        body.applyBoneTransform(v, p);
+        if (p.x > 0 === left) points.push(p);
+      }
+    const sphere = sphereThrough(points);
+    // (Only a believable eyeball: a few millimetres to a few centimetres across, near where the bone is.)
+    if (!sphere || sphere.radius < 0.005 || sphere.radius > 0.04) continue;
+    const was = bone.matrixWorld.clone();
+    if (sphere.centre.distanceTo(bone.getWorldPosition(at)) < 0.0002) continue;
+    bone.position.copy(bone.parent.worldToLocal(sphere.centre.clone()));
+    bone.updateMatrixWorld(true);
+    // (Bound where it was: each inverse made so the bone's skin matrix is what it was.)
+    const back = bone.matrixWorld.clone().invert().multiply(was);
+    for (const mesh of body.parent.children) {
+      if (!mesh.isSkinnedMesh) continue;
+      const i = mesh.skeleton.bones.indexOf(bone);
+      if (i >= 0) mesh.skeleton.boneInverses[i].premultiply(back);
+    }
+  }
+}
+
 // ── Making one ───────────────────────────────────────────────────────────────
 
 /**
@@ -1358,6 +1419,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     geometry.morphTargetsRelative = true;
   }
   const body = bind(geometry, materials, kit.file);
+  centreEyes(body, kit, bones);
   // A bust that moves (bust.js): her body always, his when his chest stands out as far. Its bones under the
   // upper chest, and the skin and underwear over it weighted to them; what's worn over it is weighted the same
   // way below. (Not where a stretch or a moved joint would shift a point whose weights are full: bustWeights.)
