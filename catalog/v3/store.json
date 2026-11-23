@@ -18,38 +18,17 @@
     },
     "3d-avatar-maker-wardrobe-accessories": {
       "section": "alive",
-      "tagline": "Glasses, jewellery, gloves and socks for 3D Avatar Maker.",
+      "tagline": "Hats, glasses, jewellery and socks for 3D Avatar Maker.",
       "iconPath": "../../store/icons/3d-avatar-maker-wardrobe-accessories.webp",
       "bannerPath": "../../store/banners/3d-avatar-maker-wardrobe-accessories.webp",
       "bannerSmallPath": "../../store/banners/3d-avatar-maker-wardrobe-accessories-1200.webp"
     },
-    "3d-avatar-maker-wardrobe-everyday-men": {
+    "3d-avatar-maker-wardrobe-clothes": {
       "section": "alive",
-      "tagline": "Suits and everyday clothes for 3D Avatar Maker.",
-      "iconPath": "../../store/icons/3d-avatar-maker-wardrobe-everyday-men.webp",
-      "bannerPath": "../../store/banners/3d-avatar-maker-wardrobe-everyday-men.webp",
-      "bannerSmallPath": "../../store/banners/3d-avatar-maker-wardrobe-everyday-men-1200.webp"
-    },
-    "3d-avatar-maker-wardrobe-everyday-women": {
-      "section": "alive",
-      "tagline": "Dresses, tops, skirts and shoes for 3D Avatar Maker.",
-      "iconPath": "../../store/icons/3d-avatar-maker-wardrobe-everyday-women.webp",
-      "bannerPath": "../../store/banners/3d-avatar-maker-wardrobe-everyday-women.webp",
-      "bannerSmallPath": "../../store/banners/3d-avatar-maker-wardrobe-everyday-women-1200.webp"
-    },
-    "3d-avatar-maker-wardrobe-historical-fantasy": {
-      "section": "alive",
-      "tagline": "Robes, gowns, tunics and period hats for 3D Avatar Maker.",
-      "iconPath": "../../store/icons/3d-avatar-maker-wardrobe-historical-fantasy.webp",
-      "bannerPath": "../../store/banners/3d-avatar-maker-wardrobe-historical-fantasy.webp",
-      "bannerSmallPath": "../../store/banners/3d-avatar-maker-wardrobe-historical-fantasy-1200.webp"
-    },
-    "3d-avatar-maker-wardrobe-modern-casual": {
-      "section": "alive",
-      "tagline": "Jeans, tops, skirts, trainers and hats for 3D Avatar Maker.",
-      "iconPath": "../../store/icons/3d-avatar-maker-wardrobe-modern-casual.webp",
-      "bannerPath": "../../store/banners/3d-avatar-maker-wardrobe-modern-casual.webp",
-      "bannerSmallPath": "../../store/banners/3d-avatar-maker-wardrobe-modern-casual-1200.webp"
+      "tagline": "Dresses, suits, swimwear and shoes for 3D Avatar Maker.",
+      "iconPath": "../../store/icons/3d-avatar-maker-wardrobe-clothes.webp",
+      "bannerPath": "../../store/banners/3d-avatar-maker-wardrobe-clothes.webp",
+      "bannerSmallPath": "../../store/banners/3d-avatar-maker-wardrobe-clothes-1200.webp"
     },
     "3d-avatars": {
       "section": "alive",

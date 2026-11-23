@@ -736,6 +736,8 @@ for (const figure of Object.values(made)) figure.dispose();
   const index = JSON.parse(await readFile(join(packagesRoot, id, "avatar-pack.json"), "utf8"));
   const read = readPack({ id, version: manifest.version, status: "active", manifest }, index);
   assert.equal(read.length, Object.keys(index.pieces).length, "every piece of the Accessories pack is accepted");
+  for (const each of read)
+    assert.equal(Boolean(each.credit), each.licence !== "CC0-1.0", `${each.piece}: a credit exactly when CC BY`);
   looks.addPieces(read);
   const slots = new Set(read.map(({ slot }) => slot));
   for (const slot of ["face", "mouth", "ears", "fingers", "socks", "hands", "head"])
@@ -767,33 +769,31 @@ for (const figure of Object.values(made)) figure.dispose();
   );
 }
 
-// ── The CC-BY packs, as built: every piece is accepted, carries its credit, and a saved file names its maker ──
+// ── The Clothes pack, as built: every piece is accepted, carries its credit, and a saved file names its maker ──
 {
   const { readPack } = await import("../packages/3d-avatar-maker/src/packs.js");
   const { licenceNote } = await import("../packages/3d-avatar-maker/src/exporter.js");
-  for (const [id, piece] of [
-    ["3d-avatar-maker-wardrobe-historical-fantasy", "punkduck_medieval_dress"],
-    ["3d-avatar-maker-wardrobe-modern-casual", "punkduck_v_neck_top"],
-  ]) {
-    const manifest = JSON.parse(await readFile(join(packagesRoot, id, "manifest.json"), "utf8"));
-    const index = JSON.parse(await readFile(join(packagesRoot, id, "avatar-pack.json"), "utf8"));
-    const read = readPack({ id, version: manifest.version, status: "active", manifest }, index);
-    assert.equal(read.length, Object.keys(index.pieces).length, `every piece of ${id} is accepted`);
-    for (const each of read)
-      assert.equal(Boolean(each.credit), each.licence !== "CC0-1.0", `${each.piece}: a credit exactly when CC BY`);
-    looks.addPieces(read);
-    const { author, source } = index.pieces[piece];
-    assert.ok(
-      licenceNote({ clothes: [piece] }).includes(`by ${author} (${source}), CC BY`),
-      `a saved ${piece} credits its maker`,
-    );
-    // (Worn from the pack's own bundle, as the maker loads it.)
-    const count = async (clothes) => {
-      const figure = await createAvatar(startOf("female", { clothes }), "Test", "auto");
-      const meshes = figure.meshes.length;
-      figure.dispose();
-      return meshes;
-    };
+  const id = "3d-avatar-maker-wardrobe-clothes";
+  const manifest = JSON.parse(await readFile(join(packagesRoot, id, "manifest.json"), "utf8"));
+  const index = JSON.parse(await readFile(join(packagesRoot, id, "avatar-pack.json"), "utf8"));
+  const read = readPack({ id, version: manifest.version, status: "active", manifest }, index);
+  assert.equal(read.length, Object.keys(index.pieces).length, `every piece of ${id} is accepted`);
+  for (const each of read)
+    assert.equal(Boolean(each.credit), each.licence !== "CC0-1.0", `${each.piece}: a credit exactly when CC BY`);
+  looks.addPieces(read);
+  // (Worn from the pack's own bundle, as the maker loads it.)
+  const count = async (clothes) => {
+    const figure = await createAvatar(startOf("female", { clothes }), "Test", "auto");
+    const meshes = figure.meshes.length;
+    figure.dispose();
+    return meshes;
+  };
+  // A CC BY 4.0 dress, a CC BY 3.0 top and a CC0 dress side by side in one pack.
+  for (const piece of ["punkduck_medieval_dress", "punkduck_v_neck_top", "toigo_shift_dress"]) {
+    const { author, source, licence } = index.pieces[piece];
+    const note = licenceNote({ clothes: [piece] });
+    if (licence === "CC0-1.0") assert.ok(!note.includes(author), `a saved ${piece} needs no credit`);
+    else assert.ok(note.includes(`by ${author} (${source}), CC BY`), `a saved ${piece} credits its maker`);
     assert.ok((await count([piece])) > (await count([])), `${piece} is worn`);
   }
 }

@@ -167,23 +167,11 @@ export const OFFICIAL_PACKAGE_GUIDANCE = Object.freeze({
     modes: ["conversation", "roleplay", "game"],
     activation: "Install it, then open Home → 3D Avatar Maker.",
   },
-  "3d-avatar-maker-wardrobe-everyday-women": {
-    modes: ["conversation", "roleplay", "game"],
-    activation: "Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
-  },
-  "3d-avatar-maker-wardrobe-everyday-men": {
+  "3d-avatar-maker-wardrobe-clothes": {
     modes: ["conversation", "roleplay", "game"],
     activation: "Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
   },
   "3d-avatar-maker-wardrobe-accessories": {
-    modes: ["conversation", "roleplay", "game"],
-    activation: "Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
-  },
-  "3d-avatar-maker-wardrobe-historical-fantasy": {
-    modes: ["conversation", "roleplay", "game"],
-    activation: "Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
-  },
-  "3d-avatar-maker-wardrobe-modern-casual": {
     modes: ["conversation", "roleplay", "game"],
     activation: "Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
   },
