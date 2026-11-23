@@ -4,8 +4,8 @@ Build a 3D avatar for a character or persona inside Marinara Engine, with no oth
 shape it, pick skin, eyes, hair and clothes, and save the result as a file the **3D Avatars** agent shows
 in your chats.
 
-Alpha. In a chat the avatar blinks, moves its mouth as it talks and shows how the character feels; a VRM's
-eyes move too. What's built and what's next is in [the plan](docs/PLAN.md).
+Alpha. In a chat the avatar blinks, moves its mouth as it talks and shows how the character feels; in a
+VRM the eyes move and long hair swings too. What's built and what's next is in [the plan](docs/PLAN.md).
 
 ## Use it
 
@@ -15,7 +15,7 @@ eyes move too. What's built and what's next is in [the plan](docs/PLAN.md).
 4. Work through the tabs: **Body**, **Face**, **Skin and eyes**, **Hair**, **Clothes**. Drag the picture to
    turn the avatar, scroll or pinch to zoom, and use **Whole body** and **Face** to jump between views. The
    **Face** list under the picture plays the face's moves: blinking and looking at you, talking, or one
-   expression held.
+   expression held. In the pose list, **Moving** turns the head now and then, to show the hair swing.
 5. On the **Save** tab, select **Save as VRM** (or **Save as GLB**).
 6. Open **Agents → 3D Avatars** and pick the same character or persona. Under **Avatar type**, choose
    **VRM model** and select **Import VRM** with the `.vrm` you saved. For a `.glb`, choose **GLB or FBX
@@ -33,7 +33,7 @@ file you save, and you import that file yourself.
 | Body | Body, age, height; a race preset (human, dwarf, halfling, gnome, elf, half-elf, half-orc, tiefling) and six race sliders to mix; eight build sliders; arms, legs, torso and hips, and her bust in detail; arm and leg length, head size |
 | Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (66 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: beards, tusks, horns, a tail |
 | Skin and eyes | 30 skin pictures (MakeHuman's nine in three ages, and 21 more) or a colour of your own; 24 pictured eyes or a colour; nail length and toenails; lip and nail colours |
-| Hair | 14 styles in any colour |
+| Hair | 14 styles in any colour. Long, ponytail, braid, bob and angled bob swing as the avatar moves |
 | Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus what any wardrobe packs you install add. Glasses, a face mask, earrings, rings and socks have places of their own, which the Accessories pack fills |
 
 Every slider's middle is the body's own shape, and each control says what it changes.
@@ -67,12 +67,15 @@ file for phones. The bones use the Unreal mannequin's names.
 Both carry the face's moves as shape keys named the way VRM names its expressions: `blink`, `blinkLeft` and
 `blinkRight`; the mouth shapes `aa`, `ih`, `ou`, `ee` and `oh`; and `happy`, `angry`, `sad`, `relaxed` and
 `surprised`. The 3D Avatars agent finds them by those names. The mouth opens on teeth and a tongue, and each
-eye turns on a bone of its own (`eye_l`, `eye_r`).
+eye turns on a bone of its own (`eye_l`, `eye_r`). Hair that hangs loose has chains of bones down its locks
+(`hair_back_0` to the tip, one chain for each side of the head it hangs from). Standing still, it rests as
+it was made.
 
 - **VRM** (`.vrm`, VRM 1.0) is the avatar format VRoid Studio, VSeeFace and the 3D Avatars agent's **VRM
   model** read. The avatar rests in a T-pose, and the file names its humanoid bones, so any VRM app can pose
-  it. Its expressions are bound to the face's keys, its eyes look about on their bones, and a tail swings on
-  spring bones. The file carries the terms you set under **The VRM's terms** on the
+  it. Its expressions are bound to the face's keys, and its eyes look about on their bones. Hanging hair and a
+  tail swing on spring bones, and colliders fitted to the body keep them out of the head, neck, shoulders,
+  arms and back. The file carries the terms you set under **The VRM's terms** on the
   Save tab: your name as the author, who may use the avatar, commercial use, sharing and changes, credit,
   and four uses VRM forbids unless allowed. They start at VRM's most careful choices, and the maker keeps
   yours in this browser for the next avatar. While the avatar wears a CC BY pack piece, the file asks for

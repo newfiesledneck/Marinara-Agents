@@ -1,5 +1,10 @@
 # 3D Avatar Maker release notes
 
+## 0.1.08 — 2026-11-23
+
+- Hair moves: the long, ponytail, braid, bob and angled bob styles swing as the avatar moves, and settle back into place when it stands still. In a VRM, the 3D Avatars agent and other VRM apps swing them. The head, neck, shoulders, arms and back keep the hair out.
+- A **Moving** pose in the maker's pose list turns the head now and then, so you can see the hair swing. A tail swings in the maker too.
+
 ## 0.1.07 — 2026-11-23
 
 - The face moves: avatars blink, shape their mouth as they talk, and look happy, angry, sad, relaxed or surprised. In a chat, the 3D Avatars agent plays these on both VRM and GLB files.

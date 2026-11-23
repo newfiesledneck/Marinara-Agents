@@ -283,8 +283,10 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
   const { Object3D, Vector3 } = await import("three");
   const { FACE_MOVES } = await import("../packages/3d-avatar-maker/src/face.js");
   const tiefling = await createAvatar(startOf("female", racePreset("tiefling", "female")), "Test", "auto");
-  for (const mesh of tiefling.meshes) for (const material of [mesh.material].flat()) material.map = null;
-  for (const [name, figure] of Object.entries({ plain: made.plain, dwarf: made.dwarf, tiefling })) {
+  const longHair = await createAvatar(startOf("female", { hair: "long" }), "Test", "auto");
+  for (const one of [tiefling, longHair])
+    for (const mesh of one.meshes) for (const material of [mesh.material].flat()) material.map = null;
+  for (const [name, figure] of Object.entries({ plain: made.plain, dwarf: made.dwarf, tiefling, longHair })) {
     const look = startOf("female", { hair: "bob" });
     const geometries = figure.meshes.map((mesh) => mesh.geometry);
     const inverses = figure.meshes.map((mesh) => mesh.skeleton.boneInverses.map((inverse) => inverse.clone()));
@@ -314,7 +316,22 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
     assert.deepEqual(block.meta.authors, ["Tester"]);
     assert.equal(block.meta.licenseUrl, VRM_LICENSE_URL);
     assert.equal(block.meta.name, `Saved ${name}`);
-    assert.equal(Boolean(json.extensions.VRMC_springBone), name === "tiefling", `${name}: springs only for a tail`);
+    assert.equal(
+      Boolean(json.extensions.VRMC_springBone),
+      figure.springs.length > 0,
+      `${name}: springs only for hair that hangs or a tail`,
+    );
+    assert.equal(
+      name === "tiefling",
+      figure.springs.some((spring) => spring.name === "Tail"),
+      `${name}: a tail swings`,
+    );
+    if (name === "longHair" || name === "dwarf")
+      assert.equal(
+        name === "longHair",
+        figure.springs.some((spring) => spring.name.startsWith("Hair")),
+        `${name}: long hair swings (a helm hides the dwarf's)`,
+      );
     assert.deepEqual(lookInGlb(saved.bytes), { name: `Saved ${name}`, look }, `${name}: the look comes back out`);
 
     // Loaded with three-vrm as the Engine loads a VRM model.
@@ -343,12 +360,24 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
       }
     });
     assert.ok(furthest < 0.001, `${name}: its bind pose is its rest pose (off by ${furthest.toFixed(5)})`);
-    if (name === "tiefling") {
-      assert.equal(vrm.springBoneManager.joints.size, 4, "the tail's four segments swing");
-      const tip = gltf.scene.getObjectByName("tail_05");
-      const start = tip.getWorldPosition(new Vector3());
+    // Each spring's joints swing in three-vrm, and keep their shape at rest: no collider pushes them.
+    const joints = [...(vrm.springBoneManager?.joints ?? [])];
+    assert.equal(
+      joints.length,
+      figure.springs.reduce((total, spring) => total + spring.bones.length - 1, 0),
+      `${name}: every segment of its springs swings`,
+    );
+    if (name === "tiefling")
+      assert.equal(joints.filter((joint) => joint.bone.name.startsWith("tail_")).length, 4, "the tail's four segments");
+    if (joints.length) {
+      const ends = figure.springs.map((spring) => gltf.scene.getObjectByName(spring.bones.at(-1).name));
+      const start = ends.map((end) => end.getWorldPosition(new Vector3()));
       for (let i = 0; i < 120; i++) vrm.update(1 / 60);
-      assert.ok(tip.getWorldPosition(new Vector3()).distanceTo(start) < 0.1, "the tail keeps its shape at rest");
+      const moved = Math.max(...ends.map((end, i) => end.getWorldPosition(new Vector3()).distanceTo(start[i])));
+      assert.ok(
+        moved < (name === "tiefling" ? 0.1 : 0.03),
+        `${name}: its springs keep their shape at rest (${moved.toFixed(3)} m)`,
+      );
     }
     // The face: VRM's expressions bound to its keys, and the eyes on their bones, turned to look.
     for (const key of FACE_MOVES)
@@ -370,6 +399,7 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
     assert.ok(turned > 0.05 && turned < 0.5, `${name}: its eyes turn to look aside (${turned.toFixed(2)} rad)`);
   }
   tiefling.dispose();
+  longHair.dispose();
 
   // ── Face movement in the maker: the keys live on the body, the eyes on bones of their own (face.js) ──
   {
@@ -454,6 +484,129 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
     const big = await eyeOf({ limbs: { head: 1.2 } });
     assert.ok(Math.abs(big.length() / usual.length() - 1.2) < 0.02, "a bigger head takes its eyes out with it");
     figure.dispose();
+  }
+
+  // ── Hair movement: chains through the hanging locks, springs, colliders (hair.js, springs.js) ──
+  {
+    const { SWINGING_HAIR } = await import("../packages/3d-avatar-maker/src/hair.js");
+    const { createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
+    const { movingPose } = await import("../packages/3d-avatar-maker/src/figure.js");
+    const tips = (figure) =>
+      figure.springs.flatMap((spring) => spring.bones.slice(1).map((bone) => bone.getWorldPosition(new Vector3())));
+    const furthest = (a, b) => Math.max(...a.map((point, i) => point.distanceTo(b[i])));
+    for (const body of ["female", "male"]) {
+      for (const hair of [...SWINGING_HAIR.keys(), "short"]) {
+        const figure = await createAvatar(startOf(body, { hair }), "Test", "auto");
+        const label = `${body} ${hair}`;
+        if (!SWINGING_HAIR.has(hair)) {
+          assert.equal(figure.springs.length, 0, `${label}: a short cut stays as it is`);
+          figure.dispose();
+          continue;
+        }
+        assert.ok(figure.springs.length > 0, `${label}: its locks hang on chains`);
+        const mesh = figure.meshes.find((one) => one.skeleton.bones.some((bone) => bone.name.startsWith("hair_")));
+        // Bound where it rests: every point of the hair drawn where it was made, and its weights whole.
+        const { position, skinWeight } = mesh.geometry.attributes;
+        let off = 0;
+        let unweighted = 0;
+        const point = new Vector3();
+        for (let i = 0; i < position.count; i++) {
+          const listed = point.fromBufferAttribute(position, i).clone().applyMatrix4(mesh.matrixWorld);
+          mesh.applyBoneTransform(i, point.fromBufferAttribute(position, i));
+          off = Math.max(off, point.applyMatrix4(mesh.matrixWorld).distanceTo(listed));
+          const sum = [0, 1, 2, 3].reduce((total, c) => total + skinWeight.getComponent(i, c), 0);
+          if (Math.abs(sum - 1) > 1e-4) unweighted++;
+        }
+        assert.ok(off < 0.001, `${label}: the hair rests where it was made (off by ${off.toFixed(5)})`);
+        assert.equal(unweighted, 0, `${label}: every point's weights add up to one`);
+        // No collider a spring meets holds one of its joints at rest, as built or in the T-pose.
+        for (const pose of [restPose, tPose]) {
+          pose(figure);
+          for (const spring of figure.springs)
+            for (const bone of spring.bones.slice(1))
+              for (const collider of spring.colliders) {
+                const at = bone.getWorldPosition(new Vector3());
+                const start = collider.offset.clone().applyMatrix4(collider.bone.matrixWorld);
+                const end = (collider.tail ?? collider.offset).clone().applyMatrix4(collider.bone.matrixWorld);
+                const line = end.clone().sub(start);
+                const t = line.lengthSq()
+                  ? Math.max(0, Math.min(1, at.clone().sub(start).dot(line) / line.lengthSq()))
+                  : 0;
+                const gap = at.distanceTo(start.addScaledVector(line, t)) - collider.radius - spring.joint.hitRadius;
+                assert.ok(gap > 0, `${label}: ${bone.name} rests clear of ${collider.bone.name}'s collider`);
+              }
+        }
+        // Swinging: still at rest, it holds its style; looking about, it swings; standing still again, it settles.
+        relaxedPose(figure, 0);
+        const springs = createSprings(figure);
+        const rest = tips(figure);
+        for (let f = 0; f < 120; f++) {
+          relaxedPose(figure, 0);
+          springs.step(1 / 60);
+        }
+        assert.ok(furthest(tips(figure), rest) < 0.025, `${label}: holds its style at rest`);
+        let swung = 0;
+        for (let f = 0; f < 240; f++) {
+          movingPose(figure, f / 60);
+          springs.step(1 / 60);
+          const now = tips(figure);
+          const held = figure.springs.map((spring) => spring.bones.map((bone) => bone.quaternion.clone()));
+          for (const spring of figure.springs)
+            for (const bone of spring.bones) bone.quaternion.copy(figure.rest.get(bone.name));
+          figure.root.updateMatrixWorld(true);
+          swung = Math.max(swung, furthest(now, tips(figure)));
+          figure.springs.forEach((spring, s) => spring.bones.forEach((bone, b) => bone.quaternion.copy(held[s][b])));
+          figure.root.updateMatrixWorld(true);
+        }
+        assert.ok(swung > 0.003, `${label}: swings as the head turns (${(swung * 100).toFixed(1)} cm)`);
+        for (let f = 0; f < 120; f++) {
+          relaxedPose(figure, 0);
+          springs.step(1 / 60);
+        }
+        assert.ok(furthest(tips(figure), rest) < 0.025, `${label}: and settles`);
+        figure.dispose();
+      }
+    }
+    // On a bigger head, the swinging hair rests where its own weights put it, so nothing tears where hair that
+    // grew with the head meets hair that didn't.
+    {
+      const { geometryOf, load } = await import("../packages/3d-avatar-maker/src/kitfiles.js");
+      const hairOf = (one) =>
+        one.meshes.find((part) => part.skeleton.bones.some((bone) => bone.name.startsWith("hair_")));
+      // (The points as the look shaped them, from the same look with the head as built: those rest where they are.)
+      const plain = await createAvatar(startOf("female", { hair: "ponytail" }), "Test", "auto");
+      const position = hairOf(plain).geometry.attributes.position.clone();
+      plain.dispose();
+      const figure = await createAvatar(startOf("female", { hair: "ponytail", limbs: { head: 1.2 } }), "Test", "auto");
+      const mesh = hairOf(figure);
+      // (The style's own weights, before its chains.)
+      const made = geometryOf((await load("avatar-hair-long.pack.png")).styles.ponytail.female.meshes[0]);
+      const { bones, boneInverses } = mesh.skeleton;
+      const { skinIndex, skinWeight } = made.attributes;
+      let off = 0;
+      const point = new Vector3();
+      for (let i = 0; i < position.count; i++) {
+        const was = new Vector3();
+        for (let c = 0; c < 4; c++) {
+          const w = skinWeight.getComponent(i, c);
+          const b = skinIndex.getComponent(i, c);
+          if (w)
+            was.addScaledVector(
+              point
+                .fromBufferAttribute(position, i)
+                .applyMatrix4(mesh.bindMatrix)
+                .applyMatrix4(boneInverses[b])
+                .applyMatrix4(bones[b].matrixWorld),
+              w,
+            );
+        }
+        was.applyMatrix4(mesh.bindMatrixInverse);
+        mesh.applyBoneTransform(i, point.fromBufferAttribute(mesh.geometry.attributes.position, i));
+        off = Math.max(off, point.distanceTo(was));
+      }
+      assert.ok(off < 0.0005, `a bigger head's ponytail rests where it did (off by ${off.toFixed(5)})`);
+      figure.dispose();
+    }
   }
 
   // The author's terms: VRM's careful defaults, only known values, and the sharing choice split in two.

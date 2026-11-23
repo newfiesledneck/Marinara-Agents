@@ -11,7 +11,7 @@
 // A .vrm (VRM 1.0) is the same file with three changes: the figure rests in a T-pose, as VRM asks, with that
 // pose made the meshes' own (their points moved there and the bones bound there, so a tool that reads the
 // bind pose sees a T-pose too); a `VRMC_vrm` block names the humanoid bones and holds the author's terms;
-// and a tail, when worn, swings on spring bones (`VRMC_springBone`).
+// and the hair's locks and a tail, when worn, swing on spring bones (`VRMC_springBone`, springs.js).
 import {
   BufferAttribute,
   BufferGeometry,
@@ -165,8 +165,7 @@ function standardMaterial(material, name) {
 /**
  * `geometry` (a slimmed copy of `mesh`'s) moved, in world space, to where three draws it in the pose its
  * bones are in now: each point by its bones' blend of (mesh world · bind⁻¹ · bone world · bone inverse ·
- * bind). Normals and the face's moves (morph targets) turn with it. Returns the names of the bones that move
- * any of its points.
+ * bind). Normals and the face's moves (morph targets) turn with it.
  */
 function bakePose(geometry, mesh) {
   const { bones, boneInverses } = mesh.skeleton;
@@ -178,7 +177,6 @@ function bakePose(geometry, mesh) {
   const points = new Float32Array(position.count * 3);
   const normals = normal ? new Float32Array(normal.count * 3) : null;
   const blend = new Float32Array(16);
-  const used = new Set();
   const targets = geometry.morphAttributes.position ?? [];
   const turned = targets.map((target) => new Float32Array(target.array.length));
   for (let v = 0; v < position.count; v++) {
@@ -187,7 +185,6 @@ function bakePose(geometry, mesh) {
       const weight = skinWeight.getComponent(v, k);
       if (!weight) continue;
       const bone = skinIndex.getComponent(v, k);
-      used.add(bones[bone].name);
       const e = moves[bone].elements;
       for (let c = 0; c < 16; c++) blend[c] += weight * e[c];
     }
@@ -217,7 +214,6 @@ function bakePose(geometry, mesh) {
       out.name = target.name;
       return out;
     });
-  return used;
 }
 
 /** The licence VRM 1.0 files point to; the author's terms are the fields beside it. */
@@ -268,17 +264,12 @@ export function vrmMeta(name, look, terms) {
   };
 }
 
-// The tail's spring: stiff enough to keep its curve, a little weight, and slowed so it sways rather than whips.
-const TAIL_BONES = ["tail_01", "tail_02", "tail_03", "tail_04", "tail_05"];
-const TAIL_JOINT = { hitRadius: 0.02, stiffness: 1.5, gravityPower: 0.1, gravityDir: [0, -1, 0], dragForce: 0.4 };
-const LEG_RADIUS = 0.07; // metres: the legs' colliders, so a swinging tail stays outside the thighs
-
 const FEELINGS = new Set(["happy", "angry", "sad", "relaxed", "surprised"]);
 /** How far a VRM's eyes turn (degrees): as far as the maker's preview turns them (face.js). */
 const LOOK_RANGE = { sideways: 20, up: 11, down: 14 };
 
-/** The `VRMC_vrm` (and, with a tail, `VRMC_springBone`) blocks added to an exported file's description. */
-function addVrm(json, figure, meta, used) {
+/** The `VRMC_vrm` (and, with hair that hangs or a tail, `VRMC_springBone`) blocks added to an exported file's description. */
+function addVrm(json, figure, meta) {
   const nodeOf = new Map();
   for (const skin of json.skins ?? [])
     for (const index of skin.joints) if (!nodeOf.has(json.nodes[index].name)) nodeOf.set(json.nodes[index].name, index);
@@ -319,30 +310,39 @@ function addVrm(json, figure, meta, used) {
   }
   json.extensions = { ...json.extensions, VRMC_vrm: block };
   const extensions = new Set(json.extensionsUsed ?? []).add("VRMC_vrm");
-  const tail = TAIL_BONES.filter((bone) => nodeOf.has(bone));
-  if (tail.length > 1 && used.has(tail[1])) {
-    const colliders = ["l", "r"].flatMap((side) => {
-      const [thigh, calf] = [figure.bones.get(`thigh_${side}`), figure.bones.get(`calf_${side}`)];
-      if (!nodeOf.has(thigh?.name) || !calf) return [];
-      return [
-        {
-          node: nodeOf.get(thigh.name),
-          shape: { capsule: { offset: [0, 0, 0], radius: LEG_RADIUS, tail: calf.position.toArray() } },
-        },
-      ];
+  // The springs (springs.js): the hair's chains and a tail, each with the colliders it meets, as fitted.
+  const springs = (figure.springs ?? [])
+    .map((spring) => ({ ...spring, bones: spring.bones.filter((bone) => nodeOf.has(bone.name)) }))
+    .filter((spring) => spring.bones.length > 1);
+  if (springs.length) {
+    const round = (value) => Math.round(value * 1e5) / 1e5;
+    const shapes = [...new Set(springs.flatMap((spring) => spring.colliders))].filter((collider) =>
+      nodeOf.has(collider.bone.name),
+    );
+    const colliders = shapes.map(({ bone, radius, offset, tail }) => {
+      const shape = { offset: offset.toArray().map(round), radius: round(radius) };
+      return {
+        node: nodeOf.get(bone.name),
+        shape: tail ? { capsule: { ...shape, tail: tail.toArray().map(round) } } : { sphere: shape },
+      };
     });
-    json.extensions.VRMC_springBone = {
-      specVersion: "1.0",
-      colliders,
-      colliderGroups: colliders.length ? [{ name: "Legs", colliders: colliders.map((_, i) => i) }] : [],
-      springs: [
-        {
-          name: "Tail",
-          joints: tail.map((bone) => ({ node: nodeOf.get(bone), ...TAIL_JOINT })),
-          ...(colliders.length ? { colliderGroups: [0] } : {}),
-        },
-      ],
-    };
+    // (A group for each set of colliders a spring meets.)
+    const colliderGroups = [];
+    const groupOf = new Map();
+    const springList = springs.map(({ name, bones, joint, colliders: met }) => {
+      const members = met.map((collider) => shapes.indexOf(collider)).filter((at) => at >= 0);
+      const key = members.join();
+      if (members.length && !groupOf.has(key)) {
+        groupOf.set(key, colliderGroups.length);
+        colliderGroups.push({ name: `Colliders for ${name}`, colliders: members });
+      }
+      return {
+        name,
+        joints: bones.map((bone) => ({ node: nodeOf.get(bone.name), ...joint })),
+        ...(members.length ? { colliderGroups: [groupOf.get(key)] } : {}),
+      };
+    });
+    json.extensions.VRMC_springBone = { specVersion: "1.0", colliders, colliderGroups, springs: springList };
     extensions.add("VRMC_springBone");
   }
   json.extensionsUsed = [...extensions];
@@ -377,7 +377,6 @@ async function exportFile(figure, { look = {}, name = "", maxTextureSize = 2048 
   const made = [];
   const mimeTypes = new Map(); // a picture's type while exporting: JPEG unless something see-through uses it
   const inverses = new Map(); // (a VRM's skeletons as they were: they're bound in the T-pose while it's written)
-  const used = new Set();
   let vertices = 0;
   let triangles = 0;
   try {
@@ -387,7 +386,7 @@ async function exportFile(figure, { look = {}, name = "", maxTextureSize = 2048 
         ? mesh.geometry.groups.map(({ start, count, materialIndex }) => ({ start, count, materialIndex }))
         : [{ start: 0, count: mesh.geometry.index.count, materialIndex: 0 }];
       const slim = slimGeometry(mesh.geometry, ranges);
-      if (vrm) for (const bone of bakePose(slim.geometry, mesh)) used.add(bone);
+      if (vrm) bakePose(slim.geometry, mesh);
       vertices += slim.vertices;
       triangles += slim.triangles;
       const standard = materials.map((material, i) => {
@@ -442,7 +441,7 @@ async function exportFile(figure, { look = {}, name = "", maxTextureSize = 2048 
     const { json, bin } = readGlb(glb);
     json.asset = { ...json.asset, generator: GENERATOR, copyright: licenceNote(look) };
     json.extras = { ...json.extras, avatarMaker: { format: FILE_FORMAT, name: String(name ?? ""), look } };
-    if (vrm) addVrm(json, figure, vrmMeta(name, look, terms), used);
+    if (vrm) addVrm(json, figure, vrmMeta(name, look, terms));
     return { bytes: writeGlb(json, bin), vertices, triangles };
   } finally {
     for (const { mesh, geometry, material } of swapped) {

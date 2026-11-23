@@ -99,3 +99,31 @@ export function relaxedPose(figure, seconds = 0) {
   if (nodes.head) nodes.head.rotateZ(-sway * 0.6);
   figure.root.updateMatrixWorld(true);
 }
+
+const UP = new Vector3(0, 1, 0);
+const SIDEWAYS = new Vector3(1, 0, 0);
+/** Turns `bone` by `angle` about `axis` in the world, as the figure stands now. */
+function turnInWorld(bone, axis, angle) {
+  if (!bone || !angle) return;
+  parentTurn.identity();
+  bone.parent?.getWorldQuaternion(parentTurn);
+  turn.setFromAxisAngle(axis, angle);
+  bone.quaternion.premultiply(parentTurn).premultiply(turn).premultiply(parentTurn.invert());
+  bone.updateMatrixWorld(true);
+}
+
+/**
+ * The relaxed stand, looking about: every few seconds the head turns quickly to one side, holds, and turns
+ * to the other, the body following a little, with a nod now and then. It shows how the hair (and a tail)
+ * swing.
+ */
+export function movingPose(figure, seconds = 0) {
+  relaxedPose(figure, seconds);
+  const nodes = figure.humanoid;
+  // (A quick turn, then a hold: the sine pushed towards a square wave.)
+  const look = Math.tanh(Math.sin(seconds * 0.9) * 3) / Math.tanh(3);
+  turnInWorld(nodes.spine, UP, look * 0.15);
+  turnInWorld(nodes.head, UP, look * 0.4);
+  turnInWorld(nodes.head, SIDEWAYS, Math.max(0, Math.sin(seconds * 1.7)) * 0.12);
+  figure.root.updateMatrixWorld(true);
+}
