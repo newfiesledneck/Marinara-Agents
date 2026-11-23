@@ -101,6 +101,10 @@ PARTS = [
     ("teeth", 0xE9E1CF, 0.3),
     ("horns", 0x3A3230, 0.45),
     ("hair", 0x6B4A32, 0.8),
+    # (Inside the mouth, seen when it opens: MakeHuman's teeth and tongue in their own pictures, darker towards
+    # the back of the mouth: `mouth_texture`. The races' tusks are `teeth`.)
+    ("mouth_teeth", 0xFFFFFF, 0.25),
+    ("tongue", 0xFFFFFF, 0.4),
 ]
 PART = {p[0]: i for i, p in enumerate(PARTS)}
 APOSE = 45  # the arms' angle below level at rest
@@ -121,6 +125,34 @@ EXPRESSION = {
     "expression/units/caucasian/eye-left-opened-up": 0.25,
     "expression/units/caucasian/eye-right-opened-up": 0.25,
 }
+
+# Face movement (3D Avatar Maker): VRM's expression presets as shape keys, each a mix of MakeHuman's
+# expression units (CC0; `expression/units/caucasian/<unit>`: weight). The mouth shapes (aa, ih, ou, ee, oh)
+# are the vowels a talking avatar's mouth takes; the names are VRM 1.0's, so the 3D Avatars agent and any VRM
+# app find them. A key with `mouth-open` in it also opens the lips `seal_lips` draws together, as far as it
+# opens the jaw (OPENS).
+FACE_MOVES = {
+    "blink": {"eye-left-closure": 1.0, "eye-right-closure": 1.0},
+    "blinkLeft": {"eye-left-closure": 1.0},
+    "blinkRight": {"eye-right-closure": 1.0},
+    # (The units: `mouth-open` drops the jaw, `mouth-part-later` opens the lips wide, the retractions draw
+    # the lips back (`upward-` into an open smile), `protusion` rounds them open and `pursing` puckers them,
+    # `corner-puller` smiles, `depression` turns the corners down, `compression` presses the lips together,
+    # `elevation` lifts the upper lip; `eye-*-slit` narrows an eye, as a smile or a frown does.)
+    "aa": {"mouth-open": 0.6, "mouth-part-later": 0.35},
+    "ih": {"mouth-open": 0.15, "mouth-upward-retraction": 0.45, "mouth-retraction": 0.3},
+    "ou": {"mouth-open": 0.1, "mouth-pursing": 0.8, "mouth-protusion": 0.5},
+    "ee": {"mouth-open": 0.15, "mouth-depression-retraction": 0.35, "mouth-upward-retraction": 0.35, "mouth-retraction": 0.5},
+    "oh": {"mouth-open": 0.45, "mouth-protusion": 0.6},
+    "happy": {"mouth-corner-puller": 1.0, "mouth-upward-retraction": 0.3, "eye-left-slit": 0.5, "eye-right-slit": 0.5, "eyebrows-left-up": 0.1, "eyebrows-right-up": 0.1},
+    "angry": {"eyebrows-left-down": 1.0, "eyebrows-right-down": 1.0, "mouth-compression": 0.4, "mouth-depression": 0.4, "mouth-elevation": 0.3, "eye-left-slit": 0.35, "eye-right-slit": 0.35, "nose-left-elevation": 0.4, "nose-right-elevation": 0.4},
+    "sad": {"eyebrows-left-inner-up": 1.0, "eyebrows-right-inner-up": 1.0, "mouth-depression": 1.0, "mouth-compression": 0.2, "eye-left-slit": 0.25, "eye-right-slit": 0.25},
+    "relaxed": {"mouth-corner-puller": 0.5, "eye-left-slit": 0.55, "eye-right-slit": 0.55},
+    "surprised": {"eyebrows-left-up": 1.0, "eyebrows-right-up": 1.0, "eye-left-opened-up": 1.0, "eye-right-opened-up": 1.0, "mouth-open": 0.35, "mouth-protusion": 0.25},
+}
+# How far each key that parts the lips undoes `seal_lips` (1: back to MakeHuman's own lips, open as its units
+# open them); the others keep the lips closed.
+OPENS = {"aa": 1.0, "ih": 0.6, "ou": 0.4, "ee": 0.7, "oh": 1.0, "happy": 0.3, "surprised": 0.9}
 
 MALE = {
     "name": "avatar-male",
@@ -302,7 +334,10 @@ def key_mixes(B, macro):
                 both.update(S(target, weight) if _sided(target) else {target: weight})
             keys[f"{slider}.{end}"] = detail(both)
             detail_keys.append(f"{slider}.{end}")
-    return {k: keys[k] for k in order + list(RACES) + detail_keys + ["_" + name for name in RACES]}
+    # Face movement, after those too (FACE_MOVES).
+    for name, mix in FACE_MOVES.items():
+        keys[name] = detail({f"expression/units/caucasian/{unit}": w for unit, w in mix.items()})
+    return {k: keys[k] for k in order + list(RACES) + detail_keys + list(FACE_MOVES) + ["_" + name for name in RACES]}
 
 
 def _sided(target):
@@ -1431,8 +1466,9 @@ class Part:
 
 
 def eyeball(B, body, s, key_names, rings=None, segments=24):
-    """An eyeball (its front an iris), facing where MakeHuman's eye target is, on the Head bone. Each
-    shape key moves and scales it as the key moves MakeHuman's own eye helper."""
+    """An eyeball (its front an iris), facing where MakeHuman's eye target is, on a bone of its own (eye_l,
+    eye_r: `add_eye_bones`) so it can turn to look. Each shape key moves and scales it as the key moves
+    MakeHuman's own eye helper."""
     e = body.eye[s]
     c, r = e["centre"], e["radius"]
     look = e["aim"] - c
@@ -1500,9 +1536,87 @@ def eyeball(B, body, s, key_names, rings=None, segments=24):
         c2 = moved.mean(0)
         r2 = np.linalg.norm(moved - c2, axis=1).mean()
         keys[name] = (c2 + (verts - c) * (r2 / r)) - verts
+    # (On the head while the textures are baked, which knows only the people's bones: `on_eye_bone` then.)
     W = np.zeros((len(verts), len(BONE_NAMES)))
     W[:, BONE_INDEX["Head"]] = 1.0
     return Part(verts, faces, mats, uv, keys, W)
+
+
+def on_eye_bone(part, s):
+    """An eyeball's weights moved wholly onto its eye's bone."""
+    part.weights = np.zeros((len(part.co), len(ALL_BONES)))
+    part.weights[:, ALL_BONES.index(f"eye_{s}")] = 1.0
+    return part
+
+
+def add_eye_bones(rig, body):
+    """The eyes' bones (EYE_BONES) added under the head, each from its eyeball's centre out along its gaze,
+    every other bone left as it is."""
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.mode_set(mode="EDIT")
+    for s in ("l", "r"):
+        e = body.eye[s]
+        look = e["aim"] - e["centre"]
+        look /= np.linalg.norm(look)
+        eb = rig.data.edit_bones.new(f"eye_{s}")
+        eb.head, eb.tail = Vector(e["centre"]), Vector(e["centre"] + look * e["radius"] * 2)
+        eb.parent = rig.data.edit_bones["Head"]
+        eb.use_connect = False
+        eb.align_roll(Vector((0, 0, 1)))
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+
+# The teeth and tongue (MakeHuman's system assets, CC0): (part, the .mhclo under ASSETS).
+MOUTH = (("mouth_teeth", ("teeth", "teeth_base", "teeth_base.mhclo")), ("tongue", ("tongue", "tongue01", "tongue01.mhclo")))
+MOUTH_SIZE = 768  # the mouth's texture: the teeth's picture (left) and the tongue's (right), each three times
+MOUTH_SHADES = (1.0, 0.62, 0.34)  # the copies' brightness, top to bottom: the front of the mouth to its back
+MOUTH_DEPTH = (0.012, 0.026)  # where a face goes from the first copy to the second, and to the third (metres back)
+MOUTH_DARK = (0.16, 0.07, 0.07)  # the inside of the mouth (sRGB), where the pictures are clear
+
+
+def mouth_texture():
+    """The teeth's and tongue's texture, (MOUTH_SIZE, MOUTH_SIZE, 3) rows from the bottom: MakeHuman's own
+    teeth picture in the left half and its tongue's in the right, each three times over, from bright at the top
+    to dark at the bottom (MOUTH_SHADES). Nothing lights the inside of a mouth the way it does a face, so a face
+    of the teeth or tongue takes the copy for how far back it is (`mouth_parts`): without that, the back teeth
+    shone as brightly as the front."""
+    half, band = MOUTH_SIZE // 2, MOUTH_SIZE // 3
+    out = np.zeros((MOUTH_SIZE, MOUTH_SIZE, 3))
+    for column, (part, rel) in enumerate(MOUTH):
+        folder = os.path.dirname(os.path.join(ASSETS, *rel))
+        picture = wa.Proxy(os.path.join(ASSETS, *rel)).texture or os.path.join(folder, "teeth.png")
+        a = read_image(picture)
+        # (Where the picture is clear, its colour means nothing: the mouth's own dark shows there instead.)
+        alpha = a[..., 3:4] if a.shape[2] > 3 else 1.0
+        a = shrink(a[..., :3] * alpha + np.array(MOUTH_DARK) * (1 - alpha), 512)
+        rows = ((np.arange(band) + 0.5) / band * a.shape[0]).astype(int)
+        cols = ((np.arange(half) + 0.5) / half * a.shape[1]).astype(int)
+        cell = a[rows][:, cols]
+        for k, shade in enumerate(MOUTH_SHADES):
+            top = MOUTH_SIZE - (k + 1) * band
+            out[top : top + band, column * half : (column + 1) * half] = cell * shade
+    return out
+
+
+def mouth_parts(body, key_names):
+    """The teeth and tongue: MakeHuman's own, fitted inside the mouth through their .mhclo files onto the base
+    mesh's teeth and tongue helpers, so the jaw's opening (`mouth-open`, in the face's keys) carries the lower
+    teeth and the tongue down with it. On the Head bone, with their own pictures (`mouth_texture`), each face
+    on the copy as dark as it is far back from the front teeth."""
+    fitted = [(part, wa.Proxy(os.path.join(ASSETS, *rel))) for part, rel in MOUTH]
+    fitted = [(part, p, p.fit(body.co)) for part, p in fitted]
+    front = min(co[:, 1].min() for _, _, co in fitted)  # (the face looks along -Y)
+    out = []
+    for column, (part, p, co) in enumerate(fitted):
+        keys = _still({k: p.blend(body.keys[k]) for k in key_names})
+        uv = []
+        for f, fuv in zip(p.faces, p.face_uv):
+            back = co[f, 1].mean() - front
+            k = int(back > MOUTH_DEPTH[0]) + int(back > MOUTH_DEPTH[1])
+            uv.append([(0.5 * column + 0.5 * p.uv[i][0], (2 - k + p.uv[i][1]) / 3) for i in fuv])
+        out.append(Part(co, p.faces, [PART[part]] * len(p.faces), uv, keys, _head_weights(len(co))))
+        log(f"{part}: {len(co)} vertices")
+    return out
 
 
 def _rect(u0, v0, u1, v1):
@@ -3172,7 +3286,7 @@ def srgb_to_linear(c):
     return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
 
 
-def materials(atlas=None, cards=None, normal=None, gatlas=None, gnormal=None, eyes=None, parts=None, beard=None):
+def materials(atlas=None, cards=None, normal=None, gatlas=None, gnormal=None, eyes=None, parts=None, beard=None, mouth=None):
     """One material per part: the part's colour (exported as its glTF base colour factor) times its
     texture (the skin's, the garments', the hair strokes', the horns' and tusks' or the facial hair's), with
     a normal map for the skin and the garments; the eyebrows and eyelashes cut out by their texture's alpha
@@ -3189,6 +3303,8 @@ def materials(atlas=None, cards=None, normal=None, gatlas=None, gnormal=None, ey
         image = cards if name in ("eyebrows", "eyelashes") else (gatlas if garment else (eyes if eyes is not None and name in ("iris", "eye_white") else atlas))
         if name in ("teeth", "horns", "hair"):
             image = beard if name == "hair" else parts
+        if name in ("mouth_teeth", "tongue"):
+            image = mouth
         bump = gnormal if garment else (normal if name in ("skin", "lips", "nails") else None)
         if image is None:
             bsdf.inputs["Base Color"].default_value = (*rgb, 1.0)
@@ -3562,7 +3678,8 @@ def add_finger_bones(rig, chains, backs):
 # is).
 
 TAIL = [f"tail_{i:02d}" for i in range(1, 6)]
-ALL_BONES = BONE_NAMES + FINGER_BONES + TAIL
+EYE_BONES = ["eye_l", "eye_r"]  # (3D Avatar Maker: each eyeball turns on one of its own, under the head)
+ALL_BONES = BONE_NAMES + FINGER_BONES + TAIL + EYE_BONES
 HAIR_CUTOFF = 0.5  # the facial hair's alpha test
 STILL = 0.0003  # a key's move under this is dropped (invisible, and the file then stores only what moves)
 ROOT_DEPTH = 0.0025  # how far under the skin a hair's root starts, so no gap shows between a beard and the face
@@ -3671,8 +3788,13 @@ class Face:
                 skin.keyed[k] = Skin(skin.co + skin.keys[k], skin.faces, skin.W, {})
             was = keys[k][sel]
             pushed = skin.keyed[k].clear(P + was, rest) - P
-            # (Only where it's pushed by more than half a millimetre: less is the measuring, not the skin.)
-            keys[k][sel] = np.where((np.linalg.norm(pushed - was, axis=1) > 0.0005)[:, None], pushed, was)
+            # (Only where it's pushed by more than half a millimetre: less is the measuring, not the skin. A face
+            # move (FACE_MOVES) only where the skin under the point moves at all: a blink, which moves only the
+            # lids, had a beard's cheek hair jump a centimetre from the measuring alone.)
+            push = np.linalg.norm(pushed - was, axis=1) > 0.0005
+            if k in FACE_MOVES:
+                push &= np.linalg.norm(was, axis=1) > 0.0005
+            keys[k][sel] = np.where(push[:, None], pushed, was)
 
 
 def _unit_rows(v):
@@ -4824,8 +4946,15 @@ def make(B):
     mats = [int(mats[f]) for f, _ in corners]
     inside = [bool(mouth[f]) for f, _ in corners]
     uv = [[w @ uv[f] for w in ws] for f, ws in corners]
+    open_lips = co
     co = seal_lips(co, faces, mats)
+    # (A key that parts the lips undoes the seal as far as OPENS says, so the mouth opens as MakeHuman's does.)
+    for k, amount in OPENS.items():
+        if k in body_keys:
+            body_keys[k] = body_keys[k] + (open_lips - co) * amount
     parts = [Part(co, faces, mats, uv, body_keys, W)]
+    # (Joined to the body only at the end: their texture isn't the skin's, which `parts` are baked into.)
+    mouth_inner = mouth_parts(body, key_names)
     eyes = [eyeball(B, body, s_, key_names) for s_ in ("l", "r")]
     tris, bvh = surface(co, faces)
     hair, roots = mh_lashes(B, base, body, key_names)
@@ -4887,7 +5016,8 @@ def make(B):
     beard_image.pixels.foreach_set(wa.facial_hair_texture().astype(np.float32).ravel())
     beard_image.file_format = "PNG"
     beard_image.pack()
-    shared = materials(atlas, cards, normal, gatlas, gnormal, eye_image, parts_image, beard_image)
+    mouth_image = save_texture(f"{name}-mouth", mouth_texture(), MOUTH_SIZE)
+    shared = materials(atlas, cards, normal, gatlas, gnormal, eye_image, parts_image, beard_image, mouth_image)
     # (Our own strip brows and lashes, `hair`, still place the painted lash line and brow shadow; MakeHuman's
     # styles are what the model wears.)
     # (The fingers' bones only now: everything above, the baking and the fitting, knows the people's bones.)
@@ -4903,13 +5033,19 @@ def make(B):
     parts[0].mat = [PART["skin"] if m == PART["nails"] else m for m in parts[0].mat]
     if nails is not None:
         parts.append(nails)
-    obj = join(name, parts + [to_eye_texture(e) for e in eyes], key_names)
+    # (The eyeballs, eyes[0] and [1], onto their own bones now: `eyeball`.)
+    on_eye_bone(eyes[0], "l")
+    on_eye_bone(eyes[1], "r")
+    obj = join(name, parts + mouth_inner + [to_eye_texture(e) for e in eyes], key_names)
     # (The pieces beside the body, brows, lashes, beards, underwear, horns and the tail, keep the older keys and
     # leave out the face and body in detail: 3D Avatar Maker carries those onto them from the skin, as it does
     # for hair and clothes. Given every key each, the file was more than twice the size.)
+    # (The face's moves, FACE_MOVES, only on what's on the face: the brows, lashes, beards and tusks.)
     piece_keys = [k for k in key_names if "." not in k]
+    still_keys = [k for k in piece_keys if k not in FACE_MOVES]
+    on_face = ("beard-", "moustache-", "tusks-")
     brows = [join(n, [part], piece_keys) for n, part in mh_hair(B, body, co, body_keys, key_names, roots, len(co0))]
-    pieces = [join(g.name, [g.part], piece_keys) for g in wear] + brows + [join(n, [part], piece_keys) for n, part in extras]
+    pieces = [join(g.name, [g.part], still_keys) for g in wear] + brows + [join(n, [part], piece_keys if n.startswith(on_face) else still_keys) for n, part in extras]
     for o in [obj] + pieces:
         o.data.name = o.name
         for m in shared:
@@ -4919,6 +5055,7 @@ def make(B):
     rig = make_rig(name, J)
     add_tail_bones(rig, tail_joints)
     add_finger_bones(rig, chains, backs)
+    add_eye_bones(rig, body)
     for o in [obj] + pieces:
         o.parent = rig
         o.modifiers.new("Armature", "ARMATURE").object = rig

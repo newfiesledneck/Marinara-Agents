@@ -280,7 +280,8 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
   const { exportVrm, VRM_LICENSE_URL, vrmMeta, vrmTerms } = await import("../packages/3d-avatar-maker/src/exporter.js");
   const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
   const { VRMLoaderPlugin } = await import("@pixiv/three-vrm");
-  const { Vector3 } = await import("three");
+  const { Object3D, Vector3 } = await import("three");
+  const { FACE_MOVES } = await import("../packages/3d-avatar-maker/src/face.js");
   const tiefling = await createAvatar(startOf("female", racePreset("tiefling", "female")), "Test", "auto");
   for (const mesh of tiefling.meshes) for (const material of [mesh.material].flat()) material.map = null;
   for (const [name, figure] of Object.entries({ plain: made.plain, dwarf: made.dwarf, tiefling })) {
@@ -349,8 +350,111 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
       for (let i = 0; i < 120; i++) vrm.update(1 / 60);
       assert.ok(tip.getWorldPosition(new Vector3()).distanceTo(start) < 0.1, "the tail keeps its shape at rest");
     }
+    // The face: VRM's expressions bound to its keys, and the eyes on their bones, turned to look.
+    for (const key of FACE_MOVES)
+      assert.ok(
+        vrm.expressionManager.getExpression(key)?.binds.length,
+        `${name}: the ${key} expression moves the face`,
+      );
+    assert.equal(block.lookAt?.type, "bone", `${name}: looks with its eye bones`);
+    const eye = vrm.humanoid.getRawBoneNode("leftEye");
+    assert.equal(eye?.name, "eye_l", `${name}: names its left eye`);
+    const ahead = eye.quaternion.clone();
+    const target = new Object3D();
+    target.position.set(1, at("head").y, 1);
+    vrm.scene.add(target);
+    vrm.lookAt.target = target;
+    vrm.lookAt.autoUpdate = true;
+    vrm.update(1 / 60);
+    const turned = eye.quaternion.angleTo(ahead);
+    assert.ok(turned > 0.05 && turned < 0.5, `${name}: its eyes turn to look aside (${turned.toFixed(2)} rad)`);
   }
   tiefling.dispose();
+
+  // ── Face movement in the maker: the keys live on the body, the eyes on bones of their own (face.js) ──
+  {
+    const { animateFace, blinkAt, lookTowards, setFace, talkingAt } =
+      await import("../packages/3d-avatar-maker/src/face.js");
+    const figure = await createAvatar(startOf("female"), "Test", "auto");
+    for (const mesh of figure.meshes) for (const material of [mesh.material].flat()) material.map = null;
+    const body = figure.meshes.find((mesh) => mesh.morphTargetDictionary);
+    for (const key of FACE_MOVES) assert.ok(key in (body?.morphTargetDictionary ?? {}), `the body has the ${key} key`);
+    // Each key moves the face alone: nothing below the chin, and the blink near the eyes, the mouth below them.
+    const headAt = figure.humanoid.head.getWorldPosition(new Vector3()).y;
+    const eyeAt = figure.bones.get("eye_l").getWorldPosition(new Vector3()).y;
+    // (What's drawn: a race's part that isn't worn is tucked inside the head, still keyed but drawn by nothing.)
+    const drawn = new Set(body.geometry.index.array);
+    const reach = (key) => {
+      const moves = body.geometry.morphAttributes.position[body.morphTargetDictionary[key]].array;
+      const position = body.geometry.attributes.position.array;
+      let [most, low, high] = [0, Infinity, -Infinity];
+      for (let v = 0; v < moves.length; v += 3) {
+        if (!drawn.has(v / 3)) continue;
+        const size = Math.hypot(moves[v], moves[v + 1], moves[v + 2]);
+        if (size < 0.0005) continue;
+        most = Math.max(most, size);
+        [low, high] = [Math.min(low, position[v + 1]), Math.max(high, position[v + 1])];
+      }
+      return { most, low: low + figure.root.position.y, high: high + figure.root.position.y };
+    };
+    const blink = reach("blink");
+    const aa = reach("aa");
+    assert.ok(
+      blink.most > 0.005 && blink.low > eyeAt - 0.03 && blink.high < eyeAt + 0.03,
+      `the blink moves the lids (${JSON.stringify(blink)}, eyes at ${eyeAt})`,
+    );
+    assert.ok(
+      aa.most > 0.01 && aa.high < eyeAt && aa.low > headAt - 0.15,
+      `the mouth opens below the eyes (${JSON.stringify(aa)}, head at ${headAt})`,
+    );
+    setFace(figure, { happy: 1 });
+    assert.equal(body.morphTargetInfluences[body.morphTargetDictionary.happy], 1);
+    assert.equal(body.morphTargetInfluences[body.morphTargetDictionary.aa], 0);
+    // The eyes turn towards a point, no further than VRM apps turn them, and back.
+    const eye = figure.bones.get("eye_l");
+    const rest = eye.quaternion.clone();
+    lookTowards(figure, new Vector3(2, eyeAt, 1));
+    const turned = eye.quaternion.angleTo(rest);
+    assert.ok(turned > 0.2 && turned < 0.4, `the eyes look aside (${turned.toFixed(2)} rad)`);
+    lookTowards(figure, null);
+    assert.ok(eye.quaternion.equals(rest), "and back ahead");
+    animateFace(figure, "talking", 0.3, new Vector3(0, eyeAt, 2));
+    assert.ok(blinkAt(0.1) > 0.5 && blinkAt(1) === 0, "a blink comes at the start and is over");
+    assert.ok(
+      Object.values(talkingAt(0.3)).some((weight) => weight > 0),
+      "talking opens the mouth",
+    );
+    // A saved file has the keys at rest, named as the 3D Avatars agent and VRM apps look for them.
+    setFace(figure, { happy: 1 });
+    const { json } = readGlb((await exportGlb(figure, { look: {} })).bytes);
+    const saved = json.meshes.find((mesh) => mesh.extras?.targetNames?.includes("blink"));
+    assert.deepEqual(
+      FACE_MOVES.filter((key) => saved?.extras.targetNames.includes(key)),
+      FACE_MOVES,
+      "a GLB carries every face key",
+    );
+    assert.ok(
+      saved.weights.every((weight) => weight === 0),
+      "at rest",
+    );
+    assert.equal(body.morphTargetInfluences[body.morphTargetDictionary.happy], 1, "the preview's face comes back");
+    // The eye bones move with the sliders that move the eyes, and grow with the head.
+    const eyeOf = async (over) => {
+      const one = await createAvatar(startOf("female", over), "Test", "auto");
+      const at = one.bones.get("eye_l").getWorldPosition(new Vector3());
+      const head = one.humanoid.head.getWorldPosition(new Vector3());
+      one.dispose();
+      return at.sub(head);
+    };
+    const usual = await eyeOf({});
+    assert.ok(
+      (await eyeOf({ shape: { eye_height: 1 } })).y > usual.y + 0.001,
+      "a higher eye slider lifts the eye bone",
+    );
+    const big = await eyeOf({ limbs: { head: 1.2 } });
+    assert.ok(Math.abs(big.length() / usual.length() - 1.2) < 0.02, "a bigger head takes its eyes out with it");
+    figure.dispose();
+  }
 
   // The author's terms: VRM's careful defaults, only known values, and the sharing choice split in two.
   assert.deepEqual(vrmTerms({ avatarPermission: "nobody", allowExcessivelySexualUsage: "yes" }), {

@@ -145,21 +145,50 @@ poses with its arms lowered. Not yet checked in a real Engine.
   - the tail springs;
   - the figure is unchanged afterwards.
 
+## Built (0.1.07)
+
+- **Face movement** (`make_avatar.py` FACE_MOVES): 13 shape keys named as VRM's expression presets, each a
+  mix of MakeHuman's CC0 expression units.
+  - The keys: `blink`, `blinkLeft`, `blinkRight`, the vowels `aa`, `ih`, `ou`, `ee`, `oh`, and `happy`,
+    `angry`, `sad`, `relaxed`, `surprised`.
+  - **Tuning.** The mixes were tuned from renders of each unit alone, then of the built model: textured,
+    subdivided, sealed.
+  - **Lips.** A key that parts the lips undoes `seal_lips` as far as OPENS says.
+  - **Where the keys go.** Only the body and what's on the face carry them: brows, lashes, beards,
+    moustaches and tusks. The underwear, horns and tail don't, which saved about 3 MB of model.
+  - **Beards.** `keep_clear` pushes a face key only where the skin under the hair moves; a blink had jumped
+    a dwarf beard's cheek hair a centimetre.
+- **Teeth and tongue**, MakeHuman's own (CC0): fitted through their .mhclo to the base mesh's helpers, so
+  `mouth-open` carries the lower teeth and the tongue down. They have a picture of their own (`mouth_texture`):
+  MakeHuman's teeth and tongue pictures, three copies each from bright to dark. Each face takes the copy for
+  how far back in the mouth it is, as nothing lights the inside of a mouth. The tusks keep `teeth`; the mouth
+  is `mouth_teeth` and `tongue`.
+- **Eye bones** `eye_l` and `eye_r` under the head, at each eyeball's centre, with the eyeballs on them.
+  - **Sliders.** The packer's `jointMoves` moves them with the sliders that move the eyes.
+  - **Head size.** The maker moves and grows them with the head (`avatar.js`).
+  - **Saved file.** `HUMANOID_BONES` names them `leftEye` and `rightEye`.
+- **The maker** (`src/face.js`):
+  - **Keys.** The body keeps the face keys live as morph targets.
+  - **Preview.** A Face list under the picture plays them: lively (blinks, and the eyes follow the camera
+    with a glance aside now and then), talking, still, or one expression held. Reduced motion holds the face.
+  - **Saving.** A saved file has them at rest.
+- **The files.** A GLB carries the keys by name, which is what the 3D Avatars agent's GLB path reads. A VRM
+  adds:
+  - `expressions.preset` bound to them, the feelings easing a blink with `overrideBlink: blend`;
+  - `lookAt` of type bone on the eye bones (20° sideways, 11° up, 14° down);
+  - the eyes' humanoid bones.
+- **Size.** The models are 69 MB (male) and 79 MB (female), from 54 and 65. The kit's body bundles each grew
+  by about 1.5 MB.
+
 ## Next, in order
 
-1. **Dev catalog.** `_planning/scripts/update-dev-catalog.mjs` rebuilds only the packages in its
-   `DEV_PACKAGES` list; `3d-avatar-maker` has to be added there (that script is shared and kept by the
-   Quartermaster session). Then install it in the Engine and import a saved avatar under 3D Avatars.
-2. **Faces** (the largest piece). In `assets/scripts/make_avatar.py`: shape keys `blink`, `aa`, `ih`, `ou`,
-   `ee`, `oh`, `happy`, `angry`, `sad`, `relaxed`, `surprised` from MakeHuman's CC0 expression targets,
-   teeth and a tongue from its system assets, and a mouth interior. The lips are sealed today
-   (`seal_lips`). Brows, lashes, beards and moustaches must follow the face. The kit packer must keep
-   these keys live instead of the builder baking them in, and `exporter.js` must write them as morph
-   targets with their names (three's exporter puts them where the Engine reads them). The packer is still
-   Wanderworld's `scripts/build-wanderworld-people.mjs --avatar`; this package needs its own copy first.
-3. **Eye bones** (`eye_l`, `eye_r`) so a VRM's eyes can follow the viewer, and the eyeballs weighted to them.
-4. **VRM export: the rest.** Built in 0.1.06 except the face list (`expressions`, once item 2 is done),
-   `lookAt` (with item 3), and a thumbnail picture in the meta. Not yet checked in a real Engine.
+1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling and looking.
+2. **Smaller saved files.** three's exporter writes each face key for every vertex of the body; sparse
+   accessors (only the vertices a key moves) would take a few megabytes off each file. A VRM thumbnail
+   picture in the meta.
+3. **Faces on what's worn.** Hair, hats, masks and other clothes don't follow the face's keys yet (a face
+   mask doesn't open with the mouth); the maker could carry them from the skin as it does the sliders.
+4. **More expressions.** Visemes beyond VRM's five vowels, a wink and a smirk as custom expressions.
 5. **Hair movement.** Bone chains in the hair styles, then spring bones in the VRM. Hair is rigid today.
 6. **More to change:** skin texture layers (freckles, scars, tattoos, makeup), patterns and pictures on
    clothing, accessories fixed to a bone (glasses, earrings, hats, bags), more face sliders.
@@ -172,6 +201,8 @@ poses with its arms lowered. Not yet checked in a real Engine.
 ## Known rough edges
 
 - The Ranger outfit's leather armour shows gaps at the front on the male body.
+- Seen close from below, the upper teeth's shading changes in steps (each face takes one of three copies of
+  the picture). From a chat's distance it reads as the mouth's shadow.
 - A saved file has one picture for each piece worn. Packing them into one would make it smaller.
 - Drafts live in the browser only.
 - `avatar.js` still carries the anthro code paths and a crowd's low-detail triangle lists.
