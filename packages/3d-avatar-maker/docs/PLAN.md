@@ -282,6 +282,86 @@ No item is fitted yet; the packs that fill these slots come next.
   judged; `docs/MAKEHUMAN-PACKS.md` "The merge pass" lists each one kept and each one left out, and why.
 - Later passes add hair styles, body parts and held objects to the Accessories pack.
 
+## Built: skirts and dresses that hang and swing
+
+Before this, a skirt or dress was skinned to the body, so each side followed its own leg. That left a crease
+between the legs and bent the cloth with them. Now hanging cloth swings on chains of its own, as hair does,
+worked out in the maker from each piece's mesh (`src/hair.js` `hangPlan`, shared with the hair). No model
+changed.
+
+- **Which pieces.** The kit's `HANGING_CLOTH`: the long, short and pleated skirts, the loincloth, the apron,
+  the dress, the gown, the robe, the tunic's tails, the long coat and the cloak. A pack piece hangs if its
+  index has `hang` (`packs.js` `readPack`, `-1` to `1.5`). The builder writes it from `assets/packs.json`,
+  where 22 skirts, dresses, robes and a coat have one now. Trousers, leggings, shorts, overalls, shoes, the
+  tight MakeHuman skirt and the denim skirt follow each leg as before.
+- **The hang line.** `hang` is where the cloth leaves the body, as a share of the way from the hip joints
+  down to the knees: 0 at the hips, 1 at the knees, below 0 above the hips. Skirts are at 0.1 to 0.25, a
+  shift dress at 0.4, the monk's robe at 0.45 (it lies on the legs above that), and the cloak at -0.6, the
+  middle of the back. Each value was read off how far the cloth stands from the skin at each height.
+- **Sides and chains.** Below the line, each point is followed up the mesh to the line to find how far down
+  the cloth it is. Its side is where it is round the hips, one of eight. (A skirt's rows of points are far
+  apart, and paths across them drifted round, so following the side up the mesh gave lopsided chains.)
+  Each side gets a chain of bones down its middle, about 12 cm a bone and six at most. They're named
+  `cloth_<piece>_<side>_0` to the tip.
+- **Weights.** Below the line, points ease from their two legs onto the chains over 8 cm. They blend
+  between neighbouring sides and along each chain, so the front between the legs is one piece on the front
+  chain. Cloth that moves mostly with the arms, a sleeve's cuff, stays as it was.
+- **What a chain hangs from.** The hips, or the spine bone at the line (the cloak hangs from `spine_01`).
+- **Longer legs.** Each point rests where its old weights put it, as the hair does on a bigger head.
+- **Colliders** (`springs.js` `bodyColliders`, `cloth`). Each chain meets its own copies of the hips' and
+  back's capsules and a capsule down each thigh and calf, fitted as the hair's are. A leg's capsule may
+  shrink by half where cloth rests close to it, not a quarter, so a tight robe's sides stay out of the legs.
+- **Settings** (`CLOTH_JOINT`). Stiffness 1, gravity 0.01, drag 0.35, hit radius 2 cm: stiffer than hair
+  (0.5) and slowed more (0.3). A stiffer, slower trial (2 and 0.6) sagged no less for its weight and swung
+  less as the hips turned.
+- **The Moving pose** (`figure.js movingPose`) now turns the hips with the head and lifts each knee in turn
+  in a small step, so the skirt swings. Its label says so. Reduced motion holds everything still.
+- **The files.** A VRM writes each chain as a spring with its colliders, and three-vrm holds them at rest in
+  the regression test. A GLB keeps the chains' bones and weights. The Engine's GLB path runs no springs, so
+  there the cloth follows the hips and doesn't move out of the legs' way.
+
+Measured in Node over ten seconds of the Moving pose, for every kit piece on both bodies and for each pack
+piece given a `hang`:
+
+- Rest is exact (0.002 mm), and every point's weights add up to one.
+- No collider holds a joint at rest, as built or in the T-pose.
+- Sag at rest is 0.1 to 0.7 cm.
+- The swing is under 1.5 cm on the shortest mini skirts and his tunic's tails, 4 to 17 cm on most pieces,
+  and up to 39 cm at a floor-length hem lifted by the knee.
+- Everything settles within 0.8 s.
+- No joint went deeper into a leg's capsule than at rest. The female monk's robe is the exception, at
+  1.2 mm.
+
+The regression test checks the same for every kit piece on both bodies. It also checks that trousers get
+no chains, that a long-legged skirt rests where it was fitted, and that a VRM's dress springs meet the four
+leg capsules. Renders of a skirt, the gown, the long coat, the cloak and the robe at moments of the Moving
+pose are in the hand-over note.
+
+## Built: a bust that moves
+
+At the same time, and on the same springs: each breast has a short spring bone, as VRoid models do, so the
+chest sways a little as the body turns (`src/bust.js`).
+
+- **Who gets it.** Her body always. His only when his chest stands out in front of the breastbone as far as
+  her bust does at its flattest (`BUST.least`, 1.6 cm). His chest is 0.8 cm as built and 1.3 cm at the
+  fullest Chest slider. The half-orc slider with a full chest reaches 1.8 cm and gets one; no other slider
+  mix tried did.
+- **The bones.** `breast_l` and `breast_r` under the upper chest, from 7 cm inside each breast to its front,
+  each with a tip there, placed from the body as shaped.
+- **Weights.** Round each front, a share of a point's upper-chest weight goes onto its side's bone: all of it
+  within 3 cm, none past 8.5 cm, eased between. Only the upper chest's weight moves, as it is the bones'
+  parent, so with the bust at rest the body bends exactly as before. A point with four weights already
+  gives up its smallest only if that's under 0.05; dropping more made a T-shirt sink 6 mm into the skin as
+  the arms moved.
+- **Clothes follow.** Every piece but hair and bone-fixed pieces takes the share of the skin nearest it, so
+  a top and the breast under it move together.
+- **Settings** (`BUST_JOINT`). Stiffness 1.5, no gravity (it rests as shaped), drag 0.45, and no colliders,
+  so the arms never push it. It sways about 2 mm in the Moving pose and settles within a second.
+- **Checked** in the regression test: rest exact on the skin and the top with whole weights, a few
+  millimetres of sway, settling, a T-shirt and a dress staying outside the skin as it sways (the bust adds
+  under 0.1 mm), his chest with none as built or muscular, and one at the half-orc's full chest. A GLB keeps
+  the bones and a VRM writes the springs.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -292,8 +372,8 @@ No item is fitted yet; the packs that fill these slots come next.
 3. **Faces on what's worn.** Hair, hats, masks and other clothes don't follow the face's keys yet (a face
    mask doesn't open with the mouth); the maker could carry them from the skin as it does the sliders.
 4. **More expressions.** Visemes beyond VRM's five vowels, a wink and a smirk as custom expressions.
-5. **More that swings:** skirts, cloaks and coat tails on chains of their own, and colliders that allow for
-   clothing over the body.
+5. **Colliders that allow for what's worn:** a cloak over a dress swings on its own chains through the
+   dress's, and hair passes into a thick cloak.
 6. **More to change:** the community objects, jewellery, horns, wings, tails and hair styles fitted into
    packs for the new slots; a grip for a hand that holds something; skin texture layers (freckles, scars,
    tattoos, makeup), patterns and pictures on clothing, more face sliders.
@@ -309,6 +389,10 @@ No item is fitted yet; the packs that fill these slots come next.
 - Seen close from below, the upper teeth's shading changes in steps (each face takes one of three copies of
   the picture). From a chat's distance it reads as the mouth's shadow.
 - A saved file has one picture for each piece worn. Packing them into one would make it smaller.
+- Hanging cloth is kept out of the legs at its chains' joints only. Between them, at a lifted knee, the cloth
+  can cut a little into the thigh. Two hanging pieces (a cloak over a dress) swing through each other.
+- The bust sways only a couple of millimetres in the Moving pose, as nothing in it bounces the body up and
+  down. A VRM app that walks or jumps shows more.
 - Swinging hair can dip about 2 cm into the shoulders, where a lock resting on a shoulder leaves out that
   shoulder's collider. The colliders fit the body, not what's worn, so hair can pass into a thick cloak.
 - The sides of a long style are found from the mesh, so a chain can follow an uneven path, and the two sides

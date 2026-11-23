@@ -288,9 +288,10 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
   const { FACE_MOVES } = await import("../packages/3d-avatar-maker/src/face.js");
   const tiefling = await createAvatar(startOf("female", racePreset("tiefling", "female")), "Test", "auto");
   const longHair = await createAvatar(startOf("female", { hair: "long" }), "Test", "auto");
-  for (const one of [tiefling, longHair])
+  const dress = await createAvatar(startOf("female", { hair: "none", clothes: ["dress"] }), "Test", "auto");
+  for (const one of [tiefling, longHair, dress])
     for (const mesh of one.meshes) for (const material of [mesh.material].flat()) material.map = null;
-  for (const [name, figure] of Object.entries({ plain: made.plain, dwarf: made.dwarf, tiefling, longHair })) {
+  for (const [name, figure] of Object.entries({ plain: made.plain, dwarf: made.dwarf, tiefling, longHair, dress })) {
     const look = startOf("female", { hair: "bob" });
     const geometries = figure.meshes.map((mesh) => mesh.geometry);
     const inverses = figure.meshes.map((mesh) => mesh.skeleton.boneInverses.map((inverse) => inverse.clone()));
@@ -336,6 +337,20 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
         figure.springs.some((spring) => spring.name.startsWith("Hair")),
         `${name}: long hair swings (a helm hides the dwarf's)`,
       );
+    if (name === "dress") {
+      // (The dress's chains, with capsules on the thighs and calves among the colliders they meet.)
+      const { springs, colliders } = json.extensions.VRMC_springBone;
+      assert.ok(
+        springs.filter((spring) => spring.name.startsWith("Dress (")).length >= 3,
+        "the dress hangs on springs",
+      );
+      const legs = colliders.filter((collider) => /^(?:thigh|calf)_[lr]$/u.test(json.nodes[collider.node].name));
+      assert.ok(legs.length === 4 && legs.every((collider) => collider.shape.capsule), "with capsules on the legs");
+      assert.ok(
+        ["Bust (left)", "Bust (right)"].every((bust) => springs.some((spring) => spring.name === bust)),
+        "and her bust on springs too",
+      );
+    }
     assert.deepEqual(lookInGlb(saved.bytes), { name: `Saved ${name}`, look }, `${name}: the look comes back out`);
 
     // Loaded with three-vrm as the Engine loads a VRM model.
@@ -404,6 +419,7 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
   }
   tiefling.dispose();
   longHair.dispose();
+  dress.dispose();
 
   // ── Face movement in the maker: the keys live on the body, the eyes on bones of their own (face.js) ──
   {
@@ -500,14 +516,20 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
     const furthest = (a, b) => Math.max(...a.map((point, i) => point.distanceTo(b[i])));
     for (const body of ["female", "male"]) {
       for (const hair of [...SWINGING_HAIR.keys(), "short"]) {
-        const figure = await createAvatar(startOf(body, { hair }), "Test", "auto");
+        const figure = await createAvatar(startOf(body, { hair, clothes: [] }), "Test", "auto");
         const label = `${body} ${hair}`;
         if (!SWINGING_HAIR.has(hair)) {
-          assert.equal(figure.springs.length, 0, `${label}: a short cut stays as it is`);
+          assert.ok(
+            !figure.springs.some((spring) => spring.name.startsWith("Hair")),
+            `${label}: a short cut stays as it is`,
+          );
           figure.dispose();
           continue;
         }
-        assert.ok(figure.springs.length > 0, `${label}: its locks hang on chains`);
+        assert.ok(
+          figure.springs.some((spring) => spring.name.startsWith("Hair")),
+          `${label}: its locks hang on chains`,
+        );
         const mesh = figure.meshes.find((one) => one.skeleton.bones.some((bone) => bone.name.startsWith("hair_")));
         // Bound where it rests: every point of the hair drawn where it was made, and its weights whole.
         const { position, skinWeight } = mesh.geometry.attributes;
@@ -609,6 +631,286 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
         off = Math.max(off, point.distanceTo(was));
       }
       assert.ok(off < 0.0005, `a bigger head's ponytail rests where it did (off by ${off.toFixed(5)})`);
+      figure.dispose();
+    }
+  }
+
+  // ── Clothes that hang: skirts, dresses, robes, coats and cloaks on chains (hair.js, springs.js) ──
+  {
+    const { HANGING_CLOTH } = await import("../packages/3d-avatar-maker/src/hair.js");
+    const { CLOTH_JOINT, createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
+    const { movingPose } = await import("../packages/3d-avatar-maker/src/figure.js");
+    const { geometryOf, load } = await import("../packages/3d-avatar-maker/src/kitfiles.js");
+    const index = JSON.parse(await readFile(join(kitRoot, "wardrobe/avatar-outfits-index.json"), "utf8"));
+    const clothOf = (figure) => figure.springs.filter((spring) => spring.joint === CLOTH_JOINT);
+    const hanging = (one) =>
+      one.meshes.find((mesh) => mesh.skeleton.bones.some((bone) => bone.name.startsWith("cloth_")));
+    /** How far a point at `at` is inside a capsule or ball (its middle's distance short of its radius). */
+    const into = (collider, at, pad = 0) => {
+      const start = collider.offset.clone().applyMatrix4(collider.bone.matrixWorld);
+      const end = (collider.tail ?? collider.offset).clone().applyMatrix4(collider.bone.matrixWorld);
+      const line = end.clone().sub(start);
+      const t = line.lengthSq() ? Math.max(0, Math.min(1, at.clone().sub(start).dot(line) / line.lengthSq())) : 0;
+      return collider.radius + pad - at.distanceTo(start.addScaledVector(line, t));
+    };
+    // Trousers, leggings and shorts follow each leg as they were fitted: no chains.
+    for (const piece of ["trousers", "leggings", "shorts", "mh_jeans", "mh_female_jeans"]) {
+      const body = index[piece].bodies[0];
+      const figure = await createAvatar(startOf(body, { clothes: [piece], hair: "none" }), "Test", "auto");
+      assert.equal(clothOf(figure).length, 0, `${piece}: follows the legs, with no chains`);
+      figure.dispose();
+    }
+    for (const body of ["female", "male"])
+      for (const piece of HANGING_CLOTH.keys()) {
+        if (!index[piece]?.bodies.includes(body)) continue;
+        const label = `${body} ${piece}`;
+        const figure = await createAvatar(startOf(body, { clothes: [piece], hair: "none" }), "Test", "auto");
+        const springs = clothOf(figure);
+        assert.ok(springs.length >= 3, `${label}: its cloth hangs on chains (${springs.length})`);
+        // Bound where it was fitted: every point drawn where it was made, and its weights whole.
+        const mesh = hanging(figure);
+        const { position, skinWeight } = mesh.geometry.attributes;
+        let off = 0;
+        let unweighted = 0;
+        const point = new Vector3();
+        for (let i = 0; i < position.count; i++) {
+          const listed = point.fromBufferAttribute(position, i).clone().applyMatrix4(mesh.matrixWorld);
+          mesh.applyBoneTransform(i, point.fromBufferAttribute(position, i));
+          off = Math.max(off, point.applyMatrix4(mesh.matrixWorld).distanceTo(listed));
+          const sum = [0, 1, 2, 3].reduce((total, c) => total + skinWeight.getComponent(i, c), 0);
+          if (Math.abs(sum - 1) > 1e-4) unweighted++;
+        }
+        assert.ok(off < 0.001, `${label}: rests where it was fitted (off by ${off.toFixed(5)})`);
+        assert.equal(unweighted, 0, `${label}: every point's weights add up to one`);
+        // No collider a chain meets holds one of its joints at rest, as built or in the T-pose, and each meets
+        // both legs.
+        for (const spring of springs)
+          assert.ok(
+            ["thigh_l", "thigh_r", "calf_l", "calf_r"].every((bone) =>
+              spring.colliders.some((collider) => collider.bone.name === bone),
+            ),
+            `${label}: ${spring.name} meets the thighs and calves`,
+          );
+        for (const pose of [restPose, tPose]) {
+          pose(figure);
+          for (const spring of springs)
+            for (const bone of spring.bones.slice(1))
+              for (const collider of spring.colliders)
+                assert.ok(
+                  into(collider, bone.getWorldPosition(new Vector3()), spring.joint.hitRadius) < 0,
+                  `${label}: ${bone.name} rests clear of ${collider.bone.name}'s collider`,
+                );
+        }
+        // Swinging: still, it keeps its drape; as the hips turn and a knee lifts, it swings, its joints no deeper
+        // in the legs than they rest; standing still again, it settles within two seconds.
+        const legs = [...new Set(springs.flatMap((spring) => spring.colliders))].filter((collider) =>
+          /^(?:thigh|calf)_/u.test(collider.bone.name),
+        );
+        const joints = springs.flatMap((spring) => spring.bones.slice(1));
+        const tips = () => joints.map((bone) => bone.getWorldPosition(new Vector3()));
+        const depth = (at) => Math.max(0, ...legs.map((collider) => into(collider, at)));
+        const furthest = (a, b) => Math.max(...a.map((at, i) => at.distanceTo(b[i])));
+        relaxedPose(figure, 0);
+        const moving = createSprings(figure);
+        const rest = tips();
+        const resting = rest.map(depth);
+        for (let f = 0; f < 120; f++) {
+          relaxedPose(figure, 0);
+          moving.step(1 / 60);
+        }
+        const hung = tips();
+        assert.ok(
+          furthest(hung, rest) < 0.015,
+          `${label}: keeps its drape at rest (${furthest(hung, rest).toFixed(3)} m)`,
+        );
+        // (How each of its bones hangs, to measure the swing from.)
+        const turning = springs.flatMap((spring) => spring.bones);
+        const still = turning.map((bone) => bone.quaternion.clone());
+        let swung = 0;
+        let deeper = 0;
+        for (let f = 0; f < 600; f++) {
+          movingPose(figure, f / 60);
+          moving.step(1 / 60);
+          const now = tips();
+          now.forEach((at, i) => (deeper = Math.max(deeper, depth(at) - resting[i])));
+          const held = turning.map((bone) => bone.quaternion.clone());
+          turning.forEach((bone, i) => bone.quaternion.copy(still[i]));
+          figure.root.updateMatrixWorld(true);
+          swung = Math.max(swung, furthest(now, tips()));
+          turning.forEach((bone, i) => bone.quaternion.copy(held[i]));
+          figure.root.updateMatrixWorld(true);
+        }
+        // (A tunic's short tails swing least: about 1.5 cm on him, 4.5 on her; a long skirt's hem up to 40.)
+        assert.ok(swung > 0.01, `${label}: swings as the hips turn and a knee lifts (${(swung * 100).toFixed(1)} cm)`);
+        assert.ok(deeper < 0.001, `${label}: its joints go no deeper into the legs (${(deeper * 100).toFixed(2)} cm)`);
+        for (let f = 0; f < 120; f++) {
+          relaxedPose(figure, 0);
+          moving.step(1 / 60);
+        }
+        assert.ok(furthest(tips(), hung) < 0.005, `${label}: and settles within two seconds`);
+        figure.dispose();
+      }
+    // On longer legs, the skirt rests where its own weights put it, so nothing tears where cloth that grew with
+    // the legs meets cloth that didn't.
+    {
+      const plain = await createAvatar(startOf("female", { clothes: ["skirt"], hair: "none" }), "Test", "auto");
+      const position = hanging(plain).geometry.attributes.position.clone();
+      plain.dispose();
+      const look = startOf("female", { clothes: ["skirt"], hair: "none", limbs: { legs: 1.15 } });
+      const figure = await createAvatar(look, "Test", "auto");
+      const mesh = hanging(figure);
+      const made = geometryOf((await load("avatar-outfits-legs.pack.png")).pieces.skirt.female.meshes[0]);
+      const { bones, boneInverses } = mesh.skeleton;
+      const { skinIndex, skinWeight } = made.attributes;
+      let off = 0;
+      const point = new Vector3();
+      for (let i = 0; i < position.count; i++) {
+        const was = new Vector3();
+        for (let c = 0; c < 4; c++) {
+          const w = skinWeight.getComponent(i, c);
+          const b = skinIndex.getComponent(i, c);
+          if (w)
+            was.addScaledVector(
+              point
+                .fromBufferAttribute(position, i)
+                .applyMatrix4(mesh.bindMatrix)
+                .applyMatrix4(boneInverses[b])
+                .applyMatrix4(bones[b].matrixWorld),
+              w,
+            );
+        }
+        was.applyMatrix4(mesh.bindMatrixInverse);
+        mesh.applyBoneTransform(i, point.fromBufferAttribute(mesh.geometry.attributes.position, i));
+        off = Math.max(off, point.distanceTo(was));
+      }
+      assert.ok(off < 0.0005, `a long-legged skirt rests where it did (off by ${off.toFixed(5)})`);
+      figure.dispose();
+    }
+  }
+
+  // ── A bust that moves: a spring bone in each breast, and what's worn over it moving with it (bust.js) ──
+  {
+    const { BUST_JOINT, createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
+    const { movingPose } = await import("../packages/3d-avatar-maker/src/figure.js");
+    const bustOf = (figure) => figure.springs.filter((spring) => spring.joint === BUST_JOINT);
+    const build = (body, shape = {}, clothes = []) =>
+      createAvatar(
+        startOf(body, { shape: { ...startOf(body).shape, ...shape }, clothes, hair: "none" }),
+        "Test",
+        "auto",
+      );
+    // His chest only when it stands out as far as a small bust does: none as built, one with the fullest chest.
+    for (const [shape, has] of [
+      [{}, false],
+      [{ muscle: 1, chest: 1 }, false],
+      [{ chest: 1, race_halforc: 1 }, true],
+    ]) {
+      const figure = await build("male", shape);
+      assert.equal(bustOf(figure).length, has ? 2 : 0, `his chest ${JSON.stringify(shape)}: ${has ? "a" : "no"} bust`);
+      figure.dispose();
+    }
+    for (const [shape, clothes] of [
+      [{}, ["t_shirt"]],
+      [{ chest: 1, bust_height: 1, bust_shape: 1 }, ["dress"]],
+    ]) {
+      const label = `her bust ${JSON.stringify(shape)} under ${clothes}`;
+      const figure = await build("female", shape, clothes);
+      const springs = bustOf(figure);
+      assert.equal(springs.length, 2, `${label}: a spring each side`);
+      const skin = figure.meshes.find((mesh) => mesh.name === "body");
+      const top = figure.meshes.find(
+        (mesh) => mesh !== skin && mesh.skeleton.bones.some((bone) => bone.name === "breast_l"),
+      );
+      assert.ok(top, `${label}: the top over it moves with it`);
+      // Bound where it rests, skin and top, with whole weights.
+      const point = new Vector3();
+      for (const mesh of [skin, top]) {
+        const { position, skinWeight } = mesh.geometry.attributes;
+        let off = 0;
+        let unweighted = 0;
+        for (let i = 0; i < position.count; i++) {
+          const listed = point.fromBufferAttribute(position, i).clone().applyMatrix4(mesh.matrixWorld);
+          mesh.applyBoneTransform(i, point.fromBufferAttribute(position, i));
+          off = Math.max(off, point.applyMatrix4(mesh.matrixWorld).distanceTo(listed));
+          const sum = [0, 1, 2, 3].reduce((total, c) => total + skinWeight.getComponent(i, c), 0);
+          if (Math.abs(sum - 1) > 1e-4) unweighted++;
+        }
+        assert.ok(off < 0.001, `${label}: the ${mesh.name} rests where it was (off by ${off.toFixed(5)})`);
+        assert.equal(unweighted, 0, `${label}: every point's weights add up to one`);
+      }
+      // The top's points over the bust, each with the skin point nearest it, to see that it stays outside.
+      const fronts = springs.map((spring) => spring.bones[1].getWorldPosition(new Vector3()));
+      const near = (at, most) => fronts.some((front) => front.distanceTo(at) < most);
+      const skinAt = (i) => new Vector3().fromBufferAttribute(skin.geometry.attributes.position, i);
+      const skinNear = [];
+      for (let j = 0; j < skin.geometry.attributes.position.count; j++) if (near(skinAt(j), 0.1)) skinNear.push(j);
+      const pairs = [];
+      for (let i = 0; i < top.geometry.attributes.position.count; i++) {
+        const at = new Vector3().fromBufferAttribute(top.geometry.attributes.position, i);
+        if (!near(at, 0.08)) continue;
+        let [best, gap] = [-1, Infinity];
+        for (const j of skinNear) {
+          const d = skinAt(j).distanceTo(at);
+          if (d < gap) [best, gap] = [j, d];
+        }
+        const normal = new Vector3().fromBufferAttribute(skin.geometry.attributes.normal, best);
+        if (at.clone().sub(skinAt(best)).dot(normal) > 0) pairs.push([i, best, normal]);
+      }
+      /** How far the top is behind the skin under it at its deepest, as it stands now (0 if outside). */
+      const through = () => {
+        let most = 0;
+        const [a, b, n] = [new Vector3(), new Vector3(), new Vector3()];
+        for (const [i, j, normal] of pairs) {
+          skin.applyBoneTransform(j, a.copy(skinAt(j)));
+          skin.applyBoneTransform(j, n.copy(skinAt(j)).addScaledVector(normal, 0.01));
+          n.sub(a).normalize();
+          top.applyBoneTransform(i, b.fromBufferAttribute(top.geometry.attributes.position, i));
+          most = Math.max(most, -b.sub(a).dot(n));
+        }
+        return most;
+      };
+      const bones = springs.flatMap((spring) => spring.bones);
+      const tips = () => springs.map((spring) => spring.bones[1].getWorldPosition(new Vector3()));
+      const furthest = (a, b) => Math.max(...a.map((at, i) => at.distanceTo(b[i])));
+      // Still, it rests as shaped; as the body turns it sways a little, the top with it; still again, it settles.
+      relaxedPose(figure, 0);
+      const moving = createSprings(figure);
+      const rest = tips();
+      for (let f = 0; f < 60; f++) {
+        relaxedPose(figure, 0);
+        moving.step(1 / 60);
+      }
+      assert.ok(furthest(tips(), rest) < 0.0005, `${label}: rests as shaped`);
+      let swayed = 0;
+      let deeper = 0;
+      for (let f = 0; f < 600; f++) {
+        movingPose(figure, f / 60);
+        moving.step(1 / 60);
+        const now = tips();
+        const sunk = through();
+        const held = bones.map((bone) => bone.quaternion.clone());
+        for (const bone of bones) bone.quaternion.copy(figure.rest.get(bone.name));
+        figure.root.updateMatrixWorld(true);
+        swayed = Math.max(swayed, furthest(now, tips()));
+        deeper = Math.max(deeper, sunk - through());
+        bones.forEach((bone, i) => bone.quaternion.copy(held[i]));
+        figure.root.updateMatrixWorld(true);
+      }
+      assert.ok(swayed > 0.001 && swayed < 0.01, `${label}: sways a little (${(swayed * 1000).toFixed(1)} mm)`);
+      assert.ok(deeper < 0.0005, `${label}: the top stays outside it as it sways (${(deeper * 1000).toFixed(2)} mm)`);
+      for (let f = 0; f < 60; f++) {
+        relaxedPose(figure, 0);
+        moving.step(1 / 60);
+      }
+      assert.ok(furthest(tips(), rest) < 0.0005, `${label}: and settles within a second`);
+      // A GLB keeps the bones and their weights.
+      for (const mesh of figure.meshes) for (const material of [mesh.material].flat()) material.map = null;
+      const { json } = readGlb((await exportGlb(figure, { look: {} })).bytes);
+      const named = new Set(json.skins.flatMap((one) => one.joints.map((at) => json.nodes[at].name)));
+      assert.ok(
+        ["breast_l", "breast_r"].every((name) => named.has(name)),
+        `${label}: a GLB keeps the bust's bones`,
+      );
       figure.dispose();
     }
   }
@@ -924,6 +1226,29 @@ for (const figure of Object.values(made)) figure.dispose();
       ["test_bent", "wrists", null],
     ],
     "the new slots and a known bone are read; a finger's, an eye's or a malformed bone is left out",
+  );
+  // A piece's `hang` (where its cloth leaves the body to swing) is a number in HANG_RANGE, or nothing.
+  const { HANG_RANGE } = await import("../packages/3d-avatar-maker/src/packs.js");
+  const hangs = readPack(installed, {
+    ...index,
+    pieces: {
+      test_skirt: piece("Skirt", "legs", { hang: 0.2 }),
+      test_cape: piece("Cape", "back", { hang: HANG_RANGE[0] }),
+      test_trousers: piece("Trousers", "legs"),
+      test_still_skirt: piece("Skirt", "legs", { hang: null }),
+      test_far_hang: piece("Bad", "legs", { hang: HANG_RANGE[1] + 0.1 }),
+      test_text_hang: piece("Bad", "legs", { hang: "0.2" }),
+    },
+  });
+  assert.deepEqual(
+    hangs.map((entry) => [entry.piece, entry.hang]),
+    [
+      ["test_skirt", 0.2],
+      ["test_cape", HANG_RANGE[0]],
+      ["test_trousers", null],
+      ["test_still_skirt", null],
+    ],
+    "a piece's hang line is read when it's a number in range; a piece without one follows the legs",
   );
   const styles = readHair(installed, index);
   assert.deepEqual(

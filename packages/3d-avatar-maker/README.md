@@ -5,7 +5,7 @@ shape it, pick skin, eyes, hair and clothes, and save the result as a file the *
 in your chats.
 
 Alpha. In a chat the avatar blinks, moves its mouth as it talks and shows how the character feels; in a
-VRM the eyes move and long hair swings too. What's built and what's next is in [the plan](docs/PLAN.md).
+VRM the eyes move, and long hair, skirts, dresses, coats and the bust swing too. What's built and what's next is in [the plan](docs/PLAN.md).
 
 ## Use it
 
@@ -15,7 +15,8 @@ VRM the eyes move and long hair swings too. What's built and what's next is in [
 4. Work through the tabs: **Body**, **Face**, **Skin and eyes**, **Hair**, **Clothes**. Drag the picture to
    turn the avatar, scroll or pinch to zoom, and use **Whole body** and **Face** to jump between views. The
    **Face** list under the picture plays the face's moves: blinking and looking at you, talking, or one
-   expression held. In the pose list, **Moving** turns the head now and then, to show the hair swing.
+   expression held. In the pose list, **Moving** turns the head and hips now and then and lifts each knee in a
+   small step, to show the hair and clothes swing.
 5. On the **Save** tab, select **Save as VRM** (or **Save as GLB**).
 6. Open **Agents → 3D Avatars** and pick the same character or persona. Under **Avatar type**, choose
    **VRM model** and select **Import VRM** with the `.vrm` you saved. For a `.glb`, choose **GLB or FBX
@@ -34,7 +35,7 @@ file you save, and you import that file yourself.
 | Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (66 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: beards, tusks, horns, a tail |
 | Skin and eyes | 30 skin pictures (MakeHuman's nine in three ages, and 21 more) or a colour of your own; 24 pictured eyes or a colour; nail length and toenails; lip and nail colours |
 | Hair | 14 styles in any colour, and any styles a wardrobe pack adds. Long, ponytail, braid, bob and angled bob swing as the avatar moves, and so do a pack's long styles |
-| Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus what any wardrobe packs you install add. Glasses, a face mask, earrings, rings and socks have places of their own, which the Accessories pack fills. Horns or antlers, a necklace, the wrists, the belly, the ankles, a tail, the back (wings, a backpack), the hip and each hand have places of their own too, for packs to fill. Something held in a hand and horns are fixed to the hand or head, so they move with it and never bend |
+| Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus what any wardrobe packs you install add. Skirts, dresses, the gown and robe, the long coat, the cloak, the tunic's tails, the loincloth and the apron hang from the hips and swing as one piece, out of the legs' way; trousers, leggings and shorts follow each leg. Glasses, a face mask, earrings, rings and socks have places of their own, which the Accessories pack fills. Horns or antlers, a necklace, the wrists, the belly, the ankles, a tail, the back (wings, a backpack), the hip and each hand have places of their own too, for packs to fill. Something held in a hand and horns are fixed to the hand or head, so they move with it and never bend |
 
 Every slider's middle is the body's own shape, and each control says what it changes.
 
@@ -46,7 +47,8 @@ Accessories (45 hats, helmets, glasses, masks, earrings, rings, gloves and socks
 replace the earlier Everyday Women's, Everyday Men's, Historical and Fantasy, and Modern Casual packs, keeping
 every piece's name, so a saved avatar still finds its clothes. The maker finds the installed packs when it opens (reload it after
 installing one) and lists their clothes in the Clothes tab, each with a line saying which pack it's from and
-who made it. A pack can add hair styles to the Hair tab the same way. It only reads a pack's files as data. A
+who made it. A pack's skirt or dress hangs and swings like the maker's own when the pack says where its
+cloth leaves the body. A pack can add hair styles to the Hair tab the same way. It only reads a pack's files as data. A
 pack made for an older body is left out. If a pack piece or hair style is credited (CC BY), a saved avatar
 wearing it carries the credit. Gloves hide a ring and socks hide the toenails, as gloves and shoes hide the
 nails. Gloves and bracers hide bracelets, socks and greaves hide anklets, a scarf hides a necklace, and a hat,
@@ -75,20 +77,23 @@ Both carry the face's moves as shape keys named the way VRM names its expression
 `blinkRight`; the mouth shapes `aa`, `ih`, `ou`, `ee` and `oh`; and `happy`, `angry`, `sad`, `relaxed` and
 `surprised`. The 3D Avatars agent finds them by those names. The mouth opens on teeth and a tongue, and each
 eye turns on a bone of its own (`eye_l`, `eye_r`). Hair that hangs loose has chains of bones down its locks
-(`hair_back_0` to the tip, one chain for each side of the head it hangs from). Standing still, it rests as
-it was made.
+(`hair_back_0` to the tip, one chain for each side of the head it hangs from). Skirts, dresses, robes, coats
+and cloaks have them too below the hips (`cloth_skirt_front_0` and so on), and each breast has a short bone
+under the upper chest (`breast_l`, `breast_r`) that the skin and what's worn over it follow. Standing still,
+all of it rests as it was made.
 
 - **VRM** (`.vrm`, VRM 1.0) is the avatar format VRoid Studio, VSeeFace and the 3D Avatars agent's **VRM
   model** read. The avatar rests in a T-pose, and the file names its humanoid bones, so any VRM app can pose
-  it. Its expressions are bound to the face's keys, and its eyes look about on their bones. Hanging hair and a
-  tail swing on spring bones, and colliders fitted to the body keep them out of the head, neck, shoulders,
-  arms and back. The file carries the terms you set under **The VRM's terms** on the
+  it. Its expressions are bound to the face's keys, and its eyes look about on their bones. Hanging hair,
+  hanging clothes, the bust and a tail swing on spring bones. Colliders fitted to the body keep the hair out
+  of the head, neck, shoulders, arms and back, and the clothes out of the hips and legs. The file carries the terms you set under **The VRM's terms** on the
   Save tab: your name as the author, who may use the avatar, commercial use, sharing and changes, credit,
   and four uses VRM forbids unless allowed. They start at VRM's most careful choices, and the maker keeps
   yours in this browser for the next avatar. While the avatar wears a CC BY pack piece, the file asks for
   credit and names that piece's maker, whatever you chose.
 - **GLB** (`.glb`) is a plain 3D model resting in an A-pose, for the 3D Avatars agent's **GLB or FBX model**
-  or any 3D tool.
+  or any 3D tool. It keeps the chains' and the bust's bones, but nothing swings them there: a skirt follows the
+  hips.
 
 ## Works without AI
 

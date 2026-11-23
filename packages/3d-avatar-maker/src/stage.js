@@ -19,15 +19,15 @@ import { createSprings } from "./springs.js";
 
 export const POSES = [
   ["relaxed", "Relaxed"],
-  ["moving", "Moving: looks about, to show the hair swing"],
+  ["moving", "Moving: looks about and steps, to show the hair and clothes swing"],
   ["a", "A-pose"],
   ["t", "T-pose"],
 ];
 
 /**
  * A stage in `canvas`: { show(figure), setPose(pose), setFace(mode), view("body" | "face"), resize(), dispose(),
- * failed }. The face plays `mode` (face.js FACE_MODES) in every pose, and the hair and a tail swing on their
- * springs (springs.js) as the body moves; with reduced motion they rest.
+ * failed }. The face plays `mode` (face.js FACE_MODES) in every pose, and the hair, hanging clothes, the bust and
+ * a tail swing on their springs (springs.js) as the body moves; with reduced motion they rest.
  * `failed` is true when the browser gave no WebGL; the maker then says so in words.
  */
 export function createStage(canvas) {
