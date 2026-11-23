@@ -1,5 +1,11 @@
 # Wanderworld release notes
 
+## 0.7.60 — 2026-11-20
+
+- Clothes refitted (second batch): tops, dresses, robes, coats and the cloak now fit closer and are built over what's worn under them, so a shirt no longer shows through a vest and layered outfits stay clean as bodies change.
+- Trousers, skirts, leggings, boots and shoes sit closer to the body; the hood follows the head, with no dent at the ears, and the scarf moves with the neck.
+- The breastplate's hem is one clean rolled edge with the faulds lapping under it, and gauntlet fingers are curved plates.
+
 ## 0.7.59 — 2026-11-20
 
 - Looks designed from cards (Settings → People → Design looks from their cards, off to begin with; New world asks too): the AI designs the built-in body of each character and your persona from their card, choosing their body, race, build, face, skin, hair, eyes and clothes from the game's own options. With …and from their card's picture, the picture goes along to a connection that can see pictures. Your own Look card choices stay over it, and a card's 3D model still shows.

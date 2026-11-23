@@ -1506,6 +1506,13 @@ def plate_cuirass(body, M):
     wo.wrap(g, body, 0.013, rounds=40, factor=0.6)
     g.co = g.smooth_values(g.co, 8, 0.5)
     wo.wrap(g, body, 0.012, rounds=2, factor=0.2)
+    # Over mail and padding: the whole plate stands clear of them, an even swell, still smooth.
+    for u in wo.CURRENT_UNDER:
+        wo.keep_outside(g, u, 0.008, reach=0.04, rounds=5, body=body, spread=24, keep=0.97)
+    if wo.CURRENT_UNDER:
+        g.co = g.smooth_values(g.co, 4, 0.5)
+        for u in wo.CURRENT_UNDER:
+            wo.keep_outside(g, u, 0.007, reach=0.04, rounds=3, body=body, spread=10, keep=0.9)
     g.clip(hem - P0[:, 2])
     P0 = g.attrs["P0"]
     g.clip(M.armhole(P0) + 0.04)
@@ -1531,10 +1538,14 @@ def plate_cuirass(body, M):
         N = unit(P - c)
         P2, N2 = wo.clean_loop(P, N, 0.016)
         g.join(wo.tube(np.concatenate([P2, P2[:1]]) + N2[np.r_[np.arange(len(P2)), 0]] * 0.002, 0.0042, sides=6, part="plate", kind="plate", panel="roll", caps=False))
+    n_plate = g.n
+    # Faulds: two lames, the first tucked 1.5 cm up under the plate's hem so no gap opens when the belly
+    # grows, the second lapping over the first's lower edge from outside.
     for k in range(2):
-        zt = hem + 0.01 - k * 0.045
-        lame = skirt_loft(body, M, zt, zt - 0.055, 0.016 + 0.005 * k, flare=0.3, around=40, part="plate", kind="plate", folds=0.0, panel=f"fauld{k}")
+        zt = hem + 0.015 - k * 0.05
+        lame = skirt_loft(body, M, zt, zt - 0.065, 0.006 + 0.005 * k, flare=0.32, around=40, part="plate", kind="plate", folds=0.0, panel=f"fauld{k}")
         lame.attrs = {}
+        wo.swell_outside(lame, wo.CURRENT_UNDER, body, M.centre_y, gap=0.004 + 0.004 * k)
         top = lame.co[:40].copy()
         lined(lame, part="plate", kind="plate", depth=0.003)
         g.join(lame)
@@ -1549,8 +1560,24 @@ def plate_cuirass(body, M):
             pts = np.array([p + np.array([0, -0.03, 0]), p, p + np.array([0, 0.03, 0])])
             g.join(wo.strip(pts, np.repeat(n[None], 3, 0), 0.02, 0.0035, part="leather", kind="leather", closed=False))
             g.join(wo.box_ring(p + np.array([0, -0.025, 0]) + n * 0.0045, n, UP, 0.022, 0.024, 0.004, 0.003, part="metal", kind="metal"))
-    rigid = smoothstep(hem - 0.01, hem + 0.03, g.co[:, 2])
-    wo.fit(g, body, rigid=rigid * 0.85, rigid_bones=["spine_02", "spine_03", "spine_01"], loose=1 - rigid, smooth_rounds=4, clearance=0.008)
+    # Two shells: the breastplate and the backplate each move as one on the chest's bones, and their shape
+    # keys are smoothed over each plate, so a fuller bust or belly swells the whole plate instead of
+    # creasing it. The faulds and straps follow the skin under them.
+    idx = np.arange(g.n)
+    on_plate = idx < n_plate
+    front = g.co[:, 1] < M.centre_y(g.co[:, 2])
+    W0, _, _, _ = body.sample(g.co)
+    keep = np.isin(wo.BONE_NAMES, ["spine_01", "spine_02", "spine_03"])
+    W = W0.copy()
+    for m in (on_plate & front, on_plate & ~front):
+        avg = W0[m].mean(0) * keep
+        W[m] = avg / max(avg.sum(), 1e-9)
+    # (The faulds' keys smoothed as the plate's are, so plate and faulds swell together and keep their lap.)
+    is_strap = np.zeros(g.n, dtype=bool)
+    for f, pt in zip(g.faces, g.part):
+        if pt == "leather":
+            is_strap[f] = True
+    wo.fit(g, body, weights=W, loose=(~is_strap).astype(float), smooth_rounds=1, keys_rounds=30, clearance=0.008)
     return g
 
 
@@ -1791,6 +1818,12 @@ def lined(g, part="lining", kind="cloth", depth=0.0035, edge_kind=None, edge_par
     # (Normals smoothed first, so the lining follows tight folds without crossing the outside.)
     nrm = unit(g.smooth_values(nrm, 2, 0.5))
     lining.co = g.co - nrm * depth
+    # (Where the sheet is creased, a smoothed normal can carry the lining out through the outside: each such
+    # lining point goes back behind the nearest outside face, along that face's own normal.)
+    bvh, _ = wo.geo_bvh(g)
+    loc, fn, _, d = wo.nearest(bvh, lining.co)
+    bad = d > -depth * 0.5
+    lining.co[bad] = loc[bad] - fn[bad] * depth
     lining.faces = [f[::-1] for f in lining.faces]
     lining.uv = [[(u + 200.0, v) for u, v in reversed(uv)] if uv is not None else None for uv in lining.uv]
     lining.part = [part] * len(lining.faces)
@@ -1844,6 +1877,8 @@ def capelet(body, M, z_bottom, flare=0.6, around=48, kind="wool", part="cloth", 
     g.clip(front_gap - np.abs(ang))
     ring = g.attrs["ring"][:, 0]
     wo.cloth_sim(g, body, smoothstep(1.5, 0.5, ring), frames=90, bending=0.3, mass=0.3, noise=0.004, seed=seed, tension=50)
+    # (With room: shoulder pads under it swing out further than they lie at rest when the arms come down.)
+    wo.swell_outside(g, wo.CURRENT_UNDER, body, lambda z: np.full(np.shape(z), M.centre_y(zt) + 0.01), gap=0.016)
     if over is not None:
         # (Kept outside `over`, the piece it is worn on, so that never shows through it.)
         wo.keep_outside(g, over, 0.006)
@@ -1889,10 +1924,14 @@ def cloak(body, M):
     wo.cloth_sim(g, body, smoothstep(3.5, 1.0, ring), frames=130, bending=0.2, mass=0.5, noise=0.006, seed=7, tension=60)
     mark_seams(g)
     g.attrs = {}
+    # (Clear of what is worn under it, as an even swell, before it is lined.)
+    wo.swell_outside(g, wo.CURRENT_UNDER, body, M.centre_y, mono_below=M.waist_z)
     lined(g, edge_kind="wool")
     cape = capelet(body, M, shoulder_z - 0.1, offset=0.042, over=g, flare=0.5)
     lined(cape, edge_kind="wool")
+    n_cloak = g.n
     g.join(cape)
+    n_cape = g.n
     # The clasp at the throat: two engraved bosses and a short chain between them.
     top = cape.co[np.abs(cape.co[:, 2] - cape.co[:, 2].max()) < 0.03]
     ends = []
@@ -1906,7 +1945,13 @@ def cloak(body, M):
         a, b = ends
         mid = (a + b) / 2 - UP * 0.014
         g.join(wo.tube(bezier([a, mid, b], 9) + np.array([0, -0.006, 0]), 0.0025, sides=5, part="metal", kind="metal"))
-    wo.fit(g, body, loose=smoothstep(shoulder_z, zb, g.co[:, 2]) * 0.9 + 0.1, smooth_rounds=12, clearance=0.012)
+    # The cloak hangs from the shoulders and back, not the arms: its weights come from the torso's skin,
+    # so lowering the arms doesn't drag its sides. The cape over the shoulders follows the skin under it
+    # without smoothing, like a pauldron, so it lies on the arm wherever the arm goes.
+    idx = np.arange(g.n)
+    cloak_v = (idx < n_cloak) | (idx >= n_cape)
+    # (Its top under the cape follows the skin as the cape does, so the two move together at the shoulder.)
+    wo.fit(g, body, loose=(smoothstep(shoulder_z, zb, g.co[:, 2]) * 0.9 + 0.1) * cloak_v, smooth_rounds=12, clearance=0.012, regions=("torso", "neck", "hips", "thighs", "calves"), region_mask=cloak_v & (g.co[:, 2] < shoulder_z - 0.13))
     return g
 
 
@@ -1935,7 +1980,15 @@ def hood_up(body, M):
     back, meeting the cloak at the shoulders."""
     eye, top = head_marks(body)
     keep = (np.isin(body.bone, ["Head", "neck_01"])) & (body.co[:, 2] > M.neck[2] - 0.04)
-    g = wo.decimate(wo.Geo.from_body(body, body_polys(body, keep)), 0.25)
+    src = wo.Geo.from_body(body, body_polys(body, keep))
+    # (The ears pressed flat first: their folds would carry into the hood as ear-shaped dents. The hood is
+    # then pushed out over them.)
+    hx = np.abs(src.co[:, 0])
+    head_w = np.abs(body.co[M.surf & (body.bone == "Head"), 0]).max()
+    lim = head_w - 0.03
+    ear = (hx > lim) & (np.abs(src.co[:, 2] - eye[2]) < 0.07)
+    src.co[ear, 0] = np.sign(src.co[ear, 0]) * lim
+    g = wo.decimate(src, 0.25)
     g.attrs["P0"] = g.co.copy()
     wo.wrap(g, body, 0.03, rounds=30, factor=0.6)
     pts = body.co[M.surf & np.isin(body.bone, ["Head", "neck_01"])]
@@ -1955,30 +2008,62 @@ def hood_up(body, M):
     g.panel = ["hood_l" if c[0] > 0 else "hood_r" for c in g.face_centres()]
     g.down = [(0, 0, -1)] * len(g.faces)
     g.smooth_edges(rounds=5)
-    g.rim(depth=0.006, back=0.012, part="lining")
+    # (Over the ears and pointed ears with room: out to 1.6 cm wherever it came nearer.)
+    g.co = g.smooth_values(g.co, 2, 0.4)
+    # (More room over the ears, pointed ones included: 1.6 cm elsewhere, about 3 cm there.)
+    hv = M.surf & (body.bone == "Head")
+    ear_pts = (body.co + body.keys.get("ears_pointed", 0))[hv]
+    ear_pts = ear_pts[np.abs(ear_pts[:, 0]) > np.abs(ear_pts[:, 0]).max() - 0.02]
+    from mathutils.kdtree import KDTree
+    kd = KDTree(len(ear_pts))
+    for i, q in enumerate(ear_pts):
+        kd.insert(wo.Vector(q), i)
+    kd.balance()
+    de = np.array([kd.find(wo.Vector(q))[2] for q in g.co])
+    off = 0.016 + 0.016 * np.exp(-((de / 0.035) ** 2))
+    wo.wrap(g, body, off, rounds=3, factor=0.1)
+    pe = body.co + body.keys.get("ears_pointed", 0)
+    bvh_pe = wo.BVHTree.FromPolygons(pe.tolist(), body.tris[(body.bone[body.tris] == "Head").all(1)].tolist())
+    loc, nrm, _, d = wo.nearest(bvh_pe, g.co)
+    low = d < off
+    g.co[low] = loc[low] + nrm[low] * off[low, None]
+    g.co = g.smooth_values(g.co, 2, 0.3)
+    # (Last, out to the head's convex outline slice by slice, pointed ears included, so no ear tip can
+    # come through between vertices.)
+    hp = np.concatenate([body.co[hv], ear_pts, pe[hv]])
+    wo.hull_envelope(g, hp, np.array([0, 0.0, M.neck[2] - 0.02]), np.array([0, 0, 1.0]), top - M.neck[2] + 0.06, 0.014, bins=28, slab=0.008)
+    face = [g.co[lp].copy() for lp in g.edge_loops() if g.co[lp, 1].mean() < M.neck[1]]
+    g.rim(depth=0.006, back=0.0, part="lining")
+    # A rolled edge round the face opening.
+    for P in face:
+        if len(P) > 6:
+            P2, N2 = wo.clean_loop(P, unit(P - P.mean(0)), 0.01)
+            g.join(wo.tube(np.concatenate([P2, P2[:1]]), 0.004, sides=6, part="cloth", kind="wool", caps=False, panel="roll"))
     g.attrs = {}
-    wo.fit(g, body, loose=np.ones(g.n), smooth_rounds=4, clearance=0.012)
+    # Rigid on the head (turning and nodding with it), easing onto the neck at the bottom.
+    rig_w = smoothstep(M.neck[2] - 0.02, M.neck[2] + 0.05, g.co[:, 2])
+    wo.fit(g, body, rigid=rig_w, rigid_bones=["Head"], loose=1 - rig_w, smooth_rounds=4, clearance=0.012)
     return g
 
 
 # ── Running ──────────────────────────────────────────────────────────────────────────────────────────
 
 PIECES = {
-    "shirt": dict(make=shirt, detail=shirt_detail, layer=1, hides=["torso", "upperarms", "forearms"], parts={"cloth": LINEN, "laces": CORD}),
+    "shirt": dict(make=shirt, over=("trousers",), detail=shirt_detail, layer=1, hides=["torso", "upperarms", "forearms"], parts={"cloth": LINEN, "laces": CORD}),
     "trousers": dict(make=trousers, detail=trousers_detail, layer=1, hides=["hips", "thighs", "calves"], parts={"cloth": WOOL_BROWN, "laces": CORD}),
-    "skirt": dict(make=skirt, layer=2, slot="legs", hides=["hips", "thighs", "calves", "underwear-bottom"], parts={"cloth": WOOL_BLUE, "trim": TRIM}),
+    "skirt": dict(make=skirt, over=("blouse", "shirt"), layer=2, slot="legs", hides=["hips", "thighs", "calves", "underwear-bottom"], parts={"cloth": WOOL_BLUE, "trim": TRIM}),
     "dress": dict(make=dress, layer=2, slot="body", hides=["torso", "hips", "thighs", "calves", "underwear"], parts={"cloth": WOOL_GREEN, "bodice": WOOL_BROWN, "trim": TRIM, "laces": CORD}),
-    "tunic": dict(make=tunic, layer=2, hides=["torso", "upperarms", "hips"], parts={"cloth": WOOL_GREEN, "trim": TRIM, "belt": LEATHER, "metal": BRASS}),
-    "boots": dict(make=boots, detail=feet_detail, layer=2, hides=["feet"], parts={"leather": LEATHER, "sole": LEATHER_DARK, "metal": IRON}),
+    "tunic": dict(make=tunic, over=("shirt", "trousers"), layer=2, hides=["torso", "upperarms", "hips"], parts={"cloth": WOOL_GREEN, "trim": TRIM, "belt": LEATHER, "metal": BRASS}),
+    "boots": dict(make=boots, over=("trousers",), detail=feet_detail, layer=2, hides=["feet"], parts={"leather": LEATHER, "sole": LEATHER_DARK, "metal": IRON}),
     "shoes": dict(make=shoes, detail=feet_detail, layer=2, slot="feet", hides=["feet"], parts={"leather": LEATHER, "trim": LEATHER_DARK, "sole": LEATHER_DARK, "metal": IRON}),
-    "leather_armour": dict(make=leather_armour, layer=3, hides=[], parts={"leather": LEATHER, "trim": LEATHER_DARK, "metal": IRON}),
-    "chainmail": dict(make=chainmail, layer=3, hides=["torso", "upperarms", "hips"], parts={"mail": IRON, "trim": BRASS}, size=2048),
-    "plate_cuirass": dict(make=plate_cuirass, layer=4, hides=[], parts={"plate": STEEL, "leather": LEATHER_DARK, "metal": BRASS}, size=2048),
-    "pauldrons": dict(make=pauldrons, layer=4, hides=[], parts={"plate": STEEL, "metal": BRASS}, size=2048),
-    "bracers": dict(make=bracers, layer=3, hides=[], parts={"leather": LEATHER, "metal": STEEL}),
-    "greaves": dict(make=greaves, layer=3, hides=[], parts={"plate": STEEL, "leather": LEATHER_DARK}, size=2048),
+    "leather_armour": dict(make=leather_armour, over=("shirt", "tunic", "trousers"), layer=3, hides=[], parts={"leather": LEATHER, "trim": LEATHER_DARK, "metal": IRON}),
+    "chainmail": dict(make=chainmail, over=("gambeson", "shirt", "trousers"), layer=3, hides=["torso", "upperarms", "hips"], parts={"mail": IRON, "trim": BRASS}, size=2048),
+    "plate_cuirass": dict(make=plate_cuirass, over=("chainmail", "gambeson"), layer=4, hides=[], parts={"plate": STEEL, "leather": LEATHER_DARK, "metal": BRASS}, size=2048),
+    "pauldrons": dict(make=pauldrons, over=("plate_cuirass", "chainmail", "gambeson"), layer=4, hides=[], parts={"plate": STEEL, "metal": BRASS}, size=2048),
+    "bracers": dict(make=bracers, over=("shirt", "tunic"), layer=3, hides=[], parts={"leather": LEATHER, "metal": STEEL}),
+    "greaves": dict(make=greaves, over=("trousers",), layer=3, hides=[], parts={"plate": STEEL, "leather": LEATHER_DARK}, size=2048),
     "helm": dict(make=helm, layer=4, hides=["hair"], parts={"plate": STEEL, "trim": BRASS}, size=2048, head=True),
-    "cloak": dict(make=cloak, layer=5, slot="back", hides=[], parts={"cloth": WOOL_GREEN, "lining": WOOL_BROWN, "metal": BRASS}, variants={"hood_up": (hood_up, ["hair"])}),
+    "cloak": dict(make=cloak, over=("shirt", "tunic", "vest", "leather_armour", "blouse"), layer=5, slot="back", hides=[], parts={"cloth": WOOL_GREEN, "lining": WOOL_BROWN, "metal": BRASS}, variants={"hood_up": (hood_up, ["hair"])}),
 }
 
 
@@ -2001,6 +2086,9 @@ def run(pieces, args):
             body = wo.Body(sex)
             M = Marks(body)
             rig = wo.make_rig(body, fingers=spec.get("fingers", False))
+            wo.CURRENT_UNDER = wo.worn_under(() if os.environ.get("WW_NO_UNDER") else spec.get("over", ()), sex, body.key_names)
+            if wo.CURRENT_UNDER:
+                wo.log(f"  worn over: {', '.join(u.name for u in wo.CURRENT_UNDER)}")
             geo = spec["make"](body, M)
             if os.environ.get("WW_DEBUG_COUNT"):
                 import collections
@@ -2019,12 +2107,21 @@ def run(pieces, args):
             report = []
             bust = "bust" if sex == "female" else "chest"
             tests = [{k: 1.0} for k in body.key_names if k not in ("nose", "eyes", "ears_pointed")]
-            tests += [{"heavy": 1.0, "muscle": 1.0, bust: 1.0, "belly": 1.0}, {"thin": 1.0, "muscle": 1.0, "shoulders": 1.0, "hips": 1.0}]
+            tests += [{"heavy": 1.0, "muscle": 1.0, bust: 1.0, "belly": 1.0}, {"heavy": 1.0, "muscle": 1.0, bust: 1.0, "belly": 1.0, "hips": 1.0, "shoulders": 1.0}, {"thin": 1.0, "muscle": 1.0, "shoulders": 1.0, "hips": 1.0}, {"thin": 1.0, "age_old": 1.0}]
             for values in tests:
                 n, dmin = wo.clip_report(geo, body, values)
                 report.append(f"{'+'.join(values)} {n}/{dmin * 1000:.0f}mm")
             wo.log("  clip (vertices under the skin / closest): " + ", ".join(report))
             piece.stats[sex]["clip"] = report
+            if wo.CURRENT_UNDER:
+                lines = []
+                for values in [{}] + tests:
+                    for uname, (n, dmax) in wo.clash_report(geo, wo.CURRENT_UNDER, values).items():
+                        if n:
+                            lines.append(f"{uname}@{'+'.join(values) or 'rest'} {n}/{dmax * 1000:.0f}mm")
+                wo.log("  layers (vertices of the pieces under it showing through): " + (", ".join(lines) if lines else "clean"))
+                piece.stats[sex]["layers"] = lines
+            wo.CURRENT_UNDER = []
             if not spec.get("head"):
                 guard = head_guard(geo, body)
                 wo.log("  head guard (closest to the head's skin, mm): " + ", ".join(f"{k} {v * 1000:.0f}" for k, v in guard.items()))

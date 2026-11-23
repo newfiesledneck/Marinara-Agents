@@ -58,6 +58,12 @@ REGIONS = {
 }
 # What else `hides` may name: the underwear (both layers or one) and the hair.
 HIDE_WORDS = set(REGIONS) | {"underwear", "underwear-top", "underwear-bottom", "hair"}
+# How far a piece stays outside a piece it is worn over (metres), at rest and under every key.
+LAYER_GAP = 0.003
+# How far inside a piece worn under it a vertex may be and still be pushed out (metres).
+LAYER_REACH = 0.012
+# The pieces the piece being built is worn over (worn_under), set by make_outfit.run for each body.
+CURRENT_UNDER = []
 # The smallest move a shape key keeps (metres): less is dropped, so the kit carries each key only where it
 # shows. Clearances are 2 mm and more, so this never sinks a piece into the skin.
 MORPH_MIN = 0.0015
@@ -1128,7 +1134,189 @@ def wrap(geo, body, offset, rounds=30, factor=0.5, pin=None, slack=None):
     return geo
 
 
-def keep_outside(geo, under, gap=0.004, reach=0.06, rounds=3):
+def open_points(geo):
+    """The points on a Geo's open edges (cached on it as `open_pts`)."""
+    if getattr(geo, "open_pts", None) is None:
+        loops = geo.boundary_loops()
+        geo.open_pts = geo.co[np.unique(np.concatenate(loops))] if loops else np.zeros((0, 3))
+    return geo.open_pts
+
+
+def layer_over(points, normals, surf, surf_co=None, reach=0.025, facing=0.3):
+    """Which points lie over (or under) the surface `surf` (a Geo, optionally at morphed positions
+    `surf_co`), looking along their own `normals`: a ray from the point in towards the body (or out, if
+    the point has sunk under it) meets it within `reach`, on a face turned the same way. Returns (mask,
+    the point met, its normal, signed distance: positive when the point is outside it)."""
+    bvh, _ = geo_bvh(surf, surf_co)
+    n = len(points)
+    m = np.zeros(n, dtype=bool)
+    loc = np.zeros((n, 3))
+    nrm = np.zeros((n, 3))
+    d = np.zeros(n)
+    for i in range(n):
+        p = Vector(points[i])
+        nv = Vector(normals[i])
+        hit = bvh.ray_cast(p, -nv, reach)
+        sign = 1.0
+        hit2 = bvh.ray_cast(p, nv, reach)
+        if hit2[0] is not None and (hit[0] is None or hit2[3] < hit[3]):
+            hit, sign = hit2, -1.0
+        if hit[0] is None:
+            continue
+        hn = np.array(hit[1])
+        if hn @ normals[i] < facing:
+            continue
+        m[i] = True
+        loc[i] = hit[0]
+        nrm[i] = hn
+        d[i] = sign * hit[3]
+    return m, loc, nrm, d
+
+
+def outward_mask(geo, body_n):
+    """The vertices on a piece's outside: not on its lining or turned-in hems (by their panels, `lining-…`
+    and `rim`), and, for a piece without those, facing away from the body."""
+    inner = np.zeros(geo.n, dtype=bool)
+    outer = np.zeros(geo.n, dtype=bool)
+    for f, pn in zip(geo.faces, geo.panel):
+        if pn.startswith("lining") or pn == "rim":
+            inner[f] = True
+        else:
+            outer[f] = True
+    if inner.any():
+        return outer & ~inner
+    return (geo.vertex_normals() * body_n).sum(1) > 0.0
+
+
+def head_distance(body, points):
+    """Each point's distance from the head's skin."""
+    if "head" not in body._bvh_cache:
+        tris = body.tris[(body.bone[body.tris] == "Head").all(1)]
+        body._bvh_cache["head"] = BVHTree.FromPolygons(body.co.tolist(), tris.tolist())
+    loc, _, _, _ = nearest(body._bvh_cache["head"], points)
+    return np.linalg.norm(points - loc, axis=1)
+
+
+def follow_outer(geo, move, body_n):
+    """A move worked out for a piece's outward faces, carried to its inward ones (a lining, a turned-in
+    hem, a plate's back face): each inward-facing vertex takes the move of the nearest outward-facing one,
+    so the inside never comes out through the outside."""
+    # (Each inward vertex's partner is found once, the first time, and kept: found again after the outside
+    # has moved, it could be a neighbour that moved further, and the lining would come out.)
+    twin = getattr(geo, "_twin", None)
+    if twin is None or len(twin) != geo.n:
+        out = outward_mask(geo, body_n)
+        twin = -np.ones(geo.n, dtype=np.int64)
+        if out.any() and not out.all():
+            from mathutils.kdtree import KDTree
+
+            idx = np.nonzero(out)[0]
+            kd = KDTree(len(idx))
+            for j, i in enumerate(idx):
+                kd.insert(Vector(geo.co[i]), j)
+            kd.balance()
+            for i in np.nonzero(~out)[0]:
+                _, j, dist = kd.find(Vector(geo.co[i]))
+                if dist < 0.015:
+                    twin[i] = idx[j]
+        geo._twin = twin
+        has = twin >= 0
+        geo._twin_depth = np.zeros(geo.n)
+        geo._twin_depth[has] = np.linalg.norm(geo.co[has] - geo.co[twin[has]], axis=1)
+    move = move.copy()
+    has = twin >= 0
+    move[has] = move[twin[has]]
+    return move
+
+
+def lined_mask(geo, body_n):
+    """The vertices of a piece's lined sheets (each lining vertex and its partner on the outside): these are
+    left out of the layer push, as moving one tips it over its own lining. They hang clear of what is worn
+    under them (a cloak, a coat's skirts)."""
+    follow_outer(geo, np.zeros_like(geo.co), body_n)
+    twin = geo._twin
+    m = twin >= 0
+    m[twin[m]] = True
+    return m
+
+
+def swell_outside(geo, under, body, axis_y, gap=0.006, reach=0.04, bin_h=0.03, mono_below=None):
+    """Moves a loose sheet (a cloak, a coat's skirts) out from the body's vertical axis, by a distance that
+    depends on height alone (the most any part of it at that height needs to clear `under`, smoothed up
+    and down): it swells evenly and can't fold, where pushing each vertex would crease it."""
+    if not under:
+        return geo
+    z = geo.co[:, 2]
+    # (Looking straight out from the body's axis: under a hanging sheet the nearest skin's normal can point
+    # any way, between the legs or across the seat.)
+    centre = np.stack([np.zeros(geo.n), axis_y(z), z], axis=1)
+    radial = unit((geo.co - centre) * np.array([1.0, 1.0, 0.0]))
+    need = np.zeros(geo.n)
+    for u in under:
+        m, _, _, d = layer_over(geo.co, radial, u, reach=max(reach, 0.08), facing=0.0)
+        need = np.maximum(need, np.where(m, gap - d, 0.0))
+    lo, hi = z.min(), z.max()
+    nb = max(2, int((hi - lo) / bin_h) + 1)
+    idx = np.clip(((z - lo) / bin_h).astype(int), 0, nb - 1)
+    # (Each height's need: nearly the most any of it needs, not a stray point's.)
+    prof = np.zeros(nb)
+    for b in range(nb):
+        sel = need[idx == b]
+        if len(sel):
+            prof[b] = np.percentile(sel, 96)
+    for _ in range(3):
+        prof = np.maximum(prof, 0.5 * prof + 0.25 * (np.roll(prof, 1) + np.roll(prof, -1)))
+    # (Hanging cloth never comes back in going down: below any height it is at least as far out, so the
+    # hem of a tunic under it leaves no ridge.)
+    # (Only below `mono_below`, the waist: above it a shoulder pad's clearance would carry down the whole
+    # sheet and make a bell of it.)
+    top_bin = nb if mono_below is None else int(np.clip((mono_below - lo) / bin_h, 0, nb))
+    if top_bin > 0:
+        low = prof[:top_bin]
+        prof[:top_bin] = np.maximum.accumulate(low[::-1])[::-1]
+    # (And eased in above that, so the step where it starts doesn't show as a ridge.)
+    for _ in range(6):
+        prof = np.maximum(prof, 0.5 * prof + 0.25 * (np.concatenate([prof[:1], prof[:-1]]) + np.concatenate([prof[1:], prof[-1:]])))
+    t = (z - lo) / bin_h
+    push = np.interp(t, np.arange(nb), prof)
+    geo.co = geo.co + radial * push[:, None]
+    log(f"  swelled clear of {', '.join(u.name for u in under)}: up to {prof.max() * 1000:.0f} mm")
+    return geo
+
+
+def keep_outside(geo, under, gap=0.004, reach=0.06, rounds=3, body=None, spread=4, keep=0.85):
+    """Moves every vertex of geo lying over the surface `under` (a Geo) but less than `gap` outside it (by
+    under's own normals) out to `gap`, smoothing the moves, so one layer never shows through the one it is
+    worn over. With `body`, only where `under` covers it (layer_over), not past its edges."""
+    if body is not None:
+        nb = geo.neighbours()
+        for _ in range(rounds):
+            _, bn, _, _ = body.nearest(geo.co)
+            m, loc, nrm, d = layer_over(geo.co, bn, under, reach=reach)
+            m &= outward_mask(geo, bn)
+            # (Never up towards the face: a collar under it stays under, the neckline keeps its distance
+            # from the jaw.)
+            m &= head_distance(body, geo.co) > 0.04
+            m &= ~lined_mask(geo, bn)
+            # (Only where it is a little inside: deeper than LAYER_REACH it's a different part of the piece
+            # under it, a cuff or a collar it was never meant to cover, and pushing it out would balloon.)
+            push = np.where(m & (d < gap) & (d > -LAYER_REACH), gap - d, 0.0)
+            if push.max() < 1e-4:
+                break
+            # (As a smooth swell of the whole sheet along its own normals, not single vertices along the
+            # inner piece's: a spike would tip the cloth over its own lining.)
+            for _ in range(spread):
+                push = np.maximum(push, geo.smooth_values(push, 1, 0.5, None, nb) * keep)
+            push = geo.smooth_values(push, 2, 0.5, None, nb) if spread > 6 else push
+            own = geo.vertex_normals()
+            own = np.where(((own * bn).sum(1) < 0)[:, None], -own, own)
+            move = own * push[:, None]
+            geo.co = geo.co + follow_outer(geo, move, bn)
+        return geo
+    return _keep_outside_plain(geo, under, gap, reach, rounds)
+
+
+def _keep_outside_plain(geo, under, gap=0.004, reach=0.06, rounds=3):
     """Moves every vertex of geo lying within `reach` of the surface `under` (a Geo) but less than `gap`
     outside it (by under's own normals) out to `gap`, smoothing the moves, so one layer never shows
     through the one it is worn over."""
@@ -1144,6 +1332,53 @@ def keep_outside(geo, under, gap=0.004, reach=0.06, rounds=3):
         move = np.where((push > 0)[:, None], nrm * push[:, None], move)
         geo.co = geo.co + move
     return geo
+
+
+def worn_under(names, sex, key_names):
+    """The pieces `names` as already built (assets/models/outfit-<name>.glb, or MODELS) for body `sex`, each a
+    Geo at rest with its shape keys (`keys`), for a piece worn over them: it stays outside them at rest
+    and under every key (`fit(under=...)`). A piece not built yet, or not made for this body, is skipped."""
+    out = []
+    for name in names:
+        path = os.path.join(MODELS, f"outfit-{name}.glb")
+        if not os.path.exists(path):
+            continue
+        before = set(bpy.data.objects)
+        bpy.ops.import_scene.gltf(filepath=path)
+        new = [o for o in bpy.data.objects if o not in before]
+        obj = next((o for o in new if o.type == "MESH" and o.name.split(".")[0] == sex), None)
+        if obj is not None and obj.data.shape_keys:
+            me = obj.data
+            mw = np.array(obj.matrix_world)
+            n = len(me.vertices)
+            a = np.zeros(n * 3)
+            me.vertices.foreach_get("co", a)
+            co = a.reshape(-1, 3) @ mw[:3, :3].T + mw[:3, 3]
+            keys = {}
+            kb = me.shape_keys.key_blocks
+            for k in key_names:
+                if k in kb:
+                    kb[k].data.foreach_get("co", a)
+                    keys[k] = (a.reshape(-1, 3) @ mw[:3, :3].T + mw[:3, 3]) - co
+                else:
+                    keys[k] = np.zeros_like(co)
+            # (Welded where the export split it at texture seams, so only its real edges are open.)
+            _, first, inverse = np.unique(np.round(co, 5), axis=0, return_index=True, return_inverse=True)
+            inverse = inverse.ravel()
+            g = Geo(co[first], [[int(inverse[v]) for v in p.vertices] for p in me.polygons])
+            g.dedupe()
+            g.keys = {k: D[first] for k, D in keys.items()}
+            g.name = name
+            loops = g.boundary_loops()
+            g.open_pts = g.co[np.unique(np.concatenate(loops))] if loops else np.zeros((0, 3))
+            out.append(g)
+        for o in new:
+            if o.name in bpy.data.objects:
+                d = o.data
+                bpy.data.objects.remove(o, do_unlink=True)
+                if isinstance(d, bpy.types.Mesh) and d.users == 0:
+                    bpy.data.meshes.remove(d)
+    return out
 
 
 def temp_object(geo, name="collider"):
@@ -1214,7 +1449,11 @@ def cloth_sim(geo, body, pin, frames=70, bending=0.6, mass=0.3, tension=40, shea
     floor = bpy.data.objects.new("floor", floor_me)
     bpy.context.scene.collection.objects.link(floor)
     added = [floor]
-    for o in [body.obj, floor, *colliders]:
+    # (Not the pieces it is worn over: caught on them, a pinned waistband tears the drape. The layer push in
+    # fit() keeps it outside them afterwards.)
+    under_objs = []
+    added += under_objs
+    for o in [body.obj, floor, *colliders, *under_objs]:
         if not any(m.type == "COLLISION" for m in o.modifiers):
             o.modifiers.new("collision", "COLLISION")
             added.append(o)
@@ -1234,6 +1473,8 @@ def cloth_sim(geo, body, pin, frames=70, bending=0.6, mass=0.3, tension=40, shea
             o.modifiers.remove(m)
     bpy.data.objects.remove(floor)
     bpy.data.meshes.remove(floor_me)
+    for o in under_objs:
+        drop_object(o)
     if len(co) != geo.n:
         raise RuntimeError(f"cloth_sim: {len(co)} vertices back for {geo.n}")
     if keep is not None:
@@ -1626,8 +1867,14 @@ def fit(geo, body, loose=None, rigid=None, rigid_bones=None, smooth_rounds=0, ke
     as one (each plate of a pauldron, a lame), with the average of its weights. `source` (a fitted Geo) is sampled instead of
     the body (for buckles and straps lying on a garment). Then every key is corrected so no vertex comes
     closer than `clearance` to the morphed skin (or than its rest distance to the morphed `under` pieces)."""
+    if under is None and source is None:
+        under = CURRENT_UNDER
     if floor and source is None:
         lift_off(geo, body, floor)
+    for u in under or ():
+        # (Outside each piece it is worn over, by LAYER_GAP, wherever it lies over it.)
+        keep_outside(geo, u, LAYER_GAP, reach=0.025, rounds=4, body=body)
+
     if source is not None:
         W, keys, d = sample_geo(source, geo.co)
     else:
@@ -1675,6 +1922,8 @@ def fit(geo, body, loose=None, rigid=None, rigid_bones=None, smooth_rounds=0, ke
     geo.W = W
     geo.keys = keys
     if source is None:
+        geo.rest_d = body.nearest(geo.co)[3]
+    if source is None:
         correct_keys(geo, body, clearance, under, nb)
     return geo
 
@@ -1708,6 +1957,13 @@ def correct_keys(geo, body, clearance, under, nb, rounds=8):
     """Pushes each key's offsets out where the morphed piece would come within `clearance` of the morphed
     skin (or of a morphed piece it's worn over), smoothing the push so it leaves no dent."""
     rest_loc, rest_n, _, rest_d = body.nearest(geo.co)
+    rest_over = []
+    outward = outward_mask(geo, rest_n)
+    if under:
+        outward &= ~lined_mask(geo, rest_n)
+    for u in under or ():
+        m0, _, _, d0 = layer_over(geo.co, rest_n, u)
+        rest_over.append((m0 & outward, d0))
     # (A vertex keeps at least `clearance` off the morphed skin, never more than it had at rest: a hem's
     # turned-in strip that sits at the skin at rest, hidden under the cloth, isn't pushed out through it.)
     need = np.minimum(np.maximum(rest_d * 0.8, clearance), rest_d)
@@ -1720,13 +1976,10 @@ def correct_keys(geo, body, clearance, under, nb, rounds=8):
             loc, nrm, _, d = body.nearest(co, {k: 1.0})
             push = np.maximum(need - d, 0)
             if under:
-                for u in under:
-                    bvh, _ = geo_bvh(u, u.co + u.keys[k])
-                    l2, n2, _, d2 = nearest(bvh, co)
-                    bvh0, _ = geo_bvh(u)
-                    _, _, _, d0 = nearest(bvh0, geo.co)
-                    near = np.abs(d0) < 0.05
-                    p2 = np.where(near, np.maximum(np.minimum(d0, 0.004) - d2, 0), 0)
+                for u, (over0, d0) in zip(under, rest_over):
+                    m2, l2, n2, d2 = layer_over(co, rest_n, u, u.co + u.keys[k])
+                    near = over0 & m2 & (d2 > -LAYER_REACH)
+                    p2 = np.where(near, np.maximum(np.minimum(np.maximum(d0, 0.0), LAYER_GAP) - d2, 0), 0)
                     sel = p2 > push
                     nrm[sel] = n2[sel]
                     push = np.maximum(push, p2)
@@ -1735,17 +1988,34 @@ def correct_keys(geo, body, clearance, under, nb, rounds=8):
             corr = nrm * push[:, None]
             corr = geo.smooth_values(corr, 2, 0.5, None, nb)
             corr = np.where((push > 0)[:, None], np.maximum(np.linalg.norm(corr, axis=1, keepdims=True), push[:, None]) * unit(corr + 1e-12), corr)
+            if under:
+                corr = follow_outer(geo, corr, rest_n)
             D = D + corr
         geo.keys[k] = D
     # Keys that grow the body, all at once: where the piece still sinks, push each key out by its share
     # of how far it moves the skin there, so sliders used together don't clip either.
     grow = [k for k in ("heavy", "muscle", "bust", "chest", "belly", "hips", "shoulders", "neck") if k in body.keys]
-    for combo in (grow, [k for k in grow if k != "heavy"] + ["thin"] if "thin" in body.keys else grow):
+    # (The full set, and the usual heavier builds: a subset can sink where the full set doesn't.)
+    bust = "bust" if "bust" in body.keys else "chest"
+    combos = [grow, [k for k in ("heavy", "muscle", bust, "belly") if k in body.keys], [k for k in ("heavy", "muscle", bust, "belly", "hips") if k in body.keys], [k for k in ("heavy", bust) if k in body.keys]]
+    if "thin" in body.keys:
+        combos.append([k for k in grow if k != "heavy"] + ["thin"])
+        if "age_old" in body.keys:
+            combos.append(["thin", "age_old"])
+    for combo in combos:
         values = {k: 1.0 for k in combo}
         for _ in range(rounds):
             co = geo.co + sum(geo.keys[k] for k in combo)
             loc, nrm, tri, d = body.nearest(co, values)
             push = np.maximum(need - d, 0)
+            for u, (over0, d0) in zip(under or (), rest_over):
+                # (And outside the morphed pieces it is worn over.)
+                m2, l2, n2, d2 = layer_over(co, rest_n, u, u.co + sum(u.keys[k] for k in combo))
+                near = over0 & m2 & (d2 > -LAYER_REACH)
+                p2 = np.where(near, np.maximum(np.minimum(np.maximum(d0, 0.0), LAYER_GAP) - d2, 0), 0)
+                sel = p2 > push
+                nrm[sel] = n2[sel]
+                push = np.maximum(push, p2)
             if push.max() < 5e-4:
                 break
             c = body.tris[tri]
@@ -1754,6 +2024,8 @@ def correct_keys(geo, body, clearance, under, nb, rounds=8):
             corr = nrm * push[:, None]
             corr = geo.smooth_values(corr, 2, 0.5, None, nb)
             corr = np.where((push > 0)[:, None], np.maximum(np.linalg.norm(corr, axis=1, keepdims=True), push[:, None]) * unit(corr + 1e-12), corr)
+            if under:
+                corr = follow_outer(geo, corr, rest_n)
             for j, k in enumerate(combo):
                 geo.keys[k] = geo.keys[k] + corr * share[:, j : j + 1]
 
@@ -1762,12 +2034,28 @@ def clip_report(geo, body, values, clearance=0.0, region_mask=None):
     """How many of the piece's vertices lie under the morphed skin (signed distance < clearance)."""
     co = geo.co.copy()
     for k, v in values.items():
-        co += geo.keys[k] * v
+        co += kept_key(geo, k) * v
     loc, nrm, tri, d = body.nearest(co, values)
     bad = d < clearance
     if region_mask is not None:
         bad &= region_mask
     return int(bad.sum()), float(d.min())
+
+
+def clash_report(geo, under, values):
+    """How many vertices of the pieces worn under `geo` come out through it with shape keys {name: value}:
+    an inner vertex within 2.5 cm of the outer piece and outside its surface (by the outer's normals)."""
+    co = geo.co.copy()
+    for k, v in values.items():
+        co += kept_key(geo, k) * v
+    out = {}
+    for u in under:
+        uc = u.co + sum(u.keys[k] * v for k, v in values.items() if k in u.keys)
+        un = Geo(uc, u.faces).vertex_normals()
+        m, loc, nrm, d = layer_over(uc, un, geo, co)
+        bad = m & (d > 0.0005)
+        out[u.name] = (int(bad.sum()), float(d[bad].max()) if bad.any() else 0.0)
+    return out
 
 
 def coverage(geo, body, region, reach=0.5, missed=None):
@@ -1849,6 +2137,16 @@ def make_rig(body, fingers=False):
 # ── Building the Blender mesh ────────────────────────────────────────────────────────────────────────
 
 
+def kept_key(geo, k):
+    """A key's moves as exported: the smallest dropped only where the piece has room for it (several keys'
+    small moves add up when sliders are used together, so near the skin every move stays)."""
+    D = geo.keys[k].copy()
+    room = getattr(geo, "rest_d", None)
+    limit = MORPH_MIN if room is None else np.clip((room - 0.002) / 6, 0.0002, MORPH_MIN)
+    D[np.abs(D).max(1) < limit] = 0
+    return D
+
+
 def build_object(name, geo, rig, key_names, parts):
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata(geo.co.tolist(), [], geo.faces)
@@ -1873,8 +2171,7 @@ def build_object(name, geo, rig, key_names, parts):
         sk = obj.shape_key_add(name=k, from_mix=False)
         # (A key moves only the vertices it moves by MORPH_MIN or more: the kit stores each key only where it
         # moves something, and loose cloth smoothed from the body would otherwise carry every key everywhere.)
-        D = geo.keys[k].copy()
-        D[np.abs(D).max(1) < MORPH_MIN] = 0
+        D = kept_key(geo, k)
         sk.data.foreach_set("co", (geo.co + D).ravel())
     names = BONE_NAMES + (FINGER_BONES if geo.W.shape[1] > len(BONE_NAMES) else [])
     for b in names:
