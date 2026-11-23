@@ -468,7 +468,8 @@ def one_piece_swimsuit(body, M):
     """A one-piece swimsuit: high-cut legs, a scoop front, wide straps and a low back, edges bound."""
     apex = bust_marks(body, M)
     az = (apex["l"][2] + apex["r"][2]) / 2
-    g = skin_patch(body, M, ["pelvis", "spine_01", "spine_02", "spine_03", "clavicle_l", "clavicle_r", "thigh_l", "thigh_r"], 0.0028, decim=0.55)
+    # (Fine enough that the skin's curves can't rise between its vertices.)
+    g = skin_patch(body, M, ["pelvis", "spine_01", "spine_02", "spine_03", "clavicle_l", "clavicle_r", "thigh_l", "thigh_r"], 0.0032, decim=0.8)
     g.kind = ["cloth"] * len(g.faces)
     P0 = g.attrs["P0"]
     cy = M.centre_y(P0[:, 2])
@@ -1040,6 +1041,8 @@ def long_coat(body, M):
     zb = M.J["calf_l"][2] - 0.1
     sk = sim_skirt(body, M, waist + 0.012, zb, offset=0.024, flare=0.36, around=42, ring_step=0.032, kind="wool", seed=41, gores=6, open_front=lambda z: 0.16 + 0.22 * smoothstep(waist, zb, z), slits=[(math.pi, 0.32)])
     sk.attrs = {}
+    # (Clear of what is worn under it, as an even swell, before it is lined.)
+    wo.swell_outside(sk, wo.CURRENT_UNDER, body, M.centre_y, mono_below=M.waist_z)
     mo.lined(sk, part="lining", kind="cloth", depth=0.003, edge_kind="wool", edge_part="cloth")
     g.join(sk)
     # The collar: a band standing at the back and turning down over the shoulders, lapels along the V.
@@ -1404,13 +1407,15 @@ def hood(body, M):
     """A hood of its own: the hood up round the head over a short draped mantle on the shoulders, lined."""
     h = mo.hood_up(body, M)
     h.attrs = {}
-    # (Out over the ears wherever the hood came nearer than a centimetre.)
-    wo.wrap(h, body, 0.01, rounds=1, factor=0.05)
+    n_hood = h.n
     shoulder_z = M.J["upperarm_l"][2]
     cape = mo.capelet(body, M, shoulder_z - 0.07, offset=0.02, front_gap=0.25, flare=0.45, z_top=M.neck[2] + 0.005)
     mo.lined(cape, edge_kind="wool")
     h.join(cape)
-    wo.fit(h, body, loose=np.ones(h.n), smooth_rounds=5, clearance=0.012)
+    # The hood rigid on the head; the mantle on the shoulders, from the torso's skin.
+    idx = np.arange(h.n)
+    rig_w = smoothstep(M.neck[2] - 0.02, M.neck[2] + 0.05, h.co[:, 2]) * (idx < n_hood)
+    wo.fit(h, body, rigid=rig_w, rigid_bones=["Head"], loose=(1 - rig_w) * 0.6, smooth_rounds=4, clearance=0.012, regions=("torso", "neck"), region_mask=idx >= n_hood)
     return h
 
 
@@ -1587,6 +1592,8 @@ def tassets(body, M):
     P, N = skin_ring(body, M, zb, lift=0.016, n=56)
     P, N = oriented(P, N, UP)
     g = wo.strip(P, N, 0.04, 0.006, part="leather", kind="leather", panel="belt")
+    # (Over a cuirass's faulds or a mail skirt, the belt and the lames stand clear of them.)
+    wo.swell_outside(g, wo.CURRENT_UNDER, body, M.centre_y, gap=0.004)
     g.attrs["group"] = np.zeros((g.n, 1))
     gid = 1
     j = int(np.argmin(P[:, 1]))
@@ -1621,6 +1628,7 @@ def tassets(body, M):
             lame.attrs = {}
             loops = [lame.co[lp].copy() for lp in lame.edge_loops()]
             lame.smooth_edges(rounds=4)
+            wo.swell_outside(lame, wo.CURRENT_UNDER, body, M.centre_y, gap=0.005 + 0.003 * k)
             # (A plate with thickness: its inside shows when the leg lifts.)
             mo.lined(lame, part="plate", kind="plate", depth=0.003)
             lame.attrs["group"] = np.full((lame.n, 1), float(gid))
@@ -1785,7 +1793,7 @@ def gauntlets(body, M):
     over the knuckle blend band into the next so nothing opens at a full bend; the palm and the fingers'
     undersides stay leather."""
     joints, backs = finger_joints(body)
-    glove = gloves(body, M, offset=0.0022, cuff=False, decim=0.5)
+    glove = gloves(body, M, offset=0.0022, cuff=False, decim=0.36)
     wo.lift_off(glove, body, 0.0015)
     nb_hand = len(wo.BONE_NAMES) + len(wo.FINGER_BONES)
     plates = []
@@ -1799,7 +1807,7 @@ def gauntlets(body, M):
         nrm = h.vertex_normals()
         t, *_ = M.arm_fields(P)
         field = np.maximum.reduce([
-            -(nrm @ hand_back) + 0.25,
+            -(nrm @ hand_back) - 0.15,
             np.where(P[:, 0] * sg < 0, 1.0, -1.0),
             np.where(owner >= 0, s_al - KNUCKLE_BAND[0], -1.0),
             np.where(owner == 0, 1.0, -1.0),
@@ -1815,43 +1823,50 @@ def gauntlets(body, M):
             mo.lined(h, part="plate", kind="plate", depth=0.0015)
             h.attrs["bone"] = np.full((h.n, 1), float(wo.BONE_INDEX[f"hand_{s}"]))
             plates.append(h)
-        # A plate on each finger bone, reaching over the knuckle bands each side.
+        # A lame on each finger bone (index to pinky): a curved plate lofted round the bone over the back of
+        # the finger, reaching over the knuckle bands into its neighbours, each more distal one a little
+        # lower so it slides under the one before, with a rolled edge where it overlaps.
         for fi, f in enumerate(wo.FINGERS):
+            if f == "thumb":
+                # (The thumb stays leather: it wraps round a grip, and plates on it only splay.)
+                continue
             J = joints[(s, f)]
-            seg_len = np.linalg.norm(np.diff(J, axis=0), axis=1)
-            starts = np.concatenate([[0], np.cumsum(seg_len)])
             back = backs[(s, f)]
+            cols = [len(wo.BONE_NAMES) + wo.FINGER_BONES.index(f"{f}_{k:02d}_{s}") for k in (1, 2, 3)]
+            own = body.W_full[:, cols].sum(1)
+            ftris = body.tris[own[body.tris].mean(1) > 0.35]
+            fbvh = wo.BVHTree.FromPolygons(body.co.tolist(), ftris.tolist())
             for k in range(3):
-                if f == "thumb":
-                    # (The thumb stays leather: it wraps round a grip, and plates on it only splay.)
+                a, b = J[k], J[k + 1]
+                ax = unit(b - a)
+                L = float(np.linalg.norm(b - a))
+                lo = -(KNUCKLE_BAND[k] if k > 0 else 0.004)
+                hi = L + (KNUCKLE_BAND[k + 1] if k < 2 else 0.002)
+                path = np.array([a + ax * t for t in np.linspace(lo, hi, 4)])
+                e1 = unit(back - ax * (back @ ax))
+                off = 0.0042 - 0.0007 * k
+
+                def rad(i, angles, c, T, u1, u2, e1=e1, off=off, fbvh=fbvh):
+                    out = []
+                    for an in angles:
+                        dvec = u1 * math.cos(an) + u2 * math.sin(an)
+                        hit = fbvh.ray_cast(wo.Vector(c), wo.Vector(dvec), 0.03)
+                        out.append(hit[3] if hit[0] is not None else 0.008)
+                    r = np.array(out)
+                    r = 0.5 * r + 0.25 * (np.roll(r, 1) + np.roll(r, -1))
+                    return np.maximum(r, 0.004) + off
+
+                lame = wo.loft(path, 9, rad, up_hint=e1, seam_angle=math.pi, part="plate", kind="plate", panel=f"{f}{k}_{s}", down=tuple(ax))
+                # Only the back of the finger: within 70 degrees either side of its back.
+                ang = np.angle(np.exp(1j * lame.attrs["angle"][:, 0]))
+                lame.clip(np.abs(ang) - 1.75)
+                if not lame.faces:
                     continue
-                lo = starts[k] - (KNUCKLE_BAND[k] if k > 0 else KNUCKLE_BAND[0] * 0.4)
-                hi = starts[k + 1] + (KNUCKLE_BAND[k + 1] if k < 2 else 0.003)
-                q = glove.copy()
-                q.attrs = {}
-                P = q.co
-                owner, s_al, _ = finger_owner(P, joints, s)
-                nrm = q.vertex_normals()
-                field = np.maximum.reduce([
-                    np.where(owner == fi, -1.0, 1.0),
-                    np.where(P[:, 0] * sg < 0, 1.0, -1.0),
-                    lo - s_al,
-                    s_al - hi,
-                    -(nrm @ back) + (0.1 if f != "thumb" else -0.25),
-                ])
-                q.clip(field)
-                if not q.faces:
-                    continue
-                # (Each more distal plate a little lower than the one before, so it slides under it.)
-                q.co = q.co + q.vertex_normals() * (0.0038 - 0.0007 * k)
-                q.smooth_edges(rounds=1)
-                q.part = ["plate"] * len(q.faces)
-                q.kind = ["plate"] * len(q.faces)
-                q.panel = [f"{f}{k}_{s}"] * len(q.faces)
-                # (No lining: the glove fills the plate's underside, and its back faces would only cost
-                # vertices.)
-                q.attrs["bone"] = np.full((q.n, 1), float(len(wo.BONE_NAMES) + wo.FINGER_BONES.index(f"{f}_{k + 1:02d}_{s}")))
-                plates.append(q)
+                lame.attrs = {}
+                # (A turned edge for thickness at the rim, not a full lining: the glove fills the underside.)
+                lame.rim(depth=0.0015, back=0.0)
+                lame.attrs["bone"] = np.full((lame.n, 1), float(cols[k]))
+                plates.append(lame)
         # The cuff: a flared steel cuff with a rolled edge, on the forearm.
         E, W = M.J[f"lowerarm_{s}"], M.J[f"hand_{s}"]
         ax = unit(W - E)
@@ -2222,37 +2237,37 @@ PIECES = {
     "tank_top": dict(make=tank_top, layer=1, slot="top", hides=["underwear-top"], parts={"cloth": KNIT_GREY, "trim": KNIT_GREY}),
     "t_shirt": dict(make=t_shirt, layer=1, slot="top", hides=["torso", "underwear-top"], parts={"cloth": LINEN}),
     "blouse": dict(make=blouse, layer=1, slot="top", sexes=F, hides=["underwear-top"], parts={"cloth": WHITE, "laces": CORD}),
-    "vest": dict(make=vest, layer=3, slot="vest", hides=[], parts={"cloth": VELVET_RED, "trim": TRIM_GOLD, "laces": CORD, "metal": BRASS}),
-    "corset": dict(make=corset, layer=3, slot="waist", hides=[], parts={"leather": LEATHER_DARK, "trim": LEATHER, "laces": CORD, "metal": BRASS}),
+    "vest": dict(make=vest, over=("shirt", "blouse", "t_shirt"), layer=3, slot="vest", hides=[], parts={"cloth": VELVET_RED, "trim": TRIM_GOLD, "laces": CORD, "metal": BRASS}),
+    "corset": dict(make=corset, over=("blouse", "shirt", "t_shirt", "short_skirt"), layer=3, slot="waist", hides=[], parts={"leather": LEATHER_DARK, "trim": LEATHER, "laces": CORD, "metal": BRASS}),
     # Bottoms.
     "shorts": dict(make=shorts, layer=1, slot="legs", hides=["hips", "underwear-bottom"], parts={"cloth": CANVAS, "laces": CORD}),
-    "short_skirt": dict(make=short_skirt, layer=2, slot="legs", hides=["hips", "underwear-bottom"], parts={"cloth": WOOL_RED, "trim": TRIM_GOLD}),
-    "pleated_skirt": dict(make=pleated_skirt, layer=2, slot="legs", hides=["hips", "underwear-bottom"], parts={"cloth": WOOL_GREEN}),
+    "short_skirt": dict(make=short_skirt, over=("blouse", "shirt"), layer=2, slot="legs", hides=["hips", "underwear-bottom"], parts={"cloth": WOOL_RED, "trim": TRIM_GOLD}),
+    "pleated_skirt": dict(make=pleated_skirt, over=("blouse", "shirt"), layer=2, slot="legs", hides=["hips", "underwear-bottom"], parts={"cloth": WOOL_GREEN}),
     "leggings": dict(make=leggings, layer=1, slot="legs", hides=["hips", "thighs", "calves", "underwear-bottom"], parts={"cloth": KNIT_GREY, "trim": KNIT_GREY}),
     "loincloth": dict(make=loincloth, layer=1, slot="legs", hides=["underwear-bottom"], parts={"cloth": SUEDE, "under": LINEN, "belt": LEATHER_DARK, "metal": BRASS}),
     # Robes and long wear.
-    "robe": dict(make=robe, layer=2, slot="body", hides=["torso", "upperarms", "hips", "thighs", "calves", "underwear"], parts={"cloth": WOOL_PLUM, "trim": TRIM_GOLD, "cord": TRIM_GOLD}),
-    "long_coat": dict(make=long_coat, layer=4, slot="coat", hides=["upperarms"], parts={"cloth": WOOL_BROWN, "trim": WOOL_BROWN, "lining": WOOL_RED, "belt": LEATHER_DARK, "metal": BRASS}),
+    "robe": dict(make=robe, over=("trousers",), layer=2, slot="body", hides=["torso", "upperarms", "hips", "thighs", "calves", "underwear"], parts={"cloth": WOOL_PLUM, "trim": TRIM_GOLD, "cord": TRIM_GOLD}),
+    "long_coat": dict(make=long_coat, over=("shirt", "blouse", "t_shirt", "trousers"), layer=4, slot="coat", hides=["upperarms"], parts={"cloth": WOOL_BROWN, "trim": WOOL_BROWN, "lining": WOOL_RED, "belt": LEATHER_DARK, "metal": BRASS}),
     "gown": dict(make=gown, layer=2, slot="body", sexes=F, hides=["upperarms", "forearms", "hips", "thighs", "calves", "underwear"], parts={"bodice": VELVET_BLUE, "cloth": VELVET_BLUE, "trim": TRIM_GOLD, "metal": GOLD, "gem": GEM_BLUE}),
-    "apron": dict(make=apron, layer=3, slot="apron", hides=[], parts={"cloth": CANVAS, "trim": CANVAS}),
+    "apron": dict(make=apron, over=("dress", "blouse", "skirt"), layer=3, slot="apron", hides=[], parts={"cloth": CANVAS, "trim": CANVAS}),
     # Footwear and accessories.
     "sandals": dict(make=sandals, layer=2, slot="feet", hides=[], parts={"sole": LEATHER_DARK, "leather": LEATHER, "metal": BRASS}),
-    "tall_boots": dict(make=tall_boots, layer=2, slot="feet", hides=["feet", "calves"], parts={"leather": LEATHER_DARK, "trim": LEATHER_DARK, "sole": LEATHER_DARK, "metal": IRON}),
-    "gloves": dict(make=gloves_piece, layer=2, slot="hands", hides=["hands"], parts={"leather": LEATHER}, fingers=True),
-    "belt_pouches": dict(make=belt_pouches, layer=4, slot="belt", hides=[], parts={"belt": LEATHER_DARK, "pouch": LEATHER, "metal": BRASS}),
-    "scarf": dict(make=scarf, layer=5, slot="neck", hides=[], parts={"cloth": KNIT_RED}),
-    "hood": dict(make=hood, layer=5, slot="head", hides=["hair"], parts={"cloth": WOOL_GREY, "lining": WOOL_BROWN}, head=True),
+    "tall_boots": dict(make=tall_boots, over=("trousers",), layer=2, slot="feet", hides=["feet", "calves"], parts={"leather": LEATHER_DARK, "trim": LEATHER_DARK, "sole": LEATHER_DARK, "metal": IRON}),
+    "gloves": dict(make=gloves_piece, over=("shirt",), layer=2, slot="hands", hides=["hands"], parts={"leather": LEATHER}, fingers=True),
+    "belt_pouches": dict(make=belt_pouches, over=("shirt", "tunic", "trousers", "long_coat"), layer=4, slot="belt", hides=[], parts={"belt": LEATHER_DARK, "pouch": LEATHER, "metal": BRASS}),
+    "scarf": dict(make=scarf, over=("shirt", "long_coat"), layer=5, slot="neck", hides=[], parts={"cloth": KNIT_RED}),
+    "hood": dict(make=hood, over=("shirt", "tunic", "leather_armour"), layer=5, slot="head", hides=["hair"], parts={"cloth": WOOL_GREY, "lining": WOOL_BROWN}, head=True),
     "circlet": dict(make=circlet, layer=4, slot="brow", hides=[], parts={"metal": GOLD, "gem": GEM_RED}, head=True),
     # Armour.
-    "brigandine": dict(make=brigandine, layer=4, slot="armour", hides=[], parts={"cloth": VELVET_RED, "trim": LEATHER_DARK, "metal": BRASS}),
-    "scale_mail": dict(make=scale_mail, layer=3, slot="armour", hides=["torso", "hips", "underwear"], parts={"scale": STEEL, "trim": LEATHER_DARK}),
-    "gambeson": dict(make=gambeson, layer=2, slot="armour_under", hides=["torso", "upperarms", "hips", "underwear"], parts={"cloth": QUILT, "laces": LEATHER_DARK}),
-    "tassets": dict(make=tassets, layer=4, slot="tassets", hides=[], parts={"plate": STEEL, "leather": LEATHER_DARK, "metal": BRASS}),
-    "gauntlets": dict(make=gauntlets, layer=3, slot="hands", hides=["hands"], parts={"plate": STEEL, "leather": LEATHER_DARK, "metal": BRASS}, fingers=True),
+    "brigandine": dict(make=brigandine, over=("shirt", "gambeson"), layer=4, slot="armour", hides=[], parts={"cloth": VELVET_RED, "trim": LEATHER_DARK, "metal": BRASS}),
+    "scale_mail": dict(make=scale_mail, over=("shirt", "gambeson", "trousers"), layer=3, slot="armour", hides=["torso", "hips", "underwear"], parts={"scale": STEEL, "trim": LEATHER_DARK}),
+    "gambeson": dict(make=gambeson, over=("shirt", "trousers"), layer=2, slot="armour_under", hides=["torso", "upperarms", "hips", "underwear"], parts={"cloth": QUILT, "laces": LEATHER_DARK}),
+    "tassets": dict(make=tassets, over=("trousers", "chainmail", "gambeson", "plate_cuirass"), layer=4, slot="tassets", hides=[], parts={"plate": STEEL, "leather": LEATHER_DARK, "metal": BRASS}),
+    "gauntlets": dict(make=gauntlets, over=("gambeson",), layer=3, slot="hands", hides=["hands"], parts={"plate": STEEL, "leather": LEATHER_DARK, "metal": BRASS}, fingers=True),
     "sabatons": dict(make=sabatons, layer=3, slot="feet", hides=["feet"], parts={"plate": STEEL, "sole": LEATHER_DARK, "metal": BRASS}),
     "full_helm": dict(make=full_helm, layer=4, slot="head", hides=["hair", "neck"], parts={"plate": STEEL, "trim": BRASS}, head=True),
-    "bikini_armour": dict(make=bikini_armour, layer=3, slot="armour", sexes=F, hides=["underwear"], parts={"plate": STEEL, "leather": LEATHER_DARK, "metal": BRASS, "cloth": WOOL_RED}),
-    "barbarian_harness": dict(make=barbarian_harness, layer=3, slot="harness", hides=[], parts={"leather": LEATHER_DARK, "metal": IRON, "fur": FUR}),
+    "bikini_armour": dict(make=bikini_armour, over=("loincloth",), layer=3, slot="armour", sexes=F, hides=["underwear"], parts={"plate": STEEL, "leather": LEATHER_DARK, "metal": BRASS, "cloth": WOOL_RED}),
+    "barbarian_harness": dict(make=barbarian_harness, over=("loincloth",), layer=3, slot="harness", hides=[], parts={"leather": LEATHER_DARK, "metal": IRON, "fur": FUR}),
 }
 
 
