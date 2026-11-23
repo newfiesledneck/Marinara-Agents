@@ -114,15 +114,26 @@ function turnInWorld(bone, axis, angle) {
 
 /**
  * The relaxed stand, looking about: every few seconds the head turns quickly to one side, holds, and turns
- * to the other, the body following a little, with a nod now and then. It shows how the hair (and a tail)
- * swing.
+ * to the other, the hips and body following a little, with a nod now and then; and now and then one knee
+ * lifts in a small step. It shows how the hair, a skirt or coat (and a tail) swing.
  */
 export function movingPose(figure, seconds = 0) {
   relaxedPose(figure, seconds);
   const nodes = figure.humanoid;
   // (A quick turn, then a hold: the sine pushed towards a square wave.)
   const look = Math.tanh(Math.sin(seconds * 0.9) * 3) / Math.tanh(3);
-  turnInWorld(nodes.spine, UP, look * 0.15);
+  // (A step: each knee in turn lifts forward and back down, then both stand a while.)
+  const beat = Math.sin(seconds * 1.3);
+  for (const [side, lift] of [
+    ["left", Math.max(0, beat)],
+    ["right", Math.max(0, -beat)],
+  ]) {
+    const up = Math.max(0, (lift - 0.3) / 0.7) ** 2;
+    turnInWorld(nodes[`${side}UpperLeg`], SIDEWAYS, -up * 0.45);
+    turnInWorld(nodes[`${side}LowerLeg`], SIDEWAYS, up * 0.7);
+  }
+  turnInWorld(nodes.hips, UP, look * 0.12);
+  turnInWorld(nodes.spine, UP, look * 0.1);
   turnInWorld(nodes.head, UP, look * 0.4);
   turnInWorld(nodes.head, SIDEWAYS, Math.max(0, Math.sin(seconds * 1.7)) * 0.12);
   figure.root.updateMatrixWorld(true);

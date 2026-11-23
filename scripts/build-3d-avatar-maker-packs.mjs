@@ -47,6 +47,8 @@ const boundary = JSON.parse(await readFile(join(makerRoot, "engine-boundary.json
 const LICENCES = new Set(["CC0-1.0", "CC-BY-3.0", "CC-BY-4.0"]);
 // The most a hair style's `swing` may be: how far below the eyes, in metres (src/packs.js MOST_SWING).
 const MOST_SWING = 0.3;
+// Where a piece's cloth may leave the body to hang: a share of the hips-to-knees distance (src/packs.js HANG_RANGE).
+const HANG_RANGE = [-1, 1.5];
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 /** A CC-BY piece's attribution (title, author, source, licence and the change made), as a saved avatar carries it. */
@@ -151,6 +153,11 @@ for (const [id, pack] of Object.entries(packs)) {
       throw new Error(
         `${id} ${piece}: bone "${bone}" isn't one of PIECE_BONES in packages/3d-avatar-maker/src/looks.js`,
       );
+    if (
+      spec.hang !== undefined &&
+      !(Number.isFinite(spec.hang) && spec.hang >= HANG_RANGE[0] && spec.hang <= HANG_RANGE[1])
+    )
+      throw new Error(`${id} ${piece}: hang is a share of the hips-to-knees distance, ${HANG_RANGE.join(" to ")}`);
     pieces[piece] = {
       label: spec.label,
       slot: info.slot,
@@ -165,6 +172,7 @@ for (const [id, pack] of Object.entries(packs)) {
       source: spec.source,
       credit,
       ...(bone === undefined ? {} : { bone }),
+      ...(spec.hang === undefined ? {} : { hang: spec.hang }),
     };
   }
   const hair = {};
