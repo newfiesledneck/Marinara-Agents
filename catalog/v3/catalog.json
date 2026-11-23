@@ -64,7 +64,7 @@
         },
         "id": "3d-avatar-maker",
         "name": "3D Avatar Maker",
-        "version": "0.1.11",
+        "version": "0.1.12",
         "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
         "engine": {
           "min": "2.4.6",
@@ -162,8 +162,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "2fd9e58297d9d026ede258866821361674dd71792b17bcc105fe323348a88f53",
-            "bytes": 1260305
+            "sha256": "d8946b72f64ee90ee0681de982d42da2a608c13a5245778bf6def452dfcba7ea",
+            "bytes": 1260330
           },
           {
             "path": "3d-avatar-maker-icon.webp",
@@ -484,9 +484,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-0.1.11.zip",
-        "sha256": "76e6eaccc825cfac3f6f6ea6d0ef895e9bd9e4b312e138987563fa6377ba30e3",
-        "bytes": 59339201
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-0.1.12.zip",
+        "sha256": "9002338bdac47d23c8e9e9f6306f4c1fc2a90eb0e2a82fc6508b2c7ca58ba863",
+        "bytes": 59339226
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker/README.md"
     },
@@ -503,8 +503,8 @@
         },
         "id": "3d-avatar-maker-wardrobe-accessories",
         "name": "3D Avatar Maker: Accessories",
-        "version": "0.2.02",
-        "description": "61 more accessories for 3D Avatar Maker's Clothes and Hair tabs, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.10 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+        "version": "0.2.03",
+        "description": "111 more accessories for 3D Avatar Maker's Clothes and Hair tabs, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.10 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
         "engine": {
           "min": "2.4.6",
           "maxExclusive": "4.0.0"
@@ -534,22 +534,25 @@
               "hair/elvs_that_80s_babe_hair.pack.png",
               "hair/elvs_wavy_bob.pack.png",
               "wardrobe/accessories.pack.png",
+              "wardrobe/armour.pack.png",
+              "wardrobe/extras.pack.png",
               "wardrobe/feet.pack.png",
               "wardrobe/hands.pack.png",
-              "wardrobe/head.pack.png"
+              "wardrobe/head.pack.png",
+              "wardrobe/objects.pack.png"
             ]
           }
         },
         "files": [
           {
             "path": "agents.json",
-            "sha256": "9797b0951784966a1324c44d32b457aa5275b29382385329c82e8310206a6d6d",
-            "bytes": 799
+            "sha256": "ca7706aa43c265abcf63abb6c21daf158de27c5f65a6834c9c9c0ed7f9cf1bda",
+            "bytes": 800
           },
           {
             "path": "avatar-pack.json",
-            "sha256": "29db2f965789001f1a6062828b43ec00dcc4ac28e52ccae4c0a833c97f01e63a",
-            "bytes": 35563
+            "sha256": "e9628593e1a7faf0f646170b043371c9291631abef46c88bff751beb49d4082b",
+            "bytes": 70940
           },
           {
             "path": "hair/elvs_50s_updo.pack.png",
@@ -623,8 +626,18 @@
           },
           {
             "path": "wardrobe/accessories.pack.png",
-            "sha256": "4d50b4f6408001f763479557f6e60f5f0a8084336be0ad96dd6291896664f97c",
-            "bytes": 3965593
+            "sha256": "a4e107b0c836f448e6bc36a2de74adfb2a63e2174a5ff97e3d368e71cd15073e",
+            "bytes": 16862400
+          },
+          {
+            "path": "wardrobe/armour.pack.png",
+            "sha256": "05112e320a00fda2f9c68b369e318c0c4be692792e183f4de0f9bc7eb29b4a6d",
+            "bytes": 1320537
+          },
+          {
+            "path": "wardrobe/extras.pack.png",
+            "sha256": "9f88e6d385de163ff16456235f6b6ca37a3bfb3ae14eee1244f891b23da0eafe",
+            "bytes": 1264995
           },
           {
             "path": "wardrobe/feet.pack.png",
@@ -638,8 +651,13 @@
           },
           {
             "path": "wardrobe/head.pack.png",
-            "sha256": "3632fd9360c88e424c8b2cdb8a50b5e5debf6cf050377a77fa1e59bf791cb399",
-            "bytes": 7658959
+            "sha256": "92ef8f070156949a261acf5021addd0456f1352b0854f49a3803d185c239aca2",
+            "bytes": 9160050
+          },
+          {
+            "path": "wardrobe/objects.pack.png",
+            "sha256": "be83fe5ef0d0097121d7d2f93035d936d0fa233c3485e7c8341d512b38961e66",
+            "bytes": 8837219
           }
         ],
         "permissions": [],
@@ -648,9 +666,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker-wardrobe-accessories.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-wardrobe-accessories-0.2.02.zip",
-        "sha256": "c4a5ab489c2c18f969fc2e125a0046d076ab75bc9b4219bb4b2a0b40e618538b",
-        "bytes": 26935183
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-wardrobe-accessories-0.2.03.zip",
+        "sha256": "045a4161274ab224657c5d0c761e793ce680e294d92586107650076f8fd5ef89",
+        "bytes": 52792182
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker-wardrobe-accessories/README.md"
     },

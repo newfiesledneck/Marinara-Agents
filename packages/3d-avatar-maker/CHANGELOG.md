@@ -1,5 +1,9 @@
 # 3D Avatar Maker release notes
 
+## 0.1.12 — 2026-11-23
+
+- The Brow and On the back places say what they hold now that the Accessories pack fills them: face piercings and a head mirror, and wings or a guitar on its strap. Install Accessories 0.2.03 for jewellery, horns and antlers, wings, tails, and things to hold or carry.
+
 ## 0.1.11 — 2026-11-23
 
 - Skirts, dresses, robes, coats and cloaks hang from the hips and swing as one piece, and the bust moves a little, clothes with it. A saved VRM swings them too.

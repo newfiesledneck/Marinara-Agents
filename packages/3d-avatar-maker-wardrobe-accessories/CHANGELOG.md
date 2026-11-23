@@ -1,5 +1,10 @@
 # 3D Avatar Maker: Accessories release notes
 
+## 0.2.03 — 2026-11-23
+
+- 50 new pieces for the slots 3D Avatar Maker 0.1.10 added. Jewellery: four bracelets and bangles, five anklets, four necklaces and a spiked collar, three pairs of earrings, ear and face piercings, and four for the belly. Six kinds of horns and antlers, seven pairs of wings and two tails. Things to hold or carry: a sword, a microphone, a tennis racket, a shopping bag, a shoulder bag, a sling purse and an electric guitar. Also a headset, a head mirror, a stethoscope and two tactical vests.
+- Horns, wings, tails, held things, earrings and the solid bracelets and anklets are fixed to one bone, so they keep their shape as the avatar moves.
+
 ## 0.2.02 — 2026-11-23
 
 - 14 hair styles for the Hair tab, all by Elvaerwyn and CC BY 4.0: a 1950s updo, a braided bun, long straight, loose, side-parted, swept-back and tousled styles, two half-updos, a feathered cut to the shoulders, a layered cut with a fringe, a short straight cut, a wavy bob and a short swept-up men's cut. The long and loose ones swing as the avatar moves. They need 3D Avatar Maker 0.1.10 or later; an older maker still shows the rest of the pack.
