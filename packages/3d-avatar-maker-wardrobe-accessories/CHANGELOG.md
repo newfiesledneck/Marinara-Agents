@@ -1,5 +1,9 @@
 # 3D Avatar Maker: Accessories release notes
 
+## 0.2.01 — 2026-11-23
+
+- Every piece is fitted again, placed as MakeHuman places it, so socks, gloves and hats keep the shape they have in their own pictures.
+
 ## 0.2.00 — 2026-11-23
 
 - The hats, hoods, veil, headband, top hat, pith helmet and brass circlet from the retired Historical and Fantasy and Modern Casual packs are here now, with the same names, so saved avatars still find them. Clothes went to the new 3D Avatar Maker: Clothes pack.

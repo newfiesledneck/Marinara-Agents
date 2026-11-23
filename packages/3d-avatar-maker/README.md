@@ -40,7 +40,7 @@ Every slider's middle is the body's own shape, and each control says what it cha
 
 ## Wardrobe packs
 
-More clothes come as two separate packages you install from the catalog: 3D Avatar Maker: Clothes (178
+More clothes come as two separate packages you install from the catalog: 3D Avatar Maker: Clothes (186
 garments: dresses, suits, tops, trousers, skirts, underwear, swimwear and shoes) and 3D Avatar Maker:
 Accessories (45 hats, helmets, glasses, masks, earrings, rings, gloves and socks). Both are mostly CC BY. They
 replace the earlier Everyday Women's, Everyday Men's, Historical and Fantasy, and Modern Casual packs, keeping

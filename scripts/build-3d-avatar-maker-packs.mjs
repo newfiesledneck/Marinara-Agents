@@ -32,8 +32,8 @@ const MODELS = join(makerRoot, "assets/models");
 // (Everyday Women's, Everyday Men's, Historical and Fantasy, and Modern Casual were merged into Clothes and
 // Accessories, keeping every piece id; their old artifacts stay for installs that have them.)
 const VERSIONS = {
-  "3d-avatar-maker-wardrobe-clothes": "0.1.00",
-  "3d-avatar-maker-wardrobe-accessories": "0.2.00",
+  "3d-avatar-maker-wardrobe-clothes": "0.1.01",
+  "3d-avatar-maker-wardrobe-accessories": "0.2.01",
 };
 const FAMILY = "3d-avatar-maker-wardrobe-";
 // The bodies the pieces are fitted to (src/packs.js BODY_REVISION: the bodies made in 0.1.02), and the first

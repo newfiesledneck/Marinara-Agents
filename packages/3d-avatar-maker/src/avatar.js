@@ -25,6 +25,7 @@ import {
 import { FACE_MOVES } from "./face.js";
 import { standFigure } from "./figure.js";
 import { hairPlan, rigHair, swingOf } from "./hair.js";
+import { depthOf, surfaceOf, tuckUnder } from "./layers.js";
 import {
   ANTHRO_BARE_SLOTS,
   ANTHRO_SHAPES,
@@ -1016,7 +1017,7 @@ function skinCells(kit) {
 }
 
 /** For each vertex of `positions`, the body's skin vertices nearest it and their shares: { ids, shares }. */
-function nearestSkin(kit, positions) {
+export function nearestSkin(kit, positions) {
   const cells = skinCells(kit);
   const skin = kit.position;
   const count = positions.length / 3;
@@ -1364,11 +1365,19 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   // outfit piece is one mesh coloured by vertex, each of its parts (cloth, trim, metal…) the look's colour
   // or as made, those colours shared by everyone wearing the same.
   const springs = []; // (the hair's chains and a tail: springs.js)
-  const wearPart = ({ key, part: asMade, pictures, slot, piece, bone }, colourFor, hangs = null) => {
+  // Clothes worn over each other (layers.js): worn from the outermost in, each piece's points kept under the
+  // surfaces of those worn over it, and then the underwear under them all. Cloth only: not what's fixed to a
+  // bone, the small things (rings, earrings, glasses) or the nails.
+  const outers = []; // { depth, surface } of each piece worn so far
+  const layered = (slot, fixed) =>
+    !!slot && !fixed && !SMALL_SLOTS.has(slot) && !NAIL_SLOTS.some(([nail]) => nail === slot);
+  const wearPart = ({ key, part: asMade, pictures, slot, piece, bone, layer }, colourFor, hangs = null) => {
     // (A piece fixed to a bone, fixedPart: it moves with that bone alone. It grows with the head as the hair
     // and eyes do, through the bone's stretch, and the look's shape keys move it as one: see `rigid` below.)
     const fixed = bone ? fixedPart(asMade, bone, kit.file) : null;
     const part = fixed ?? asMade;
+    const depth = layered(slot, fixed) ? depthOf(slot, layer) : null;
+    const over = depth === null ? [] : outers.filter((outer) => outer.depth > depth + 1e-6).map((o) => o.surface);
     partMeshes(key, part, SMALL_SLOTS.has(slot), hangs, !!fixed).forEach((made, m) => {
       const { mesh, geometry: shared, morphs, colours, plan } = made;
       // (A race's build, carried onto the piece from the skin the first time one of that race wears it.)
@@ -1400,8 +1409,9 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
         colour = colours.get(said);
       }
       const keyed = Object.keys(morphs).length > 0;
-      // (Swinging hair on a head made bigger or smaller has its points placed for its new weights: hair.js rigHair.)
-      const placed = !!plan && part.joints.some((name) => stretch.has(name));
+      // (Swinging hair on a head made bigger or smaller has its points placed for its new weights: hair.js
+      // rigHair. A piece worn under another has its points moved under it.)
+      const placed = (!!plan && part.joints.some((name) => stretch.has(name))) || over.length > 0;
       if (keyed || colour || placed) {
         // (Its own geometry over the shared data: its positions and normals shaped, its colours.)
         const moved = keyed
@@ -1438,6 +1448,16 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
           own.dispose();
         });
       }
+      if (depth !== null) {
+        const points = geometry.attributes.position.array;
+        if (over.length) {
+          const rest = shared.attributes.position.array;
+          const near = (made.near ??= nearestSkin(kit, rest));
+          tuckUnder(points, 0, points.length / 3, near, CARRY_NEAREST, normal, over, shared.index.array);
+        }
+        const full = shared.userData.distant?.full ?? { start: 0, count: shared.index.count };
+        outers.push({ depth, surface: surfaceOf(points, shared.index.array, full.start, full.count) });
+      }
       const material = new MeshLambertMaterial({
         map: mesh.texture ? texture(mesh.texture, pictures) : null,
         color: colourFor(mesh),
@@ -1446,6 +1466,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
       });
       owned.push(() => material.dispose());
       const worn = bind(geometry, material, part, kit.file);
+      if (piece) worn.userData.piece = piece; // (which piece it is: the regression test reads it)
       // The hair's chains, where this avatar's shape put its locks, added to the bones its points are bound to.
       if (plan) {
         const rig = rigHair(plan, part, geometry.attributes.position.array, bones, stretch, m ? `${m}_` : "");
@@ -1460,7 +1481,17 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   const below = swingOf(filled.hair);
   const hangs = below === undefined ? null : { line: kit.eyes - below, centre: kit.headAt };
   if (hair && !hides.has("hair")) wearPart(hair, () => new Color(filled.hairColour), hangs);
-  for (const piece of pieces) wearPart(piece, (mesh) => (mesh.partOf ? 0xffffff : new Color().setRGB(...mesh.colour)));
+  const outermostFirst = [...pieces].sort((a, b) => depthOf(b.slot, b.layer) - depthOf(a.slot, a.layer));
+  for (const piece of outermostFirst)
+    wearPart(piece, (mesh) => (mesh.partOf ? 0xffffff : new Color().setRGB(...mesh.colour)));
+  // The underwear worn, under all of it (the body's own styles; a pack's are pieces, tucked above).
+  for (const mesh of outers.length ? kit.meshes : []) {
+    if (!/^underwear/u.test(mesh.piece ?? "") || !isWorn(mesh, filled, sex)) continue;
+    const rest = kit.position.subarray(mesh.start * 3, (mesh.start + mesh.count) * 3);
+    const near = (mesh.near ??= nearestSkin(kit, rest));
+    const surfaces = outers.map((outer) => outer.surface);
+    tuckUnder(position, mesh.start, mesh.count, near, CARRY_NEAREST, normal, surfaces, mesh.index);
+  }
 
   // A tail worn swings too, kept out of the legs.
   const tail = TAIL_BONES.map((name) => bones.get(name)).filter(Boolean);

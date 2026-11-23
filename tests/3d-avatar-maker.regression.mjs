@@ -798,6 +798,79 @@ for (const figure of Object.values(made)) figure.dispose();
   }
 }
 
+// ── Clothes keep their layers, and what's worn on the legs never follows the arms ──
+{
+  const { depthOf, LAYER_GAP, surfaceOf, tuckUnder } = await import("../packages/3d-avatar-maker/src/layers.js");
+  assert.ok(depthOf("underwear_top", 1) < depthOf("socks", 1), "underwear is under everything");
+  assert.ok(depthOf("socks", 1) < depthOf("legs", 1) && depthOf("legs", 1) < depthOf("top", 1), "socks, legs, a top");
+  assert.ok(depthOf("top", 1) < depthOf("over", 2), "a jacket over the shirt");
+  // An inner point just over an outer surface goes LAYER_GAP under it; one far under it, or past its edge, stays.
+  {
+    const outer = surfaceOf(new Float32Array([-1, -1, 0.01, 1, -1, 0.01, 0, 1, 0.01]), new Uint32Array([0, 1, 2]));
+    const points = new Float32Array([0, 0, 0.012, 0, 0, -0.05, 0.9, 0.9, 0.012]);
+    const near = { ids: new Uint32Array(3), shares: new Float32Array([1, 1, 1]) };
+    assert.equal(tuckUnder(points, 0, 3, near, 1, new Float32Array([0, 0, 1]), [outer]), 1, "one point moved");
+    assert.ok(Math.abs(points[2] - (0.01 - LAYER_GAP)) < 1e-6, "tucked to the gap under the surface");
+    assert.ok(Math.abs(points[5] + 0.05) < 1e-6, "a point well under it stays");
+    assert.ok(Math.abs(points[8] - 0.012) < 1e-6, "a point past its edge stays");
+  }
+  // Worn together, no point of an inner piece is left over the piece worn over it (along the skin's normals,
+  // as the maker tucks it: looked for again, nothing more moves).
+  const { nearestSkin } = await import("../packages/3d-avatar-maker/src/avatar.js");
+  const pieceMeshes = (figure) => new Map(figure.meshes.map((mesh) => [mesh.userData.piece, mesh]));
+  for (const [body, inner, outer] of [
+    ["female", "joepal_crude_high_socks", "mh_female_leggings"],
+    ["female", "mh_female_leggings", "punkduck_high_neck_crop_top"],
+    ["male", "mh_jeans", "mh_tee"],
+    ["female", "punkduck_v_neck_top", "elvs_hooded_sweat_jacket1"],
+  ]) {
+    const figure = await createAvatar(startOf(body, { clothes: [inner, outer] }), "Test", "auto");
+    const meshes = pieceMeshes(figure);
+    assert.ok(meshes.has(inner) && meshes.has(outer), `${inner} under ${outer}: both worn`);
+    const { geometry: under } = meshes.get(inner);
+    const { geometry: over } = meshes.get(outer);
+    const points = under.attributes.position.array.slice();
+    const count = points.length / 3;
+    const skin = figure.meshes.find((mesh) => mesh.name === "body").geometry.attributes.normal.array;
+    const surface = surfaceOf(over.attributes.position.array, over.index.array);
+    tuckUnder(points, 0, count, nearestSkin(figure.kit, points), 4, skin, [surface]);
+    const was = under.attributes.position.array;
+    let left = 0; // (moved again by more than a fifth of a millimetre)
+    for (let v = 0; v < count; v++)
+      if (
+        Math.hypot(points[v * 3] - was[v * 3], points[v * 3 + 1] - was[v * 3 + 1], points[v * 3 + 2] - was[v * 3 + 2]) >
+        2e-4
+      )
+        left++;
+    assert.ok(left <= count * 0.01, `${inner} under ${outer}: ${left} of ${count} points left over it`);
+    figure.dispose();
+  }
+  // A piece on the legs or feet takes no weight from the arms or hands below the chest (they hang beside a
+  // skirt in the A-pose, and would drag it when lowered). (Above it, overalls' straps rest on the shoulders.)
+  const ARM_BONE = /^(?:upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)_/u;
+  for (const body of ["male", "female"]) {
+    const { clothes } = await avatarChoices(body);
+    for (const { piece } of clothes.filter(({ piece }) => ["legs", "feet", "socks"].includes(looks.SLOT_OF[piece]))) {
+      const figure = await createAvatar(startOf(body, { clothes: [piece] }), "Test", "auto");
+      const mesh = pieceMeshes(figure).get(piece);
+      if (mesh) {
+        const { position, skinIndex, skinWeight } = mesh.geometry.attributes;
+        const chest = mesh.skeleton.bones.findIndex((bone) => bone.name === "spine_02");
+        const below = chest < 0 ? Infinity : mesh.skeleton.boneInverses[chest].clone().invert().elements[13];
+        let worst = 0;
+        for (let i = 0; i < skinIndex.array.length; i++)
+          if (
+            position.array[(i >> 2) * 3 + 1] < below &&
+            ARM_BONE.test(mesh.skeleton.bones[skinIndex.array[i]]?.name ?? "")
+          )
+            worst = Math.max(worst, skinWeight.array[i]);
+        assert.ok(worst < 0.01, `${body} ${piece}: no weight on the arms (${worst.toFixed(3)})`);
+      }
+      figure.dispose();
+    }
+  }
+}
+
 // ── Bone-fixed pieces, a pack's hair styles, and looks that outlast an uninstalled pack ──
 {
   const { BODY_REVISION, readHair, readPack } = await import("../packages/3d-avatar-maker/src/packs.js");

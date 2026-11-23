@@ -1,7 +1,7 @@
 """The wardrobe packs' pieces (assets/packs.json): community MakeHuman clothes (CC0 and CC-BY items from the
 community packs, `pack:<zip stem>/clothes/<item>`, read from `wwavatar.extracted_dir`), fitted to the base avatar exactly as
-make_mh_clothes.py fits the maker's own `mh_*` pieces (its `make`: the same CLEARANCE, safe hides, skin weights
-and the bodies' own keys), one GLB per piece, assets/models/packs/<pack id>/outfit-<piece>.glb, with the same
+make_mh_clothes.py fits the maker's own `mh_*` pieces (its `make`: carried from MakeHuman's own version of the
+body, the same CLEARANCE, safe hides and the bodies' own keys; `fit: "helpers"` for the old way), one GLB per piece, assets/models/packs/<pack id>/outfit-<piece>.glb, with the same
 extras (`outfit`, `slot`, `body`, `layer`, `hides`, `parts`). scripts/build-3d-avatar-maker-packs.mjs packs them.
 Run (BLENDER: your Blender executable; add pack ids or piece ids after `--` for some):
 
@@ -45,7 +45,7 @@ def spec_of(entry):
         skin=entry.get("skin", True),
         force=list(entry.get("force", [])),
         cut=entry.get("cut", False),
-        **{k: entry[k] for k in ("size", "clearance") if k in entry},
+        **{k: entry[k] for k in ("size", "clearance", "fit") if k in entry},
     )
 
 

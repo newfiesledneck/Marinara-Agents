@@ -19,11 +19,17 @@ How a proxy is fitted:
    don't have. `Body` rebuilds each helper vertex from the body vertices nearest to it on hm08's own base
    mesh: their average position on our body plus the helper's offset from each, scaled to our body's
    size. The hair shell leaves the ears out, so hair follows the skull and not a pointed ear.
-4. `fit()` places the proxy on the body as it rests; each shape key is the proxy fitted to the body
+4. `Fitted()` places the proxy on the body as it rests; each shape key is the proxy fitted to the body
    with that key at 1, less the proxy at rest, so it follows every slider exactly as the body does.
 5. `push_out()` then lifts the proxy off the skin (and off underwear it's worn over) wherever it sinks in,
    at rest and with each key at 1, the push spread over its neighbours so there's no dent; for cloth it
    also lifts any face the skin comes through between its vertices.
+
+Clothes (make_mh_clothes.py) are fitted another way, `Fitted.carried`: to MakeHuman's own version of the body
+(`Body.mh_own`: hm08 with the same targets, helpers and all, so the proxy sits exactly as MakeHuman places it),
+then carried onto ours by how the body near each point moved between the two; their weights and keys come
+from the body near them the same way, and `push_out(smooth=True)` lifts them in one even swell. Rebuilt
+helpers (steps 3 and 4) bent hanging cloth: a skirt's helper between the legs followed one leg or the other.
 """
 
 import os
@@ -61,6 +67,8 @@ REGIONS = {
     "feet": ["foot_l", "foot_r", "ball_l", "ball_r"],
 }
 HIDE_WORDS = set(REGIONS) | {"underwear", "underwear-top", "underwear-bottom", "hair"}
+ARM_REGIONS = ("upperarms", "forearms", "hands")
+CARRY_SMOOTH = 8  # rounds a carried piece's moves, keys and weights are evened out over it (Fitted.carried)
 SURFACE_PARTS = ("skin", "underwear", "lips", "nails")
 
 
@@ -424,6 +432,47 @@ class Body:
         """The region of each of hm08's body vertices."""
         return self.region[self.mh_index]
 
+    def mh_own(self):
+        """MakeHuman's own version of this body: hm08's whole vertex list (helpers too) with the same macro and
+        detail targets make_avatar.py mixed for it, in its frame (Blender's axes, metres, feet at 0), before
+        that script stood it in our rest pose and smoothed it. A proxy fitted to it sits as MakeHuman itself
+        would place it: its helpers are moved by the targets, not rebuilt."""
+        if getattr(self, "_own", None) is None:
+            import make_avatar as ma
+
+            B = ma.MALE if self.sex == "male" else ma.FEMALE
+            self._own = ma.Body(B, self.base).co
+        return self._own
+
+    def transfer(self):
+        """What carries a point from MakeHuman's version of the body (mh_own) onto ours: the body's own
+        vertices on both (hm08's), each one's move, side and weights, which are the arm's, and search trees.
+        Built once."""
+        if getattr(self, "_transfer", None) is None:
+            own = self.mh_own()[:BODY_VERTS]
+            ours = self.co[self.mh_index]
+            region = self.region[self.mh_index]
+            arm = np.isin(region, ARM_REGIONS)
+            base_tris = []
+            for q in self.base.quads[self.base.faces_of("body")]:
+                base_tris += [(q[0], q[1], q[2]), (q[0], q[2], q[3])]
+            base_tris = np.array(base_tris)
+            trees = {}
+            for name, tris in (("all", base_tris), ("trunk", base_tris[~arm[base_tris].any(1)]), ("arm", base_tris[arm[base_tris].all(1)])):
+                trees[name] = BVHTree.FromPolygons(own.tolist(), tris.tolist())
+            # A coarse sample of the vertices (about one every 2.5 cm), for the wide kernels of cloth hanging off.
+            cell = np.floor(own / 0.025).astype(np.int64)
+            _, coarse = np.unique(cell, axis=0, return_index=True)
+            kd = {}
+            for name, ids in (("fine", np.arange(BODY_VERTS)), ("coarse", np.sort(coarse))):
+                t = KDTree(len(ids))
+                for i in ids:
+                    t.insert(own[i], int(i))
+                t.balance()
+                kd[name] = t
+            self._transfer = dict(own=own, move=ours - own, arm=arm, side=self.side[self.mh_index], W=self.W[self.mh_index], trees=trees, kd=kd)
+        return self._transfer
+
 
 LIMBS = ("clavicle", "upperarm", "lowerarm", "hand", "thigh", "calf", "foot", "ball", "thumb", "index", "middle", "ring", "pinky")
 
@@ -476,6 +525,102 @@ class Fitted:
         self.corner_uv = proxy.corner_uvs()
         self._nb = None
 
+    @classmethod
+    def carried(cls, proxy, body, keys=None):
+        """The proxy fitted as MakeHuman fits it to its own version of the body (`Body.mh_own`: its helpers
+        moved by the same targets), then carried onto ours: each point moves as the body near it moved
+        between the two (our rest pose, our smoothing), and takes the bone weights and shape keys of the body
+        near it. "Near" is a soft kernel that widens with the point's distance from the skin: cloth on the
+        skin follows the skin under it; cloth hanging off (a skirt's hem) follows a wide, even average of the
+        body round it, so its shape is kept whole and it never splits between the legs. Cloth off the arms
+        (all but sleeves and gloves) takes nothing from the arms, and a limb's cloth nothing from the other
+        limb, so the hands never drag a skirt and a trouser leg never follows the other thigh."""
+        out = cls.__new__(cls)
+        out.proxy, out.body = proxy, body
+        out.key_names = list(keys if keys is not None else body.key_names)
+        out.faces = [list(f) for f in proxy.faces]
+        out.corner_uv = proxy.corner_uvs()
+        out._nb = None
+        out.normal_hint = None
+        X = fit_positions(proxy, body.mh_own())
+        T = body.transfer()
+        idx, w = out._kernel(X, T)
+        starts = np.concatenate([[0], np.cumsum([len(i) for i in idx])])
+        flat_i = np.concatenate(idx)
+        flat_w = np.concatenate(w)
+
+        def carry(values):
+            v = values[flat_i] * flat_w.reshape((-1,) + (1,) * (values.ndim - 1))
+            return np.add.reduceat(v, starts[:-1], axis=0)
+
+        # (Each carried value is evened out a little over the cloth itself: between the thighs the body under a
+        # point changes from one leg to the other within a centimetre, and the legs moved apart differently,
+        # which tore a zigzag crease down a pencil skirt's front. It shrinks nothing: these are moves, not places.)
+        out.co = X + out.smooth(carry(T["move"]), CARRY_SMOOTH)
+        out.keys = {k: out.smooth(carry(body.keys[k][body.mh_index]), CARRY_SMOOTH) for k in out.key_names}
+        out.W = out.smooth(carry(T["W"]), CARRY_SMOOTH)
+        out.W = out.W / np.maximum(out.W.sum(1, keepdims=True), 1e-9)
+        out.mh_co = X
+        return out
+
+    def _kernel(self, X, T, near=0.012, grow=0.5, sleeve_rounds=4):
+        """Each point's body vertices (hm08's) and shares, for Fitted.carried."""
+        n = len(X)
+        d_all = np.zeros(n)
+        d_arm = np.full(n, np.inf)
+        d_trunk = np.full(n, np.inf)
+        for i, p in enumerate(X):
+            v = Vector(p)
+            d_all[i] = T["trees"]["all"].find_nearest(v)[3]
+            hit = T["trees"]["arm"].find_nearest(v)
+            if hit[0] is not None:
+                d_arm[i] = hit[3]
+            hit = T["trees"]["trunk"].find_nearest(v)
+            if hit[0] is not None:
+                d_trunk[i] = hit[3]
+        # A sleeve (or glove) is cloth nearer the arm than the trunk and legs, a little evened out over the mesh so
+        # a stray point near a hand doesn't count.
+        sleeve = (d_arm < d_trunk).astype(np.float64)
+        self.co = X  # (for the neighbours)
+        sleeve = self.smooth(sleeve, sleeve_rounds) > 0.5
+        side = np.zeros(n, dtype=np.int64)
+        kd = T["kd"]
+        for i, p in enumerate(X):
+            j = kd["fine"].find(Vector(p))[1]
+            # (Not within 3 cm of the middle, where a skirt's front and back cross between the legs: there it
+            # follows both, or each half would follow its own leg and the halves would meet in a seam.)
+            if d_all[i] < 0.03 and abs(p[0]) > 0.03 and T["side"][j]:
+                side[i] = T["side"][j]
+        idx, w = [], []
+        for i, p in enumerate(X):
+            r = max(near, grow * d_all[i])
+            tree = kd["fine"] if r < 0.02 else kd["coarse"]
+            ids = np.array([h[1] for h in tree.find_range(Vector(p), 2.5 * r)], dtype=np.int64)
+            ok = self._allowed(ids, sleeve[i], side[i], T)
+            if ok.sum() < 3:
+                ids = np.array([h[1] for h in kd["fine"].find_n(Vector(p), 256)], dtype=np.int64)
+                ok = self._allowed(ids, sleeve[i], side[i], T)
+                if not ok.any():
+                    ok[:] = True
+            ids = ids[ok]
+            d2 = ((T["own"][ids] - p) ** 2).sum(1)
+            ww = np.exp(-d2 / (r * r) + d2.min() / (r * r))
+            idx.append(ids)
+            w.append(ww / ww.sum())
+        self.mh_distance = d_all
+        self.sleeve = sleeve
+        self.limb_side = side
+        return idx, w
+
+    @staticmethod
+    def _allowed(ids, sleeve, side, T):
+        ok = np.ones(len(ids), dtype=bool)
+        if not sleeve:
+            ok &= ~T["arm"][ids]
+        if side:
+            ok &= T["side"][ids] != -side
+        return ok
+
     def subset(self, face_ids):
         """A new Fitted holding only these faces (and the vertices they use), renumbered."""
         out = Fitted.__new__(Fitted)
@@ -490,6 +635,9 @@ class Fitted:
         starts = np.cumsum([0] + [len(f) for f in self.faces])
         out.corner_uv = np.concatenate([self.corner_uv[starts[f] : starts[f + 1]] for f in face_ids])
         out.normal_hint = self.normal_hint[used].copy() if getattr(self, "normal_hint", None) is not None else None
+        for name in ("mh_co", "mh_distance", "sleeve", "limb_side"):
+            if getattr(self, name, None) is not None:
+                setattr(out, name, getattr(self, name)[used].copy())
         out.source = used
         out._nb = None
         return out
@@ -566,14 +714,31 @@ class Fitted:
         return merge([out, rest]) if rest is not None else out
 
     def neighbours(self):
+        """Each vertex's neighbours along the faces. Vertices in the same place (split at a texture seam) count as
+        one, sharing their neighbours and each other's, so smoothing and lifts can't open a crack along a seam."""
         if self._nb is None:
             n = len(self.co)
-            pairs = set()
+            _, canon = np.unique(np.round(self.co / 1e-6).astype(np.int64), axis=0, return_inverse=True)
+            canon = canon.ravel()
+            self._canon = canon
+            members = {}
+            for v, c in enumerate(canon):
+                members.setdefault(int(c), []).append(v)
+            linked = set()
             for f in self.faces:
                 for i in range(len(f)):
-                    a, b = f[i], f[(i + 1) % len(f)]
-                    pairs.add((a, b))
-                    pairs.add((b, a))
+                    a, b = int(canon[f[i]]), int(canon[f[(i + 1) % len(f)]])
+                    linked.add((a, b))
+                    linked.add((b, a))
+            for group in members.values():
+                if len(group) > 1:
+                    linked.add((int(canon[group[0]]), int(canon[group[0]])))
+            pairs = set()
+            for a, b in linked:
+                for va in members[a]:
+                    for vb in members[b]:
+                        if va != vb:
+                            pairs.add((va, vb))
             pairs = np.array(sorted(pairs)) if pairs else np.zeros((0, 2), dtype=np.int64)
             starts = np.searchsorted(pairs[:, 0], np.arange(n + 1))
             self._nb = (pairs[:, 1], starts)
@@ -606,6 +771,21 @@ class Fitted:
             p[grow] = avg[grow]
         return p
 
+    def swell(self, need, nrm, reach=12, decay=0.88, rounds=6):
+        """A smooth lift that gives every vertex at least `need` (metres, along the skin's normals `nrm` evened
+        out over the mesh): the needs spread to their neighbours, fading by `decay` a ring for `reach` rings,
+        then smoothed, so a correction is one even swell over the area, not a lump at each vertex pushed."""
+        self.neighbours()
+        top = np.zeros(self._canon.max() + 1)
+        np.maximum.at(top, self._canon, need)
+        need = top[self._canon]  # (the most any copy of a vertex split at a seam needs)
+        env = need.copy()
+        for _ in range(reach):
+            env = np.maximum(need, self.smooth(env, 1, 1.0) * decay)
+        env = np.maximum(need, self.smooth(env, rounds, 0.5))
+        direction = unit(self.smooth(nrm, 3, 0.5))
+        return direction * env[:, None]
+
     def positions(self, values):
         co = self.co.copy()
         for k, v in values.items():
@@ -613,13 +793,14 @@ class Fitted:
                 co = co + self.keys[k] * v
         return co
 
-    def push_out(self, clearance, configs, mask=None, rounds=3, spread=4, limit=0.05, under=(), skin=False, keep=0.015):
+    def push_out(self, clearance, configs, mask=None, rounds=3, spread=4, limit=0.05, under=(), skin=False, keep=0.015, smooth=False):
         """Lifts the proxy off the skin (and the `under` underwear meshes) to `clearance` (metres; an array per
         vertex, or one value) at rest, then with each shape key in `configs` ({key: value} each): at rest it
         moves the positions, for a key that key's offsets. Vertices further than `limit` inside are left
         alone (another side of the body). With `skin`, the skin between the proxy's vertices is kept under it
         too: where the skin comes through a face (a ray out from the skin meets the proxy too late), that
-        face is lifted. With a key, cloth within `keep` of the skin keeps the gap it has at rest. Returns
+        face is lifted. With a key, cloth within `keep` of the skin keeps the gap it has at rest. With `smooth`,
+        each correction is one smooth swell (`swell`) rather than each vertex pushed on its own. Returns
         {config name: (vertices under the skin, deepest in mm)} as found."""
         clearance = np.broadcast_to(np.asarray(clearance, dtype=np.float64), (len(self.co),))
         report = {}
@@ -629,11 +810,17 @@ class Fitted:
             me.vertices.foreach_get("normal", a)
             bnrm = a.reshape(-1, 3)
             reach = coverage(self, self.body)
+            # (Not the feet and hands: cloth over them is a mitten, and the body's separate toes and fingers
+            # coming through between its points would throw it into lumps and spikes.)
+            if smooth:
+                reach &= ~np.isin(self.body.region, ["feet", "hands"])
             watch = np.nonzero(reach)[0]
 
         # Each limb's cloth is kept off its own limb and the trunk, not the other limb (a trouser leg off the
         # other thigh where a heavy body's thighs touch, or it ends up inside it and shows it when walking).
         side = side_of(np.array(BONE_NAMES)[self.W.argmax(1)])
+        if smooth and getattr(self, "limb_side", None) is not None:
+            side = self.limb_side  # (a carried piece's own: none near the middle, so a skirt is kept off both legs there)
 
         def correction(values, clearance):
             bco = self.body.bvh(values, under)[1]
@@ -662,7 +849,12 @@ class Fitted:
                     for i in watch:
                         n = bnrm[i]
                         hit = tree.ray_cast(Vector(bco[i] - n * back), Vector(n), back + 0.03)
-                        if hit[0] is None or self.body.side[i] * side[self.faces[hit[2]][0]] < 0:
+                        if hit[0] is None or all(self.body.side[i] * side[v] < 0 for v in self.faces[hit[2]]):
+                            continue
+                        # (A face along the ray, a thick band's rim, isn't lifted: pushed out along the skin's
+                        # normal it still meets the ray in the same place, so it would be pushed again each
+                        # round and every key, out into a flat flap.)
+                        if smooth and abs(Vector(hit[1]) @ Vector(n)) < 0.4:
                             continue
                         over = back + float(clearance.min()) - hit[3]
                         if over > 0:
@@ -673,7 +865,10 @@ class Fitted:
                     bad = bad | (np.linalg.norm(push, axis=1) > 0)
                 if not bad.any():
                     break
-                total += self.spread(push, spread) if spread else push
+                if smooth and mask is None:
+                    total += self.swell(np.linalg.norm(push, axis=1), nrm)
+                else:
+                    total += self.spread(push, spread) if spread else push
             return total, first
 
         c, first = correction({}, clearance)

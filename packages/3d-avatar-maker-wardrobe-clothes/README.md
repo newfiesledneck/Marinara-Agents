@@ -1,6 +1,6 @@
 # 3D Avatar Maker: Clothes
 
-178 pieces of clothing for [3D Avatar Maker](../3d-avatar-maker/README.md): dresses and gowns, suits,
+186 pieces of clothing for [3D Avatar Maker](../3d-avatar-maker/README.md): dresses and gowns, suits,
 jumpsuits and one-pieces, shirts, tops, sweaters and jackets, a winter coat, trousers, jeans, shorts and skirts,
 underwear and swimwear, and shoes and boots, for the female body, the male body or both. They come from the
 MakeHuman community. Most are CC BY, so they are free to share as long as their makers are credited. The maker
@@ -68,6 +68,10 @@ maker whose bodies have changed since then leaves the pack out until the pack is
 | Summer dress | Female | Whole outfit | Its own picture |
 | White dress with a bolero | Female | Whole outfit | Any colour |
 | Halter top and skirt | Female | Whole outfit | Any colour |
+| Gown with open sleeves | Female | Whole outfit | Its own picture |
+| Long black gown | Female | Whole outfit | Its own picture |
+| Gown with slits and gloves | Female | Whole outfit | Its own picture |
+| Evening gown | Female | Whole outfit | Its own picture |
 | Halter dress, teal | Female | Whole outfit | Its own picture |
 | Long dress, checked bodice | Female | Whole outfit | Its own picture |
 | Halter dress, open back, red | Female | Whole outfit | Its own picture |
@@ -81,6 +85,9 @@ maker whose bodies have changed since then leaves the pack out until the pack is
 | Short bodysuit | Female | Whole outfit | Its own picture |
 | Tennis dress | Female | Whole outfit | Its own picture |
 | Triathlon suit | Female | Whole outfit | Any colour |
+| Skinsuit | Both | Whole outfit | Its own picture |
+| Tracksuit hoodie dress | Female | Whole outfit | Its own picture |
+| Wetsuit | Female | Whole outfit | Its own picture |
 | Bikini | Female | Whole outfit | Its own picture |
 | Babydoll nightie | Female | Whole outfit | Its own picture |
 | Fifties swimsuit | Female | Whole outfit | Any colour |
@@ -204,6 +211,7 @@ maker whose bodies have changed since then leaves the pack out until the pack is
 | Plain flats | Female | Feet | Its own picture |
 | Flip-flops | Male | Feet | Its own picture |
 | Monk-strap shoes | Female | Feet | Its own picture |
+| Monk-strap shoes | Male | Feet | Its own picture |
 | Cycling shoes | Both | Feet | Its own picture |
 | Tight leather boots | Female | Feet | Any colour |
 
@@ -214,10 +222,10 @@ showing.
 
 ## Credits
 
-137 of the 178 pieces are licensed under Creative Commons Attribution, version 3.0 or 4.0 as
+144 of the 186 pieces are licensed under Creative Commons Attribution, version 3.0 or 4.0 as
 the table says ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/),
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)), by these MakeHuman community authors:
-DredNicolson (CC BY 4.0), Elvaerwyn (CC BY 4.0), janexx (CC BY 4.0), Joel Palmius (CC BY 4.0), madmanny (CC BY 4.0), Mindfront (CC BY 4.0), MTKnife (CC BY 4.0), punkduck (CC BY 3.0, CC BY 4.0). The other 41 are CC0 1.0
+DredNicolson (CC BY 4.0), Elvaerwyn (CC BY 4.0), janexx (CC BY 4.0), Joel Palmius (CC BY 4.0), madmanny (CC BY 4.0), Mindfront (CC BY 4.0), MTKnife (CC BY 4.0), punkduck (CC BY 3.0, CC BY 4.0). The other 42 are CC0 1.0
 (public domain); their authors are named as thanks. Where an item's own files say only "CC-BY", or say CC0
 while its catalogue says CC-BY, it is credited under CC BY 4.0, the version MakeHuman's guidance for its CC-BY
 assets points to. Each piece was changed: it was fitted to the maker's bodies in Blender by ThatOneCan
@@ -266,6 +274,10 @@ the maker carries each worn CC BY piece's credit in the file.
 | Summer dress (`mindfront_f_dress_02`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/346 |
 | White dress with a bolero (`mindfront_f_dress_03`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/354 |
 | Halter top and skirt (`mindfront_f_dress_04`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/386 |
+| Gown with open sleeves (`mindfront_f_dress_05`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/1234 |
+| Long black gown (`mindfront_f_dress_09`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/1424 |
+| Gown with slits and gloves (`mindfront_f_dress_10`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/1426 |
+| Evening gown (`punkduck_evening_gown`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/806 |
 | Halter dress, teal (`mindfront_f_dress_06`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/1236 |
 | Long dress, checked bodice (`mindfront_f_dress_07`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/1277 |
 | Halter dress, open back, red (`mindfront_f_dress_08`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/1422 |
@@ -279,6 +291,9 @@ the maker carries each worn CC BY piece's credit in the file.
 | Short bodysuit (`punkduck_short_bodysuit_female`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/855 |
 | Tennis dress (`punkduck_tennis_dress`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/747 |
 | Triathlon suit (`punkduck_triathlon_suit_female`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/668 |
+| Skinsuit (`matcreator_mc_skinsuit_2022`) | MatCreator | CC0 1.0 | http://www.makehumancommunity.org/node/2991 |
+| Tracksuit hoodie dress (`elvs_sporty_tracksuit_hoodie_dress1`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/2440 |
+| Wetsuit (`punkduck_wetsuit`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/662 |
 | Bikini (`mindfront_bikini_01`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/336 |
 | Babydoll nightie (`punkduck_babydoll`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/406 |
 | Fifties swimsuit (`elvs_vintage_swimwear1_50s_strapless`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1495 |
@@ -402,6 +417,7 @@ the maker carries each worn CC BY piece's credit in the file.
 | Plain flats (`elvs_flatshoe_plain1`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1713 |
 | Flip-flops (`elvs_male_flip_flop_sandals1`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1453 |
 | Monk-strap shoes (`mindfront_shoes_monk_strap_female`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/621 |
+| Monk-strap shoes (`mindfront_shoes_monk_strap_male`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/622 |
 | Cycling shoes (`punkduck_cycling_shoes`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/669 |
 | Tight leather boots (`madmanny_tight_leather_boots`) | madmanny | CC BY 4.0 | http://www.makehumancommunity.org/node/1448 |
 
