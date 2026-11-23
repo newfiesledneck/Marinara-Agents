@@ -192,6 +192,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.62",
+          "date": "2026-11-20",
+          "notes": "- The anthro wolf's head is a size bigger, in proportion to its shoulders; Head size in the Look card still sets it either way.",
+          "highlight": false
+        },
+        {
           "version": "0.7.61",
           "date": "2026-11-20",
           "notes": "- Clothes are lighter: each piece keeps about two thirds of its triangles, chosen so it looks the same in the game, which makes the package about 3 MB smaller and quicker to download.",
@@ -303,12 +309,6 @@
           "version": "0.7.43",
           "date": "2026-11-20",
           "notes": "- The built-in bodies, polished: a smooth jawline, closed lips, eyes with depth and a wet line, relaxed hands, and fine skin detail (pores, creases) in the texture rather than the shape.\n- Underwear as real garments with waistbands, hems and seams, in styles to choose top and bottom in the Look card: briefs, boxer-briefs and boxers for both; bikini, thong and boyshorts for the female body; a bra, a sports bra or a bralette; or none.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.42",
-          "date": "2026-11-20",
-          "notes": "- Quests: from the noticeboard, \"Any work going?\" or lore (ww:quest). The game's own always work; the AI can write them too (off by default). Stages can lead into caves and other regions, with failure branches. Journal → Quests and a quest line.\n- A new built-in body, male and female from MakeHuman's CC0 base: sliders for build and face, colours, underwear styles and presets in the Look card. Townsfolk get varied looks.\n- Fights: names and HP over heads, readable turn cards, tap a name for its SRD details; beaten, your foes stay over you to carry on the scene.\n- Regions: lands of their own (forest, marsh, snowy highlands, badlands, lakeside), towns with lasting people, an inn and a shop; travel by road or coach from Journal → Map.",
           "highlight": false
         }
       ]

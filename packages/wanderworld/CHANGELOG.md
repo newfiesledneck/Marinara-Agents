@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.7.62 — 2026-11-20
+
+- The anthro wolf's head is a size bigger, in proportion to its shoulders; Head size in the Look card still sets it either way.
+
 ## 0.7.61 — 2026-11-20
 
 - Clothes are lighter: each piece keeps about two thirds of its triangles, chosen so it looks the same in the game, which makes the package about 3 MB smaller and quicker to download.

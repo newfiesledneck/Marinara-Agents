@@ -310,6 +310,9 @@ export const SPECIES = [
   ["wolf", "Anthro wolf"],
   ["dragon", "Anthro dragon"],
 ];
+/** An anthro kind's own sizes, with the look's (as a race's are): the wolf's head, made on the human skull's
+ * size, looked small on the shoulders without a share more. */
+export const SPECIES_SIZES = { wolf: { head: 1.18 } };
 /**
  * The races a human body can be, the 5e SRD's (a dragonborn has the dragon body): [value, label, its shape
  * key, how far the key goes, what completes it: the whole figure's size and the legs', arms' and head's, each

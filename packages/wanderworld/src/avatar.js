@@ -66,6 +66,7 @@ import {
   SHAPES,
   SKIN_TONES,
   SPECIES,
+  SPECIES_SIZES,
   sliderKeys,
   sliderRange,
   UNDERWEAR_BOTTOMS,
@@ -1065,7 +1066,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   moved = moveJoints(root, bones, kit.file.jointMoves, weights);
   // A race: its key on the skin, carried onto the underwear worn (and, below, the hair and clothes), and its
   // sizes: the legs, arms and head with the look's own, and the whole figure.
-  const race = raceOf(filled.race);
+  const race = { ...raceOf(filled.race), ...SPECIES_SIZES[filled.species] };
   const raceKey = weights[race.key] ? race.key : "";
   if (raceKey)
     for (const mesh of kit.meshes) {
