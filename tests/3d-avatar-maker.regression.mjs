@@ -1,0 +1,205 @@
+// 3D Avatar Maker (packages/3d-avatar-maker): avatars built in Node from the kit files on disk (pictures
+// stubbed), and saved as .glb files that are then read back. Checks that the kit has what the lists offer,
+// that a built figure stands on the floor on a full humanoid skeleton, that a saved file holds only what is
+// drawn, names its bones as Marinara Engine's 3D Avatars agent reads them, needs no glTF extension the
+// Engine refuses, and gives back the look it was made from.
+// Run: node tests/3d-avatar-maker.regression.mjs
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Box3 } from "three";
+
+const kitRoot = join(dirname(fileURLToPath(import.meta.url)), "../packages/3d-avatar-maker/kit");
+globalThis.fetch = async (url) => {
+  const name = String(url).split("/kit/")[1]?.split("?")[0];
+  try {
+    return new Response(await readFile(join(kitRoot, name)), { status: 200 });
+  } catch {
+    return new Response("missing", { status: 404 });
+  }
+};
+// A picture that "loads" at once, two pixels square: nothing here draws one.
+const image = () => ({
+  width: 2,
+  height: 2,
+  complete: true,
+  style: {},
+  setAttribute() {},
+  removeEventListener() {},
+  addEventListener(type, heard) {
+    if (type === "load") queueMicrotask(() => heard.call(this));
+  },
+});
+globalThis.document = { createElementNS: image, createElement: image };
+// three's exporter reads its finished file through a FileReader, which Node doesn't have.
+globalThis.FileReader ??= class {
+  readAsArrayBuffer(blob) {
+    blob.arrayBuffer().then((buffer) => {
+      this.result = buffer;
+      this.onloadend?.();
+    });
+  }
+};
+
+const { avatarChoices, createAvatar } = await import("../packages/3d-avatar-maker/src/avatar.js");
+const { exportGlb, lookInGlb, readGlb, slimGeometry, writeGlb } =
+  await import("../packages/3d-avatar-maker/src/exporter.js");
+const { relaxedPose, restPose, tPose } = await import("../packages/3d-avatar-maker/src/figure.js");
+const { HUMANOID_BONES, setKitBase } = await import("../packages/3d-avatar-maker/src/kitfiles.js");
+const looks = await import("../packages/3d-avatar-maker/src/looks.js");
+const { checkLook, CLOTHES, HAIRSTYLES, NEUTRAL_LOOK, OUTFIT_PRESETS, outfitLook, RACES } = looks;
+setKitBase("http://kit.test/kit/");
+
+// The bones the Engine's avatar poses turn; it refuses a model without the first seven
+// (Marinara Engine, packages/shared/src/utils/avatar-humanoid-bones.ts, AVATAR_REQUIRED_HUMANOID_BONES).
+const ENGINE_REQUIRED = ["hips", "spine", "head", "leftUpperArm", "leftLowerArm", "rightUpperArm", "rightLowerArm"];
+const VRM_REQUIRED = [
+  ...ENGINE_REQUIRED,
+  ...[
+    "leftHand",
+    "rightHand",
+    "leftUpperLeg",
+    "leftLowerLeg",
+    "leftFoot",
+    "rightUpperLeg",
+    "rightLowerLeg",
+    "rightFoot",
+  ],
+];
+
+// ── The kit has what the lists offer, for both bodies ───────────────────────
+for (const body of ["male", "female"]) {
+  const choices = await avatarChoices(body);
+  assert.ok(choices.hair.length >= 10, `${body}: at least ten hair styles (${choices.hair.length})`);
+  assert.ok(choices.clothes.length >= 40, `${body}: at least forty clothing pieces (${choices.clothes.length})`);
+  assert.deepEqual(
+    choices.races,
+    RACES.map(([race]) => race),
+    `${body}: every race`,
+  );
+  for (const style of choices.hair)
+    assert.ok(
+      HAIRSTYLES.some(([known]) => known === style),
+      `${body}: hair ${style} has a name`,
+    );
+  for (const { piece } of choices.clothes)
+    assert.ok(
+      CLOTHES.some(([known]) => known === piece),
+      `${body}: ${piece} has a name`,
+    );
+  assert.ok(
+    choices.brows.length && choices.lashes.length && choices.bottoms.length,
+    `${body}: brows, lashes, underwear`,
+  );
+}
+
+// ── A figure stands on the floor, on a full humanoid skeleton, in each pose ──
+const startOf = (body, over = {}) => checkLook({ ...NEUTRAL_LOOK, body, ...over });
+const knight = outfitLook(
+  OUTFIT_PRESETS.find((preset) => preset.name === "Knight"),
+  "male",
+);
+const made = {
+  plain: await createAvatar(startOf("female"), "Test", "auto"),
+  dwarf: await createAvatar(startOf("male", { race: "dwarf", facialHair: "beard-02", ...knight }), "Test", "auto"),
+  tall: await createAvatar(startOf("female", { height: 1.12, limbs: { legs: 1.15 }, hair: "long" }), "Test", "auto"),
+};
+for (const [name, figure] of Object.entries(made)) {
+  for (const bone of VRM_REQUIRED) assert.ok(figure.humanoid[bone], `${name}: has its ${bone} bone`);
+  assert.ok(figure.meshes.length >= 1 && figure.meshes.every((mesh) => mesh.isSkinnedMesh), `${name}: skinned meshes`);
+  const box = new Box3().setFromObject(figure.object);
+  assert.ok(Math.abs(box.min.y) < 0.01, `${name}: stands on the floor (lowest point ${box.min.y.toFixed(3)})`);
+  const head = figure.humanoid.head.getWorldPosition(box.min.clone()).y;
+  assert.ok(head > 0.6 && head < 2.2, `${name}: its head is at a person's height (${head.toFixed(2)} m)`);
+  // The T-pose has the arms level; the relaxed pose has the hands below the shoulders; rest puts it back.
+  const armDrop = () => {
+    const shoulder = figure.humanoid.leftUpperArm.getWorldPosition(box.min.clone());
+    const hand = figure.humanoid.leftHand.getWorldPosition(box.max.clone());
+    return shoulder.y - hand.y;
+  };
+  restPose(figure);
+  const atRest = armDrop();
+  tPose(figure);
+  assert.ok(Math.abs(armDrop()) < 0.01, `${name}: arms level in the T-pose (${armDrop().toFixed(3)})`);
+  relaxedPose(figure, 0);
+  assert.ok(armDrop() > atRest, `${name}: arms lower in the relaxed pose than at rest`);
+  restPose(figure);
+  assert.ok(Math.abs(armDrop() - atRest) < 1e-6, `${name}: rest puts the arms back`);
+}
+assert.ok(made.dwarf.meshes.length > made.plain.meshes.length, "armour adds meshes");
+const headOf = (figure) => figure.humanoid.head.getWorldPosition(new Box3().min).y;
+assert.ok(
+  headOf(made.dwarf) < headOf(made.plain) && headOf(made.tall) > headOf(made.plain),
+  "a dwarf is shorter, long legs taller",
+);
+
+// ── A slimmed geometry keeps only what's drawn ──────────────────────────────
+{
+  const body = made.plain.meshes[0];
+  const ranges = body.geometry.groups.map(({ start, count, materialIndex }) => ({ start, count, materialIndex }));
+  const slim = slimGeometry(body.geometry, ranges);
+  assert.ok(slim.vertices < body.geometry.attributes.position.count, "fewer vertices than the kit's whole body");
+  assert.equal(slim.geometry.attributes.position.count, slim.vertices);
+  assert.equal(slim.geometry.index.count, slim.triangles * 3);
+  let highest = 0;
+  for (const vertex of slim.geometry.index.array) highest = Math.max(highest, vertex);
+  assert.equal(highest, slim.vertices - 1, "every vertex kept is drawn");
+  for (const name of ["normal", "uv", "color", "skinIndex", "skinWeight"])
+    assert.equal(slim.geometry.attributes[name].count, slim.vertices, `${name} was slimmed with the positions`);
+  assert.equal(
+    slim.geometry.groups.length,
+    ranges.filter((range) => range.count).length,
+    "a group for each material drawn",
+  );
+}
+
+// ── A saved file: what the Engine's importer reads, and the look back out ────
+for (const [name, figure] of Object.entries(made)) {
+  for (const mesh of figure.meshes) for (const material of [mesh.material].flat()) material.map = null; // (no pictures in Node)
+  const before = figure.meshes.map((mesh) => mesh.geometry);
+  const look = startOf("female", { hair: "bob", hairTint: 0x123456 });
+  const saved = await exportGlb(figure, { look, name: `Saved ${name}` });
+  assert.deepEqual(
+    figure.meshes.map((mesh) => mesh.geometry),
+    before,
+    `${name}: the figure is as it was after saving`,
+  );
+  const { json, bin } = readGlb(saved.bytes);
+  assert.ok(bin?.byteLength > 1000, `${name}: the file has its data`);
+  // Refused by the Engine: Draco, required meshopt, required KTX2, and files outside the file.
+  const refused = [
+    "KHR_draco_mesh_compression",
+    "EXT_meshopt_compression",
+    "KHR_meshopt_compression",
+    "KHR_texture_basisu",
+  ];
+  for (const extension of [...(json.extensionsUsed ?? []), ...(json.extensionsRequired ?? [])])
+    assert.ok(!refused.includes(extension), `${name}: doesn't use ${extension}`);
+  assert.ok(!json.extensions?.VRM && !json.extensions?.VRMC_vrm, `${name}: a plain GLB, not a VRM`);
+  for (const buffer of json.buffers) assert.equal(buffer.uri, undefined, `${name}: nothing outside the file`);
+  assert.ok(json.scenes?.[json.scene ?? 0], `${name}: has a scene`);
+  // The Engine reads a skinned model's bones from its skins' joints, by name.
+  const joints = new Set(json.skins.flatMap((skin) => skin.joints).map((index) => json.nodes[index].name));
+  for (const bone of VRM_REQUIRED)
+    assert.ok(joints.has(HUMANOID_BONES[bone]), `${name}: the file has the ${bone} bone`);
+  assert.equal(json.meshes.length, figure.meshes.length, `${name}: every mesh is in the file`);
+  for (const mesh of json.meshes)
+    for (const primitive of mesh.primitives) {
+      for (const attribute of ["POSITION", "NORMAL", "JOINTS_0", "WEIGHTS_0"])
+        assert.ok(attribute in primitive.attributes, `${name}: ${mesh.name ?? "a mesh"} has ${attribute}`);
+      assert.ok(json.accessors[primitive.indices].count > 0, `${name}: a drawn primitive`);
+    }
+  assert.equal(json.asset.generator, "3D Avatar Maker (Marinara Engine)");
+  assert.match(json.asset.copyright, /CC0/u, `${name}: the file says its parts are CC0`);
+  assert.deepEqual(lookInGlb(saved.bytes), { name: `Saved ${name}`, look }, `${name}: the look comes back out`);
+  assert.ok(saved.vertices > 1000 && saved.triangles > 1000, `${name}: counts its points and triangles`);
+  // Written again from its two parts, it reads the same.
+  assert.deepEqual(readGlb(writeGlb(json, bin)).json, json, `${name}: a file written again reads the same`);
+}
+assert.equal(lookInGlb(new Uint8Array([1, 2, 3])), null, "a file that isn't a GLB has no look");
+assert.equal(lookInGlb(writeGlb({ asset: { version: "2.0" } })), null, "a GLB from elsewhere has no look");
+assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
+
+for (const figure of Object.values(made)) figure.dispose();
+console.log("3d-avatar-maker.regression: ok");

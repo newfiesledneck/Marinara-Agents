@@ -1,6 +1,16 @@
 {
   "schemaVersion": 1,
   "packages": {
+    "3d-avatar-maker": {
+      "versions": [
+        {
+          "version": "0.1.00",
+          "date": "2026-11-22",
+          "notes": "- First version: a Home tab where you build a 3D avatar for a character or persona and save it as a GLB file for the 3D Avatars agent.\n- Male and female bodies in eight races, with build, face and proportion sliders, three ages, skin and eye pictures or colours of your own, 14 hair styles, and 78 pieces of clothing and armour.\n- Save the look as a small file, or open a saved avatar again to keep editing it.\n- The face doesn't move yet, so in a chat the avatar nods while it talks.",
+          "highlight": false
+        }
+      ]
+    },
     "modern-life-sim": {
       "versions": [
         {
