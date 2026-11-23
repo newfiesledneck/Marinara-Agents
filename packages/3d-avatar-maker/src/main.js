@@ -155,6 +155,7 @@ function mount(element, props) {
     h("button", { type: "button", onclick: () => stage.view("body") }, "Whole body"),
     h("button", { type: "button", onclick: () => stage.view("face") }, "Face"),
     h("button", { type: "button", onclick: () => stage.view("hand") }, "Hand"),
+    h("button", { type: "button", onclick: () => stage.view("feet") }, "Feet"),
     poseSelect,
   );
   const stageBox = h("section", { class: "stage", "aria-label": "Preview" }, canvas, note, views);

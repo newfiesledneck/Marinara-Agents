@@ -94,6 +94,36 @@ for (const body of ["male", "female"]) {
   );
 }
 
+// ── Each body has its paint masks: nails in red, lips in green (scripts/build-3d-avatar-maker-masks.mjs) ──
+{
+  const { inflateSync } = await import("node:zlib");
+  for (const body of ["male", "female"]) {
+    const png = await readFile(join(kitRoot, `avatar/avatar-${body}-masks.png`));
+    const width = png.readUInt32BE(16);
+    assert.equal(width, 2048, `${body}: masks are 2048 across, the size the skin is painted at`);
+    let at = 8;
+    const data = [];
+    while (at < png.length) {
+      const length = png.readUInt32BE(at);
+      if (png.toString("latin1", at + 4, at + 8) === "IDAT") data.push(png.subarray(at + 8, at + 8 + length));
+      at += 12 + length;
+    }
+    const rows = inflateSync(Buffer.concat(data));
+    let nails = 0;
+    let lips = 0;
+    for (let y = 0; y < width; y++)
+      for (let x = 0; x < width; x++) {
+        const i = y * (width * 3 + 1) + 1 + x * 3;
+        if (rows[i] > 128) nails++;
+        if (rows[i + 1] > 128) lips++;
+      }
+    assert.ok(nails > 500, `${body}: the masks have the nails (${nails} texels)`);
+    assert.ok(lips > 1000, `${body}: the masks have the lips (${lips} texels)`);
+  }
+  const { canPaint } = await import("../packages/3d-avatar-maker/src/skin.js");
+  assert.equal(canPaint(), false, "in Node there's no canvas, so the builder colours by vertex");
+}
+
 // ── A figure stands on the floor, on a full humanoid skeleton, in each pose ──
 const startOf = (body, over = {}) => checkLook({ ...NEUTRAL_LOOK, body, ...over });
 const knight = outfitLook(

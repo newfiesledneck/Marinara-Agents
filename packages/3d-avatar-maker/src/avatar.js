@@ -65,6 +65,7 @@ import {
   USUAL_HAIR_COLOURS,
 } from "./looks.js";
 import { geometryOf, load, rigOf, sexFor, skeletonFor, texture, view } from "./kitfiles.js";
+import { paintedSkin } from "./skin.js";
 import { hashString, rng } from "./util.js";
 
 /** The region of the body each bone's vertices are, for what an outfit piece `hides`. */
@@ -1097,33 +1098,50 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   }
   const textureOfPart = (part) => kit.meshes.find((mesh) => mesh.part === part)?.texture;
   const swapped = new Map();
-  if (filled.skin !== "custom")
-    swapped.set(textureOfPart("skin"), texture(`avatar-${sex}-skin-${filled.age}-${filled.skin}`));
+  const skinPicture = filled.skin !== "custom" ? `avatar-${sex}-skin-${filled.age}-${filled.skin}` : null;
+  if (skinPicture) swapped.set(textureOfPart("skin"), texture(skinPicture));
   if (filled.eyePicture !== TINT) swapped.set(textureOfPart("iris"), texture("avatar-eyes"));
   const anthro = filled.species !== "human";
+  // The skin, lips and nails share one picture: painted for this avatar (skin.js) with its skin colour and
+  // its lips and nails coloured through the body's masks, so their edges are clean. Where it can't be
+  // painted (no canvas, as in Node, or no masks for the body), they're coloured by vertex as before.
+  const painted =
+    anthro || !kit.file.keys
+      ? null
+      : await paintedSkin({
+          sex,
+          base: skinPicture ?? textureOfPart("skin"),
+          skin: filled.skin === "custom" ? filled.colours.skin : WHITE,
+          lips: filled.colours.lips,
+          nails: filled.colours.nails,
+        }).catch(() => null);
+  if (painted) swapped.set(textureOfPart("skin"), painted);
+  const paintedParts = new Set(painted ? ["skin", "lips", "nails"] : []);
   // (An anthro body's parts are its own: fur and its tufts, scales, horns…; what isn't here stays as made.)
   const colourOf = (part) =>
-    ({
-      skin: filled.skin === "custom" ? filled.colours.skin : WHITE,
-      underwear: filled.colours.underwear,
-      underwear_trim: mixHex(filled.colours.underwear, 0x000000, 0.3),
-      iris: filled.eyePicture === TINT ? filled.colours.eyes : WHITE,
-      eyes: filled.colours.eyes,
-      eyebrows: filled.colours.brows,
-      eyelashes: anthro ? undefined : mixHex(filled.colours.brows, 0x000000, 0.5),
-      lips: filled.colours.lips,
-      nails: filled.colours.nails,
-      fur: filled.colours.fur,
-      fur_tufts: filled.colours.fur,
-      fur2: filled.colours.fur2,
-      fur2_tufts: filled.colours.fur2,
-      nose: filled.colours.nose,
-      claws: filled.colours.claws ?? filled.colours.horns, // (a dragon's are its horns' colour)
-      scales: filled.colours.scales,
-      scales2: filled.colours.scales2,
-      horns: filled.colours.horns,
-      hair: filled.hairColour, // (facial hair)
-    })[part];
+    paintedParts.has(part)
+      ? WHITE
+      : {
+          skin: filled.skin === "custom" ? filled.colours.skin : WHITE,
+          underwear: filled.colours.underwear,
+          underwear_trim: mixHex(filled.colours.underwear, 0x000000, 0.3),
+          iris: filled.eyePicture === TINT ? filled.colours.eyes : WHITE,
+          eyes: filled.colours.eyes,
+          eyebrows: filled.colours.brows,
+          eyelashes: anthro ? undefined : mixHex(filled.colours.brows, 0x000000, 0.5),
+          lips: filled.colours.lips,
+          nails: filled.colours.nails,
+          fur: filled.colours.fur,
+          fur_tufts: filled.colours.fur,
+          fur2: filled.colours.fur2,
+          fur2_tufts: filled.colours.fur2,
+          nose: filled.colours.nose,
+          claws: filled.colours.claws ?? filled.colours.horns, // (a dragon's are its horns' colour)
+          scales: filled.colours.scales,
+          scales2: filled.colours.scales2,
+          horns: filled.colours.horns,
+          hair: filled.hairColour, // (facial hair)
+        }[part];
   const colour = new Uint16Array(position.length);
   const tint = new Color();
   for (const mesh of kit.meshes) {

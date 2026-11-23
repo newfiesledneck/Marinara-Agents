@@ -82,11 +82,18 @@ export function createStage(canvas) {
       controls.target.set(0, at, 0);
       camera.position.set(0.18, at + 0.02, 0.95);
     } else if (which === "hand" && figure?.humanoid.leftHand) {
-      // (The left hand, from the front and a little above, close enough to see the nails.)
+      // (The left hand, from the front and a little above, close enough to see the nails; in the T-pose,
+      // from above, where the backs of the fingers face.)
       const at = figure.humanoid.leftMiddleProximal ?? figure.humanoid.leftHand;
       at.getWorldPosition(head);
       controls.target.copy(head);
-      camera.position.set(head.x + 0.12, head.y + 0.1, head.z + 0.42);
+      if (pose === "t") camera.position.set(head.x + 0.02, head.y + 0.42, head.z + 0.12);
+      else camera.position.set(head.x + 0.12, head.y + 0.1, head.z + 0.42);
+    } else if (which === "feet" && figure?.humanoid.leftToes) {
+      // (Both feet, from the front and above.)
+      figure.humanoid.leftToes.getWorldPosition(head);
+      controls.target.set(0, head.y, head.z);
+      camera.position.set(0.05, head.y + 0.35, head.z + 0.45);
     } else {
       controls.target.set(0, tall * 0.52, 0);
       camera.position.set(0.5, tall * 0.6, Math.max(2.6, tall * 2.3));
