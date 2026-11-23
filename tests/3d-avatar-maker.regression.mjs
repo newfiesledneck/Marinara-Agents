@@ -1403,18 +1403,29 @@ for (const figure of Object.values(made)) figure.dispose();
     return result;
   };
   const skirt = { clothes: ["short_skirt"] };
-  const on = await made({ ...skirt, underwear: { bottom: "briefs" } });
+  const on = await made({ ...skirt, underwear: { bottom: "briefs", underClothes: true } });
   const off = await made({ ...skirt, underwear: { bottom: "briefs", underClothes: false } });
   assert.ok(on.briefs > 0, "the body's briefs show under a skirt with underwear shown under clothes");
   assert.equal(off.briefs, 0, "and are hidden under it with that off");
-  assert.equal((await made({ clothes: ["one_piece_swimsuit"] })).briefs, 0, "a swimsuit is worn without them");
-  const packOn = await made({ ...skirt, underwear: { bottom: "test_briefs" } });
+  // (Off until the clothes are fitted around underwear: avatar.js UNDER_CLOTHES.)
+  assert.equal(
+    (await made({ ...skirt, underwear: { bottom: "briefs" } })).briefs,
+    0,
+    "hidden where a look doesn't say",
+  );
+  assert.equal(
+    (await made({ clothes: ["one_piece_swimsuit"], underwear: { bottom: "briefs", underClothes: true } })).briefs,
+    0,
+    "a swimsuit is worn without them",
+  );
+  const packOn = await made({ ...skirt, underwear: { bottom: "test_briefs", underClothes: true } });
   const packOff = await made({ ...skirt, underwear: { bottom: "test_briefs", underClothes: false } });
   assert.equal(packOn.briefs, 0, "the pack's briefs replace the body's own");
   assert.ok(packOn.meshes > packOff.meshes, "the pack's briefs show under the skirt with that on, and not with it off");
   // The underwear's colour dyes a pack's piece made to be dyed.
   const colour = 0x8a2a2a;
-  const { reds } = await made({ underwear: { top: "test_bra" }, colours: { underwear: colour } });
+  // (Nothing worn over it: a look that names no clothes wears its everyday ones, which would hide it.)
+  const { reds } = await made({ clothes: [], underwear: { top: "test_bra" }, colours: { underwear: colour } });
   const red = new Color().setHex(colour).r;
   assert.ok(
     reds.some((value) => Math.abs(value - red) < 1e-4),

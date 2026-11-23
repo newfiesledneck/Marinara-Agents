@@ -497,7 +497,7 @@ The maker's code waits for its 0.1.11 release; the packs that use it are Clothes
   `fromPacks` names its pack. It isn't drawn meanwhile; the preview note and the Underwear group say so, and the
   group can take it out of the look. `wornLook` makes it none in a saved file, as it's drawn. A saved file
   credits CC BY underwear (`packCredits`).
-- **Underwear under clothes.** `underwear.underClothes`, on unless a look says otherwise, the control "Show
+- **Underwear under clothes.** `underwear.underClothes`, off unless a look says otherwise for now (avatar.js `UNDER_CLOTHES`; to be on once the refit clears underwear), the control "Show
   underwear under clothes":
   - On: the body's own underwear stays drawn under every region a piece hides, and the hide words
     `underwear`, `underwear-top` and `underwear-bottom` no longer hide it; a pack's underwear is worn under
@@ -563,7 +563,7 @@ The maker's code waits for its 0.1.11 release; the packs that use it are Clothes
   hair trails out as the body turns, sits or crouches, as its springs are soft. The seat, the phone and the
   cup the clips mime aren't shown, and the clips' fingers can close on nothing.
 - Underwear shown under clothes pokes through many clothes until the fitting allows for it, the kit's everyday
-  tee, jeans and trousers among them, so most avatars show it at first sight while the setting is on by default.
+  tee, jeans and trousers among them, so the setting starts off for now.
   The suspender belt is a Belt piece, so a skirt doesn't hide it.
 - Drafts live in the browser only.
 - Makeup presets match their old skins' makeup but not every skin's tone: Toigo graded each made-up skin's
