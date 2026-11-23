@@ -1,5 +1,14 @@
 # 3D Avatar Maker release notes
 
+## 0.1.11 — 2026-11-23
+
+- Skirts, dresses, robes, coats and cloaks hang from the hips and swing as one piece, and the bust moves a little, clothes with it. A saved VRM swings them too.
+- An **Animation** list plays the avatar walking, dancing, talking, waving, sitting and more, mostly Quaternius's CC0 clips. Preview only; saved files rest as before.
+- Makeup on any skin: eyeshadow, eyeliner, blush and lipstick in your own colours, or one of seven ready-made looks. The made-up duplicate skins are gone; looks that used one keep its makeup.
+- Pack underwear goes in the Underwear lists. **Show underwear under clothes** keeps it on under clothes; it starts off, as clothes aren't fitted around underwear yet.
+- Six new bobs in the Hair tab.
+- Fixed: the eyes rolled up under the lids when looking at the camera from close or above.
+
 ## 0.1.10 — 2026-11-23
 
 - Room for accessories fixed to the body: things held in either hand, horns or antlers, a necklace, something on the back, at the hip, on the wrists, ankles and belly, and a tail. A piece held or fixed this way keeps its shape as the avatar moves. The packs that fill these places come next.

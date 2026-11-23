@@ -38,11 +38,7 @@ const MODELS = join(makerRoot, "assets/models");
 // (Everyday Women's, Everyday Men's, Historical and Fantasy, and Modern Casual were merged into Clothes and
 // Accessories, keeping every piece id; their old artifacts stay for installs that have them.)
 const VERSIONS = {
-<<<<<<< HEAD
   "3d-avatar-maker-wardrobe-clothes": "0.1.02",
-=======
-  "3d-avatar-maker-wardrobe-clothes": "0.1.00",
->>>>>>> refs/heads/feat/3d-avatar-maker-community-hair
   "3d-avatar-maker-wardrobe-accessories": "0.2.02",
 };
 // A piece's bundle: its slot's group (looks.js CLOTH_SLOTS), or "underwear" for an underwear slot

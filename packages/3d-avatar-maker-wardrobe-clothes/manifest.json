@@ -10,7 +10,7 @@
   },
   "id": "3d-avatar-maker-wardrobe-clothes",
   "name": "3D Avatar Maker: Clothes",
-  "version": "0.1.01",
+  "version": "0.1.02",
   "description": "186 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.11 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
   "engine": {
     "min": "2.4.6",
@@ -43,8 +43,8 @@
     },
     {
       "path": "avatar-pack.json",
-      "sha256": "9f24cfb868b5064a8080b6d3b60c2b1a50362cd46765fff264138ddff4d6de20",
-      "bytes": 115406
+      "sha256": "5fdc3ce7290d6eb2b6743d6f26916a054cf79c0b3a0e08bf210c83ab969cd12a",
+      "bytes": 115765
     },
     {
       "path": "wardrobe/accessories.pack.png",

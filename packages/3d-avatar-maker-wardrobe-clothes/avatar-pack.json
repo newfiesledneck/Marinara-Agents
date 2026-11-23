@@ -29,7 +29,8 @@
    "licence": "CC0-1.0",
    "author": "Aethelraed_Unraed",
    "source": "http://www.makehumancommunity.org/node/581",
-   "credit": null
+   "credit": null,
+   "hang": 0.4
   },
   "donitz_monk_robe": {
    "label": "Monk's robe",
@@ -65,7 +66,8 @@
    "licence": "CC0-1.0",
    "author": "Donitz",
    "source": "http://www.makehumancommunity.org/node/3238",
-   "credit": null
+   "credit": null,
+   "hang": 0.45
   },
   "drednicolson_asymmetric_tunic_and_sash": {
    "label": "Tunic with a sash",
@@ -729,7 +731,8 @@
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/2558",
-   "credit": "\"elvs_goddess_dress1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2558), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"elvs_goddess_dress1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2558), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
   },
   "elvs_goddess_dress2": {
    "label": "Goddess dress, long",
@@ -755,7 +758,8 @@
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/2559",
-   "credit": "\"elvs_goddess_dress2\" by Elvaerwyn (http://www.makehumancommunity.org/node/2559), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"elvs_goddess_dress2\" by Elvaerwyn (http://www.makehumancommunity.org/node/2559), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.35
   },
   "elvs_goddess_dress5": {
    "label": "Goddess dress, green",
@@ -807,7 +811,8 @@
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/2564",
-   "credit": "\"elvs_goddess_dress7\" by Elvaerwyn (http://www.makehumancommunity.org/node/2564), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"elvs_goddess_dress7\" by Elvaerwyn (http://www.makehumancommunity.org/node/2564), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.25
   },
   "elvs_gored_elephant_pants": {
    "label": "Flared trousers",
@@ -1423,7 +1428,8 @@
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/2581",
-   "credit": "\"elvs_pencil_skirt\" by Elvaerwyn (http://www.makehumancommunity.org/node/2581), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"elvs_pencil_skirt\" by Elvaerwyn (http://www.makehumancommunity.org/node/2581), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.2
   },
   "elvs_pleated_plaid_mini_skirt": {
    "label": "Pleated tartan mini skirt",
@@ -2506,7 +2512,8 @@
    "licence": "CC-BY-4.0",
    "author": "MTKnife",
    "source": "http://www.makehumancommunity.org/node/1961",
-   "credit": "\"mtknife_pleated_mini_skirt\" by MTKnife (http://www.makehumancommunity.org/node/1961), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"mtknife_pleated_mini_skirt\" by MTKnife (http://www.makehumancommunity.org/node/1961), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
   },
   "namuhekam_male_polo_shirt": {
    "label": "Polo shirt",
@@ -2700,7 +2707,8 @@
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/421",
-   "credit": "\"punkduck_black_mini_skirt\" by punkduck (http://www.makehumancommunity.org/node/421), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_black_mini_skirt\" by punkduck (http://www.makehumancommunity.org/node/421), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
   },
   "punkduck_brazilian_bikini_bra": {
    "label": "Brazilian bikini top",
@@ -3212,7 +3220,8 @@
    "licence": "CC-BY-4.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/1379",
-   "credit": "\"punkduck_medieval_dress\" by punkduck (http://www.makehumancommunity.org/node/1379), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_medieval_dress\" by punkduck (http://www.makehumancommunity.org/node/1379), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.1
   },
   "punkduck_middle_length_qipao": {
    "label": "Qipao, mid length",
@@ -3316,7 +3325,8 @@
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/780",
-   "credit": "\"punkduck_retro_polka_dot_skirt\" by punkduck (http://www.makehumancommunity.org/node/780), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_retro_polka_dot_skirt\" by punkduck (http://www.makehumancommunity.org/node/780), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0
   },
   "punkduck_retro_top": {
    "label": "Retro top",
@@ -3888,7 +3898,8 @@
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/443",
-   "credit": "\"punkduck_winter_coat\" by punkduck (http://www.makehumancommunity.org/node/443), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_winter_coat\" by punkduck (http://www.makehumancommunity.org/node/443), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.3
   },
   "toigo_ankle_boots_female": {
    "label": "Ankle boots",
@@ -4058,7 +4069,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1706",
-   "credit": null
+   "credit": null,
+   "hang": 0.1
   },
   "toigo_bodice_style_top": {
    "label": "Bodice top",
@@ -4109,7 +4121,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1730",
-   "credit": null
+   "credit": null,
+   "hang": 0.15
   },
   "toigo_camisole_top": {
    "label": "Camisole top",
@@ -4299,7 +4312,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1853",
-   "credit": null
+   "credit": null,
+   "hang": 0.3
   },
   "toigo_halter_dress_midi": {
    "label": "Halter dress, midi",
@@ -4325,7 +4339,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1854",
-   "credit": null
+   "credit": null,
+   "hang": 0.3
   },
   "toigo_halter_dress_with_fluted_skirt": {
    "label": "Halter dress, fluted skirt",
@@ -4351,7 +4366,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1855",
-   "credit": null
+   "credit": null,
+   "hang": 0.35
   },
   "toigo_harem_pants": {
    "label": "Harem trousers",
@@ -4452,7 +4468,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1727",
-   "credit": null
+   "credit": null,
+   "hang": 0.1
   },
   "toigo_male_double_breasted_suit": {
    "label": "Double-breasted suit",
@@ -4587,7 +4604,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1724",
-   "credit": null
+   "credit": null,
+   "hang": 0.4
   },
   "toigo_skirt_with_lace_ruffle": {
    "label": "Skirt with lace ruffle",
@@ -4612,7 +4630,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1731",
-   "credit": null
+   "credit": null,
+   "hang": 0.2
   },
   "toigo_strapless_ruffle_top_dress": {
    "label": "Strapless ruffle dress",
@@ -4638,7 +4657,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1705",
-   "credit": null
+   "credit": null,
+   "hang": 0.1
   },
   "toigo_suit_with_dinner_jacket": {
    "label": "White dinner jacket suit",
@@ -4691,7 +4711,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1668",
-   "credit": null
+   "credit": null,
+   "hang": 0.25
   },
   "toigo_tiered_skirt": {
    "label": "Tiered skirt",
@@ -4716,7 +4737,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1641",
-   "credit": null
+   "credit": null,
+   "hang": 0.2
   },
   "toigo_turtleneck_halter_top": {
    "label": "Turtleneck halter top",

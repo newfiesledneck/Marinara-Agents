@@ -1,5 +1,9 @@
 # 3D Avatar Maker: Clothes release notes
 
+## 0.1.02 — 2026-11-23
+
+- 22 skirts, dresses, gowns, robes and coats now hang from the hips and swing as one piece as the avatar moves, instead of following each leg. Needs 3D Avatar Maker 0.1.11 or later; an older one shows them as before.
+
 ## 0.1.01 — 2026-11-23
 
 - Bras, bikini tops, briefs and bikini bottoms are underwear now: the maker offers them in its Underwear lists in place of the body's own, under any shirt, skirt or trousers. Before, they took the Shirt or top and Legs slots, so nothing could be worn over them. Needs 3D Avatar Maker 0.1.11 or later; an older one leaves the underwear out.

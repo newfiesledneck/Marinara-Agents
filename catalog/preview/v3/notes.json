@@ -4,6 +4,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.11",
+          "date": "2026-11-23",
+          "notes": "- Skirts, dresses, robes, coats and cloaks hang from the hips and swing as one piece, and the bust moves a little, clothes with it. A saved VRM swings them too.\n- An **Animation** list plays the avatar walking, dancing, talking, waving, sitting and more, mostly Quaternius's CC0 clips. Preview only; saved files rest as before.\n- Makeup on any skin: eyeshadow, eyeliner, blush and lipstick in your own colours, or one of seven ready-made looks. The made-up duplicate skins are gone; looks that used one keep its makeup.\n- Pack underwear goes in the Underwear lists. **Show underwear under clothes** keeps it on under clothes; it starts off, as clothes aren't fitted around underwear yet.\n- Six new bobs in the Hair tab.\n- Fixed: the eyes rolled up under the lids when looking at the camera from close or above.",
+          "highlight": false
+        },
+        {
           "version": "0.1.10",
           "date": "2026-11-23",
           "notes": "- Room for accessories fixed to the body: things held in either hand, horns or antlers, a necklace, something on the back, at the hip, on the wrists, ankles and belly, and a tail. A piece held or fixed this way keeps its shape as the avatar moves. The packs that fill these places come next.\n- Wardrobe packs can now add hair styles too, which the Hair tab lists beside the maker's own.\n- An avatar that wears something from a pack you've since uninstalled keeps it in its look. The maker says what isn't shown and which pack to install, and it comes back once the pack is installed again. A saved file still holds only what's worn.",
@@ -74,6 +80,12 @@
     "3d-avatar-maker-wardrobe-accessories": {
       "versions": [
         {
+          "version": "0.2.02",
+          "date": "2026-11-23",
+          "notes": "- 14 hair styles for the Hair tab, all by Elvaerwyn and CC BY 4.0: a 1950s updo, a braided bun, long straight, loose, side-parted, swept-back and tousled styles, two half-updos, a feathered cut to the shoulders, a layered cut with a fringe, a short straight cut, a wavy bob and a short swept-up men's cut. The long and loose ones swing as the avatar moves. They need 3D Avatar Maker 0.1.10 or later; an older maker still shows the rest of the pack.",
+          "highlight": false
+        },
+        {
           "version": "0.2.01",
           "date": "2026-11-23",
           "notes": "- 2 new pieces: a feather headdress and a lace choker (in the Necklace slot). Needs 3D Avatar Maker 0.1.10 or later, which added that slot.",
@@ -101,6 +113,12 @@
     },
     "3d-avatar-maker-wardrobe-clothes": {
       "versions": [
+        {
+          "version": "0.1.02",
+          "date": "2026-11-23",
+          "notes": "- 22 skirts, dresses, gowns, robes and coats now hang from the hips and swing as one piece as the avatar moves, instead of following each leg. Needs 3D Avatar Maker 0.1.11 or later; an older one shows them as before.",
+          "highlight": false
+        },
         {
           "version": "0.1.01",
           "date": "2026-11-23",
