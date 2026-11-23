@@ -1,5 +1,5 @@
-"""The wardrobe packs' pieces (assets/packs.json): community MakeHuman clothes (CC0 items from the community packs,
-`pack:<zip stem>/clothes/<item>`, read from `wwavatar.extracted_dir`), fitted to the base avatar exactly as
+"""The wardrobe packs' pieces (assets/packs.json): community MakeHuman clothes (CC0 and CC-BY items from the
+community packs, `pack:<zip stem>/clothes/<item>`, read from `wwavatar.extracted_dir`), fitted to the base avatar exactly as
 make_mh_clothes.py fits the maker's own `mh_*` pieces (its `make`: the same CLEARANCE, safe hides, skin weights
 and the bodies' own keys), one GLB per piece, assets/models/packs/<pack id>/outfit-<piece>.glb, with the same
 extras (`outfit`, `slot`, `body`, `layer`, `hides`, `parts`). scripts/build-3d-avatar-maker-packs.mjs packs them.
@@ -11,7 +11,8 @@ A piece is the item whole (`split: none`), its faces one part (`part`, default c
 the regions it may hide, kept only where hiding them leaves no hole (make_mh_clothes.safe_hides) unless in
 `force`. Each run writes the fitting report to assets/build/packs-report.json.
 
-Clothes from the MakeHuman community (makehumancommunity.org, CC0), fitted in Blender by ThatOneCan.
+Clothes from the MakeHuman community (makehumancommunity.org, CC0 or CC BY as assets/packs.json says), fitted in
+Blender by ThatOneCan.
 """
 
 import json

@@ -704,6 +704,172 @@
         "schemaVersion": 2,
         "capabilityApi": {
           "major": 1,
+          "minor": 66
+        },
+        "builtAgainst": {
+          "engineVersion": "2.5.2",
+          "engineCommit": "fc0333c3fe978cda5e0b919bd6faec985901704e"
+        },
+        "id": "3d-avatar-maker-wardrobe-historical-fantasy",
+        "name": "3D Avatar Maker: Historical and Fantasy Clothes",
+        "version": "0.1.00",
+        "description": "17 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.03 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+        "engine": {
+          "min": "2.4.6",
+          "maxExclusive": "4.0.0"
+        },
+        "kind": [
+          "agent"
+        ],
+        "entrypoints": {
+          "agents": "agents.json"
+        },
+        "contributions": {
+          "assets": {
+            "paths": [
+              "avatar-pack.json",
+              "wardrobe/body.pack.png",
+              "wardrobe/feet.pack.png",
+              "wardrobe/head.pack.png",
+              "wardrobe/tops.pack.png"
+            ]
+          }
+        },
+        "files": [
+          {
+            "path": "agents.json",
+            "sha256": "dfc1e6de4dac4bffc52dd6eac53fe22596ba55b2e0ff6e29007499177db78533",
+            "bytes": 822
+          },
+          {
+            "path": "avatar-pack.json",
+            "sha256": "e4fa7179f40ceefe931168c12f0d03a64eab503911f39cffdfab50d53f42388b",
+            "bytes": 11199
+          },
+          {
+            "path": "wardrobe/body.pack.png",
+            "sha256": "368aeef8bd777db707885c699486826c465f7f51551b52ae2d39c70a84a329cd",
+            "bytes": 3228563
+          },
+          {
+            "path": "wardrobe/feet.pack.png",
+            "sha256": "291d55bd151e4a78da7c9fa8ad43668927da768ddb5cd332ee1138932457ca4c",
+            "bytes": 1263114
+          },
+          {
+            "path": "wardrobe/head.pack.png",
+            "sha256": "497aa59d41a821a0162ed61091ba9ca7e28e16da91eded0f37ecfe1f91b2eddc",
+            "bytes": 2693491
+          },
+          {
+            "path": "wardrobe/tops.pack.png",
+            "sha256": "e896e7f0e9c96fd5b69b2eaf380d8ea7588e46958c5059d383fe612522745def",
+            "bytes": 845616
+          }
+        ],
+        "permissions": [],
+        "restartRequired": false
+      },
+      "category": "misc",
+      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker-wardrobe-historical-fantasy.png",
+      "artifact": {
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-wardrobe-historical-fantasy-0.1.00.zip",
+        "sha256": "9d4098b4a07d777a0a90ddb432b6d09399c65eddc767469e5b5bece41e3fbc2a",
+        "bytes": 8045665
+      },
+      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker-wardrobe-historical-fantasy/README.md"
+    },
+    {
+      "manifest": {
+        "schemaVersion": 2,
+        "capabilityApi": {
+          "major": 1,
+          "minor": 66
+        },
+        "builtAgainst": {
+          "engineVersion": "2.5.2",
+          "engineCommit": "fc0333c3fe978cda5e0b919bd6faec985901704e"
+        },
+        "id": "3d-avatar-maker-wardrobe-modern-casual",
+        "name": "3D Avatar Maker: Modern Casual Clothes",
+        "version": "0.1.00",
+        "description": "34 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.03 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+        "engine": {
+          "min": "2.4.6",
+          "maxExclusive": "4.0.0"
+        },
+        "kind": [
+          "agent"
+        ],
+        "entrypoints": {
+          "agents": "agents.json"
+        },
+        "contributions": {
+          "assets": {
+            "paths": [
+              "avatar-pack.json",
+              "wardrobe/body.pack.png",
+              "wardrobe/feet.pack.png",
+              "wardrobe/head.pack.png",
+              "wardrobe/legs.pack.png",
+              "wardrobe/tops.pack.png"
+            ]
+          }
+        },
+        "files": [
+          {
+            "path": "agents.json",
+            "sha256": "59f101556434fbd20325253ba1cb049a7b1d896b29bab169a093092455c8a1eb",
+            "bytes": 808
+          },
+          {
+            "path": "avatar-pack.json",
+            "sha256": "e44c1ed205ae0a9dc6bf14024c4aa9e641081b157ca0ae265a73fcd50eb0bd58",
+            "bytes": 22645
+          },
+          {
+            "path": "wardrobe/body.pack.png",
+            "sha256": "e68e491defd0a7533a068bdfbd3c78d7790b1670c0066a2c1542600b0414b66e",
+            "bytes": 412886
+          },
+          {
+            "path": "wardrobe/feet.pack.png",
+            "sha256": "cb362374d7d7c51a6da4b0ceffba57c5737ef4e7b08432d0b5d68fe0285fca22",
+            "bytes": 1979060
+          },
+          {
+            "path": "wardrobe/head.pack.png",
+            "sha256": "c1942ee0376f10d73802687645aa326bd5660c0ed8308b5ed92705c7ad031258",
+            "bytes": 1198697
+          },
+          {
+            "path": "wardrobe/legs.pack.png",
+            "sha256": "90a441d281150b9de32dcce12ed47d65b0f509547707b91cf583388a2954c5e2",
+            "bytes": 2696732
+          },
+          {
+            "path": "wardrobe/tops.pack.png",
+            "sha256": "17b8fe9de48288d295a44646970d93db934ee437bff8328b14bf5f44c8acb38e",
+            "bytes": 3035250
+          }
+        ],
+        "permissions": [],
+        "restartRequired": false
+      },
+      "category": "misc",
+      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker-wardrobe-modern-casual.png",
+      "artifact": {
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-wardrobe-modern-casual-0.1.00.zip",
+        "sha256": "3dc771e193a8ad242dd0e70c38bf9897b161448c793dcb7dc26d8b836f7d2d02",
+        "bytes": 9349238
+      },
+      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker-wardrobe-modern-casual/README.md"
+    },
+    {
+      "manifest": {
+        "schemaVersion": 2,
+        "capabilityApi": {
+          "major": 1,
           "minor": 813
         },
         "builtAgainst": {

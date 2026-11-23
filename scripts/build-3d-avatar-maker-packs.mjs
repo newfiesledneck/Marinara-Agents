@@ -33,6 +33,8 @@ const VERSIONS = {
   "3d-avatar-maker-wardrobe-everyday-women": "0.1.01",
   "3d-avatar-maker-wardrobe-everyday-men": "0.1.01",
   "3d-avatar-maker-wardrobe-accessories": "0.1.01",
+  "3d-avatar-maker-wardrobe-historical-fantasy": "0.1.00",
+  "3d-avatar-maker-wardrobe-modern-casual": "0.1.00",
 };
 // The bodies the pieces are fitted to (src/packs.js BODY_REVISION: the bodies made in 0.1.02), and the first
 // maker that reads packs (a pack's own `maker` in packs.json when it needs a later one, for its slots).
@@ -45,6 +47,12 @@ const boundary = JSON.parse(await readFile(join(makerRoot, "engine-boundary.json
 const LICENCES = new Set(["CC0-1.0", "CC-BY-3.0", "CC-BY-4.0"]);
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+/** A CC-BY piece's attribution (title, author, source, licence and the change made), as a saved avatar carries it. */
+const creditLine = (spec, licence) => {
+  const version = licence.slice("CC-BY-".length);
+  const item = spec.src.split("/").pop();
+  return `"${item}" by ${spec.author} (${spec.source}), CC BY ${version} (https://creativecommons.org/licenses/by/${version}/), fitted to 3D Avatar Maker's bodies by ThatOneCan`;
+};
 const { packs } = JSON.parse(await readFile(join(makerRoot, "assets/packs.json"), "utf8"));
 const only = process.argv.slice(2);
 for (const id of only) if (!packs[id]) throw new Error(`No pack ${id} in packages/3d-avatar-maker/assets/packs.json`);
@@ -101,7 +109,7 @@ for (const [id, pack] of Object.entries(packs)) {
     const info = outfits[piece];
     const entry = bundles.bundles.get(join(packageRoot, info.bundle)).pieces[piece];
     const licence = spec.licence ?? pack.licence;
-    const credit = spec.credit ?? null;
+    const credit = licence === "CC0-1.0" ? null : creditLine(spec, licence);
     if (!/^[a-z0-9_]{1,64}$/u.test(piece)) throw new Error(`${id}: piece id "${piece}"`);
     if (!spec.label || spec.label.length > 60 || !spec.author || spec.author.length > 80)
       throw new Error(`${id} ${piece}: a label of at most 60 characters and an author of at most 80`);
@@ -141,9 +149,12 @@ for (const [id, pack] of Object.entries(packs)) {
   // ── Agent definition stub: satisfies the catalog loader; runtime-inert (the maker's own) ──
   const name = `3D Avatar Maker: ${pack.name}`;
   const count = Object.keys(pieces).length;
+  const terms = Object.values(pieces).some((piece) => piece.credit)
+    ? "free to share with credit to their makers (CC BY; a saved avatar carries the credits)"
+    : "free to share (CC0)";
   const description = withPackageActivationGuidance(
     id,
-    `${count} more ${pack.things ?? "pieces of clothing"} for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker ${maker} or later.`,
+    `${count} more ${pack.things ?? "pieces of clothing"} for 3D Avatar Maker's Clothes tab, from the MakeHuman community and ${terms}. Needs 3D Avatar Maker ${maker} or later.`,
   );
   const agentDefinition = {
     id,

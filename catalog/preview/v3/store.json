@@ -29,6 +29,20 @@
       "bannerPath": "../../../store/banners/3d-avatar-maker-wardrobe-everyday-women.webp",
       "bannerSmallPath": "../../../store/banners/3d-avatar-maker-wardrobe-everyday-women-1200.webp"
     },
+    "3d-avatar-maker-wardrobe-historical-fantasy": {
+      "section": "alive",
+      "tagline": "Robes, gowns, tunics and period hats for 3D Avatar Maker.",
+      "iconPath": "../../../store/icons/3d-avatar-maker-wardrobe-historical-fantasy.webp",
+      "bannerPath": "../../../store/banners/3d-avatar-maker-wardrobe-historical-fantasy.webp",
+      "bannerSmallPath": "../../../store/banners/3d-avatar-maker-wardrobe-historical-fantasy-1200.webp"
+    },
+    "3d-avatar-maker-wardrobe-modern-casual": {
+      "section": "alive",
+      "tagline": "Jeans, tops, skirts, trainers and hats for 3D Avatar Maker.",
+      "iconPath": "../../../store/icons/3d-avatar-maker-wardrobe-modern-casual.webp",
+      "bannerPath": "../../../store/banners/3d-avatar-maker-wardrobe-modern-casual.webp",
+      "bannerSmallPath": "../../../store/banners/3d-avatar-maker-wardrobe-modern-casual-1200.webp"
+    },
     "modern-life-sim": {
       "section": "apps",
       "tagline": "A town, a job and rent with your cast.",

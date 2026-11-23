@@ -113,6 +113,12 @@ poses with its arms lowered. Not yet checked in a real Engine.
   use and are out: the Mid-toned and Viking tattoos skins from the kit, and from the packs (each now 0.1.01)
   Cortu's cargo trousers, denim shorts and T-bar shoes, both culturalibre eye masks and the lightning
   earrings. A new pack item must pass the same every-file check.
+- Two more packs, with no maker change: Historical and Fantasy Clothes (17 pieces, CC BY 4.0 and the CC0 monk's
+  robe) and Modern Casual Clothes (34, CC BY 3.0 and 4.0). The pack builder writes each CC BY piece's credit
+  (title, author, source, licence and the fitting) into `avatar-pack.json`, and the maker puts the credits of
+  what's worn in a saved file. `wwmhclo.py` reads MakeClothes 2's `l_shear_*` lines where an item has no
+  `x_scale` (six of Elvaerwyn's). Shoes the fitter wouldn't let hide the feet got `force: ["feet"]`, as the
+  everyday ankle boots did.
 
 ## Next, in order
 

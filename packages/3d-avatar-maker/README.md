@@ -38,8 +38,9 @@ Every slider's middle is the body's own shape, and each control says what it cha
 ## Wardrobe packs
 
 More clothes come as separate packages you install from the catalog: 3D Avatar Maker: Everyday Women's
-Clothes, 3D Avatar Maker: Everyday Men's Clothes and Suits, and 3D Avatar Maker: Accessories (glasses, masks,
-earrings, rings, gloves, socks and hats). The maker finds the installed packs when it opens (reload it after
+Clothes, 3D Avatar Maker: Everyday Men's Clothes and Suits, 3D Avatar Maker: Accessories (glasses, a mask,
+earrings, rings, gloves, socks and hats), 3D Avatar Maker: Historical and Fantasy Clothes, and 3D Avatar
+Maker: Modern Casual Clothes. The last two are mostly CC BY. The maker finds the installed packs when it opens (reload it after
 installing one) and lists their clothes in the Clothes tab, each with a line saying which pack it's from and
 who made it. It only reads a pack's files as data. A pack made for an older body is left out. If a pack piece
 is credited (CC BY), a saved avatar wearing it carries the credit. Gloves hide a ring and socks hide the

@@ -35,13 +35,15 @@ The package uses data from these items, read by `assets/scripts/make_avatar.py` 
 - Brows and lashes, baked onto MakeHuman's cards (`bake_brows.py` STYLES): eyebrows01_cc0 mindfront_eyebrows_02, _04,
   _07, _09; eyelashes01_cc0 mindfront_eyelashes_01, _05.
 
-## In the wardrobe packs (all CC0)
+## In the wardrobe packs
 
-The separate packages `3d-avatar-maker-wardrobe-everyday-women`, `-everyday-men` and `-accessories` carry
-community clothes, listed with their authors in `assets/packs.json` and each pack's README, fitted by
-`make_mh_packs.py`. Every one of each item's own files says CC0 too, or names no licence (spamrakuen's glasses, joachip_ring_1),
-where the catalogue's CC0 stands. The packs' 0.1.01 took out six items whose `.obj` says AGPL-3 though their
-`.mhclo` says CC0 (see the section after next).
+The separate packages `3d-avatar-maker-wardrobe-everyday-women`, `-everyday-men`, `-accessories`,
+`-historical-fantasy` and `-modern-casual` carry community clothes, listed with their authors in
+`assets/packs.json` and each pack's README, fitted by `make_mh_packs.py`. The first three are all CC0: every
+one of each item's own files says CC0 too, or names no licence (spamrakuen's glasses, joachip_ring_1), where
+the catalogue's CC0 stands. Their 0.1.01 took out six items whose `.obj` says AGPL-3 though their `.mhclo`
+says CC0 (listed under "Excluded: a model or material file says AGPL-3"). The last two are mostly CC BY,
+and every file of each item was read before it went in.
 
 - Everyday women's: dress01_cc0 (eight toigo dresses, aethelraed_flapper_dress), shirts01_cc0 (six toigo tops,
   joepal_crude_t-shirt_female), skirts01_cc0 (four toigo skirts), pants01_cc0 toigo_harem_pants, shoes01_cc0
@@ -50,16 +52,41 @@ where the catalogue's CC0 stands. The packs' 0.1.01 took out six items whose `.o
   shirts01_cc0 namuhekam_male_polo_shirt and elvs_crude_t-shirt_male, pants01_cc0 toigo_wool_pants,
   shoes01_cc0 toigo_ankle_boots_male.
 - Accessories: glasses01_cc0 (spamrakuen_sagerfrogs_glasses_01 to _04, spamrakuen_tbm_glasses_frames_01,
-  toigo_round_glasses_leopard), masks01_cc0 (joepal_medical_mouth_protection),
-  jewelry01_cc0 (toigo_pearl_earrings, joachip_ring_1,
-  wolgade_diamond_ring_01), gloves01_cc0 (toigo_gloves_short, _medium and _long), underwear04_cc0 (all four
-  socks), hats01_cc0 (aethelraed_unraed_cloche_hat, joepal_xmas_cap).
+  toigo_round_glasses_leopard), masks01_cc0 (joepal_medical_mouth_protection), jewelry01_cc0
+  (toigo_pearl_earrings, joachip_ring_1, wolgade_diamond_ring_01), gloves01_cc0 (toigo_gloves_short, _medium
+  and _long), underwear04_cc0 (all four socks), hats01_cc0 (aethelraed_unraed_cloche_hat, joepal_xmas_cap).
+- Historical and fantasy: suits02_cc0 donitz_monk_robe, _hood and _hood_down (CC0); and CC BY 4.0:
+  dress03_cc-by punkduck_medieval_dress, dress02_cc-by elvs_goddess_dress1, 2 and 7, shirts03_ccby
+  elvs_ruffle_sleeve_peasant_blouse_1 and drednicolson_asymmetric_tunic_and_sash, hats03_cc-by
+  elvs_dirty_lil_maid_bonnet, elvs_charity_veil1 and elvs_tophat1, hats04_cc-by drednicolson_pith_helmet,
+  jewelry02_cc-by punkduck_brass_circlet_crown, shoes03_ccby punkduck_medieval_boots and punkduck_riding_boots,
+  shoes02_ccby elvs_basic_felt_elf_shoes.
+- Modern casual, CC BY 3.0 or 4.0 as each item's files say: shirts02_ccby and shirts03_ccby (seven punkduck
+  tops, mindfront_knitted_sweater_01, mindfront_tank_top_01, elvs_male_shirt_untucked_bd1,
+  elvs_male_shirt_tie_tucked1, elvs_hooded_sweat_jacket1), dress03_cc-by punkduck_winter_coat, pants02_ccby and
+  pants03_ccby (punkduck_female_short_jeans, punkduck_male_classic_jeans, elvs_jeans_straight_leg,
+  mindfront_male_trousers_2), skirts02_cc-by (punkduck_black_mini_skirt, punkduck_jeans_skirt,
+  punkduck_retro_polka_dot_skirt, elvs_pencil_skirt, mtknife_pleated_mini_skirt), shoes02_ccby and shoes03_ccby
+  (punkduck_running_shoes_01, punkduck_tennis_shoes, punkduck_comfortable_sneakers, punkduck_winter_boots,
+  mindfront_shoes_oxford_male and _female, mindfront_shoes_biker_boots_male and _female), hats03_cc-by
+  (elvs_slouchy_beanie1, elvs_male_flat_cap1, mindfront_knitted_hat_01, mindfront_sherpa_hat).
+- CC BY versions: where an item's files say only "CC-BY" (Elvaerwyn's, DredNicolson's, culturalibre's), it is
+  credited under 4.0, the version MakeHuman's FAQ on CC-BY assets links to. punkduck_female_knee_boots says 4.0
+  in its `.mhclo` and 3.0 in its `.obj` (it was left out for fit anyway).
 - Left out for fit or size, not licence: mindfront_kimono (its scale references are helper vertices; fitted, it
   had stray vertices a metre off the body and skin through it) and toigo_suit_with_jacket_and_bowtie (12.8k
   vertices). For the Accessories pack: toigo_diamond_ring_and_wedding_band (17k vertices), toigo_pearl_necklace
   (28k), culturalibre_motorcycle_helmet (22k), mrgreaterthan_m1_helmet (35k), culturalibre_doc_ock_glasses
   (10k, and named for a film character), culturalibre_hero-heroine_gloves_2 to _5 (superhero gloves, not
-  needed beside toigo's), and toigo_maga_hat (political).
+  needed beside toigo's), and toigo_maga_hat (political). For the historical and modern packs:
+  elvs_caesar_sandals1 (47k vertices), elvs_ladies_apron (29k), elvs_plague_doctor_mask (18k), mindfront_f_ninja
+  (16k), elvs_male_trilby_hat (15k), elvs_flatshoe_pointy1 (lumpy toes once fitted),
+  punkduck_female_knee_boots (heeled: the toes come through on the maker's flat foot), and
+  punkduck_riding_boots on the male body (a jagged toe; the female one is in).
+- Left out for licence from those two packs' first choices (their `.obj` says AGPL-3; listed under that heading):
+  rehmanpolanski_viking_tunic, _pants and _boots, culturalibre_warrior_helmet and _02,
+  culturalibre_cl_don_quixote_hat, culturalibre_cl_bowler_hat, punkduck_female_tight_jeans and
+  culturalibre_sneakers.
 
 ## Left out though the licence allows them
 
