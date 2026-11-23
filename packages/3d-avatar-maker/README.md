@@ -31,17 +31,19 @@ file you save, and you import that file yourself.
 | Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (66 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: beards, tusks, horns, a tail |
 | Skin and eyes | 32 skin pictures (MakeHuman's nine in three ages, and 23 more) or a colour of your own; 24 pictured eyes or a colour; nail length and toenails; lip and nail colours |
 | Hair | 14 styles in any colour |
-| Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus the clothes of any wardrobe packs you install |
+| Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus what any wardrobe packs you install add. Glasses, a face mask, earrings, rings and socks have places of their own, which the Accessories pack fills |
 
 Every slider's middle is the body's own shape, and each control says what it changes.
 
 ## Wardrobe packs
 
-More clothes come as separate packages you install from the catalog, such as 3D Avatar Maker: Everyday
-Women's Clothes and 3D Avatar Maker: Everyday Men's Clothes and Suits. The maker finds the installed packs
-when it opens (reload it after installing one) and lists their clothes in the Clothes tab, each with a line
-saying which pack it's from and who made it. It only reads a pack's files as data. A pack made for an older
-body is left out. If a pack piece is credited (CC BY), a saved avatar wearing it carries the credit.
+More clothes come as separate packages you install from the catalog: 3D Avatar Maker: Everyday Women's
+Clothes, 3D Avatar Maker: Everyday Men's Clothes and Suits, and 3D Avatar Maker: Accessories (glasses, masks,
+earrings, rings, gloves, socks and hats). The maker finds the installed packs when it opens (reload it after
+installing one) and lists their clothes in the Clothes tab, each with a line saying which pack it's from and
+who made it. It only reads a pack's files as data. A pack made for an older body is left out. If a pack piece
+is credited (CC BY), a saved avatar wearing it carries the credit. Gloves hide a ring and socks hide the
+toenails, as gloves and shoes hide the nails.
 
 ## Keeping your work
 

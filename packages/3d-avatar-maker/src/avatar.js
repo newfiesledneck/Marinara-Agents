@@ -34,7 +34,8 @@ import {
   CLOTH_HEX,
   DYES,
   SLOT_OF,
-  NAIL_COVERS,
+  NAIL_SLOTS,
+  isCovered,
   NAILS,
   PACK_PIECES,
   EYE_COLOURS,
@@ -118,8 +119,15 @@ export function setUnderwearByDefault(on) {
   underwearByDefault = on !== false;
 }
 
-/** What an outfit piece can hide: these regions of skin (and underwear on them), or the underwear itself. */
-export const HIDE_WORDS = [...new Set(Object.values(REGION_OF)), "underwear", "underwear-top", "underwear-bottom"];
+/** What an outfit piece can hide: these regions of skin (and underwear on them), the underwear itself, or the
+ *  hair (a hat or a hood). */
+export const HIDE_WORDS = [
+  ...new Set(Object.values(REGION_OF)),
+  "underwear",
+  "underwear-top",
+  "underwear-bottom",
+  "hair",
+];
 /** The parts the regions hide (the skin, and underwear under the piece; an anthro body's fur or scales, and
  *  its claws and pads, which gloves would otherwise let through). */
 const COVERED = new Set([
@@ -758,7 +766,7 @@ async function pieceOf(piece, sex, variant = "") {
 }
 
 /** Pieces in these slots are small enough to leave out far from the camera (kit.js drawDistant). */
-const SMALL_SLOTS = new Set(["brow", "neck", "waist", "arms"]);
+const SMALL_SLOTS = new Set(["brow", "face", "mouth", "ears", "fingers", "neck", "waist", "arms"]);
 
 const parts = new Map(); // a hair style's or outfit piece's meshes, made once: "hair:long:male" → [{ mesh, geometry, morphs, colours }]
 /** A hair style's or outfit piece's meshes, decoded once and shared; `small` ones aren't drawn far off. */
@@ -815,7 +823,10 @@ export async function avatarChoices(sex, species = "human") {
       ? []
       : HAIRSTYLES.map(([style]) => style).filter((style) => style === BARE || hair[style]?.bodies.includes(sex)),
     clothes: Object.entries({ ...outfits, ...PACK_PIECES })
-      .filter(([piece, entry]) => entry.bodies.includes(sex) && SLOT_OF[piece] && !NAIL_COVERS[SLOT_OF[piece]])
+      .filter(
+        ([piece, entry]) =>
+          entry.bodies.includes(sex) && SLOT_OF[piece] && !NAIL_SLOTS.some(([slot]) => slot === SLOT_OF[piece]),
+      )
       .filter(([piece]) => !anthro || !ANTHRO_BARE_SLOTS.has(SLOT_OF[piece]))
       .map(([piece, entry]) => ({
         piece,
@@ -1035,19 +1046,21 @@ function moveJoints(root, bones, moves, weights) {
 export async function createAvatar(look = {}, name = "", gender = "auto") {
   const filled = avatarLook(name, gender, look);
   const sex = filled.body;
-  // The nails: pieces of their own, worn unless gloves or shoes cover them, in the look's nail colour (or as
-  // made, beside a skin picture). They go on with the clothes but aren't among them.
+  // The nails: pieces of their own, worn unless gloves, shoes or socks cover them, in the look's nail colour
+  // (or as made, beside a skin picture). They go on with the clothes but aren't among them. A piece under
+  // another (a ring under gloves) is left off the same way, though it stays in the look.
   const covered = new Set(filled.clothes.map((piece) => SLOT_OF[piece]));
+  const clothes = filled.clothes.filter((piece) => !isCovered(SLOT_OF[piece], covered));
   const nails = [
-    ...(filled.nails !== "none" && !covered.has(NAIL_COVERS.nails) ? [`nails_${filled.nails}`] : []),
-    ...(filled.toenails && !covered.has(NAIL_COVERS.toenails) ? ["toenails"] : []),
+    ...(filled.nails !== "none" && !isCovered("nails", covered) ? [`nails_${filled.nails}`] : []),
+    ...(filled.toenails && !isCovered("toenails", covered) ? ["toenails"] : []),
   ];
   const dyes = { ...filled.clothColours };
   if (filled.colours.nails !== WHITE) for (const piece of nails) dyes[piece] = { nail: filled.colours.nails };
   const [kit, hair, worn] = await Promise.all([
     bodyKit(sex, filled.species),
     filled.hair === BARE ? null : hairOf(filled.hair, sex),
-    Promise.all([...filled.clothes, ...nails].map((piece) => pieceOf(piece, sex, filled.variants[piece]))),
+    Promise.all([...clothes, ...nails].map((piece) => pieceOf(piece, sex, filled.variants[piece]))),
   ]);
   const { root, bones } = rigOf(kit.file);
   let moved = null; // joints moved with the body's shape (below), for binding

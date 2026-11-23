@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 2,
+  "capabilityApi": {
+    "major": 1,
+    "minor": 66
+  },
+  "builtAgainst": {
+    "engineVersion": "2.5.2",
+    "engineCommit": "fc0333c3fe978cda5e0b919bd6faec985901704e"
+  },
+  "id": "3d-avatar-maker-wardrobe-accessories",
+  "name": "3D Avatar Maker: Accessories",
+  "version": "0.1.00",
+  "description": "22 more accessories for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.04 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+  "engine": {
+    "min": "2.4.6",
+    "maxExclusive": "4.0.0"
+  },
+  "kind": [
+    "agent"
+  ],
+  "entrypoints": {
+    "agents": "agents.json"
+  },
+  "contributions": {
+    "assets": {
+      "paths": [
+        "avatar-pack.json",
+        "wardrobe/accessories.pack.png",
+        "wardrobe/feet.pack.png",
+        "wardrobe/hands.pack.png",
+        "wardrobe/head.pack.png"
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "agents.json",
+      "sha256": "16075af625b4e54a16e0b89ca3c20360d012e440c8155a19b2f444c2c41b331d",
+      "bytes": 723
+    },
+    {
+      "path": "avatar-pack.json",
+      "sha256": "bae21055b9df7c8d601ba06839bcffc1bf72309698012a49cd6dec9d4b51957d",
+      "bytes": 11359
+    },
+    {
+      "path": "wardrobe/accessories.pack.png",
+      "sha256": "3e539efffb1aeb6d854a5c45ae583c0641cf4851a653454157af8bb5ae334f1f",
+      "bytes": 2607002
+    },
+    {
+      "path": "wardrobe/feet.pack.png",
+      "sha256": "3c54a05cc06b2a6de6d12e69da43863738c18431ac7fb32d1fb0531eefd4c399",
+      "bytes": 924530
+    },
+    {
+      "path": "wardrobe/hands.pack.png",
+      "sha256": "dce84e39a9d5ba874312438e5de56cb375b03ccfaa8c29d9f6f44f679c98b4dc",
+      "bytes": 1474944
+    },
+    {
+      "path": "wardrobe/head.pack.png",
+      "sha256": "73e00e53dec657a1dd8284042a6ac3d61abca598080f80cf3be05c10593eeb01",
+      "bytes": 244042
+    }
+  ],
+  "permissions": [],
+  "restartRequired": false
+}

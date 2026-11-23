@@ -1,0 +1,681 @@
+{
+ "format": 1,
+ "for": "3d-avatar-maker",
+ "body": 1,
+ "maker": "0.1.04",
+ "name": "Accessories",
+ "pieces": {
+  "aethelraed_unraed_cloche_hat": {
+   "label": "Cloche hat",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      6590058
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      6590058
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Aethelraed_Unraed",
+   "source": "http://www.makehumancommunity.org/node/582",
+   "credit": null
+  },
+  "culturalibre_hero_mask_3": {
+   "label": "Hero mask",
+   "slot": "face",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      10763385
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      10763385
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC0-1.0",
+   "author": "culturalibre",
+   "source": "http://www.makehumancommunity.org/node/2202",
+   "credit": null
+  },
+  "culturalibre_hero_mask_4": {
+   "label": "Cat mask",
+   "slot": "face",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      0
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      0
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC0-1.0",
+   "author": "culturalibre",
+   "source": "http://www.makehumancommunity.org/node/2220",
+   "credit": null
+  },
+  "culturalibre_heroine_lightning_earrings": {
+   "label": "Lightning earrings",
+   "slot": "ears",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16773634
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16773634
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC0-1.0",
+   "author": "culturalibre",
+   "source": "http://www.makehumancommunity.org/node/2857",
+   "credit": null
+  },
+  "joachip_ring_1": {
+   "label": "Plain ring",
+   "slot": "fingers",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16770735
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16770735
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC0-1.0",
+   "author": "joachip",
+   "source": "http://www.makehumancommunity.org/node/3119",
+   "credit": null
+  },
+  "joepal_crude_high_socks": {
+   "label": "Knee socks",
+   "slot": "socks",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "feet"
+   ],
+   "parts": {
+    "male": [
+     [
+      "sock",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "sock",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Joel Palmius",
+   "source": "http://www.makehumancommunity.org/node/25",
+   "credit": null
+  },
+  "joepal_crude_low_socks": {
+   "label": "Ankle socks",
+   "slot": "socks",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "feet"
+   ],
+   "parts": {
+    "male": [
+     [
+      "sock",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "sock",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Joel Palmius",
+   "source": "http://www.makehumancommunity.org/node/32",
+   "credit": null
+  },
+  "joepal_medical_mouth_protection": {
+   "label": "Medical mask",
+   "slot": "mouth",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Joel Palmius",
+   "source": "http://www.makehumancommunity.org/node/2369",
+   "credit": null
+  },
+  "joepal_xmas_cap": {
+   "label": "Christmas hat",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Joel Palmius",
+   "source": "http://www.makehumancommunity.org/node/520",
+   "credit": null
+  },
+  "spamrakuen_sagerfrogs_glasses_01": {
+   "label": "Glasses, rectangular",
+   "slot": "face",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "frame",
+      14871263
+     ]
+    ],
+    "female": [
+     [
+      "frame",
+      14871263
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC0-1.0",
+   "author": "spamrakuen",
+   "source": "http://www.makehumancommunity.org/node/3331",
+   "credit": null
+  },
+  "spamrakuen_sagerfrogs_glasses_02": {
+   "label": "Glasses, oval",
+   "slot": "face",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "frame",
+      14936796
+     ]
+    ],
+    "female": [
+     [
+      "frame",
+      14936796
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC0-1.0",
+   "author": "spamrakuen",
+   "source": "http://www.makehumancommunity.org/node/3332",
+   "credit": null
+  },
+  "spamrakuen_sagerfrogs_glasses_03": {
+   "label": "Glasses, round",
+   "slot": "face",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "frame",
+      14936798
+     ]
+    ],
+    "female": [
+     [
+      "frame",
+      14936798
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC0-1.0",
+   "author": "spamrakuen",
+   "source": "http://www.makehumancommunity.org/node/3333",
+   "credit": null
+  },
+  "spamrakuen_sagerfrogs_glasses_04": {
+   "label": "Glasses, cat-eye",
+   "slot": "face",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "frame",
+      15330248
+     ]
+    ],
+    "female": [
+     [
+      "frame",
+      15330248
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC0-1.0",
+   "author": "spamrakuen",
+   "source": "http://www.makehumancommunity.org/node/3334",
+   "credit": null
+  },
+  "spamrakuen_tbm_glasses_frames_01": {
+   "label": "Glasses, thin frames",
+   "slot": "face",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "frame",
+      1447713
+     ]
+    ],
+    "female": [
+     [
+      "frame",
+      1447713
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC0-1.0",
+   "author": "spamrakuen",
+   "source": "http://www.makehumancommunity.org/node/3330",
+   "credit": null
+  },
+  "toigo_gloves_long": {
+   "label": "Opera gloves",
+   "slot": "hands",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "hands",
+    "forearms"
+   ],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      2368548
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      2368548
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/hands.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1850",
+   "credit": null
+  },
+  "toigo_gloves_medium": {
+   "label": "Gloves, to the elbow",
+   "slot": "hands",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "hands"
+   ],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      3158064
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      3158064
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/hands.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1851",
+   "credit": null
+  },
+  "toigo_gloves_short": {
+   "label": "Gloves, short",
+   "slot": "hands",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "hands"
+   ],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      3158064
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      3158064
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/hands.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1852",
+   "credit": null
+  },
+  "toigo_lace_frill_socks": {
+   "label": "Lace frill socks",
+   "slot": "socks",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "feet"
+   ],
+   "parts": {
+    "male": [
+     [
+      "sock",
+      16645629
+     ]
+    ],
+    "female": [
+     [
+      "sock",
+      16645629
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1078",
+   "credit": null
+  },
+  "toigo_leg_warmer_socks": {
+   "label": "Leg warmers",
+   "slot": "socks",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "feet"
+   ],
+   "parts": {
+    "male": [
+     [
+      "sock",
+      16382457
+     ]
+    ],
+    "female": [
+     [
+      "sock",
+      16382457
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1092",
+   "credit": null
+  },
+  "toigo_pearl_earrings": {
+   "label": "Pearl earrings",
+   "slot": "ears",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "gem",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "gem",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1029",
+   "credit": null
+  },
+  "toigo_round_glasses_leopard": {
+   "label": "Round sunglasses, leopard print",
+   "slot": "face",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "frame",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "frame",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1070",
+   "credit": null
+  },
+  "wolgade_diamond_ring_01": {
+   "label": "Diamond ring",
+   "slot": "fingers",
+   "bodies": [
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC0-1.0",
+   "author": "wolgade",
+   "source": "http://www.makehumancommunity.org/node/558",
+   "credit": null
+  }
+ }
+}

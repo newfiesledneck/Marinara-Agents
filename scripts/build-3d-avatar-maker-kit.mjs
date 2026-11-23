@@ -1212,8 +1212,8 @@ export function bodyReach(dir) {
 /**
  * Outfit pieces (`files`, outfit-<piece>.glb in `dir`, as make_outfit.py and make_mh_clothes.py write them)
  * into bundles: each piece's parts drawn as one (mergePrimitives), the face keys only on what's worn on the
- * head, and another way of wearing it (a cloak's hood up) a variant of its own, never shown with the usual
- * one. `reach` and `shares` are each body's keyReach and distant share; `bundler` the bundles' bundleAt and
+ * head or face, and another way of wearing it (a cloak's hood up) a variant of its own, never shown with the
+ * usual one. `reach` and `shares` are each body's keyReach and distant share; `bundler` the bundles' bundleAt and
  * pictureIn (bundler()); `slotOf(piece, file)` a piece's slot, `bundleOf(slot)` its bundle's [name, path],
  * `pictureName(piece, image)` a picture's name. Returns the outfit index: each piece's bundle (by name),
  * slot, bodies, parts and their colours, and variants. The kit's and the wardrobe packs' builders share it
@@ -1221,7 +1221,9 @@ export function bodyReach(dir) {
  */
 export function packOutfitPieces({ dir, files, reach, shares, bundler, slotOf, bundleOf, pictureName }) {
   const FACE_KEYS = new Set(["jaw", "cheeks", "nose", "eyes", "ears_pointed"]);
-  const HEAD_SLOTS = new Set(["head", "brow", "neck"]);
+  const HEAD_SLOTS = new Set(["head", "brow", "face", "mouth", "ears", "neck"]);
+  // Small, thin solid pieces keep every triangle: trimming would cut through a nail, a ring or a frame.
+  const WHOLE_SLOTS = new Set([...NAIL_SLOTS.map(([slot]) => slot), "face", "ears", "fingers"]);
   const PART_NAMES = new Set(CLOTH_PARTS.map(([name]) => name));
   const outfitIndex = {};
   for (const file of files) {
@@ -1243,8 +1245,7 @@ export function packOutfitPieces({ dir, files, reach, shares, bundler, slotOf, b
         const kept = merged.keyNames.filter((key) => HEAD_SLOTS.has(slot) || !FACE_KEYS.has(key));
         merged.targets = kept.map((key) => merged.targets[merged.keyNames.indexOf(key)]);
         merged.keyNames = kept;
-        // (Not the nails: a millimetre or two thick, trimming would cut through them.)
-        if (!NAIL_SLOTS.some(([each]) => each === slot)) trimTriangles(merged, OUTFIT_TRIM);
+        if (!WHOLE_SLOTS.has(slot)) trimTriangles(merged, OUTFIT_TRIM);
         followBody(merged, reach[sex]);
         keyNormals(merged);
         for (const { part: partName } of merged.parts)

@@ -37,9 +37,10 @@ The package uses data from these items, read by `assets/scripts/make_avatar.py` 
 
 ## In the wardrobe packs (all CC0)
 
-The separate packages `3d-avatar-maker-wardrobe-everyday-women` and `-everyday-men` carry community clothes,
-listed with their authors in `assets/packs.json` and each pack's README, fitted by `make_mh_packs.py`. Every
-item's own `.mhclo` says CC0 too (Cortu's as "Cortu Johnstone - CC0").
+The separate packages `3d-avatar-maker-wardrobe-everyday-women`, `-everyday-men` and `-accessories` carry
+community clothes, listed with their authors in `assets/packs.json` and each pack's README, fitted by
+`make_mh_packs.py`. Every item's own `.mhclo` says CC0 too (Cortu's as "Cortu Johnstone - CC0"), or names no
+licence (spamrakuen's glasses, joachip_ring_1), where the catalogue's CC0 stands.
 
 - Everyday women's: dress01_cc0 (eight toigo dresses, aethelraed_flapper_dress), shirts01_cc0 (six toigo tops,
   joepal_crude_t-shirt_female), skirts01_cc0 (four toigo skirts), pants01_cc0 toigo_harem_pants, shoes01_cc0
@@ -47,9 +48,17 @@ item's own `.mhclo` says CC0 too (Cortu's as "Cortu Johnstone - CC0").
 - Everyday men's: suits01_cc0 (four toigo men's suits, toigo_female_double-breasted_suit, toigo_female_suit_2),
   shirts01_cc0 namuhekam_male_polo_shirt and elvs_crude_t-shirt_male, pants01_cc0 toigo_wool_pants,
   cortu_cargo_pants and cortu_jeans_shorts, shoes01_cc0 toigo_ankle_boots_male.
+- Accessories: glasses01_cc0 (spamrakuen_sagerfrogs_glasses_01 to _04, spamrakuen_tbm_glasses_frames_01,
+  toigo_round_glasses_leopard), masks01_cc0 (culturalibre_hero_mask_3 and _4, joepal_medical_mouth_protection),
+  jewelry01_cc0 (toigo_pearl_earrings, culturalibre_heroine_lightning_earrings, joachip_ring_1,
+  wolgade_diamond_ring_01), gloves01_cc0 (toigo_gloves_short, _medium and _long), underwear04_cc0 (all four
+  socks), hats01_cc0 (aethelraed_unraed_cloche_hat, joepal_xmas_cap).
 - Left out for fit or size, not licence: mindfront_kimono (its scale references are helper vertices; fitted, it
   had stray vertices a metre off the body and skin through it) and toigo_suit_with_jacket_and_bowtie (12.8k
-  vertices).
+  vertices). For the Accessories pack: toigo_diamond_ring_and_wedding_band (17k vertices), toigo_pearl_necklace
+  (28k), culturalibre_motorcycle_helmet (22k), mrgreaterthan_m1_helmet (35k), culturalibre_doc_ock_glasses
+  (10k, and named for a film character), culturalibre_hero-heroine_gloves_2 to _5 (superhero gloves, not
+  needed beside toigo's), and toigo_maga_hat (political).
 
 ## Left out though the licence allows them
 
