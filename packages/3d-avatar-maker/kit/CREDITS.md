@@ -63,3 +63,10 @@ Released as CC0 1.0 by their maker.
   bracers, gauntlets, tassets, greaves, sabatons, helm and full helm.
 
 The models these are packed from are in `packages/3d-avatar-maker/assets/models/`.
+
+## Animations from Quaternius (CC0)
+
+The preview's recorded animations (`src/clips/ual.json`, made by `scripts/build-3d-avatar-maker-clips.mjs`) are
+clips from Quaternius's Universal Animation Library and Universal Animation Library 2 (quaternius.com), each
+CC0 1.0 by its library's own licence file. They're in the maker's code rather than the kit, and play in the
+preview only: no saved file carries them. No credit is required; Quaternius is named as thanks.

@@ -362,6 +362,67 @@ chest sways a little as the body turns (`src/bust.js`).
   under 0.1 mm), his chest with none as built or muscular, and one at the half-orc's full chest. A GLB keeps
   the bones and a VRM writes the springs.
 
+
+## Built: animations in the preview
+
+- **The list.** An Animation list under the picture, beside the pose and Face lists, with Pause and Stop.
+  - The 20 animations: standing at ease, looking around, talking with the hands, talking on a phone,
+    walking on the spot (plain and smart), turning round, waving, dancing, celebrating, nodding yes,
+    shaking the head no, arms folded, surprise, crying, drinking, sitting down and getting up, sitting on the
+    ground, crouching and stretching.
+  - Each option names what it does, and its tooltip says more.
+  - Picking a pose stops the animation.
+- **Recorded clips** (`src/clips/ual.json`, 486 KB, bundled into `client.js`). 24 clips from Quaternius's
+  Universal Animation Library and Universal Animation Library 2, both CC0 (each library's License.txt says
+  so).
+  - **The build.** `scripts/build-3d-avatar-maker-clips.mjs` (begun as a copy of Wanderworld's) stores each
+    humanoid bone's turn away from the library's T-pose, in model space, and the hips' movement in leg
+    lengths. Each turn is three whole numbers, and most clips keep 12 frames a second.
+  - **Our rig.** It is the same Unreal mannequin, so `recordedPose` turns each bone that far from where it
+    stands in this body's own T-pose (the arms levelled from the A-pose), parent first, and moves the hips by
+    the clip's offset times this body's leg.
+  - **The floor.** The lower foot is then put back on the floor, so any leg length stands on it.
+  - **Sequences.** A motion is a loop of clips (sit down, sit, talk, stand up, stand). A different clip eases
+    in over 0.3 s; a loop repeated goes straight on. A quick drop (into the crouch and out of it) plays at
+    0.6 speed, so long hair on its springs follows rather than flies up.
+  - **Left out.** The backflip: it read well, but long hair on its soft springs flew straight up.
+- **Hand-made where no clip fits** (waving and stretching, `POSES`), and for the turn:
+  - Each hand-made motion is a function of time that returns where the hips, spine, head, arms and feet go.
+  - `motionPose` puts it on the A-pose rig. Each arm is aimed and turned about itself so the elbow bends the
+    right way. Each leg reaches its ankle with two-bone IK. The hips come down when a foot couldn't otherwise
+    reach the floor.
+  - The library's own turns go a quarter round and back, so "Turning round" is the walk mixed half with the
+    idle, for small steps, while the whole figure turns once in 10 s on its hips. The camera stays put.
+- **Starting and stopping** (`createMotionPlayer`).
+  - Starting, changing or stopping eases over 0.45 s from the pose the figure was in. Each foot moves from
+    where it stood to where it's going, so it doesn't slide into the floor.
+  - The springs (hair, a tail, and the skirts and bust to come) run after the pose each frame, so they
+    follow without a jump.
+  - A new look while a motion plays goes on with it.
+- **The face.** The Face list keeps working. While it's on Lively:
+  - talking and the phone call move the mouth;
+  - celebrating smiles;
+  - surprise and crying show their feelings.
+  Any other Face choice wins.
+- **Views.** While an animation plays, the Face and Hand views follow the head or the left hand, easing
+  after it. Whole body and Feet stay where they are.
+- **Reduced motion.** Nothing moves on its own, as before. An animation plays only when the user picks one,
+  and then plays whole with the hair swinging, as they asked for it.
+- **Saving.**
+  - `restPose` now puts each bone back in its place as well as its turn (the motions move the hips).
+  - A file saved mid-motion is therefore the same, byte for byte, as one saved at rest.
+  - `stage.js` and `main.js` got small hooks only.
+  - `figure.js` exports `aimBone` and `turnInWorld`.
+- **Checked** in the regression test. Three bodies: a woman, a short-legged dwarf with a big head, and a tall
+  long-legged woman. Every motion runs 12 seconds on each, with the springs swinging:
+  - no NaNs, and no bone past a limit;
+  - a foot always on the floor, and none through it;
+  - the knees bending the way knees bend, and the hand-made elbows the way elbows bend;
+  - the hands never inside the hips at their widest;
+  - back exactly at rest when stopped;
+  - a GLB, and a VRM mid-crouch, the same as one saved at rest.
+  Contact sheets of posed models rendered in Blender were looked over for broken joints, hands in the body
+  and feet off the floor.
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -401,5 +462,8 @@ chest sways a little as the body turns (`src/bust.js`).
   hand; the other hand needs a piece of its own.
 - Slots cover slots, not regions: sandals and tall boots alike leave an anklet on, and a crop top and a
   T-shirt alike leave a belly piercing on (where the shirt is drawn over it).
+- The animations know the body's bones, not what's worn: an arm can brush a bulky sleeve or armour, and
+  skirts and cloaks don't swing yet. Long hair trails out as the body turns, as its springs are soft. The
+  seat, the phone and the cup the clips mime aren't shown, and the clips' fingers can close on nothing.
 - Drafts live in the browser only.
 - `avatar.js` still carries the anthro code paths and a crowd's low-detail triangle lists.

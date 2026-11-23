@@ -17,6 +17,13 @@ VRM the eyes move, and long hair, skirts, dresses, coats and the bust swing too.
    **Face** list under the picture plays the face's moves: blinking and looking at you, talking, or one
    expression held. In the pose list, **Moving** turns the head and hips now and then and lifts each knee in a
    small step, to show the hair and clothes swing.
+   The **Animation** list plays the avatar moving, so you can see how its clothes and hair move: standing,
+   looking around, talking, walking on the spot, turning round, waving, dancing, celebrating, nodding,
+   shaking its head, folding its arms, surprise, crying, drinking, sitting, crouching and stretching.
+   **Pause** holds it where it is and **Stop** goes back to the pose. The **Face** and **Hand** views follow
+   the part they show while it plays. Animations play only when you pick one, even if your device asks for
+   less motion, and they're for the preview only: a saved file still rests
+   in its A- or T-pose.
 5. On the **Save** tab, select **Save as VRM** (or **Save as GLB**).
 6. Open **Agents → 3D Avatars** and pick the same character or persona. Under **Avatar type**, choose
    **VRM model** and select **Import VRM** with the `.vrm` you saved. For a `.glb`, choose **GLB or FBX
@@ -114,6 +121,9 @@ use and share however you like, with no credit required:
 - The races' shapes and parts, four hair styles and the fantasy clothing and armour were made in Blender
   by ThatOneCan, who also fitted the nails and baked the new brows and lashes; all released as CC0 1.0 too.
 
+- Most of the preview's animations are clips from Quaternius's Universal Animation Library and Universal
+  Animation Library 2 (CC0). They play in the preview only; a saved file doesn't carry them.
+
 [kit/CREDITS.md](kit/CREDITS.md) lists each file. The package's code is under the repository's licence, and
 its bundle includes [three.js](https://threejs.org/) (MIT).
 
@@ -127,6 +137,8 @@ its own copy of those files and code. A look saved from Wanderworld's Look card 
   `http://127.0.0.1:5197/`. `/viewer?file=/dev/out/last.glb` loads a saved file the way the Engine's 3D
   Avatars agent loads a GLB, and a `.vrm` the way it loads a VRM model.
 - Test: `node tests/3d-avatar-maker.regression.mjs`.
+- Preview animations: `src/motions.js` plays them; `node scripts/build-3d-avatar-maker-clips.mjs <UAL1.glb>
+  <UAL2.glb>` makes `src/clips/ual.json` from Quaternius's two libraries.
 - Wardrobe packs: fitted by `assets/scripts/make_mh_packs.py` from `assets/packs.json`, built by
   `node scripts/build-3d-avatar-maker-packs.mjs`. The test page serves the repo's `packages/3d-avatar-maker-*`
   packs as if installed.

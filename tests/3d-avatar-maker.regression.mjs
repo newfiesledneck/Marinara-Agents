@@ -1517,4 +1517,218 @@ for (const figure of Object.values(made)) figure.dispose();
   assert.match(vrm.meta.thirdPartyLicenses ?? "", /Test waves by Hairdresser/u, "and credits the pack's hair");
   figure.dispose();
 }
+
+// ── Animations in the preview (motions.js): every motion on short and tall bodies, the feet on the floor,
+// no joint past what a body does, back to rest when stopped, and nothing of it in a saved file ──
+{
+  const { Quaternion, Vector3 } = await import("three");
+  const { MOTIONS, createMotionPlayer, motionPose } = await import("../packages/3d-avatar-maker/src/motions.js");
+  const { createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
+  const { exportVrm } = await import("../packages/3d-avatar-maker/src/exporter.js");
+  assert.ok(MOTIONS.length >= 10, "walking, dancing, talking, waving and more");
+  for (const [, label, about] of MOTIONS) assert.ok(label && about, `${label}: says what it does`);
+  const bodies = {
+    woman: await createAvatar(startOf("female", { hair: "long" }), "Test", "auto"),
+    dwarf: await createAvatar(
+      startOf("male", { ...racePreset("dwarf", "male"), hair: "ponytail", limbs: { legs: 0.7, head: 1.2 } }),
+      "Test",
+      "auto",
+    ),
+    tall: await createAvatar(
+      startOf("female", { height: 1.12, limbs: { legs: 1.15, arms: 1.1, head: 0.9 } }),
+      "Test",
+      "auto",
+    ),
+  };
+  // How far each bone may turn from rest (radians): past these a body looks broken.
+  const LIMITS = [
+    [/^(lowerarm|calf)_/u, 2.8],
+    [/^upperarm_/u, 2.8],
+    [/^thigh_/u, 2.7],
+    [/^(foot|ball)_/u, 1.6],
+    [/^hand_/u, 2.0],
+    [/^clavicle_/u, 0.8],
+    [/^(spine_0|neck_01$|Head$)/u, 1.1],
+  ];
+  const at = (bone) => bone.getWorldPosition(new Vector3());
+  const up = new Vector3(0, 1, 0);
+  for (const [name, figure] of Object.entries(bodies)) {
+    for (const mesh of figure.meshes) for (const material of [mesh.material].flat()) material.map = null;
+    const n = figure.humanoid;
+    restPose(figure);
+    const feet = ["left", "right"].map((side) =>
+      [n[`${side}Foot`], n[`${side}Toes`]].map((bone) => [bone, at(bone).y]),
+    );
+    const hipsUp = up.clone().applyQuaternion(n.hips.getWorldQuaternion(new Quaternion()));
+    const hipsRest = n.hips.getWorldQuaternion(new Quaternion()).invert();
+    const shins = ["left", "right"].map((side) => {
+      const thigh = n[`${side}UpperLeg`];
+      return [thigh, new Vector3(0, 0, 1).applyQuaternion(thigh.getWorldQuaternion(new Quaternion()).invert())];
+    });
+    const fronts = ["left", "right"].map((side) => {
+      const upper = n[`${side}UpperArm`];
+      return [upper, new Vector3(0, 0, 1).applyQuaternion(upper.getWorldQuaternion(new Quaternion()).invert())];
+    });
+    const restGlb = (await exportGlb(figure, { look: {} })).bytes;
+    // The hips at rest, at their widest (round the hip joints): how far out and how deep the skin goes. A hand
+    // whose joints come inside that, at that height, has gone into the hips.
+    const hipY = at(n.leftUpperLeg).y;
+    const band = { wide: 0, front: -Infinity, back: Infinity };
+    {
+      const body = figure.meshes[0];
+      const { position, skinIndex, skinWeight } = body.geometry.attributes;
+      const point = new Vector3();
+      for (let i = 0; i < position.count; i++) {
+        // (The skin the hips and thighs move most: not the hands, which hang at that height at rest.)
+        let most = 0;
+        for (let c = 1; c < 4; c++) if (skinWeight.getComponent(i, c) > skinWeight.getComponent(i, most)) most = c;
+        if (!/^(pelvis|thigh_|spine_01)/u.test(body.skeleton.bones[skinIndex.getComponent(i, most)].name)) continue;
+        point.fromBufferAttribute(position, i).applyMatrix4(body.matrixWorld);
+        if (Math.abs(point.y - hipY) > 0.05) continue;
+        band.wide = Math.max(band.wide, Math.abs(point.x));
+        band.front = Math.max(band.front, point.z);
+        band.back = Math.min(band.back, point.z);
+      }
+    }
+    const hipsAtRest = n.hips.matrixWorld.clone();
+    const handJoints = ["leftHand", "rightHand", "leftMiddleProximal", "rightMiddleProximal"].map((key) => n[key]);
+    for (const [id] of MOTIONS) {
+      const label = `${name} ${id}`;
+      relaxedPose(figure, 0);
+      const springs = createSprings(figure);
+      const player = createMotionPlayer();
+      player.play(figure, id);
+      let worstFloor = 0;
+      let lowest = 0;
+      let bent = 0;
+      const handMade = id === "wave" || id === "stretch";
+      let inHips = 0;
+      for (let f = 1; f <= 12 * 20; f++) {
+        assert.ok(
+          player.step(figure, 1 / 20, () => relaxedPose(figure, 0)),
+          `${label}: plays`,
+        );
+        springs.step(1 / 20);
+        // The hands stay out of the hips (measured as the hips stand now, back where they rest).
+        const back = hipsAtRest.clone().multiply(n.hips.matrixWorld.clone().invert());
+        for (const joint of handJoints) {
+          const p = at(joint).applyMatrix4(back);
+          if (p.y < hipY - 0.15 || p.y > hipY + 0.08) continue;
+          const middle = (band.front + band.back) / 2;
+          const inside = (p.x / band.wide) ** 2 + ((p.z - middle) / ((band.front - band.back) / 2)) ** 2;
+          if (inside < 1) inHips = Math.max(inHips, 1 - inside);
+        }
+        for (const bone of figure.bones.values())
+          assert.ok(bone.matrixWorld.elements.every(Number.isFinite), `${label}: ${bone.name} has no NaN`);
+        // A foot on the floor: the lower of the two stands where a foot rests, and neither goes through it.
+        const heights = feet.map((joints) => Math.min(...joints.map(([bone, rest]) => at(bone).y - rest)));
+        lowest = Math.min(lowest, ...heights);
+        if (f > 10) worstFloor = Math.max(worstFloor, Math.abs(Math.min(...heights)));
+        for (const [bone, rest] of [...figure.bones].map(([key, bone]) => [bone, figure.rest.get(key)])) {
+          const limit = LIMITS.find(([pattern]) => pattern.test(bone.name))?.[1];
+          if (!limit) continue;
+          const turned = 2 * Math.acos(Math.min(1, Math.abs(bone.quaternion.dot(rest))));
+          assert.ok(turned <= limit, `${label}: ${bone.name} turns ${turned.toFixed(2)} at most ${limit}`);
+        }
+        const tipped = up.clone().applyQuaternion(n.hips.getWorldQuaternion(new Quaternion())).angleTo(hipsUp);
+        assert.ok(tipped < 1.3, `${label}: the hips tip ${tipped.toFixed(2)}`);
+        // Knees bend forward and elbows the way an elbow bends.
+        const forward = new Vector3(0, 0, 1).applyQuaternion(
+          n.hips.getWorldQuaternion(new Quaternion()).multiply(hipsRest),
+        );
+        for (const [thigh, front] of shins) {
+          const calf = thigh.children.find((child) => /^calf_/u.test(child.name));
+          const foot = calf.children.find((child) => /^foot_/u.test(child.name));
+          const leg = at(calf).sub(at(thigh)).normalize();
+          const shin = at(foot).sub(at(calf)).normalize();
+          if (leg.angleTo(shin) < 0.3) continue;
+          const ahead = front.clone().applyQuaternion(thigh.getWorldQuaternion(new Quaternion()));
+          assert.ok(
+            ahead.dot(shin.projectOnPlane(leg).normalize()) < 0.3,
+            `${label}: ${thigh.name}'s knee bends the way a knee bends`,
+          );
+        }
+        for (const [upper, front] of fronts) {
+          const lower = upper.children.find((child) => child.isBone);
+          const hand = lower.children.find((child) => /^hand_/u.test(child.name));
+          const arm = at(lower).sub(at(upper)).normalize();
+          const fore = at(hand).sub(at(lower)).normalize();
+          // (The hand-made motions' elbows; a recorded clip's are as its animator made them.)
+          if (arm.angleTo(fore) < 0.4 || !handMade) continue;
+          bent++;
+          const facing = front.clone().applyQuaternion(upper.getWorldQuaternion(new Quaternion()));
+          assert.ok(
+            facing.dot(fore.projectOnPlane(arm).normalize()) > 0.2,
+            `${label}: ${upper.name}'s elbow bends the way an elbow bends`,
+          );
+        }
+      }
+      assert.ok(lowest > -0.01, `${label}: no foot goes through the floor (${(lowest * 100).toFixed(1)} cm)`);
+      assert.ok(worstFloor < 0.01, `${label}: a foot stays on the floor (${(worstFloor * 100).toFixed(1)} cm off)`);
+      if (id === "wave") assert.ok(bent > 0, `${label}: the elbow bends`);
+      assert.equal(inHips, 0, `${label}: the hands stay out of the hips (${inHips.toFixed(2)} in)`);
+      // Saved mid-motion, the file is the same as one saved at rest.
+      const saved = (await exportGlb(figure, { look: {} })).bytes;
+      assert.deepEqual(saved, restGlb, `${label}: a file saved mid-motion rests as one saved at rest`);
+      // Stopped, it eases back to the pose it was in: here the rest pose, every bone as built.
+      motionPose(figure, id, 2.3);
+      player.stop(figure);
+      for (let f = 0; f < 30; f++) player.step(figure, 1 / 30, () => restPose(figure));
+      assert.equal(player.active, false, `${label}: has stopped`);
+      assert.equal(
+        player.step(figure, 1 / 30, () => {}),
+        false,
+        `${label}: and leaves the figure to the stage`,
+      );
+      for (const [key, bone] of figure.bones) {
+        const off = bone.quaternion.toArray().map((value, i) => Math.abs(value - figure.rest.get(key).toArray()[i]));
+        assert.ok(Math.max(...off) < 1e-9, `${label}: ${key} back at rest`);
+        assert.ok(bone.position.distanceTo(figure.restAt.get(key)) < 1e-9, `${label}: ${key} back in place`);
+      }
+    }
+    // Walking keeps the hips near their height standing, and lifts each foot in turn.
+    {
+      restPose(figure);
+      const standing = at(n.hips).y;
+      let lifted = [0, 0];
+      for (let f = 0; f < 60; f++) {
+        motionPose(figure, "walk", f / 30);
+        assert.ok(Math.abs(at(n.hips).y - standing) < 0.1, `${name}: walking, the hips near their height standing`);
+        lifted = lifted.map((most, i) => Math.max(most, at(feet[i][0][0]).y - feet[i][0][1]));
+      }
+      assert.ok(Math.min(...lifted) > 0.03, `${name}: walking lifts each foot (${lifted.map((y) => y.toFixed(2))})`);
+      // A turn turns the figure, not the camera: by a quarter after a quarter of the turn.
+      motionPose(figure, "turn", 2.5);
+      const facing = new Vector3(0, 0, 1).applyQuaternion(
+        n.hips.getWorldQuaternion(new Quaternion()).multiply(hipsRest),
+      );
+      assert.ok(facing.x > 0.9, `${name}: turned to its left (${facing.toArray().map((v) => v.toFixed(2))})`);
+    }
+  }
+  // A saved VRM mid-motion is the same as one saved at rest.
+  {
+    const figure = bodies.woman;
+    restPose(figure);
+    const rest = (await exportVrm(figure, { look: {}, terms: { author: "Tester" } })).bytes;
+    motionPose(figure, "crouch", 2.5);
+    const crouched = (await exportVrm(figure, { look: {}, terms: { author: "Tester" } })).bytes;
+    assert.deepEqual(crouched, rest, "a VRM saved mid-crouch rests in its T-pose as one saved at rest");
+  }
+  // The face: a motion's own face only while the Face list is on Lively; the user's other choices win.
+  {
+    const player = createMotionPlayer();
+    player.play(bodies.woman, "talk");
+    player.step(bodies.woman, 0.1, () => {});
+    assert.deepEqual(player.face("lively", 9), ["talking", 0.1], "talking talks while the face is lively");
+    assert.deepEqual(player.face("angry", 9), ["angry", 9], "and keeps an expression the user chose");
+    player.pause(true);
+    assert.deepEqual(player.face("lively", 9), ["lively", 9], "paused, the face is the user's again");
+    // A new look while it plays goes on with the motion at once, with nothing to ease from.
+    assert.equal(player.adopt(bodies.tall), true, "a new figure is posed in the motion playing");
+    assert.equal(player.active, true);
+    player.stop(bodies.tall);
+    assert.equal(createMotionPlayer().adopt(bodies.tall), false, "with nothing playing, the stage poses it");
+  }
+  for (const figure of Object.values(bodies)) figure.dispose();
+}
 console.log("3d-avatar-maker.regression: ok");

@@ -13,7 +13,7 @@ const turn = new Quaternion();
 const parentTurn = new Quaternion();
 
 /** Turns `bone` in world space so the direction from it to `child` becomes `goal`. */
-function aimBone(bone, child, goal) {
+export function aimBone(bone, child, goal) {
   if (!bone || !child) return;
   const from = child.getWorldPosition(worldA).sub(bone.getWorldPosition(worldB));
   if (from.lengthSq() === 0) return;
@@ -28,7 +28,7 @@ function aimBone(bone, child, goal) {
 /**
  * The skeleton's root with its skinned meshes on it, scaled to `height` (a share of the body's own) and
  * stood on the floor: { object (add this to a scene), root, bones (name → Bone), meshes, humanoid (VRM
- * bone name → Bone), rest (each bone's turn as built), headRest (the head's turn in the world as built) }.
+ * bone name → Bone), rest (each bone's turn as built), restAt (its place), headRest (the head's turn in the world as built) }.
  */
 export function standFigure(root, bones, height = 1) {
   const object = new Group();
@@ -44,9 +44,11 @@ export function standFigure(root, bones, height = 1) {
   const humanoid = {};
   for (const [name, joint] of Object.entries(HUMANOID_BONES)) if (bones.has(joint)) humanoid[name] = bones.get(joint);
   const rest = new Map([...bones].map(([name, bone]) => [name, bone.quaternion.clone()]));
+  // (Where each bone sits on its parent as built: the preview's motions move the hips.)
+  const restAt = new Map([...bones].map(([name, bone]) => [name, bone.position.clone()]));
   // (How the head is turned as built, facing +Z: the face's eyes measure "straight ahead" from it.)
   const headRest = humanoid.head?.getWorldQuaternion(new Quaternion()) ?? new Quaternion();
-  return { object, root, bones, meshes, humanoid, rest, headRest };
+  return { object, root, bones, meshes, humanoid, rest, restAt, headRest };
 }
 
 /** Arms level and fingers straight along them: the rest pose a VRM asks for. */
@@ -70,7 +72,11 @@ export function tPose(figure) {
 
 /** Every bone back as the body was built: the A-pose. */
 export function restPose(figure) {
-  for (const [name, bone] of figure.bones) bone.quaternion.copy(figure.rest.get(name));
+  for (const [name, bone] of figure.bones) {
+    bone.quaternion.copy(figure.rest.get(name));
+    const at = figure.restAt?.get(name);
+    if (at) bone.position.copy(at);
+  }
   figure.root.updateMatrixWorld(true);
 }
 
@@ -103,7 +109,7 @@ export function relaxedPose(figure, seconds = 0) {
 const UP = new Vector3(0, 1, 0);
 const SIDEWAYS = new Vector3(1, 0, 0);
 /** Turns `bone` by `angle` about `axis` in the world, as the figure stands now. */
-function turnInWorld(bone, axis, angle) {
+export function turnInWorld(bone, axis, angle) {
   if (!bone || !angle) return;
   parentTurn.identity();
   bone.parent?.getWorldQuaternion(parentTurn);

@@ -10,6 +10,7 @@ import { exportGlb, exportVrm, FILE_FORMAT, lookInGlb, vrmTerms } from "./export
 import { FACE_MODES } from "./face.js";
 import { PACKAGE_ID, setKitBase } from "./kitfiles.js";
 import { checkLook, missingNotes, NEUTRAL_LOOK, OUTFIT_PRESETS, outfitLook, wornLook } from "./looks.js";
+import { MOTIONS } from "./motions.js";
 import { loadPacks } from "./packs.js";
 import { createPanel, h } from "./panel.js";
 import { createStage, POSES } from "./stage.js";
@@ -147,8 +148,54 @@ function mount(element, props) {
     "aria-label": "Pose",
     title:
       "How the avatar stands in the preview. Moving turns its head now and then, so you can see the hair swing. A saved file rests in the A-pose (GLB) or the T-pose (VRM).",
-    onchange: () => stage.setPose(poseSelect.value),
+    onchange: () => {
+      pickMotion(""); // (a pose picked stops an animation, which eases into it)
+      stage.setPose(poseSelect.value);
+    },
   });
+  // (An animation to watch the avatar, its clothes and hair move: the preview only, nothing of it is saved.)
+  const motionSelect = h("select", {
+    "aria-label": "Animation",
+    title:
+      "An animation to watch the avatar move in. It plays only when you pick one, even if your device asks for less motion, and a saved file still rests in its A- or T-pose.",
+    onchange: () => pickMotion(motionSelect.value),
+  });
+  motionSelect.append(new Option("No animation: just the pose", ""));
+  for (const [id, label, about] of MOTIONS) motionSelect.append(h("option", { value: id, title: about }, label));
+  const pauseButton = h(
+    "button",
+    {
+      type: "button",
+      disabled: true,
+      "aria-pressed": "false",
+      title: "Pauses the animation where it is, or plays it on",
+      onclick: () => {
+        const paused = pauseButton.getAttribute("aria-pressed") !== "true";
+        stage.pauseMotion(paused);
+        pauseButton.setAttribute("aria-pressed", String(paused));
+        pauseButton.textContent = paused ? "Play" : "Pause";
+      },
+    },
+    "Pause",
+  );
+  const stopButton = h(
+    "button",
+    {
+      type: "button",
+      disabled: true,
+      title: "Stops the animation and goes back to the pose",
+      onclick: () => pickMotion(""),
+    },
+    "Stop",
+  );
+  /** Plays animation `id` ("" for none) and sets the list and buttons to match. */
+  function pickMotion(id) {
+    motionSelect.value = id;
+    stage.setMotion(id || null);
+    pauseButton.disabled = stopButton.disabled = !id;
+    pauseButton.setAttribute("aria-pressed", "false");
+    pauseButton.textContent = "Pause";
+  }
   for (const [pose, label] of POSES) poseSelect.append(new Option(label, pose));
   // (What the face does in the preview: the moves a saved avatar has, played here. Nothing of it is saved.)
   const faceSelect = h("select", {
@@ -166,6 +213,9 @@ function mount(element, props) {
     h("button", { type: "button", onclick: () => stage.view("feet") }, "Feet"),
     poseSelect,
     faceSelect,
+    motionSelect,
+    pauseButton,
+    stopButton,
   );
   const stageBox = h("section", { class: "stage", "aria-label": "Preview" }, canvas, note, views);
 
