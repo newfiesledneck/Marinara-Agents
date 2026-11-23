@@ -15,6 +15,7 @@
 //   chest for hair down the back), so with nothing moving them the hair rests and follows the body as it did.
 // The bones are made for each avatar (`rigHair`), where the locks rest on it. springs.js swings them.
 import { Bone, BufferAttribute, Matrix4, Uint16BufferAttribute, Vector3 } from "three";
+import { PACK_HAIR } from "./looks.js";
 
 /**
  * The hair styles whose locks hang loose enough to swing (looks.js HAIRSTYLES), each with how far below the
@@ -28,6 +29,12 @@ export const SWINGING_HAIR = new Map([
   ["bob_angled", 0.03],
   ["braid", 0.12],
 ]);
+/**
+ * How far below the eyes style `style`'s locks leave the head to swing: the kit's (SWINGING_HAIR), else a
+ * wardrobe pack's own `swing` (packs.js readHair), else undefined for a style that stays as it is.
+ */
+export const swingOf = (style) =>
+  SWINGING_HAIR.get(style) ?? (Object.hasOwn(PACK_HAIR, style) ? PACK_HAIR[style].swing : null) ?? undefined;
 
 /** The eight sides of the head, from straight behind, round by the avatar's left (+X). */
 const HAIR_SIDES = ["back", "back_left", "left", "front_left", "front", "front_right", "right", "back_right"];

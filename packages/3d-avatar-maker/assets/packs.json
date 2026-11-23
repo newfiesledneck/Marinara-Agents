@@ -1,5 +1,5 @@
 {
-  "about": "The wardrobe packs' pieces: community MakeHuman clothes fitted by assets/scripts/make_mh_packs.py (src, bodies, slot, layer, hides, tex, part, skin, force, cut, size, clearance, as make_mh_clothes.py PIECES) and packed by scripts/build-3d-avatar-maker-packs.mjs (label, author, source, licence; a pack's maker, the earliest maker version it needs, and things, what its pieces are called).",
+  "about": "The wardrobe packs' pieces: community MakeHuman clothes fitted by assets/scripts/make_mh_packs.py (src, bodies, slot, layer, hides, tex, part, skin, force, cut, size, clearance, as make_mh_clothes.py PIECES) and packed by scripts/build-3d-avatar-maker-packs.mjs (label, author, source, licence, and bone, the body bone a piece is fixed to so it never bends, one of src/looks.js PIECE_BONES; a pack's maker, the earliest maker version it needs, and things, what its pieces are called). A pack's optional hair lists hair styles for the Hair tab (label, bodies, src, author, source, licence, and swing, metres below the eyes its locks leave the head to swing), fitted as assets/models/packs/<pack id>/avatar-hair-<style>.glb.",
   "packs": {
     "3d-avatar-maker-wardrobe-everyday-women": {
       "name": "Everyday Women's Clothes",

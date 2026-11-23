@@ -19,11 +19,12 @@ import {
   Quaternion,
   Skeleton,
   SkinnedMesh,
+  Uint16BufferAttribute,
   Vector3,
 } from "three";
 import { FACE_MOVES } from "./face.js";
 import { standFigure } from "./figure.js";
-import { hairPlan, rigHair, SWINGING_HAIR } from "./hair.js";
+import { hairPlan, rigHair, swingOf } from "./hair.js";
 import {
   ANTHRO_BARE_SLOTS,
   ANTHRO_SHAPES,
@@ -40,6 +41,8 @@ import {
   NAIL_SLOTS,
   isCovered,
   NAILS,
+  boneOf,
+  PACK_HAIR,
   PACK_PIECES,
   EYE_COLOURS,
   EYE_PICTURES,
@@ -481,6 +484,19 @@ function morphsOf(mesh, offset = 0) {
   return out;
 }
 
+/**
+ * A stiff piece's points as the look's shape keys moved them (`moved`, from shaped), put back in their fitted
+ * shape (`position`, `normal`) and moved as one by the keys' average move, so it follows the body it sits on
+ * (a higher brow, a bigger hand) without bending. In place.
+ */
+function rigid(moved, position, normal) {
+  const count = position.length / 3 || 1;
+  const shift = [0, 0, 0];
+  for (let i = 0; i < position.length; i++) shift[i % 3] += (moved.position[i] - position[i]) / count;
+  for (let i = 0; i < position.length; i++) moved.position[i] = position[i] + shift[i % 3];
+  moved.normal.set(normal);
+}
+
 /** Shape keys worked into a copy of `position` and `normal`, by `weights` ({ key: influence }). */
 function shaped(position, normal, morphs, weights) {
   const p = position.slice();
@@ -753,21 +769,30 @@ const indexOf = (file) => load(file).catch(() => ({}));
 
 /** Hair style `style` for `sex` from its bundle: { part, pictures }, or null if the kit hasn't got it. */
 async function hairOf(style, sex) {
-  const entry = (await indexOf(HAIR_INDEX))[style];
+  // (A wardrobe pack's style, packs.js readHair: from its pack's bundle, with only the pictures named for its
+  // pack, as a pack's piece below.)
+  const pack = Object.hasOwn(PACK_HAIR, style) ? PACK_HAIR[style] : null;
+  const entry = pack ?? (await indexOf(HAIR_INDEX))[style];
   if (!entry?.bodies.includes(sex)) return null;
-  const bundle = await load(`${entry.bundle}.pack.png`).catch(() => null);
+  const bundle = await (pack ? loadUrl(pack.url) : load(`${entry.bundle}.pack.png`)).catch(() => null);
   const part = bundle?.styles?.[style]?.[sex];
-  return part ? { key: `hair:${style}:${sex}`, part, pictures: bundle.pictures } : null;
+  if (!part) return null;
+  const pictures = pack ? packPictures(bundle, pack.pack) : bundle.pictures;
+  return { key: `hair:${style}:${sex}`, part, pictures };
 }
+/** A pack bundle's pictures named for its pack, so none can stand in for the kit's own in the texture cache. */
+const packPictures = (bundle, pack) =>
+  [bundle.pictures ?? []].flat().filter((picture) => String(picture?.name).startsWith(`${pack}-`));
 
 /**
  * Outfit piece `piece` for `sex` from its bundle, worn the usual way or as `variant` (a cloak's hood up),
- * never both: { key, piece, slot, layer, hides, part, pictures }, or null if the kit hasn't got it.
+ * never both: { key, piece, slot, layer, hides, bone, part, pictures }, or null if the kit hasn't got it.
+ * `bone` is the body bone it's fixed to (looks.js boneOf: its own, or its slot's), or null.
  */
 async function pieceOf(piece, sex, variant = "") {
   // (A wardrobe pack's piece, packs.js: from its pack's bundle, worn as its checked index entry says, with
   // only the pictures named for its pack, so none can stand in for the kit's own in the texture cache.)
-  const pack = PACK_PIECES[piece];
+  const pack = Object.hasOwn(PACK_PIECES, piece) ? PACK_PIECES[piece] : null;
   const entry = pack ?? (await indexOf(OUTFIT_INDEX))[piece];
   if (!entry?.bodies.includes(sex)) return null;
   const bundle = await (pack ? loadUrl(pack.url) : load(`${entry.bundle}.pack.png`)).catch(() => null);
@@ -775,29 +800,47 @@ async function pieceOf(piece, sex, variant = "") {
   const way = !pack && data?.variants?.[variant]?.[sex] ? data.variants[variant] : data;
   if (!way?.[sex]) return null;
   const shown = way === data ? "" : variant;
+  const slot = pack ? pack.slot : data.slot;
+  const bone = boneOf(slot, pack ? pack.bone : data.bone);
   return {
-    key: `outfit:${piece}:${sex}:${shown}`,
+    key: `outfit:${piece}:${sex}:${shown}${bone ? `@${bone}` : ""}`,
     piece,
-    slot: pack ? pack.slot : data.slot,
+    slot,
     layer: pack ? pack.layer : (data.layer ?? 0),
     hides: pack ? pack.hides : (way.hides ?? []),
+    bone,
     part: way[sex],
-    pictures: pack
-      ? [bundle.pictures ?? []].flat().filter((picture) => String(picture?.name).startsWith(`${pack.pack}-`))
-      : bundle.pictures,
+    pictures: pack ? packPictures(bundle, pack.pack) : bundle.pictures,
   };
 }
 
 /** Pieces in these slots are small enough to leave out far from the camera (kit.js drawDistant). */
-const SMALL_SLOTS = new Set(["brow", "face", "mouth", "ears", "fingers", "neck", "waist", "arms"]);
+const SMALL_SLOTS = new Set([
+  ...["brow", "face", "mouth", "ears", "fingers", "neck", "waist", "arms"],
+  ...["necklace", "wrists", "ankles", "belly"],
+]);
+
+/**
+ * A part (a piece's meshes and joints) fixed to one body bone: its only joint is `bone`, with the part's own
+ * inverse bind matrix for it, or the body's (`body`, the kit's body file) where the part has none. Its
+ * points are then weighted wholly to it (partMeshes `fixed`), so it moves with that bone and never bends.
+ * Null if the body hasn't that bone.
+ */
+function fixedPart(part, bone, body) {
+  const own = part.inverseBind ? part.joints.indexOf(bone) : -1;
+  const at = own >= 0 ? own : body.joints.indexOf(bone);
+  if (at < 0) return null;
+  const from = own >= 0 ? part.inverseBind : body.inverseBind;
+  return { ...part, joints: [bone], inverseBind: Array.from(from.slice(at * 16, at * 16 + 16)) };
+}
 
 const parts = new Map(); // a hair style's or outfit piece's meshes, made once: "hair:long:male" → [{ mesh, geometry, morphs, colours }]
 /**
  * A hair style's or outfit piece's meshes, decoded once and shared; `small` ones aren't drawn far off. A hair
  * style that swings (`hangs`: { line, centre }, hair.js hairPlan) is weighted to the bone chains its hanging
- * locks swing on, kept as `plan`.
+ * locks swing on, kept as `plan`. A `fixed` part (fixedPart) has every point weighted wholly to its one joint.
  */
-function partMeshes(key, part, small = false, hangs = null) {
+function partMeshes(key, part, small = false, hangs = null, fixed = false) {
   if (!parts.has(key))
     parts.set(
       key,
@@ -808,6 +851,13 @@ function partMeshes(key, part, small = false, hangs = null) {
         if (plan) {
           geometry.setAttribute("skinIndex", plan.skinIndex);
           geometry.setAttribute("skinWeight", plan.skinWeight);
+        }
+        if (fixed) {
+          const count = geometry.attributes.position.count;
+          const weight = new Float32Array(count * 4);
+          for (let i = 0; i < count; i++) weight[i * 4] = 1;
+          geometry.setAttribute("skinIndex", new Uint16BufferAttribute(new Uint16Array(count * 4), 4));
+          geometry.setAttribute("skinWeight", new BufferAttribute(weight, 4));
         }
         if (small) {
           const full = geometry.userData.distant?.full ?? { start: 0, count: geometry.index.count };
@@ -854,7 +904,12 @@ export async function avatarChoices(sex, species = "human") {
     lashes: kit.lashes,
     hair: anthro
       ? []
-      : HAIRSTYLES.map(([style]) => style).filter((style) => style === BARE || hair[style]?.bodies.includes(sex)),
+      : HAIRSTYLES.map(([style]) => style).filter(
+          (style) =>
+            style === BARE ||
+            hair[style]?.bodies.includes(sex) ||
+            (Object.hasOwn(PACK_HAIR, style) && PACK_HAIR[style].bodies.includes(sex)),
+        ),
     clothes: Object.entries({ ...outfits, ...PACK_PIECES })
       .filter(
         ([piece, entry]) =>
@@ -1309,8 +1364,12 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   // outfit piece is one mesh coloured by vertex, each of its parts (cloth, trim, metal…) the look's colour
   // or as made, those colours shared by everyone wearing the same.
   const springs = []; // (the hair's chains and a tail: springs.js)
-  const wearPart = ({ key, part, pictures, slot, piece }, colourFor, hangs = null) => {
-    partMeshes(key, part, SMALL_SLOTS.has(slot), hangs).forEach((made, m) => {
+  const wearPart = ({ key, part: asMade, pictures, slot, piece, bone }, colourFor, hangs = null) => {
+    // (A piece fixed to a bone, fixedPart: it moves with that bone alone. It grows with the head as the hair
+    // and eyes do, through the bone's stretch, and the look's shape keys move it as one: see `rigid` below.)
+    const fixed = bone ? fixedPart(asMade, bone, kit.file) : null;
+    const part = fixed ?? asMade;
+    partMeshes(key, part, SMALL_SLOTS.has(slot), hangs, !!fixed).forEach((made, m) => {
       const { mesh, geometry: shared, morphs, colours, plan } = made;
       // (A race's build, carried onto the piece from the skin the first time one of that race wears it.)
       // (The face in detail, the same way: hair, hats and collars follow a wider head, a longer neck or a
@@ -1348,6 +1407,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
         const moved = keyed
           ? shaped(shared.attributes.position.array, shared.attributes.normal.array, morphs, weights)
           : null;
+        if (moved && fixed) rigid(moved, shared.attributes.position.array, shared.attributes.normal.array);
         const borrowed = [
           "uv",
           "skinIndex",
@@ -1397,7 +1457,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   };
   // (A hood or helm that hides the hair leaves it off.)
   // (A style that swings, from where its hair leaves the head: hair.js.)
-  const below = SWINGING_HAIR.get(filled.hair);
+  const below = swingOf(filled.hair);
   const hangs = below === undefined ? null : { line: kit.eyes - below, centre: kit.headAt };
   if (hair && !hides.has("hair")) wearPart(hair, () => new Color(filled.hairColour), hangs);
   for (const piece of pieces) wearPart(piece, (mesh) => (mesh.partOf ? 0xffffff : new Color().setRGB(...mesh.colour)));
