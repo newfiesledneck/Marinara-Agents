@@ -52,6 +52,7 @@ import { noise3 } from "./caves.js";
 import { cavePlan, cavernPlan, MAX_DEPTH, openAt } from "./deepcave.js";
 import { buildDungeon, dungeonPlan } from "./dungeon.js";
 import { kitModel, kitModels } from "./kit.js";
+import { DEEP_KINDS } from "./land.js";
 import { SRD_CREATURES } from "./srd.js";
 import { createCollider, disposeOwn, hashString, rng } from "./world.js";
 
@@ -77,6 +78,15 @@ export const deepSeed = (entrance, depth) => hashString(`${entrance}:deep:${dept
 
 /** Whether the cave `entrance` leads down at all, for `share` of a world's caves (0…1). */
 export const leadsDown = (entrance, share) => (hashString(`${entrance}:leads down`) % 1000) / 1000 < share;
+
+/**
+ * The way down from a cave's mouth, as the kinds of its first level (enterDeep's), or null for a shallow
+ * cave: `share` of a world's caves lead down, into a small cave first; one a region's purpose made the way
+ * into somewhere (its `deep`: a stronghold's gate, a ruin over a dungeon) always does, straight into it;
+ * and so does one a quest needs (`wanted`).
+ */
+export const wayDown = (cave, entrance, share, wanted = false) =>
+  cave.deep || wanted || leadsDown(entrance, share) ? [DEEP_KINDS.includes(cave.deep) ? cave.deep : "cave"] : null;
 
 /**
  * The plan for the level of `kind` at `depth` with seed `seed`: a cavern or a cave from deepcave.js, a

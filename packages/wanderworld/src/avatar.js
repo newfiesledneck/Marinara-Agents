@@ -903,10 +903,11 @@ const CARRY_REACH = 8; // cells: further than this from any skin, a vertex stays
 const cellAt = (x, y, z) => ((x + 512) << 20) | ((y + 512) << 10) | (z + 512);
 
 /** A body's skin vertices (but the ears': what the pointed-ears key moves) sorted into cells, made once:
- *  cell → the vertices in it. */
-function skinCells(kit) {
-  if (!kit.cells) {
-    kit.cells = new Map();
+ *  cell → the vertices in it. `skin` is where they are (the body as made, or fitted's as a person's), kept
+ *  as kit[`cache`]. */
+function skinCells(kit, skin = kit.position, cache = "cells") {
+  if (!kit[cache]) {
+    const cells = (kit[cache] = new Map());
     const ears = new Set();
     for (const { ids, delta } of kit.morphs.ears_pointed ?? [])
       for (let i = 0; i < ids.length; i++)
@@ -916,22 +917,22 @@ function skinCells(kit) {
       for (let v = mesh.start; v < mesh.start + mesh.count; v++) {
         if (ears.has(v)) continue;
         const cell = cellAt(
-          Math.floor(kit.position[v * 3] / CARRY_CELL),
-          Math.floor(kit.position[v * 3 + 1] / CARRY_CELL),
-          Math.floor(kit.position[v * 3 + 2] / CARRY_CELL),
+          Math.floor(skin[v * 3] / CARRY_CELL),
+          Math.floor(skin[v * 3 + 1] / CARRY_CELL),
+          Math.floor(skin[v * 3 + 2] / CARRY_CELL),
         );
-        if (!kit.cells.has(cell)) kit.cells.set(cell, []);
-        kit.cells.get(cell).push(v);
+        if (!cells.has(cell)) cells.set(cell, []);
+        cells.get(cell).push(v);
       }
     }
   }
-  return kit.cells;
+  return kit[cache];
 }
 
-/** For each vertex of `positions`, the body's skin vertices nearest it and their shares: { ids, shares }. */
-function nearestSkin(kit, positions) {
-  const cells = skinCells(kit);
-  const skin = kit.position;
+/** For each vertex of `positions`, the body's skin vertices nearest it and their shares: { ids, shares }.
+ *  (`skin` and `cache` as skinCells takes them.) */
+function nearestSkin(kit, positions, skin = kit.position, cache = "cells") {
+  const cells = skinCells(kit, skin, cache);
   const count = positions.length / 3;
   const ids = new Uint32Array(count * CARRY_NEAREST);
   const shares = new Float32Array(count * CARRY_NEAREST);
@@ -975,14 +976,7 @@ function nearestSkin(kit, positions) {
  * from `offset`), in morphsOf's form: each moves as the skin near it does.
  */
 function carried(kit, key, positions, near, offset = 0) {
-  kit.moves ??= new Map(); // a key's moves, a vertex of the body each
-  if (!kit.moves.has(key)) {
-    const moves = new Float32Array(kit.position.length);
-    for (const { ids, delta } of kit.morphs[key] ?? [])
-      for (let i = 0; i < ids.length; i++) for (let c = 0; c < 3; c++) moves[ids[i] * 3 + c] += delta[i * 3 + c];
-    kit.moves.set(key, moves);
-  }
-  const moves = kit.moves.get(key);
+  const moves = movesOf(kit, key);
   const ids = [];
   const delta = [];
   for (let v = 0; v < positions.length / 3; v++) {
@@ -997,6 +991,33 @@ function carried(kit, key, positions, near, offset = 0) {
     delta.push(...move);
   }
   return { ids: Uint32Array.from(ids), delta: Float32Array.from(delta), normal: new Float32Array(ids.length * 3) };
+}
+
+/** Shape key `key`'s move of each of the body's vertices (x, y, z each), made once. */
+function movesOf(kit, key) {
+  kit.moves ??= new Map();
+  if (!kit.moves.has(key)) {
+    const moves = new Float32Array(kit.position.length);
+    for (const { ids, delta } of kit.morphs[key] ?? [])
+      for (let i = 0; i < ids.length; i++) for (let c = 0; c < 3; c++) moves[ids[i] * 3 + c] += delta[i * 3 + c];
+    kit.moves.set(key, moves);
+  }
+  return kit.moves.get(key);
+}
+
+// An anthro body over the human one: its `as_human` key (assets/scripts/make_anthro_*.py) takes its skin
+// back to the human body's, a dragon's deep neck and shoulders most of all. A human piece (made on the human
+// body) is carried the other way, out to the anthro body: found among the skin as the human body has it,
+// and moved as that skin moves to the anthro's.
+/** The human pieces' key (in morphsOf's form, for `positions`) that fits them to anthro body `kit`. */
+function fitted(kit, positions) {
+  if (!kit.humanSkin) {
+    const moves = movesOf(kit, "as_human");
+    kit.humanSkin = kit.position.map((value, i) => value + moves[i]);
+  }
+  const fit = carried(kit, "as_human", positions, nearestSkin(kit, positions, kit.humanSkin, "humanCells"));
+  for (let i = 0; i < fit.delta.length; i++) fit.delta[i] = -fit.delta[i];
+  return fit;
 }
 
 // ── Joints that follow the body's shape ──
@@ -1061,6 +1082,13 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   for (const piece of pieces) for (const word of piece.hides) hides.add(word);
   const flat = hides.has("neck") || hides.has("torso") || pieces.some((piece) => RUFF_SLOTS.has(piece.slot));
   const weights = keyWeights(filled, sex, kit.file.keys, flat);
+  // (An anthro body with its as_human key: the clothes are fitted out to it, a dragon's neck included, so
+  // its neck isn't brought in under a collar.)
+  const fitKey = filled.species !== "human" && kit.morphs.as_human ? `fit_${filled.species}` : "";
+  if (fitKey) {
+    weights[fitKey] = 1;
+    delete weights.collar_fit;
+  }
   // The finger joints go where the look's keys put the knuckles (the kit's jointMoves: a dwarf's bigger
   // hand, an old back's lower one), or a finger would turn about a pivot left behind in the plain hand.
   moved = moveJoints(root, bones, kit.file.jointMoves, weights);
@@ -1235,6 +1263,8 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
         const own = shared.attributes.position.array;
         morphs[raceKey] = [carried(kit, raceKey, own, (made.near ??= nearestSkin(kit, own)))];
       }
+      // (Fitted to an anthro body the first time one of its kind wears it: fitted, above.)
+      if (fitKey && !morphs[fitKey]) morphs[fitKey] = [fitted(kit, shared.attributes.position.array)];
       let geometry = shared;
       let colour = null;
       if (mesh.partOf) {

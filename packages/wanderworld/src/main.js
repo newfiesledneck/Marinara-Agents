@@ -40,7 +40,7 @@ import { createFigure } from "./figure.js";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
 import { createInterior } from "./interiors.js";
-import { createDeep, creaturesFor, deepPlan, deepSeed, leadsDown } from "./deep.js";
+import { createDeep, creaturesFor, deepPlan, deepSeed, wayDown } from "./deep.js";
 import { BUILT_IN, findModel, loadModelCharacter, modelKinds } from "./models.js";
 import { summariseSetup } from "./setup.js";
 import { HELP, helpFor, KEYWORD_PROMPT } from "./help.js";
@@ -7871,18 +7871,28 @@ function openNoticeboard() {
   show();
 }
 
+/** The way down from a cave's mouth (deep.js wayDown), or null: a shallow cave, or Caves lead down off. */
+const caveWay = (cave) =>
+  core.settings.deepPlaces
+    ? wayDown(cave, `${core.seed}:${cave.outpost}`, core.settings.deepShare, questPlay.wantsCave(cave))
+    : null;
+
 /** A cave's mouth: down into what's below it, if it leads down (enterDeep); else a card like a door's. */
 function enterCave(cave) {
-  // (One a quest needs always does: Quests.)
-  if (
-    core.settings.deepPlaces &&
-    (leadsDown(`${core.seed}:${cave.outpost}`, core.settings.deepShare) || questPlay.wantsCave(cave))
-  )
-    return void enterDeep(cave, ["cave"]);
+  const way = caveWay(cave);
+  if (way) return void enterDeep(cave, way);
   const zone = core.zones?.byId.get(`cave:${cave.outpost}`);
   const title = zone ? zoneName(zone) : "A cave";
   core.sceneDoor = cave;
-  openScene({ kind: "cave", zone, title, inside: [], empty: "It's dark in there, and quiet." });
+  openScene({
+    kind: "cave",
+    zone,
+    title,
+    inside: [],
+    empty: core.settings.deepPlaces
+      ? "A shallow cave: a few paces in, the rock closes. It doesn't lead down; others do."
+      : "It's dark in there, and quiet.",
+  });
 }
 
 /** Back out to the street in front of the door (at once when `now`, e.g. for a new world). */
@@ -8015,7 +8025,8 @@ function usable() {
   for (const cave of core.interior ? [] : (core.world?.caves ?? [])) {
     list.push({
       kind: "door",
-      label: "Go in",
+      // (A shallow one says so before it's tried.)
+      label: !core.settings.deepPlaces || caveWay(cave) ? "Go in" : "Look into the shallow cave",
       x: cave.x,
       z: cave.z,
       y: 1.6,

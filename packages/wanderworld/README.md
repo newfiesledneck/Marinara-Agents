@@ -39,7 +39,7 @@ there, so a phone and a computer stay in step. Each browser writes only the worl
 made on one never drops out of another's list. If one world is played in two browsers at the same moment,
 the browser that saved it first keeps it and the other one loads that save, so don't do that.
 
-## What it does now (0.7.62)
+## What it does now (0.7.63)
 
 ### The world
 
@@ -760,7 +760,10 @@ every roll, and no AI call is made in a real-time fight.
   between the camera and you isn't drawn. Creatures that suit the place live there, picked for your
   level and tougher the deeper you go, and fights work as they do outside. The same cave always leads to
   the same places. Settings → World → Places → Caves, dungeons and strongholds turns it off, sets how
-  many of a world's caves lead down, and turns the creatures down there off.
+  many of a world's caves lead down, and turns the creatures down there off. A cave that doesn't lead
+  down is shallow: its mouth says "Look into the shallow cave" in place of "Go in", and shows a card for
+  a scene there. A stronghold's gate, a ruin over a dungeon and a cave a quest sends you into always lead
+  down, the first two straight into the stronghold or the dungeon.
 - **Creatures by the SRD**: a creature's HP, AC, attack and damage are the 5e SRD's where it has
   the creature (a wolf is its wolf, a stag its elk, the dragon its red dragon wyrmling), a setting
   that's on to begin with. Off, and for cattle, the alpaca and the shiba, they're the game's own.
