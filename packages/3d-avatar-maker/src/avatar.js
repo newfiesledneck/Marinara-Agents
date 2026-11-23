@@ -34,8 +34,11 @@ import {
   CLOTH_HEX,
   DYES,
   SLOT_OF,
+  NAIL_COVERS,
+  NAILS,
   EYE_COLOURS,
   EYE_PICTURES,
+  EYE_GRID,
   FACE,
   FACE_DETAIL,
   BODY_DETAIL,
@@ -47,6 +50,9 @@ import {
   RACES,
   raceOf,
   SKINS,
+  COMMUNITY_SKINS,
+  skinsFor,
+  skinPicture as skinPictureOf,
   TIEFLING_SKINS,
   TINT,
   HAIR_COLOURS,
@@ -308,11 +314,14 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
   // The skin picture: the look's, else "custom" for a colour of one's own (an older look's), else the one
   // nearest the name's tone. The age, brows and lashes the name gives are a roll of their own, so the rest
   // of the name's look stays as it was.
-  const kind = SKINS.some(([value]) => value === chosen.skin)
+  // (A community skin the other body doesn't have is read as MakeHuman's light one.)
+  const kind = skinsFor(sex).some(([value]) => value === chosen.skin)
     ? chosen.skin
-    : (ownSkin ?? usualRaceSkin) !== undefined
-      ? "custom"
-      : ["caucasian", "asian", "african"][Math.floor((usualSkin * 3) / SKIN_TONES.length)];
+    : COMMUNITY_SKINS.some(([value]) => value === chosen.skin)
+      ? "caucasian"
+      : (ownSkin ?? usualRaceSkin) !== undefined
+        ? "custom"
+        : ["caucasian", "asian", "african"][Math.floor((usualSkin * 3) / SKIN_TONES.length)];
   const picture = kind !== "custom"; // (its lips and nails are the picture's own unless coloured by hand)
   const more = rng(hashString(`${name || "wanderer"}:avatar-age`));
   const usualAge = ageOf(more());
@@ -406,6 +415,9 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
     brows: chosen.brows ?? usualBrows,
     lashes: chosen.lashes ?? usualLashes,
     eyePicture: anthro ? TINT : (chosen.eyePicture ?? TINT),
+    // (Nails are on unless chosen off: the body always had them.)
+    nails: anthro ? "none" : (chosen.nails ?? "short"),
+    toenails: !anthro && chosen.toenails !== false,
     seed: hashString(`${name}:motion`),
   };
 }
@@ -679,19 +691,19 @@ function trianglesOf(kit, look, hides) {
 
 /**
  * The body's texture places with the eyes' moved onto eye picture `picture`'s tile in avatar-eyes.webp (the
- * packer's 3 × 3 tiles, each the top 512 × 384 of a 512 picture: all its iris and eye white use), made once
- * a body and picture and shared. (One file for the nine pictures spares the package's asset paths.)
+ * packer's EYE_GRID × EYE_GRID tiles, each the top 512 × 384 of a 512 picture: all its iris and eye white
+ * use), made once a body and picture and shared. (One file for every picture spares the package's asset paths.)
  */
 function eyeUvsOf(kit, picture) {
   if (!kit.eyeUvs.has(picture)) {
     const at = EYE_PICTURES.findIndex(([value]) => value === picture);
-    const [column, row] = [at % 3, Math.floor(at / 3)];
+    const [column, row] = [at % EYE_GRID, Math.floor(at / EYE_GRID)];
     const uv = kit.shared.uv.array.slice();
     const eyes = kit.meshes.find((mesh) => mesh.part === "iris")?.texture;
     for (const mesh of kit.meshes.filter((each) => each.texture === eyes && !each.alpha))
       for (let v = mesh.start; v < mesh.start + mesh.count; v++) {
-        uv[v * 2] = (column + uv[v * 2]) / 3;
-        uv[v * 2 + 1] = (row + (uv[v * 2 + 1] * 512) / 384) / 3;
+        uv[v * 2] = (column + uv[v * 2]) / EYE_GRID;
+        uv[v * 2 + 1] = (row + (uv[v * 2 + 1] * 512) / 384) / EYE_GRID;
       }
     kit.eyeUvs.set(picture, new BufferAttribute(uv, 2));
   }
@@ -797,7 +809,7 @@ export async function avatarChoices(sex, species = "human") {
       ? []
       : HAIRSTYLES.map(([style]) => style).filter((style) => style === BARE || hair[style]?.bodies.includes(sex)),
     clothes: Object.entries(outfits)
-      .filter(([piece, entry]) => entry.bodies.includes(sex) && SLOT_OF[piece])
+      .filter(([piece, entry]) => entry.bodies.includes(sex) && SLOT_OF[piece] && !NAIL_COVERS[SLOT_OF[piece]])
       .filter(([piece]) => !anthro || !ANTHRO_BARE_SLOTS.has(SLOT_OF[piece]))
       .map(([piece, entry]) => ({
         piece,
@@ -839,9 +851,10 @@ export function designMenu() {
       ...ANTHRO_SHAPES.map(range),
       "limbs: { field: number }, each:",
       ...LIMBS.map(([key, label, least, most]) => `  ${key}: ${least} to ${most} (1 is usual): ${label}`),
-      `skin: "custom" (then colours.skin is their skin's colour), or a skin picture: ${listOf(SKINS.filter(([value]) => value !== "custom"))}`,
+      `skin: "custom" (then colours.skin is their skin's colour), or a skin picture: ${listOf(SKINS.filter(([value]) => value !== "custom"))}, or one of these (the body named after each): ${COMMUNITY_SKINS.map(([value, , bodies]) => `${value} (${bodies.join("/")})`).join(", ")}`,
       "colours: { skin, eyes, lips, nails, brows, underwear, horns, and for an anthro body its own: fur, fur2 (lighter fur), nose, claws (a wolf), scales, scales2 (underside) (a dragon) }",
       `eyePicture: tint (then colours.eyes is their eye colour), or a real eye: ${listOf(EYE_PICTURES)}`,
+      `nails: ${listOf(NAILS)}; toenails: true or false (colours.nails is their colour)`,
       `hair: ${listOf(HAIRSTYLES)}; hairTint: their hair's colour`,
       ...RACE_PARTS.map(([field, list]) => `${field}: ${listOf(list)}`),
       "tail: true or false (a tiefling's tail); wings: true or false (a dragon's)",
@@ -1016,10 +1029,19 @@ function moveJoints(root, bones, moves, weights) {
 export async function createAvatar(look = {}, name = "", gender = "auto") {
   const filled = avatarLook(name, gender, look);
   const sex = filled.body;
+  // The nails: pieces of their own, worn unless gloves or shoes cover them, in the look's nail colour (or as
+  // made, beside a skin picture). They go on with the clothes but aren't among them.
+  const covered = new Set(filled.clothes.map((piece) => SLOT_OF[piece]));
+  const nails = [
+    ...(filled.nails !== "none" && !covered.has(NAIL_COVERS.nails) ? [`nails_${filled.nails}`] : []),
+    ...(filled.toenails && !covered.has(NAIL_COVERS.toenails) ? ["toenails"] : []),
+  ];
+  const dyes = { ...filled.clothColours };
+  if (filled.colours.nails !== WHITE) for (const piece of nails) dyes[piece] = { nail: filled.colours.nails };
   const [kit, hair, worn] = await Promise.all([
     bodyKit(sex, filled.species),
     filled.hair === BARE ? null : hairOf(filled.hair, sex),
-    Promise.all(filled.clothes.map((piece) => pieceOf(piece, sex, filled.variants[piece]))),
+    Promise.all([...filled.clothes, ...nails].map((piece) => pieceOf(piece, sex, filled.variants[piece]))),
   ]);
   const { root, bones } = rigOf(kit.file);
   let moved = null; // joints moved with the body's shape (below), for binding
@@ -1117,14 +1139,14 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   }
   const textureOfPart = (part) => kit.meshes.find((mesh) => mesh.part === part)?.texture;
   const swapped = new Map();
-  const skinPicture = filled.skin !== "custom" ? `avatar-${sex}-skin-${filled.age}-${filled.skin}` : null;
+  const skinPicture = skinPictureOf(filled.skin, sex, filled.age);
   if (skinPicture) swapped.set(textureOfPart("skin"), texture(skinPicture));
   if (filled.eyePicture !== TINT) swapped.set(textureOfPart("iris"), texture("avatar-eyes"));
   const anthro = filled.species !== "human";
   // The skin and lips share one picture: painted for this avatar (skin.js) with its skin colour and its
   // lips coloured through the body's mask, so their edge is clean. Where it can't be painted (no canvas,
-  // as in Node, or no mask for the body), they're coloured by vertex as before. (The nails are shells of
-  // their own, coloured by vertex.)
+  // as in Node, or no mask for the body), they're coloured by vertex as before. (The nails are pieces of
+  // their own, worn with the clothes.)
   const painted =
     anthro || !kit.file.keys
       ? null
@@ -1233,7 +1255,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
       let geometry = shared;
       let colour = null;
       if (mesh.partOf) {
-        const hexes = mesh.parts.map(({ part: name }) => filled.clothColours[piece]?.[name] ?? null);
+        const hexes = mesh.parts.map(({ part: name }) => dyes[piece]?.[name] ?? null);
         const said = hexes.join();
         if (!colours.has(said)) {
           const tints = mesh.parts.map(({ colour: made }, i) =>

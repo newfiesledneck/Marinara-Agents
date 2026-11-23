@@ -5,7 +5,12 @@ shoes and hats both), skinned to the body's skeleton, with the body's shape keys
 extras `outfit`, `slot`, `body`, `layer`, `hides` and `parts`; materials `<piece>-<mesh>-<part>` with
 `part` in their extras. Run (BLENDER: your Blender executable; add `-- mh_jeans mh_tee` for some):
 
-    "$BLENDER" --background --factory-startup --python packages/wanderworld/assets/scripts/make_mh_clothes.py
+    "$BLENDER" --background --factory-startup --python packages/3d-avatar-maker/assets/scripts/make_mh_clothes.py
+
+The nails (nails_short, nails_medium, nails_long on the fingers, toenails) are Mindfront's CC0 nails from the
+community pack bodyparts04_cc0 (`pack:` items, read from `wwavatar.extracted_dir`): a shell on each nail bed,
+its outer surface lifted to just off the skin (its underside stays tucked under it), on the fingers' bones,
+one plain colour the maker tints.
 
 How (`wwmhclo.py`): each suit is fitted through its .mhclo (its vertices follow MakeHuman's base mesh,
 mostly through its tights helper), so it sits on our body as the artist fitted it, takes the bone weights
@@ -34,6 +39,9 @@ import wwmhclo as mc  # noqa: E402
 
 SIZE = 1024
 CLEARANCE = 0.0025  # how close cloth may come to the skin
+NAIL_CLEARANCE = 0.0005  # how far a nail's outer surface stands off the skin (on the nail bed, not floating)
+NAIL_COLOUR = (0xE6, 0xB3, 0xA4)  # sRGB, the body's own `nails` colour (make_avatar.py PARTS)
+NAIL_ROUGHNESS = 0.3
 MALE, FEMALE, BOTH = ("male",), ("female",), ("male", "female")
 TOPS = ["torso", "upperarms", "forearms", "underwear-top"]
 LEGS = ["hips", "thighs", "calves", "underwear-bottom"]
@@ -78,6 +86,17 @@ PIECES = {
     "mh_trainers_blue": dict(src="shoes06", take="all", sexes=BOTH, slot="feet", layer=2, hides=["feet"], tex="colour", part="shoe", skin=False, force=["feet"]),
     "mh_fedora": dict(src="fedora01", take="all", sexes=BOTH, slot="head", layer=4, hides=["hair"], tex="tint", part="felt", skin=False),
     "mh_fedora_cocked": dict(src="fedora_cocked", take="all", sexes=BOTH, slot="head", layer=4, hides=["hair"], tex="tint", part="felt", skin=False),
+    # Nails (Mindfront's, CC0): solid shells, so only their outer surface is kept off the skin (`lift`), at
+    # NAIL_CLEARANCE, and not off the underwear (`under`); `tex="plain"` is one colour, no texture.
+    **{
+        name: dict(src=f"pack:bodyparts04_cc0/clothes/{folder}", take="all", sexes=BOTH, slot=slot, layer=1, hides=[], tex="plain", part="nail", skin=False, clearance=NAIL_CLEARANCE, lift="outer", under=False)
+        for name, folder, slot in (
+            ("nails_short", "mindfront_nails_01_short", "nails"),
+            ("nails_medium", "mindfront_nails_02_medium", "nails"),
+            ("nails_long", "mindfront_nails_03_long", "nails"),
+            ("toenails", "mindfront_nails_toes_01", "toenails"),
+        )
+    },
 }
 # Pieces the same as another in all but name (the same mesh and texture), left out.
 SAME_AS = {}
@@ -216,8 +235,24 @@ def fitted_source(src, body):
     key = (src, body.sex)
     if key not in _fits:
         kind = "clothes"
-        _fits[key] = mc.Fitted(mc.Proxy(kind, src), body)
+        # (Only the body's own keys, not the face and body sliders' `<slider>.lo`/`.hi`: the maker carries
+        # those onto clothes from the skin at run time, src/avatar.js `carried`.)
+        keys = [k for k in body.key_names if "." not in k]
+        _fits[key] = mc.Fitted(mc.Proxy(kind, src), body, keys)
     return _fits[key]
+
+
+def outer(fitted, body):
+    """Each vertex: whether it's on the piece's outer surface (its normal turned away from the skin), not a
+    solid shell's underside."""
+    me = bpy.data.meshes.new("outer")
+    me.from_pydata(fitted.co.tolist(), [], fitted.faces)
+    me.update()
+    a = np.zeros(len(me.vertices) * 3)
+    me.vertices.foreach_get("normal", a)
+    bpy.data.meshes.remove(me)
+    _, nrm, _ = mc.nearest(body.bvh()[0], fitted.co)
+    return (a.reshape(-1, 3) * nrm).sum(1) > 0.3
 
 
 def make(name, bodies):
@@ -237,10 +272,11 @@ def make(name, bodies):
         of = {f: named.get(t, main) for t in take for f in parts[t]}
         part_of = np.array([of[f] for f in faces], dtype=object)
         configs = {k: {k: 1.0} for k in piece.key_names}
-        before = piece.clipping({})
+        lift = outer(piece, body) if spec.get("lift") == "outer" else None
+        before = piece.clipping({}, mask=lift)
         # (Kept outside the underwear it doesn't hide, and the skin kept under its faces as well as its vertices.)
-        under = [u for u in body.under if not hidden_under(u, spec["hides"])]
-        report = piece.push_out(CLEARANCE, configs, under=under, skin=spec.get("skin", True))
+        under = [u for u in body.under if not hidden_under(u, spec["hides"])] if spec.get("under", True) else []
+        report = piece.push_out(spec.get("clearance", CLEARANCE), configs, mask=lift, under=under, skin=spec.get("skin", True))
         # Cloth close to the skin takes the weights of the skin right under it, not those MakeHuman's helper
         # spreads over both legs at the crotch (which let the back thigh come through when walking); cloth
         # hanging further off keeps the fitted weights, smoother.
@@ -249,16 +285,19 @@ def make(name, bodies):
         piece.W = piece.W * (1 - near[:, None]) + skin_w * near[:, None]
         piece.limit_weights(4)
         combo = {"heavy": 1.0, "muscle": 1.0, "belly": 1.0, ("bust" if sex == "female" else "chest"): 1.0}
-        after = {k: piece.clipping(v, depth=0.0005) for k, v in [("rest", {})] + list(configs.items())}
-        combo_clip = piece.clipping(combo, depth=0.0005)
-        if image is None:
-            image, factor = piece_texture(name, piece.proxy, piece, spec, part_of)
+        after = {k: piece.clipping(v, depth=0.0005, mask=lift) for k, v in [("rest", {})] + list(configs.items())}
+        combo_clip = piece.clipping(combo, depth=0.0005, mask=lift)
         names = sorted(set(part_of), key=lambda p: (p != main, p))
+        if spec["tex"] == "plain":
+            factor = {p: tuple(float(c) for c in mc.srgb_to_linear(np.array(NAIL_COLOUR) / 255)) for p in names}
+        elif image is None:
+            image, factor = piece_texture(name, piece.proxy, piece, spec, part_of)
         mats = []
         for p in names:
-            m = mc.material(f"{name}-{sex}-{p}", image, colour=factor[p], roughness=0.85 if p != "shoe" else 0.6, part=p)
+            rough = NAIL_ROUGHNESS if spec["tex"] == "plain" else 0.85 if p != "shoe" else 0.6
+            m = mc.material(f"{name}-{sex}-{p}", image, colour=factor[p], roughness=rough, part=p)
             mats.append(m)
-        rig = mc.make_rig(body)
+        rig = mc.make_rig(body, fingers=bool(piece.W[:, mc.FINGER_COLUMNS].any()))
         obj = mc.build_object(sex, piece, rig, mats, face_mat=[names.index(p) for p in part_of])
         hides, share, covered = safe_hides(piece, body, spec["hides"])
         # (Checked by eye: a shoe's own sock closes it at the ankle, so the feet can go though a toe or a sole

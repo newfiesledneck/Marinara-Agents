@@ -1,5 +1,13 @@
 # 3D Avatar Maker release notes
 
+## 0.1.02 — 2026-11-23
+
+- Real nails on every finger and toe: short, medium, long or none, and toenails on or off, in any colour. Gloves and shoes hide them.
+- 23 more skins, among them freckled, ginger, bronzed, Eurasian, tattooed and made-up ones.
+- 15 more eye pictures: amber, hazel, sapphire and other natural colours, cat's eyes, reptile and dragon eyes, and a trial anime eye.
+- Four brow styles and two lash styles with fine, natural hairs.
+- 29 more sliders for the cheeks, ears, nose, arms and hands, such as jowls, a bulbous nose and knobbly knuckles. A new avatar starts with truer ears, nose and hands.
+
 ## 0.1.01 — 2026-11-23
 
 - Nails are now a part of their own on every finger and toe, so a nail colour has a clean edge.

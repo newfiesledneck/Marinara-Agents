@@ -54,6 +54,28 @@ poses with its arms lowered. Not yet checked in a real Engine.
   85 MB with every key on every piece).
 - Lip colour is painted through a mask in the skin picture (`src/skin.js`), for a clean edge.
 
+## Built (0.1.02)
+
+- The MakeHuman community packs the user downloaded were checked item by item (`docs/MAKEHUMAN-PACKS.md`:
+  what's used, what's left out and why, every item's licence and author). The packs are read from
+  `_planning/Wanderworld asset packs/MakeHuman/extracted/<pack>` (`MAKEHUMAN_PACKS` to move it); a target
+  from one is named `pack:<pack>/<region>/<name>` (`wwavatar.target`).
+- 29 one-way face and body sliders from community targets (cheeks, ears, nose, arms, hands), each only a
+  `.hi` key. The finer anatomy ones (`detail_…`) start partly on in a new avatar (`NEUTRAL_LOOK`); presets
+  and styles leave them alone.
+- 23 community skins, one picture each at its own age (`COMMUNITY_SKINS`, `skinsFor(sex)`, `skinPicture`).
+  A skin only one body has opens on the other as MakeHuman's light skin.
+- 15 community eye pictures (realistic, cat's eyes, reptile, dragon, a trial anime one): the eye atlas is
+  5 × 5 now (`EYE_GRID`). `make_avatar.py -- eyes` rebuilds the eye pictures alone.
+- Nails are Mindfront's, fitted as pieces (`make_mh_clothes.py`, slots `nails` and `toenails`, `NAIL_SLOTS` in
+  looks.js): short, medium, long or none, and toenails on or off, on the Skin tab; the nail colour dyes them;
+  gloves hide the fingernails, shoes the toenails. They bend with the finger bones (`wwmhclo` now rigs them).
+  The old nail shells are off (`NAIL_SHELLS`).
+- Brow styles 13–16 and lash styles 5–6: Mindfront's strand brows and lashes baked onto MakeHuman's cards at
+  build time (`bake_brows.py`, `HAIR_STYLES`); the hair texture grew to 4 × 6 squares.
+- The plan for community clothes (themed asset packs the maker finds through
+  `/api/capability-packages/installed`) is in the shared notes (`avatar-asset-packs-plan.md`); not built yet.
+
 ## Next, in order
 
 1. **Dev catalog.** `_planning/scripts/update-dev-catalog.mjs` rebuilds only the packages in its

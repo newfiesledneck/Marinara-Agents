@@ -12,9 +12,11 @@ with every change.
   there are copied here and changed here.
 - Humans only for now. Every feature works without AI; anything that calls a model is off until the user
   turns it on, has its own switch, and says what it sends.
-- Only CC0 material goes in the kit: MakeHuman's data (read as data; its GPL code is never run or copied)
-  and what is made here. A saved avatar must stay free to share. If something under another licence is
-  ever wanted, ask first.
+- Only CC0 or CC-BY material: MakeHuman's data and its community packs (read as data; MakeHuman's GPL code
+  is never run or copied) and what is made here. The main kit stays CC0, so a saved avatar is free to share;
+  CC-BY items go in the separate asset packs, with their authors credited there. Check each item's own files
+  as well as its catalogue, and leave out any whose files say otherwise (AGPL headers): `docs/MAKEHUMAN-PACKS.md`
+  is the item-by-item list. Anything under another licence: ask first.
 - Anything made in Blender is credited to ThatOneCan in `kit/CREDITS.md` and the README's credits, naming
   what it is, and is released as CC0.
 - The maker writes nothing to the Engine. An avatar leaves as a file the user saves.

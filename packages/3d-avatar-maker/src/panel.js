@@ -39,6 +39,10 @@ import {
   SHAPES,
   SKIN_TONES,
   SKINS,
+  BROW_NAMES,
+  LASH_NAMES,
+  NAILS,
+  skinsFor,
   STYLE_FIELDS,
   STYLES,
   sliderRange,
@@ -353,7 +357,7 @@ export function createPanel(actions) {
         row(
           "Brows",
           select(
-            choices.brows.map((style) => [String(style), `Style ${style}`]),
+            choices.brows.map((style) => [String(style), BROW_NAMES[style] ?? `Style ${style}`]),
             String(filled.brows),
             (value) => change({ brows: Number(value) }),
             "Brow style",
@@ -362,7 +366,7 @@ export function createPanel(actions) {
         row(
           "Lashes",
           select(
-            choices.lashes.map((style) => [String(style), `Style ${style}`]),
+            choices.lashes.map((style) => [String(style), LASH_NAMES[style] ?? `Style ${style}`]),
             String(filled.lashes),
             (value) => change({ lashes: Number(value) }),
             "Lash style",
@@ -415,7 +419,7 @@ export function createPanel(actions) {
         "",
         row(
           "Skin",
-          select(SKINS, filled.skin, (value) => change({ skin: value }), "Skin"),
+          select(skinsFor(filled.body), filled.skin, (value) => change({ skin: value }), "Skin"),
           "A skin picture, or the plain skin in a colour of your own.",
         ),
         filled.skin === "custom"
@@ -445,7 +449,25 @@ export function createPanel(actions) {
       ),
       group(
         "Lips and nails",
-        "Left alone, each follows the skin.",
+        "Left alone, each colour follows the skin.",
+        row(
+          "Fingernails",
+          select(NAILS, filled.nails, (value) => change({ nails: value }), "Fingernails"),
+          "Their length, or none. Gloves hide them.",
+        ),
+        row(
+          "Toenails",
+          select(
+            [
+              ["on", "On"],
+              ["off", "Off"],
+            ],
+            filled.toenails ? "on" : "off",
+            (value) => change({ toenails: value === "on" }),
+            "Toenails",
+          ),
+          "Shoes hide them.",
+        ),
         ...AVATAR_COLOURS.filter(([field]) => field === "lips" || field === "nails").map(([field, label, list, says]) =>
           colours(
             label,

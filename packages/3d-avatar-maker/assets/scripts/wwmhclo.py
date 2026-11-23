@@ -4,7 +4,8 @@ and bone weights carried over, and writing them as the game's hair and outfit fi
 
 The pack's files are data (CC0), read by our own code here; MakeHuman and its add-on are neither run nor
 copied. The pack lives outside the repository: `MAKEHUMAN_ASSETS`, else the
-`makehuman_system_assets_cc0` folder beside MakeHuman's data (see `wwavatar.data_dir`).
+`makehuman_system_assets_cc0` folder beside MakeHuman's data (see `wwavatar.data_dir`); the community packs'
+items (`pack:<pack>/<kind>/<folder>`) are in `MAKEHUMAN_PACKS`, else `extracted` beside it.
 
 How a proxy is fitted:
 
@@ -36,8 +37,12 @@ from mathutils.kdtree import KDTree
 import wwavatar as wa
 import wwblend as ww
 
-BONE_NAMES = [b for b, _ in ww.BONES]
+# The body's bones: the people's skeleton, then the fingers' (make_avatar.py FINGER_BONES, the same order), so
+# a piece on the fingers (nails) bends with them. A piece's rig has the fingers' only when it uses them.
+FINGER_BONES = [f"{name}_{k:02d}_{s}" for s in ("l", "r") for name in ("thumb", "index", "middle", "ring", "pinky") for k in (1, 2, 3)]
+BONE_NAMES = [b for b, _ in ww.BONES] + FINGER_BONES
 BONE_INDEX = {b: i for i, b in enumerate(BONE_NAMES)}
+FINGER_COLUMNS = [BONE_INDEX[b] for b in FINGER_BONES]
 MODELS = os.environ.get("WW_MH_MODELS") or ww.MODELS
 BUILD = os.environ.get("WW_MH_BUILD") or ww.BUILD
 BODY_VERTS = 13380  # hm08's body vertices; its helpers and joint cubes follow
@@ -50,7 +55,7 @@ REGIONS = {
     "hips": ["pelvis"],
     "upperarms": ["upperarm_l", "upperarm_r"],
     "forearms": ["lowerarm_l", "lowerarm_r"],
-    "hands": ["hand_l", "hand_r"],
+    "hands": ["hand_l", "hand_r"] + FINGER_BONES,  # (the fingers are the hand's, as src/avatar.js has them)
     "thighs": ["thigh_l", "thigh_r"],
     "calves": ["calf_l", "calf_r"],
     "feet": ["foot_l", "foot_r", "ball_l", "ball_r"],
@@ -99,10 +104,16 @@ def srgb_to_linear(c):
 
 class Proxy:
     """One .mhclo with its .obj and .mhmat: the references, the mesh (positions in MakeHuman's space,
-    faces, texture coordinates per face corner) and the texture files."""
+    faces, texture coordinates per face corner) and the texture files. `folder` is a folder of the system
+    assets' `kind` (clothes, hair), an absolute path, or `pack:<pack>/<kind>/<folder>` for an item in one of
+    the community packs (`wwavatar.extracted_dir`)."""
 
     def __init__(self, kind, folder):
-        self.dir = os.path.join(PACK, kind, folder)
+        if folder.startswith("pack:"):
+            self.dir = os.path.join(wa.extracted_dir(), *folder[5:].split("/"))
+        else:
+            self.dir = os.path.join(PACK, kind, folder)  # (an absolute `folder` stands as it is)
+        folder = os.path.basename(os.path.normpath(self.dir))
         mhclo = next(f for f in os.listdir(self.dir) if f.endswith(".mhclo"))
         refs, weights, offsets, delete = [], [], [], set()
         scales = {}
@@ -276,6 +287,19 @@ class Body:
             raise SystemExit(f"{path} is missing: run make_avatar.py first (it saves the debug .blend)")
         with bpy.data.libraries.load(path, link=False) as (src, dst):
             dst.meshes = [m for m in src.meshes if m == f"avatar-{self.sex}"]
+            dst.armatures = list(src.armatures)
+        # The fingers' bones as make_avatar.py made them (head, tail and the way the bone's Z points), for
+        # make_rig: their roll comes from each finger's back, which only that script knows.
+        self.finger_bones = {}
+        for arm in dst.armatures:
+            if arm is not None and FINGER_BONES[0] in arm.bones and not self.finger_bones:
+                for b in FINGER_BONES:
+                    bone = arm.bones[b]
+                    z = bone.matrix_local.col[2]
+                    self.finger_bones[b] = (np.array(bone.head_local), np.array(bone.tail_local), np.array(z[:3]), bone.parent.name)
+        for arm in dst.armatures:
+            if arm is not None:
+                bpy.data.armatures.remove(arm)
         mesh = dst.meshes[0]
         a = np.zeros(len(mesh.vertices) * 3)
         mesh.vertices.foreach_get("co", a)
@@ -395,7 +419,7 @@ class Body:
         return self.region[self.mh_index]
 
 
-LIMBS = ("clavicle", "upperarm", "lowerarm", "hand", "thigh", "calf", "foot", "ball")
+LIMBS = ("clavicle", "upperarm", "lowerarm", "hand", "thigh", "calf", "foot", "ball", "thumb", "index", "middle", "ring", "pinky")
 
 
 def side_of(bones):
@@ -1009,9 +1033,10 @@ def save_image(name, rgba, fmt="PNG", quality=90, colour=True):
 # ── The rig, the mesh, the file ──────────────────────────────────────────────────────────────────────
 
 
-def make_rig(body):
+def make_rig(body, fingers=False):
     """The body's armature rebuilt as make_avatar.py builds it (the same heads, tails and rolls), so the
-    proxy's inverse bind matrices match the body's."""
+    proxy's inverse bind matrices match the body's; with `fingers`, the fingers' bones too (as the body's
+    debug .blend has them)."""
     body.rig.name = f"import-{body.sex}-rig"
     children = {}
     for name, parent in ww.BONES:
@@ -1032,6 +1057,16 @@ def make_rig(body):
             bone.parent = armature.edit_bones[parent]
         direction = (bone.tail - bone.head).normalized()
         bone.align_roll(Vector((0, 0, 1)) if abs(direction.z) < 0.5 else Vector((0, -1, 0)))
+    if fingers:
+        if not body.finger_bones:
+            raise SystemExit(f"avatar-{body.sex}.blend has no finger bones: run make_avatar.py again")
+        for name in FINGER_BONES:
+            head, tail, z, parent = body.finger_bones[name]
+            bone = armature.edit_bones.new(name)
+            bone.head, bone.tail = Vector(head), Vector(tail)
+            bone.parent = armature.edit_bones[parent]
+            bone.use_connect = False
+            bone.align_roll(Vector(z))
     bpy.ops.object.mode_set(mode="OBJECT")
     return rig
 
@@ -1070,9 +1105,9 @@ def build_object(name, fitted, rig, materials, face_mat=None, normals=None):
     return obj
 
 
-def material(name, image, colour=(1.0, 1.0, 1.0), roughness=0.8, alpha_cutoff=None, part=None):
+def material(name, image=None, colour=(1.0, 1.0, 1.0), roughness=0.8, alpha_cutoff=None, part=None):
     """The image times a colour (glTF base colour texture and factor), alpha MASK at `alpha_cutoff` if
-    given. `part` goes in the material's extras."""
+    given; with no image, the colour alone. `part` goes in the material's extras."""
     m = bpy.data.materials.new(name)
     if part:
         m["part"] = part
@@ -1081,6 +1116,9 @@ def material(name, image, colour=(1.0, 1.0, 1.0), roughness=0.8, alpha_cutoff=No
     nodes, links = m.node_tree.nodes, m.node_tree.links
     bsdf = nodes.get("Principled BSDF")
     bsdf.inputs["Roughness"].default_value = roughness
+    if image is None:
+        bsdf.inputs["Base Color"].default_value = (*[float(c) for c in colour], 1.0)
+        return m
     tex = nodes.new("ShaderNodeTexImage")
     tex.image = image
     mix = nodes.new("ShaderNodeMix")

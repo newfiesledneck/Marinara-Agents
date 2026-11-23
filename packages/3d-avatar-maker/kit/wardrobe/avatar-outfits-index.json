@@ -1447,6 +1447,72 @@
    ]
   }
  },
+ "nails_long": {
+  "bundle": "avatar-outfits-hands",
+  "slot": "nails",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "nail",
+     15119268
+    ]
+   ],
+   "female": [
+    [
+     "nail",
+     15119268
+    ]
+   ]
+  }
+ },
+ "nails_medium": {
+  "bundle": "avatar-outfits-hands",
+  "slot": "nails",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "nail",
+     15119268
+    ]
+   ],
+   "female": [
+    [
+     "nail",
+     15119268
+    ]
+   ]
+  }
+ },
+ "nails_short": {
+  "bundle": "avatar-outfits-hands",
+  "slot": "nails",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "nail",
+     15119268
+    ]
+   ],
+   "female": [
+    [
+     "nail",
+     15119268
+    ]
+   ]
+  }
+ },
  "one_piece_swimsuit": {
   "bundle": "avatar-outfits-body",
   "slot": "body",
@@ -2058,6 +2124,28 @@
     [
      "metal",
      12619848
+    ]
+   ]
+  }
+ },
+ "toenails": {
+  "bundle": "avatar-outfits-feet",
+  "slot": "toenails",
+  "bodies": [
+   "male",
+   "female"
+  ],
+  "parts": {
+   "male": [
+    [
+     "nail",
+     15119268
+    ]
+   ],
+   "female": [
+    [
+     "nail",
+     15119268
     ]
    ]
   }

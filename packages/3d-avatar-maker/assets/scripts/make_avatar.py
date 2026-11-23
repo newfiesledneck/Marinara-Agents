@@ -83,6 +83,7 @@ from mathutils.kdtree import KDTree
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import wwavatar as wa  # noqa: E402
+import bake_brows as bb  # noqa: E402  (the baked brow and lash styles: HAIR_STYLES)
 import wwblend as ww  # noqa: E402
 
 # Material parts: (name, colour, roughness).
@@ -373,6 +374,31 @@ FACE_DETAIL = [
     ("head_height", *_pair("head", "head-scale-vert-decr", "head-scale-vert-incr")),
     ("head_depth", *_pair("head", "head-scale-depth-decr", "head-scale-depth-incr")),
     ("neck_length", *_pair("neck", "measure-neck-height-decr", "measure-neck-height-incr")),
+    # One-way shapes from MakeHuman's community packs (CC0; author in the name: elvs is Elvaerwyn, jujube,
+    # habanero, rehmanpolanski and mindfront as written). Each has only its `.hi` key: 0 is the face as made.
+    *[(name, None, {f"pack:{pack}/{region}/{target}": 1.0}) for name, pack, region, target in [
+        ("cheeks_round_high", "cheek01_cc0", "cheek", "elvs_chipmunk_cheeks_high_1"),
+        ("cheeks_round_low", "cheek01_cc0", "cheek", "elvs_chipmunk_cheeks_low_1"),
+        ("cheekbones_chubby", "cheek01_cc0", "cheek", "elvs_high_chubby_cheekbones_1"),
+        ("jowls", "cheek01_cc0", "cheek", "elvs_jowls_1"),
+        ("cheeks_sunken", "cheek01_cc0", "cheek", "elvs_sunken_cheeks_1"),
+        ("ears_flared", "ears01_cc0", "ears", "elvs_flap_ears_1"),
+        ("ears_flatter", "ears01_cc0", "ears", "rehmanpolanski_ear_flatten"),
+        ("lobes_out", "ears01_cc0", "ears", "elvs_ear_flap_bottom_out"),
+        ("nose_bulbous", "nose01_cc0", "nose", "elvs_bulbous_nose_1"),
+        ("nose_base_wide", "nose01_cc0", "nose", "elvs_nose_widening_1"),
+        ("nose_greek", "nose01_cc0", "nose", "jujube_greek_statue_nose"),
+        ("nostrils_up", "nose01_cc0", "nose", "jujube_nostril_up"),
+        ("nostrils_small", "nose01_cc0", "nose", "jujube_nostril_shrink"),
+        ("nostrils_round", "nose01_cc0", "nose", "habanero_nostril_alar_rounding"),
+        # Detail: finer anatomy, which the maker can start a face with.
+        ("detail_ears", "ears01_cc0", "ears", "mindfront_ear_details"),
+        ("detail_ear_inner", "ears01_cc0", "ears", "mindfront_ear_in"),
+        ("detail_ear_canal", "ears01_cc0", "ears", "jujube_ear_canal"),
+        ("detail_nose_crease", "nose01_cc0", "nose", "mindfront_nose_alar_crease"),
+        ("detail_columella", "nose01_cc0", "nose", "jujube_nose_straight_columella"),
+        ("detail_nostril_rims", "nose01_cc0", "nose", "jujube_nostril_rim_sharp"),
+    ]],
 ]
 
 # The body in detail, the same way (3D Avatar Maker's src/looks.js BODY_DETAIL). Hands and feet are sized
@@ -389,6 +415,18 @@ BODY_DETAIL = [
     ("back_muscle", *_pair("torso", "torso-muscle-dorsi-decr", "torso-muscle-dorsi-incr")),
     ("stomach_tone", *_pair("stomach", "stomach-tone-decr", "stomach-tone-incr")),
     ("hip_width", *_pair("hip", "hip-scale-horiz-decr", "hip-scale-horiz-incr")),
+    # One-way, from MakeHuman's community packs (CC0): finer anatomy of the arms and hands, and knobby knuckles.
+    *[(name, None, {f"pack:{pack}/{region}/{target}": 1.0}) for name, pack, region, target in [
+        ("knuckles_knobby", "hands01_cc0", "hands", "jujube_knobby_knuckles"),
+        ("detail_fingers", "hands01_cc0", "hands", "mindfront_hand_fingers_correction"),
+        ("detail_palm", "hands01_cc0", "hands", "mindfront_hand_hypothenar"),
+        ("detail_thumb", "hands01_cc0", "hands", "mindfront_hand_thenar_eminence"),
+        ("detail_upper_arms", "arms01_cc0", "arms", "mindfront_arm_upper_shape"),
+        ("detail_forearms", "arms01_cc0", "arms", "mindfront_arm_lower_shape"),
+        ("detail_wrists", "arms01_cc0", "arms", "mindfront_arm_wrist_ulna"),
+        ("detail_armpits", "arms01_cc0", "arms", "mindfront_armpit"),
+        ("elbow_dimples", "arms01_cc0", "arms", "elvs_ladies_elbow_dimples"),
+    ]],
 ]
 # Hers only: the bust's shape and place (its size is the "bust" key).
 BREAST_DETAIL = [
@@ -3291,7 +3329,10 @@ def finger_chains(body, co, faces, mats):
 # of the digit's last segment and standing a fraction of a millimetre off the skin, with a rim tucked under it
 # so no gap shows from the side. Its size comes from the digit: about two thirds of its width, a little longer
 # than wide, stopping just short of the tip. It's one material, `nails`, so a colour on it has a clean edge.
-NAIL_LIFT = 0.00035  # how far the nail's top stands off the skin (metres)
+# 3D Avatar Maker now wears MakeHuman's community nails (make_mh_clothes.py: nails_short and the rest, CC0 by
+# Mindfront), which are modelled better than these; the shells stay here, switched off, in case they're wanted.
+NAIL_SHELLS = False
+NAIL_LIFT = 0.0005  # how far the nail's top stands off the skin (metres)
 NAIL_SINK = 0.00025  # how far its rim goes under the skin
 NAIL_RINGS = 5
 NAIL_SEGMENTS = 32
@@ -4370,12 +4411,34 @@ ASSETS = wa.assets_dir()
 AGES = (("young", "young"), ("middle", "middleage"), ("old", "old"))  # (our name, the pack's)
 ETHNICITIES = ("caucasian", "african", "asian")
 EYE_PICTURES = ("brown", "brownlight", "green", "bluegreen", "blue", "lightblue", "deepblue", "grey", "ice")
+# Eye pictures from MakeHuman's community packs (CC0 by their catalogue; docs/MAKEHUMAN-PACKS.md), in MakeHuman's
+# own eye layout, made into ours the same way: (our name, pack, item, its picture). The kit packer tiles them
+# after EYE_PICTURES, in this order (src/looks.js EYE_PICTURES the same).
+COMMUNITY_EYES = (
+    ("amber", "system_eye_materials01_cc0", "bobby_03_diffuse_amber_eyes", "makehuman_eye_diffuse_amber.png"),
+    ("hazel", "system_eye_materials01_cc0", "bobby_03_diffuse_hazel_eyes", "makehuman_eye_diffuse_hazel.png"),
+    ("seabreeze", "system_eye_materials01_cc0", "bobby_03_diffuse_sea_breeze_eyes", "makehuman_eye_diffuse_sea_breeze.png"),
+    ("clearblue", "system_eye_materials01_cc0", "bobby_03_diffuse_blue_eyes", "makehuman_eye_diffuse_blue.png"),
+    ("steel", "system_eye_materials01_cc0", "bobby_03_diffuse_grey_eyes", "makehuman_eye_diffuse_grey.png"),
+    ("darkbrown", "system_eye_materials01_cc0", "mindfront_brown_eye_02", "brown_eye_02.png"),
+    ("sapphire", "system_eye_materials01_cc0", "nyloseth_sapphire_blue_eyes", "sapphireblueeye.png"),
+    ("cat-blue", "system_eye_materials02_cc0", "nyloseth_bluecateyes", "Bluecateyes.png"),
+    ("cat-brown", "system_eye_materials02_cc0", "nyloseth_brown_cat_eyes", "browncateyes.png"),
+    ("cat-green", "system_eye_materials02_cc0", "nyloseth_green_cat_eyes", "greencateyes.png"),
+    ("cat-sapphire", "system_eye_materials02_cc0", "nyloseth_sapphire_cat_eyes", "sapphirecateyes.png"),
+    ("cat-yellow", "system_eye_materials02_cc0", "nyloseth_yellow_cat_eyes", "yellowcateyes.png"),
+    ("reptile", "system_eye_materials02_cc0", "hatshj_reptile_eyes", "reptile_eye.png"),
+    ("dragon", "system_eye_materials02_cc0", "bobby_03_daz_dragon_eyes", "Daz_Dragon_Eye_MH.png"),
+    ("anime-navy", "system_eye_materials01_cc0", "spamrakuen_sr_anime_eyes_navy", "sr_anime_eyes_navy.png"),
+)
+# Those whose white is tinted (beige, orange) in their picture: made grey, as MakeHuman's are, before it's lifted.
+GREY_WHITES = {"darkbrown", "dragon"}
 BROWS = [f"eyebrow{i:03d}" for i in range(1, 13)]
 LASHES = [f"eyelashes{i:02d}" for i in range(1, 5)]
 # Each age's skin size: the young skins keep their look at 1024 px; the older ones lose their wrinkles below 2048.
 SKIN_SIZE = {"young": 1024, "middle": 2048, "old": 2048}
 EYE_SIZE = 512
-HAIR_CELL = 512  # each brow and lash style's square in the hair texture (4 by 4)
+HAIR_CELL = 512  # each brow and lash style's square in the hair texture (4 a row)
 SKIN_AO = 0.6  # how much of the body's baked shading goes into each skin
 LASH_MALE = 0.8  # his lashes drawn towards their roots
 # The brows' and lashes' alpha stretched from (low, high) to (0, 1): MakeHuman's strokes have a soft halo that a
@@ -4447,13 +4510,13 @@ def _square(rect, size):
     return (slice(r0, r1), slice(c0, c1)), x, y
 
 
-def eye_texture(picture, grey=False):
+def eye_texture(picture, grey=False, path=None):
     """The eyes' texture from one of MakeHuman's eye pictures, laid out as our eyeballs read it: the iris's
     square seen from the front (its edge on the square's inner circle), the white's square by angle from the
     front (as ATLAS has it), and the wet line's and caruncle's pink squares. The white is brightened to a clean
     white with its veins, and both are shaded under the upper lid and towards the corners, the same for both
     bodies (so the files are shared); `grey` makes the iris grey for the game to colour."""
-    src = read_image(os.path.join(ASSETS, "eyes", "materials", f"{picture}_eye.png"))[..., :3]
+    src = read_image(path or os.path.join(ASSETS, "eyes", "materials", f"{picture}_eye.png"))[..., :3]
     k = src.shape[0] / 1024
     cx, cy = PACK_EYE["centre"][0] * k, src.shape[0] - PACK_EYE["centre"][1] * k
     ri, rb = PACK_EYE["iris"] * k, PACK_EYE["ball"] * k
@@ -4468,6 +4531,8 @@ def eye_texture(picture, grey=False):
     a_pack = np.where(ang < 30, ang * ia / 30, ia + (ang - 30) * (89 - ia) / 60)
     rho = rb * np.sin(np.radians(np.minimum(a_pack, 88.0)))
     white = _sample(src, cx + rho * np.cos(turn), cy + rho * np.sin(turn))
+    if picture in GREY_WHITES:
+        white = np.repeat(white.mean(axis=2, keepdims=True), 3, axis=2)
     ring = (ang > 40) & (ang < 80)
     lift = 0.95 / max(float(white[ring].mean()), 1e-3)
     out[sl] = white * lift
@@ -4510,19 +4575,41 @@ def to_eye_texture(part):
     return Part(part.co, part.faces, part.mat, [[move(c) for c in f] for f in part.uv], part.keys, part.weights)
 
 
+# The brow and lash styles, in their order in the hair texture: (kind, MakeHuman's card, baked style or None).
+# MakeHuman's own, then Mindfront's strands (CC0) baked onto MakeHuman's cards by bake_brows.py, numbered on
+# from MakeHuman's (eyebrows-13 …, eyelashes-05 …).
+BAKED = ("brow-thin", "brow-natural", "brow-thick", "brow-arched", "lash-natural", "lash-full")
+HAIR_STYLES = (
+    [("eyebrows", style, None) for style in BROWS]
+    + [("eyelashes", style, None) for style in LASHES]
+    + [(bb.STYLES[b][0], bb.CARD[bb.STYLES[b][0]], b) for b in BAKED if bb.STYLES[b][0] == "eyebrows"]
+    + [(bb.STYLES[b][0], bb.CARD[bb.STYLES[b][0]], b) for b in BAKED if bb.STYLES[b][0] == "eyelashes"]
+)
+HAIR_ROWS = -(-len(HAIR_STYLES) // 4)
+
+
 def hair_cell(k):
-    """Brow or lash style k's square in the hair texture (the brows 0-11, the lashes 12-15; 4 a row, from the top)."""
+    """Brow or lash style k's square in the hair texture (HAIR_STYLES's order; 4 a row, from the top)."""
     col, row = k % 4, k // 4
-    return lambda u, v: ((col + u) / 4, (3 - row + v) / 4)
+    return lambda u, v: ((col + u) / 4, (HAIR_ROWS - 1 - row + v) / HAIR_ROWS)
 
 
 def hair_texture(name):
     """Every brow and lash style's picture in one texture, grey for the game to colour (the brows' colour, or
-    the hair's), its alpha cutting them out."""
+    the hair's), its alpha cutting them out. The baked ones are baked here, their alpha as it comes."""
     C = HAIR_CELL
-    out = np.zeros((C * 4, C * 4, 4))
-    for k, style in enumerate(BROWS + LASHES):
-        kind = "eyebrows" if k < len(BROWS) else "eyelashes"
+    out = np.zeros((C * HAIR_ROWS, C * 4, 4))
+    base = skin = None
+    for k, (kind, style, baked) in enumerate(HAIR_STYLES):
+        col, row = k % 4, k // 4
+        cell = (slice((HAIR_ROWS - 1 - row) * C, (HAIR_ROWS - row) * C), slice(col * C, (col + 1) * C))
+        if baked:
+            if base is None:
+                hm = wa.Base()
+                base = wa.to_blender(hm.co)
+                skin = bb.skin_bvh(hm, base)
+            out[cell] = bb.bake(baked, C, base, skin)[0]
+            continue
         prox = wa.Proxy(os.path.join(ASSETS, kind, style, style + ".mhclo"))
         a = read_image(prox.texture)
         a = shrink(a, C) if a.shape[0] > C else a
@@ -4532,9 +4619,8 @@ def hair_texture(name):
         g = np.clip(lum / max(float(top), 1e-3) * 0.95, 0, 1)
         g[a[..., 3] < 0.15] = np.median(g[hair]) if hair.any() else 0.5
         alpha = np.clip((a[..., 3] - HAIR_ALPHA[0]) / (HAIR_ALPHA[1] - HAIR_ALPHA[0]), 0, 1)
-        col, row = k % 4, k // 4
-        out[(3 - row) * C : (4 - row) * C, col * C : (col + 1) * C] = np.stack([g, g, g, alpha], axis=2)
-    image = bpy.data.images.new(f"{name}-hair", C * 4, C * 4, alpha=True)
+        out[cell] = np.stack([g, g, g, alpha], axis=2)
+    image = bpy.data.images.new(f"{name}-hair", C * 4, C * HAIR_ROWS, alpha=True)
     image.pixels.foreach_set(out.astype(np.float32).ravel())
     image.file_format = "PNG"
     image.pack()
@@ -4544,7 +4630,8 @@ def hair_texture(name):
 def mh_hair(B, body, co, keys, key_names, roots, n_body):
     """MakeHuman's eyebrows and eyelashes, every style, fitted to this face through their .mhclo files (each
     point a weighted sum of three of the body's, so each shape key carries it as it carries the skin), on the
-    Head bone: [(object name, Part)], `eyebrows-01`..`-12` and `eyelashes-01`..`-04`. `co` and `keys` are the
+    Head bone: [(object name, Part)], `eyebrows-01`..`-16` and `eyelashes-01`..`-06` (HAIR_STYLES; the baked
+    ones on their MakeHuman card). `co` and `keys` are the
     finished skin's (MakeHuman's `n_body` vertices first, in order, then the subdivision's); the lashes hang on
     MakeHuman's own lash helpers."""
     full = body.co.copy()
@@ -4555,8 +4642,9 @@ def mh_hair(B, body, co, keys, key_names, roots, n_body):
         full_keys[k][first] = keys[k][first]
     line = np.concatenate([roots[s_][i] for s_ in ("l", "r") for i in (0, 1)])
     out = []
-    for k, style in enumerate(BROWS + LASHES):
-        kind = "eyebrows" if k < len(BROWS) else "eyelashes"
+    counts = {"eyebrows": 0, "eyelashes": 0}
+    for k, (kind, style, _baked) in enumerate(HAIR_STYLES):
+        counts[kind] += 1
         prox = wa.Proxy(os.path.join(ASSETS, kind, style, style + ".mhclo"))
         points = prox.fit(full)
         kk = {name: prox.blend(full_keys[name]) for name in key_names}
@@ -4567,8 +4655,7 @@ def mh_hair(B, body, co, keys, key_names, roots, n_body):
         uv = [[cell(*prox.uv[i]) for i in fu] for fu in prox.face_uv]
         W = np.zeros((len(points), len(BONE_NAMES)))
         W[:, BONE_INDEX["Head"]] = 1.0
-        number = k + 1 if kind == "eyebrows" else k - len(BROWS) + 1
-        out.append((f"{kind}-{number:02d}", Part(points, [list(f) for f in prox.faces], [PART[kind]] * len(prox.faces), uv, kk, W)))
+        out.append((f"{kind}-{counts[kind]:02d}", Part(points, [list(f) for f in prox.faces], [PART[kind]] * len(prox.faces), uv, kk, W)))
     return out
 
 
@@ -4592,7 +4679,52 @@ def skin_textures(B, shade):
             a[sl] = (0.22, 0.11, 0.11)
             path = os.path.join(TEXTURES, f"avatar-{sex}-skin-{age}-{eth}.webp")
             sizes[os.path.basename(path)] = save_webp(path, a)
+    # Skins from MakeHuman's community packs (CC0 by their catalogue; see COMMUNITY_SKINS), the same way:
+    # `avatar-<sex>-skin-<name>.webp`.
+    for name, pack, item, size in COMMUNITY_SKINS[sex]:
+        folder = os.path.join(wa.extracted_dir(), pack, "skins", item)
+        png = sorted(f for f in os.listdir(folder) if f.lower().endswith(".png") and not f.lower().endswith(("_nrm.png", "_spec.png")))[0]
+        a = shrink(read_image(os.path.join(folder, png))[..., :3], size)
+        if shade is not None:
+            a = a * (1 - SKIN_AO * (1 - shrink(shade, size)))[..., None]
+        sl, _, _ = _square(ATLAS["mouth"], size)
+        a[sl] = (0.22, 0.11, 0.11)
+        path = os.path.join(TEXTURES, f"avatar-{sex}-skin-{name}.webp")
+        sizes[os.path.basename(path)] = save_webp(path, a)
     return sizes
+
+
+# Skins from MakeHuman's community packs, for each body: (our name, the pack, its item, size). All CC0 by the
+# packs' catalogues. Left out: the five whose descriptions say genitals are painted in.
+COMMUNITY_SKINS = {
+    "female": [
+        ("midtoned", "skins01_cc0", "callharvey3d_midtoned_female", 2048),
+        ("creamy", "skins01_cc0", "skalldyrssuppe_creamy_female", 2048),
+        ("eurasian-young", "skins01_cc0", "onlytheghosts_young_eurasian_female", 1024),
+        ("eurasian-middle", "skins01_cc0", "onlytheghosts_middle_aged_eurasian_female", 2048),
+        ("eurasian-old", "skins01_cc0", "onlytheghosts_old_eurasian_female", 2048),
+        ("freckles", "skins01_cc0", "toigo_light_skin_female_freckles", 2048),
+        ("ginger", "skins01_cc0", "toigo_light_skin_female_ginger", 2048),
+        ("bronze", "skins01_cc0", "toigo_light_skin_female_bronze", 1024),
+        ("redhead", "skins01_cc0", "flower-angel_red_head_skin", 2048),
+        ("natural-makeup", "skins01_cc0", "toigo_light_skin_with_natural_makeup", 2048),
+        ("classic-makeup", "skins01_cc0", "toigo_light_skin_with_makeup", 2048),
+        ("violet-makeup", "skins01_cc0", "toigo_light_skin_female_with_violet_makeup", 2048),
+        ("bronze-makeup", "skins01_cc0", "toigo_light_skin_female_bronze_with_makeup", 2048),
+    ],
+    "male": [
+        ("tattooed", "skins02_cc0", "ken1138_caucasian_male_tattooed_skin", 2048),
+        ("aksel", "skins02_cc0", "mindfront_aksel_skin", 2048),
+        ("viking-tattoos", "skins02_cc0", "rehmanpolanski_skin_viking_tattoos", 2048),
+        ("eurasian-old", "skins02_cc0", "onlytheghosts_old_eurasian_male", 2048),
+        ("bronze", "skins02_cc0", "toigo_light_skin_male_bronze", 1024),
+        ("freckles", "skins02_cc0", "toigo_light_skin_male_freckles", 2048),
+        ("ginger", "skins02_cc0", "toigo_light_skin_male_ginger", 2048),
+        ("eyeliner", "skins02_cc0", "toigo_light_skin_male_with_eyeliner", 2048),
+        ("goth-makeup", "skins02_cc0", "toigo_light_skin_male_with_goth_makeup", 2048),
+        ("emo-eyes", "skins02_cc0", "toigo_light_skin_male_with_emo_eyes", 2048),
+    ],
+}
 
 
 def eye_textures():
@@ -4604,6 +4736,10 @@ def eye_textures():
     for picture in EYE_PICTURES:
         path = os.path.join(TEXTURES, f"avatar-eyes-{picture}.webp")
         sizes[os.path.basename(path)] = save_webp(path, eye_texture(picture))
+    for name, pack, item, picture in COMMUNITY_EYES:
+        path = os.path.join(TEXTURES, f"avatar-eyes-{name}.webp")
+        source = os.path.join(wa.extracted_dir(), pack, "eyes", "materials", item, picture)
+        sizes[os.path.basename(path)] = save_webp(path, eye_texture(name, path=source))
     grey = eye_texture("grey", grey=True)
     path = os.path.join(TEXTURES, "avatar-eyes-grey-tint.webp")
     sizes[os.path.basename(path)] = save_webp(path, grey)
@@ -4764,9 +4900,10 @@ def make(B):
     middle_tip = chains[("l", 3)][3]
     pick = min(nail_at, key=lambda i: np.linalg.norm(parts[0].co[list(parts[0].faces[i])].mean(0) - middle_tip))
     uv0 = np.mean(np.array(parts[0].uv[pick], dtype=np.float64), axis=0)
-    nails = nail_plates(Skin(parts[0].co, parts[0].faces, parts[0].weights, parts[0].keys), chains, backs, toes, uv0)
+    nails = nail_plates(Skin(parts[0].co, parts[0].faces, parts[0].weights, parts[0].keys), chains, backs, toes, uv0) if NAIL_SHELLS else None
     parts[0].mat = [PART["skin"] if m == PART["nails"] else m for m in parts[0].mat]
-    parts.append(nails)
+    if nails is not None:
+        parts.append(nails)
     obj = join(name, parts + [to_eye_texture(e) for e in eyes], key_names)
     # (The pieces beside the body, brows, lashes, beards, underwear, horns and the tail, keep the older keys and
     # leave out the face and body in detail: 3D Avatar Maker carries those onto them from the skin, as it does
@@ -4822,4 +4959,7 @@ def export(name, objs, rig):
 if __name__ == "__main__":
     which = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else ["male", "female"]
     for w in which:
+        if w == "eyes":  # the eye pictures alone (`-- eyes`), without a body
+            log(f"eyes: {eye_textures()[0]}")
+            continue
         make({"male": MALE, "female": FEMALE}[w])

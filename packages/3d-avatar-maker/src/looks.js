@@ -195,7 +195,7 @@ export function checkLook(raw) {
   if (within(skin, SKIN_TONES.length)) Object.assign(look, { skin, skinSet: 2 });
   if (isColour(raw.skinTint)) look.skinTint = raw.skinTint;
   // The base avatar's age, skin picture, brow and lash styles and eye picture (avatar.js).
-  if (SKINS.some(([kind]) => kind === raw.skin)) look.skin = raw.skin;
+  if ([...SKINS, ...COMMUNITY_SKINS].some(([kind]) => kind === raw.skin)) look.skin = raw.skin;
   if (AGES.some(([age]) => age === raw.age)) look.age = raw.age;
   for (const [field, count] of [
     ["brows", BROWS],
@@ -204,6 +204,8 @@ export function checkLook(raw) {
     if (Number.isFinite(raw[field])) look[field] = Math.max(1, Math.min(count, Math.round(raw[field])));
   if (raw.eyePicture === TINT || EYE_PICTURES.some(([picture]) => picture === raw.eyePicture))
     look.eyePicture = raw.eyePicture;
+  if (NAILS.some(([length]) => length === raw.nails)) look.nails = raw.nails;
+  if (typeof raw.toenails === "boolean") look.toenails = raw.toenails;
   if (typeof raw.beard === "boolean") look.beard = raw.beard;
   // Which of the kit's two figures someone of the custom gender has (missing: either, by their name).
   if (raw.figure === "male" || raw.figure === "female") look.figure = raw.figure;
@@ -290,6 +292,7 @@ export function checkLook(raw) {
 //     skin,                          a skin picture (SKINS: MakeHuman's), or "custom": colours.skin
 //     brows, lashes,                 which style of each (1 … BROWS, 1 … LASHES)
 //     eyePicture,                    an eye picture (EYE_PICTURES), or "tint": the grey iris in colours.eyes
+//     nails, toenails,               the fingernails' length (NAILS) or "none", and toenails or not (missing: short, on)
 //     preset }                       the name of the preset it began from
 //
 // with `height`, `hair`, `hairColour` and `hairTint` shared with the older kit's look above, and a tone's
@@ -520,10 +523,64 @@ export const FACE_DETAIL = [
   ["head_height", "Head height", -1, 1, "A shorter or taller head.", ["Short", "Tall"], "head"],
   ["head_depth", "Head depth", -1, 1, "A shallower or deeper head, front to back.", ["Shallow", "Deep"], "head"],
   ["neck_length", "Neck length", -1, 1, "A shorter or longer neck.", ["Short", "Long"], "head"],
+  // One-way shapes from MakeHuman's community packs (make_avatar.py's; each only `<field>.hi`, 0 the face as made).
+  ["cheeks_round_high", "Round, high", 0, 1, "Round, chipmunk cheeks, high on the face.", ["None", "Round"], "cheeks"],
+  ["cheeks_round_low", "Round, low", 0, 1, "Round, chipmunk cheeks, lower down.", ["None", "Round"], "cheeks"],
+  [
+    "cheekbones_chubby",
+    "Soft cheekbones",
+    0,
+    1,
+    "High cheekbones with soft, full flesh over them.",
+    ["None", "Full"],
+    "cheeks",
+  ],
+  ["jowls", "Jowls", 0, 1, "Flesh hanging at the jaw line, as with age.", ["None", "Heavy"], "cheeks"],
+  ["cheeks_sunken", "Sunken", 0, 1, "Cheeks sunk in below the cheekbones.", ["None", "Sunken"], "cheeks"],
+  ["ears_flared", "Flared", 0, 1, "The top of the ears flaring out.", ["None", "Flared"], "ears"],
+  ["ears_flatter", "Flatter", 0, 1, "The ears' folds flatter.", ["None", "Flat"], "ears"],
+  ["lobes_out", "Lobes out", 0, 1, "The lobes turned out from the head.", ["None", "Out"], "ears"],
+  ["detail_ears", "Ear detail", 0, 1, "Finer folds and rims in the ears.", ["Plain", "Detailed"], "ears"],
+  ["detail_ear_inner", "Inner ear", 0, 1, "A deeper bowl inside the ear.", ["Plain", "Deep"], "ears"],
+  ["detail_ear_canal", "Ear canal", 0, 1, "An opening into the ear.", ["None", "Open"], "ears"],
+  ["nose_bulbous", "Bulbous", 0, 1, "A round, bulbous tip.", ["None", "Bulbous"], "nose"],
+  ["nose_base_wide", "Wide base", 0, 1, "The nose wider where it meets the face.", ["None", "Wide"], "nose"],
+  [
+    "nose_greek",
+    "Greek",
+    0,
+    1,
+    "A straight line from the brow to the tip, as on a Greek statue.",
+    ["None", "Greek"],
+    "nose",
+  ],
+  ["nostrils_up", "Nostrils up", 0, 1, "Nostrils turned up, showing more from the front.", ["None", "Up"], "nose"],
+  ["nostrils_small", "Small nostrils", 0, 1, "Smaller nostril openings.", ["None", "Small"], "nose"],
+  ["nostrils_round", "Round nostrils", 0, 1, "Rounder wings at the sides of the nostrils.", ["None", "Round"], "nose"],
+  [
+    "detail_nose_crease",
+    "Crease",
+    0,
+    1,
+    "The crease where the nostril wings meet the cheek.",
+    ["Plain", "Creased"],
+    "nose",
+  ],
+  [
+    "detail_columella",
+    "Columella",
+    0,
+    1,
+    "A straight strip of skin between the nostrils.",
+    ["Plain", "Straight"],
+    "nose",
+  ],
+  ["detail_nostril_rims", "Nostril rims", 0, 1, "Sharper rims round the nostrils.", ["Soft", "Sharp"], "nose"],
 ];
 /** The body in detail, the same way (make_avatar.py BODY_DETAIL and, hers only, BREAST_DETAIL). */
 export const BODY_GROUPS = [
   ["arms", "Arms", "Arm length is under Proportions."],
+  ["hands", "Hands", "The nails' length and colour are under Skin and eyes."],
   ["legs", "Legs", "Leg length is under Proportions."],
   ["torso", "Torso and hips", ""],
   ["bust", "Bust", "Its size is the Chest slider above."],
@@ -560,6 +617,16 @@ export const BODY_DETAIL = [
   ["bust_spacing", "Spacing", -1, 1, "Closer together or further apart.", ["Close", "Apart"], "bust"],
   ["bust_shape", "Shape", -1, 1, "Rounder or more pointed.", ["Round", "Pointed"], "bust"],
   ["bust_lift", "Lift", -1, 1, "Fuller below or above.", ["Low", "Lifted"], "bust"],
+  // One-way shapes from MakeHuman's community packs, as in FACE_DETAIL.
+  ["detail_upper_arms", "Upper arm shape", 0, 1, "The shape of the upper arm's muscles.", ["Plain", "Shaped"], "arms"],
+  ["detail_forearms", "Forearm shape", 0, 1, "The shape of the forearm's muscles.", ["Plain", "Shaped"], "arms"],
+  ["detail_wrists", "Wrist bone", 0, 1, "The bone at the outside of the wrist.", ["Plain", "Showing"], "arms"],
+  ["detail_armpits", "Armpits", 0, 1, "A truer hollow under the arm.", ["Plain", "Shaped"], "arms"],
+  ["elbow_dimples", "Elbow dimples", 0, 1, "Soft dimples at the elbows.", ["None", "Dimpled"], "arms"],
+  ["detail_fingers", "Fingers", 0, 1, "Truer fingers, with their joints.", ["Plain", "Shaped"], "hands"],
+  ["detail_palm", "Palm", 0, 1, "The pad at the little finger's side of the palm.", ["Plain", "Shaped"], "hands"],
+  ["detail_thumb", "Thumb pad", 0, 1, "The pad at the base of the thumb.", ["Plain", "Shaped"], "hands"],
+  ["knuckles_knobby", "Knuckles", 0, 1, "Knobbly knuckles, as with age or hard work.", ["Smooth", "Knobbly"], "hands"],
 ];
 /**
  * Ready-made shapes for a part of the face: { group: [[name, { field: value }], …] }. Choosing one sets
@@ -683,12 +750,18 @@ export const STYLES = [
   ],
 ];
 /** The face's fields a style sets (those it doesn't name go back to the face as made). */
-export const STYLE_FIELDS = [...FACE.map(([field]) => field), ...FACE_DETAIL.map(([field]) => field)];
+// (Neither touches the finer anatomy, the detail_ sliders.)
+const shaping = ([field]) => !field.startsWith("detail_");
+export const STYLE_FIELDS = [...FACE.map(([field]) => field), ...FACE_DETAIL.filter(shaping).map(([field]) => field)];
 /** The fields a preset of `group` puts back to the face as made when it doesn't name them. */
 export const presetFields = (group) =>
   group === "shape"
-    ? FACE_DETAIL.filter(([, , , , , , part]) => ["jaw", "cheeks", "head"].includes(part)).map(([field]) => field)
-    : FACE_DETAIL.filter(([, , , , , , part]) => part === group).map(([field]) => field);
+    ? FACE_DETAIL.filter(shaping)
+        .filter(([, , , , , , part]) => ["jaw", "cheeks", "head"].includes(part))
+        .map(([field]) => field)
+    : FACE_DETAIL.filter(shaping)
+        .filter(([, , , , , , part]) => part === group)
+        .map(([field]) => field);
 /** The anthro bodies' own sliders, the same way, and the card's section each is in. A body has those its
  *  model has the shape keys for (hasSlider). */
 export const ANTHRO_SHAPES = [
@@ -740,13 +813,26 @@ export const LIMBS = [
   ["head", "Head size", 0.85, 1.45, "A smaller or larger head (and its hair).", ["Small", "Large"]],
 ];
 /**
- * Every slider at the model's own shape: where the player's own look starts, and what the Look card's
- * Reset goes back to. (Townsfolk start from their name instead, so a crowd differs: avatar.js avatarLook.)
+ * Every slider at the model's own shape (but the finer anatomy, below): where a new avatar starts, and
+ * what the Look card's Reset goes back to. (Townsfolk start from their name instead, so a crowd differs: avatar.js avatarLook.)
  */
 export const NEUTRAL_LOOK = {
-  shape: Object.fromEntries(
-    [...SHAPES, ...FACE, ...FACE_DETAIL, ...BODY_DETAIL, ...RACE_SHAPES, ...ANTHRO_SHAPES].map(([key]) => [key, 0]),
-  ),
+  shape: {
+    ...Object.fromEntries(
+      [...SHAPES, ...FACE, ...FACE_DETAIL, ...BODY_DETAIL, ...RACE_SHAPES, ...ANTHRO_SHAPES].map(([key]) => [key, 0]),
+    ),
+    // (Except the finer anatomy, which a new avatar starts with partly on: truer ears, nose and hands.)
+    detail_ears: 1,
+    detail_ear_inner: 0.5,
+    detail_ear_canal: 0.6,
+    detail_nose_crease: 0.6,
+    detail_nostril_rims: 0.5,
+    detail_fingers: 1,
+    detail_palm: 0.6,
+    detail_thumb: 0.6,
+    detail_armpits: 1,
+    detail_wrists: 0.5,
+  },
   limbs: Object.fromEntries(LIMBS.map(([key]) => [key, 1])),
   height: 1,
 };
@@ -765,6 +851,45 @@ export const SKINS = [
   ["asian", "Asian"],
   ["custom", "A colour of your own"],
 ];
+/**
+ * Skins from MakeHuman's community packs (CC0, make_avatar.py COMMUNITY_SKINS; authors in kit/CREDITS.md):
+ * [value, label, the bodies that have it]. Each is one picture at its own age (avatar-<sex>-skin-<value>),
+ * whatever the age chosen; the age's shape keys still apply.
+ */
+export const COMMUNITY_SKINS = [
+  ["midtoned", "Mid-toned", ["female"]],
+  ["creamy", "Creamy", ["female"]],
+  ["redhead", "Redhead's", ["female"]],
+  ["freckles", "Light, freckled", ["female", "male"]],
+  ["ginger", "Light, ginger", ["female", "male"]],
+  ["bronze", "Bronzed", ["female", "male"]],
+  ["eurasian-young", "Eurasian, young", ["female"]],
+  ["eurasian-middle", "Eurasian, middle-aged", ["female"]],
+  ["eurasian-old", "Eurasian, old", ["female", "male"]],
+  ["aksel", "Fair, weathered", ["male"]],
+  ["natural-makeup", "Light, natural make-up", ["female"]],
+  ["classic-makeup", "Light, make-up", ["female"]],
+  ["violet-makeup", "Light, violet make-up", ["female"]],
+  ["bronze-makeup", "Bronzed, make-up", ["female"]],
+  ["eyeliner", "Light, eyeliner", ["male"]],
+  ["goth-makeup", "Light, goth make-up", ["male"]],
+  ["emo-eyes", "Light, dark eye make-up", ["male"]],
+  ["tattooed", "Tattooed", ["male"]],
+  ["viking-tattoos", "Viking tattoos", ["male"]],
+];
+/** The skins `sex`'s body has: MakeHuman's three, its community ones, then a colour of one's own. */
+export const skinsFor = (sex) => [
+  ...SKINS.slice(0, -1),
+  ...COMMUNITY_SKINS.filter(([, , bodies]) => bodies.includes(sex)).map(([value, label]) => [value, label]),
+  ...SKINS.slice(-1),
+];
+/** A skin's picture in the kit (no extension), or null for a colour of one's own. */
+export const skinPicture = (skin, sex, age) =>
+  skin === "custom"
+    ? null
+    : COMMUNITY_SKINS.some(([value]) => value === skin)
+      ? `avatar-${sex}-skin-${skin}`
+      : `avatar-${sex}-skin-${age}-${skin}`;
 /** Eye pictures: [value, label], in the order of the kit's avatar-eyes.webp (the packer's). "tint" is the
  *  grey iris in the eye colour. (MakeHuman's "brown" reads reddish, so its "brownlight" is the brown.) */
 export const TINT = "tint";
@@ -778,10 +903,37 @@ export const EYE_PICTURES = [
   ["deepblue", "Deep blue"],
   ["grey", "Grey"],
   ["ice", "Ice"],
+  // From MakeHuman's community packs (CC0; make_avatar.py COMMUNITY_EYES): by bobby_03, Mindfront, Nyloseth,
+  // Hatshj and spamrakuen.
+  ["amber", "Amber"],
+  ["hazel", "Hazel"],
+  ["seabreeze", "Sea green"],
+  ["clearblue", "Clear blue"],
+  ["steel", "Steel grey"],
+  ["darkbrown", "Dark brown"],
+  ["sapphire", "Sapphire"],
+  ["cat-blue", "Cat's eye, blue"],
+  ["cat-brown", "Cat's eye, brown"],
+  ["cat-green", "Cat's eye, green"],
+  ["cat-sapphire", "Cat's eye, sapphire"],
+  ["cat-yellow", "Cat's eye, yellow"],
+  ["reptile", "Reptile, fiery"],
+  ["dragon", "Dragon"],
+  ["anime-navy", "Anime, navy (trial)"],
 ];
+/** How many eye pictures avatar-eyes.webp has across (the packer's grid). */
+export const EYE_GRID = 5;
 /** How many brow and lash styles the bodies have (eyebrows-01 … and eyelashes-01 …). */
-export const BROWS = 12;
-export const LASHES = 4;
+export const BROWS = 16;
+export const LASHES = 6;
+/** Names for the styles baked from Mindfront's strands (make_avatar.py HAIR_STYLES); the rest are "Style <n>". */
+export const BROW_NAMES = {
+  13: "Thin, fine hairs",
+  14: "Natural, fine hairs",
+  15: "Thick, fine hairs",
+  16: "Arched, fine hairs",
+};
+export const LASH_NAMES = { 5: "Natural, fine", 6: "Full, fine" };
 
 /** Eye colours: [hex, label]. */
 export const EYE_COLOURS = [
@@ -999,6 +1151,23 @@ export const CLOTH_SLOTS = [
   ["shins", "Shins", "Plate greaves.", "armour"],
   ["feet", "Feet", "Boots, shoes or sandals.", "feet"],
 ];
+/**
+ * The nails' slots, the same way: pieces the packer bundles with the gloves and the shoes, which the Skin tab
+ * chooses (NAILS) rather than the Clothes tab. Gloves hide the fingernails, shoes the toenails (NAIL_COVERS).
+ */
+export const NAIL_SLOTS = [
+  ["nails", "Fingernails", "Short, medium or long.", "hands"],
+  ["toenails", "Toenails", "On the toes.", "feet"],
+];
+/** The fingernails' lengths: [value, label]; each but "none" is the piece `nails_<value>`. */
+export const NAILS = [
+  ["short", "Short"],
+  ["medium", "Medium"],
+  ["long", "Long"],
+  ["none", "None"],
+];
+/** The clothing slot that hides each nail slot. */
+export const NAIL_COVERS = { nails: "hands", toenails: "feet" };
 /** The pieces: [piece (the kit's name), label, slot]. The kit says which body each is made for. */
 export const CLOTHES = [
   ["hood", "Hood", "head"],
@@ -1079,6 +1248,11 @@ export const CLOTHES = [
   ["mh_trainers_white", "White trainers", "feet"],
   ["mh_trainers_blue", "Blue trainers", "feet"],
   ["mh_trainers_worn", "Worn trainers", "feet"],
+  // (The nails: Mindfront's, CC0, fitted by make_mh_clothes.py; NAIL_SLOTS.)
+  ["nails_short", "Short nails", "nails"],
+  ["nails_medium", "Medium nails", "nails"],
+  ["nails_long", "Long nails", "nails"],
+  ["toenails", "Toenails", "toenails"],
 ];
 /** A piece's slot, by its name. */
 export const SLOT_OF = Object.fromEntries(CLOTHES.map(([piece, , slot]) => [piece, slot]));
@@ -1097,6 +1271,7 @@ export const CLOTH_VARIANTS = {
 /** What a piece's parts can be called (its materials'), each recoloured on its own: [part, label]. */
 export const CLOTH_PARTS = [
   ["cloth", "Cloth"],
+  ["nail", "Nail"],
   ["trim", "Trim"],
   ["lining", "Lining"],
   ["bodice", "Bodice"],
@@ -1231,6 +1406,8 @@ export const PRESET_FIELDS = [
   "brows",
   "lashes",
   "eyePicture",
+  "nails",
+  "toenails",
 ];
 /** What a preset carries of a look: the whole look, never which 3D model shows. */
 export const presetOf = (look) => {

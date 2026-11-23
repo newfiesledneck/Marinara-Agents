@@ -42,7 +42,7 @@ import { fileURLToPath } from "node:url";
 import { MeshoptSimplifier } from "three/examples/jsm/libs/meshopt_simplifier.module.js";
 import { MESH_KINDS, RIGGED_KINDS, writePacked } from "./3d-avatar-maker-packed.mjs";
 // (The avatar's hair styles and clothing slots are the game's own lists: a piece the game can't name isn't packed.)
-import { CLOTH_PARTS, CLOTH_SLOTS, HAIRSTYLES, SLOT_OF } from "../packages/3d-avatar-maker/src/looks.js";
+import { CLOTH_PARTS, CLOTH_SLOTS, HAIRSTYLES, NAIL_SLOTS, SLOT_OF } from "../packages/3d-avatar-maker/src/looks.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 await MeshoptSimplifier.ready;
@@ -1262,21 +1262,27 @@ function avatar(only = "", to = "") {
     if (!outfitsOnly) writePacked(join(out, `avatar-${sex}.pack.png`), document, MESH_KINDS);
   }
   // ── MakeHuman skins and eye pictures (assets/textures/avatar, written by make_avatar.py) ──
-  // The skins as they are, a file each, loaded only when worn. The nine eye pictures in one file
-  // (avatar-eyes.webp), to spare asset paths: 3 × 3 tiles of each picture's top 512 × 384, the part its
+  // The skins as they are, a file each, loaded only when worn. The 24 eye pictures in one file
+  // (avatar-eyes.webp), to spare asset paths: 5 × 5 tiles of each picture's top 512 × 384, the part its
   // iris and eye white use (src/looks.js EYE_PICTURES, in this order). (avatar-eyes-grey-tint.webp is the
   // model's own eye texture, packed with the body above.)
   const pictures = join(ROOT, "packages/3d-avatar-maker/assets/textures/avatar");
   if (!anthroOnly && !outfitsOnly && existsSync(pictures)) {
     for (const name of readdirSync(pictures).filter((file) => /^avatar-(?:male|female)-skin-/u.test(file)))
       writeFileSync(join(out, name), readFileSync(join(pictures, name)));
-    const eyes = ["brownlight", "brown", "green", "bluegreen", "blue", "lightblue", "deepblue", "grey", "ice"];
+    // (MakeHuman's nine, then make_avatar.py COMMUNITY_EYES's, 24 in a 5 × 5 grid.)
+    const eyes = [
+      ...["brownlight", "brown", "green", "bluegreen", "blue", "lightblue", "deepblue", "grey", "ice"],
+      ...["amber", "hazel", "seabreeze", "clearblue", "steel", "darkbrown", "sapphire"],
+      ...["cat-blue", "cat-brown", "cat-green", "cat-sapphire", "cat-yellow", "reptile", "dragon", "anime-navy"],
+    ];
+    const across = 5;
     if (eyes.every((eye) => existsSync(join(pictures, `avatar-eyes-${eye}.webp`))))
       execFileSync(FFMPEG, [
         ...["-v", "error", "-y"],
         ...eyes.flatMap((eye) => ["-i", join(pictures, `avatar-eyes-${eye}.webp`)]),
         "-filter_complex",
-        `${eyes.map((_, i) => `[${i}]scale=512:512,crop=512:384:0:0[t${i}]`).join(";")};${eyes.map((_, i) => `[t${i}]`).join("")}xstack=inputs=9:layout=${eyes.map((_, i) => `${(i % 3) * 512}_${Math.floor(i / 3) * 384}`).join("|")}`,
+        `${eyes.map((_, i) => `[${i}]scale=512:512,crop=512:384:0:0[t${i}]`).join(";")};${eyes.map((_, i) => `[t${i}]`).join("")}xstack=inputs=${eyes.length}:layout=${eyes.map((_, i) => `${(i % across) * 512}_${Math.floor(i / across) * 384}`).join("|")}`,
         ...["-frames:v", "1", "-quality", "88", join(out, "avatar-eyes.webp")],
       ]);
   }
@@ -1376,7 +1382,7 @@ function avatar(only = "", to = "") {
     const piece = file.slice("outfit-".length, -4);
     const slot = SLOT_OF[piece];
     if (!slot) throw new Error(`${file}: add "${piece}" to CLOTHES in packages/3d-avatar-maker/src/looks.js`);
-    const name = `avatar-outfits-${CLOTH_SLOTS.find(([each]) => each === slot)[3]}`;
+    const name = `avatar-outfits-${[...CLOTH_SLOTS, ...NAIL_SLOTS].find(([each]) => each === slot)[3]}`;
     const path = join(outfitsOut, `${name}.pack.png`);
     const bundle = bundleAt(path, { pieces: {} });
     const gltf = readGltf(join(dir, file));
@@ -1393,7 +1399,8 @@ function avatar(only = "", to = "") {
         const kept = merged.keyNames.filter((key) => HEAD_SLOTS.has(slot) || !FACE_KEYS.has(key));
         merged.targets = kept.map((key) => merged.targets[merged.keyNames.indexOf(key)]);
         merged.keyNames = kept;
-        trimTriangles(merged, OUTFIT_TRIM);
+        // (Not the nails: a millimetre or two thick, trimming would cut through them.)
+        if (!NAIL_SLOTS.some(([each]) => each === slot)) trimTriangles(merged, OUTFIT_TRIM);
         followBody(merged, reach[sex]);
         keyNormals(merged);
         for (const { part: partName } of merged.parts)

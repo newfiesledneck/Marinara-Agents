@@ -177,12 +177,28 @@ class Base:
 _targets = {}
 
 
+def extracted_dir():
+    """The MakeHuman community asset packs, each unzipped into a folder of its own: `MAKEHUMAN_PACKS`, else
+    `extracted` beside MakeHuman's system assets."""
+    found = os.environ.get("MAKEHUMAN_PACKS")
+    if found and os.path.isdir(found):
+        return found
+    return os.path.join(os.path.dirname(assets_dir()), "extracted")
+
+
 def target(rel):
-    """One morph target (path under targets/, without .target.gz): (vertex indices, offsets)."""
+    """One morph target: (vertex indices, offsets). `rel` is a path under MakeHuman's targets/ without
+    .target.gz, or `pack:<pack>/<region>/<name>` for a community pack's (extracted_dir's
+    <pack>/targets/<region>/<name>.target, plain text, the same format; comment lines skipped)."""
     if rel not in _targets:
-        path = os.path.join(DATA, "targets", rel + ".target.gz")
-        with gzip.open(path, "rt") as f:
-            values = np.array(f.read().split(), dtype=np.float64).reshape(-1, 4)
+        if rel.startswith("pack:"):
+            pack, region, name = rel[5:].split("/")
+            with open(os.path.join(extracted_dir(), pack, "targets", region, name + ".target"), encoding="utf-8") as f:
+                text = "".join(line for line in f if not line.lstrip().startswith("#"))
+        else:
+            with gzip.open(os.path.join(DATA, "targets", rel + ".target.gz"), "rt") as f:
+                text = f.read()
+        values = np.array(text.split(), dtype=np.float64).reshape(-1, 4)
         _targets[rel] = (values[:, 0].astype(np.int64), values[:, 1:])
     return _targets[rel]
 
