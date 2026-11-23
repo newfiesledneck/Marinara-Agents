@@ -55,10 +55,11 @@ function distantIndex(index, positions, share, Type = Uint32Array) {
   return far.length && far.length < index.length * 0.9 ? Type.from(far) : null;
 }
 /**
- * The share of its triangles an outfit piece keeps (WW_OUTFIT_TRIM, to try another): clothes are the kit's
- * biggest part, and every vertex of a piece carries its shape keys' moves too.
+ * The share of its triangles an outfit piece keeps (WW_OUTFIT_TRIM, to try another; 1 keeps every one):
+ * clothes are the kit's biggest part, and every vertex of a piece carries its shape keys' moves too. Two
+ * thirds looks the same as the full piece in the game and saves about a tenth of the outfits' size.
  */
-const OUTFIT_TRIM = Number(process.env.WW_OUTFIT_TRIM) || 1;
+const OUTFIT_TRIM = Number(process.env.WW_OUTFIT_TRIM) || 0.67;
 /** How far a trimmed piece may stray from the one made, as a share of its size (a shirt: about a millimetre). */
 const TRIM_ERROR = 0.002;
 /**
