@@ -480,7 +480,7 @@ Now makeup is painted on any skin, on either body.
   code. The regression test checks the makeup fields and their bounds, the old ids, the mask's places (none on
   the lips, no blush on the eyes) and the presets' ranges.
 
-## Underwear of its own (for 0.1.11, not released yet)
+## Underwear of its own (0.1.11)
 
 The maker's code waits for its 0.1.11 release; the packs that use it are Clothes 0.1.01 and Accessories 0.2.01.
 
@@ -550,7 +550,7 @@ The maker's code waits for its 0.1.11 release; the packs that use it are Clothes
   on `avatar-hair-index.json` until the next maker build. The pack's `maker` stays 0.1.04: an older maker
   shows its pieces and leaves out the hair.
 
-## Accessories 0.2.01: jewellery, horns, wings and things to hold (packs; two lines of the maker's text)
+## Accessories 0.2.03: jewellery, horns, wings and things to hold (packs; two lines of the maker's text)
 
 - **50 new pieces** in `3d-avatar-maker-wardrobe-accessories` (95 in all, 37.7 MiB). They fill the slots 0.1.10
   added, so the pack now needs maker 0.1.10. `docs/MAKEHUMAN-PACKS.md` "Jewellery, body parts and objects" lists
@@ -592,16 +592,10 @@ The maker's code waits for its 0.1.11 release; the packs that use it are Clothes
 4. **More expressions.** Visemes beyond VRM's five vowels, a wink and a smirk as custom expressions.
 5. **Colliders that allow for what's worn:** a cloak over a dress swings on its own chains through the
    dress's, and hair passes into a thick cloak.
-6. **More to change:** the community objects, jewellery, horns, wings and tails fitted into
-   packs for the new slots; a grip for a hand that holds something; skin texture layers (freckles, scars,
-   tattoos) painted as the makeup is, patterns and pictures on clothing, more face sliders.
-
-5. **More that swings:** skirts, cloaks and coat tails on chains of their own, and colliders that allow for
-   clothing over the body.
-6. **More to change:** the community hair styles fitted into the Accessories pack; a grip for a hand that
-   holds something (the sword, microphone, racket and bag sit in an open hand, and the guitar's neck floats
-   where a hand would hold it); a held piece for the other hand (each is fitted for one); skin texture layers (freckles, scars,
-   tattoos, makeup), patterns and pictures on clothing, more face sliders.
+6. **More to change:** a grip for a hand that holds something (the sword, microphone, racket and bag sit in an
+   open hand, and the guitar's neck floats where a hand would hold it); a held piece for the other hand (each is
+   fitted for one); skin texture layers (freckles, scars, tattoos) painted as the makeup is; patterns and
+   pictures on clothing; more face sliders.
 7. **Generate avatar.** A server part with one route that asks a chosen model for a look from the card's
    text, or from its portrait when the model can see pictures. Wanderworld's `designMenu`, `readDesign`
    and `/look-design` route are the starting point. Off by default; needs `routes` and a restart.

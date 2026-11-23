@@ -10,7 +10,7 @@
   },
   "id": "3d-avatar-maker",
   "name": "3D Avatar Maker",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
   "engine": {
     "min": "2.4.6",
@@ -108,8 +108,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "2fd9e58297d9d026ede258866821361674dd71792b17bcc105fe323348a88f53",
-      "bytes": 1260305
+      "sha256": "d8946b72f64ee90ee0681de982d42da2a608c13a5245778bf6def452dfcba7ea",
+      "bytes": 1260330
     },
     {
       "path": "3d-avatar-maker-icon.webp",
