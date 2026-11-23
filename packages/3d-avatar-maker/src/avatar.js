@@ -59,6 +59,7 @@ import {
   raceOf,
   SKINS,
   COMMUNITY_SKINS,
+  MAKEUP_LAYERS,
   skinsFor,
   skinPicture as skinPictureOf,
   TIEFLING_SKINS,
@@ -264,7 +265,7 @@ const mixHex = (a, b, t) => {
  * menu's ("male", "female", "custom" or "auto"). Plain data: { body, species, wings, race, facialHair, tusks,
  * horns, tail, gender, shape, limbs,
  * height, colours, hair, hairColour (0xRRGGBB), underwear, clothes, age, skin, brows, lashes, eyePicture,
- * seed }. The Look card shows these. An anthro body has no hair, no eye or skin picture, and nothing worn
+ * makeup, seed }. The Look card shows these. An anthro body has no hair, no eye or skin picture, and nothing worn
  * that's made for a human head or foot.
  */
 export function avatarLook(name, gender = "auto", chosen = {}) {
@@ -356,6 +357,11 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
   const usualScales = SCALE_COLOURS[Math.floor(beast() * SCALE_COLOURS.length)][0];
   const beastEyes = BEAST_EYES[Math.floor(beast() * 5)][0];
   const [fur, scales] = [said.fur ?? usualFur, said.scales ?? usualScales];
+  const usualLips = picture
+    ? WHITE
+    : skin === usualRaceSkin
+      ? mixHex(skin, 0x000000, 0.3)
+      : mixHex(mixHex(skin, 0xa04040, 0.35), 0x000000, 0.12);
   const hairColour = chosen.hairTint ?? HAIR_COLOURS[chosen.hairColour ?? usualHairColour][0];
   // Clothes: the look's (an empty list is nothing on), else the everyday clothes of the name's work.
   const everyday = everydayClothes(name, sex);
@@ -387,14 +393,13 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
         }
       : {}),
     // (Lips a little redder and darker than the skin, nails a little paler, brows a little darker than the hair.)
-    // (On a race's own skin colour the lips are the skin, darker.)
-    lips:
-      chosen.colours?.lips ??
-      (picture
-        ? WHITE
-        : skin === usualRaceSkin
-          ? mixHex(skin, 0x000000, 0.3)
-          : mixHex(mixHex(skin, 0xa04040, 0.35), 0x000000, 0.12)),
+    // (On a race's own skin colour the lips are the skin, darker.) A lip colour chosen is a lipstick, over
+    // those as far as its strength says (makeup.lipstick, missing: full).
+    lips: mixHex(
+      usualLips,
+      chosen.colours?.lips ?? usualLips,
+      chosen.colours?.lips === undefined ? 0 : (chosen.makeup?.lipstick?.amount ?? 1),
+    ),
     nails: chosen.colours?.nails ?? (picture ? WHITE : mixHex(skin, 0xf6e6e0, 0.4)),
     brows: chosen.colours?.brows ?? mixHex(hairColour, 0x000000, 0.25),
     underwear:
@@ -431,6 +436,7 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
     brows: chosen.brows ?? usualBrows,
     lashes: chosen.lashes ?? usualLashes,
     eyePicture: anthro ? TINT : (chosen.eyePicture ?? TINT),
+    makeup: anthro ? {} : (chosen.makeup ?? {}), // (none unless chosen)
     // (Nails are on unless chosen off: the body always had them.)
     nails: anthro ? "none" : (chosen.nails ?? "short"),
     toenails: !anthro && chosen.toenails !== false,
@@ -958,6 +964,9 @@ export function designMenu() {
       ...LIMBS.map(([key, label, least, most]) => `  ${key}: ${least} to ${most} (1 is usual): ${label}`),
       `skin: "custom" (then colours.skin is their skin's colour), or a skin picture: ${listOf(SKINS.filter(([value]) => value !== "custom"))}, or one of these (the body named after each): ${COMMUNITY_SKINS.map(([value, , bodies]) => `${value} (${bodies.join("/")})`).join(", ")}`,
       "colours: { skin, eyes, lips, nails, brows, underwear, horns, and for an anthro body its own: fur, fur2 (lighter fur), nose, claws (a wolf), scales, scales2 (underside) (a dragon) }",
+      `makeup (only for someone who wears it): { ${MAKEUP_LAYERS.filter(([layer]) => layer !== "lipstick")
+        .map(([layer]) => layer)
+        .join(", ")}: { colour, amount (0 to 1) } each, lipstick: { amount } (its colour is colours.lips) }`,
       `eyePicture: tint (then colours.eyes is their eye colour), or a real eye: ${listOf(EYE_PICTURES)}`,
       `nails: ${listOf(NAILS)}; toenails: true or false (colours.nails is their colour)`,
       `hair: ${listOf(HAIRSTYLES)}; hairTint: their hair's colour`,
@@ -1258,10 +1267,10 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   if (skinPicture) swapped.set(textureOfPart("skin"), texture(skinPicture));
   if (filled.eyePicture !== TINT) swapped.set(textureOfPart("iris"), texture("avatar-eyes"));
   const anthro = filled.species !== "human";
-  // The skin and lips share one picture: painted for this avatar (skin.js) with its skin colour and its
-  // lips coloured through the body's mask, so their edge is clean. Where it can't be painted (no canvas,
-  // as in Node, or no mask for the body), they're coloured by vertex as before. (The nails are pieces of
-  // their own, worn with the clothes.)
+  // The skin and lips share one picture: painted for this avatar (skin.js) with its skin colour, its lips
+  // coloured through the body's mask, so their edge is clean, and its makeup. Where it can't be painted (no
+  // canvas, as in Node, or no mask for the body), they're coloured by vertex as before, without makeup.
+  // (The nails are pieces of their own, worn with the clothes.)
   const painted =
     anthro || !kit.file.keys
       ? null
@@ -1270,6 +1279,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
           base: skinPicture ?? textureOfPart("skin"),
           skin: filled.skin === "custom" ? filled.colours.skin : WHITE,
           lips: filled.colours.lips,
+          makeup: filled.makeup,
         }).catch(() => null);
   if (painted) swapped.set(textureOfPart("skin"), painted);
   const paintedParts = new Set(painted ? ["skin", "lips"] : []);

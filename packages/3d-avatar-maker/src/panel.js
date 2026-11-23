@@ -30,6 +30,9 @@ import {
   HEIGHTS,
   HORN_COLOURS,
   LIMBS,
+  MAKEUP_LAYERS,
+  MAKEUP_PRESETS,
+  makeupPreset,
   missingFromLook as missing,
   missingNotes,
   OUTFIT_PRESETS,
@@ -460,7 +463,7 @@ export function createPanel(actions) {
       ),
     ],
 
-    skin: ({ filled }) => [
+    skin: ({ look, filled }) => [
       group(
         "Skin",
         "",
@@ -495,8 +498,74 @@ export function createPanel(actions) {
           : null,
       ),
       group(
-        "Lips and nails",
-        "Left alone, each colour follows the skin.",
+        "Makeup",
+        "On any skin. Each layer is a colour and a strength; at none, the skin is as it is.",
+        row(
+          "Preset",
+          select(
+            [["", "Choose one…"], ["none", "No makeup"], ...MAKEUP_PRESETS.map(([value, label]) => [value, label])],
+            "",
+            (value) => {
+              if (!value) return;
+              const { makeup, lips } = makeupPreset(value);
+              change({ makeup: { $set: makeup }, colours: { lips } });
+            },
+            "Makeup preset",
+          ),
+          "Ready-made makeup. It sets every layer below, which stay adjustable.",
+        ),
+        ...MAKEUP_LAYERS.flatMap(([layer, label, says, list, usual]) => {
+          // (The lipstick's colour is the lips' colour, colours.lips; its strength is makeup.lipstick.)
+          const lipstick = layer === "lipstick";
+          const colour = lipstick ? look.colours?.lips : filled.makeup[layer]?.colour;
+          const amount =
+            colour === undefined ? 0 : lipstick ? (filled.makeup.lipstick?.amount ?? 1) : filled.makeup[layer].amount;
+          const set = (hex, strength) =>
+            lipstick
+              ? {
+                  colours: { lips: strength ? hex : undefined },
+                  makeup: { lipstick: strength && strength < 1 ? { amount: strength } : undefined },
+                }
+              : { makeup: { [layer]: strength ? { colour: hex, amount: strength } : undefined } };
+          // (The colour and strength as they are now: a slider being dragged doesn't redraw the panel.)
+          let now = { hex: colour ?? list[0][0], strength: amount };
+          const strength = slider({
+            name: `${label} strength`,
+            says: `How strongly the ${label.toLowerCase()} shows, from none to full.`,
+            ends: ["None", "Full"],
+            least: 0,
+            most: 1,
+            at: amount,
+            onInput: (value) => {
+              now = { ...now, strength: value };
+              change(set(now.hex, value), false);
+            },
+          });
+          return [
+            colours(
+              label,
+              list,
+              colour,
+              (hex, redraw) => {
+                // (Picking a colour while there's none puts it on at its usual strength.)
+                const was = now.strength;
+                now = { hex, strength: was || usual };
+                change(set(hex, now.strength), redraw || !was);
+              },
+              says,
+            ),
+            strength,
+          ];
+        }),
+        h(
+          "button",
+          { type: "button", onclick: () => change({ makeup: undefined, colours: { lips: undefined } }) },
+          "No makeup (the skin's own lips)",
+        ),
+      ),
+      group(
+        "Nails",
+        "Left alone, their colour follows the skin.",
         row(
           "Fingernails",
           select(NAILS, filled.nails, (value) => change({ nails: value }), "Fingernails"),
@@ -515,7 +584,7 @@ export function createPanel(actions) {
           ),
           "Shoes hide them.",
         ),
-        ...AVATAR_COLOURS.filter(([field]) => field === "lips" || field === "nails").map(([field, label, list, says]) =>
+        ...AVATAR_COLOURS.filter(([field]) => field === "nails").map(([field, label, list, says]) =>
           colours(
             label,
             list,
@@ -526,8 +595,8 @@ export function createPanel(actions) {
         ),
         h(
           "button",
-          { type: "button", onclick: () => change({ colours: { lips: undefined, nails: undefined } }) },
-          "Back to the skin's own lips and nails",
+          { type: "button", onclick: () => change({ colours: { nails: undefined } }) },
+          "Back to the skin's own nails",
         ),
       ),
     ],

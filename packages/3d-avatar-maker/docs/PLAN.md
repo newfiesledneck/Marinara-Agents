@@ -271,6 +271,62 @@ No item is fitted yet; the packs that fill these slots come next.
   The kit rebuilt byte for byte the same after the hair packing moved. A trial build of the Accessories pack
   with a `bone` and a hair style was read and worn by the maker (not committed).
 
+## Built: makeup of your own
+
+The skin list had made-up copies of other skins: four on the female body (Light, natural make-up; Light,
+make-up; Light, violet make-up; Bronzed, make-up) and three on the male (Light, eyeliner; Light, goth make-up;
+Light, dark eye make-up), all MargaretToigo's (CC0). Their makeup couldn't be changed or worn on another skin.
+Now makeup is painted on any skin, on either body.
+
+- **Layers** (looks.js `MAKEUP_LAYERS`, the look's `makeup`): eyeshadow on the upper lids, eyeliner round both
+  lids along the lashes, blush on the cheeks, each `{ colour, amount }` with amount 0 (none) to 1. The lipstick
+  is the lip colour as before (`colours.lips`, multiplied over the lips through the 0.1.09 mask), with a
+  strength of its own, `makeup.lipstick.amount` (missing: full), which mixes it with the lips it's on.
+- **Masks** (`kit/avatar/avatar-makeup-masks.png`, one for both bodies; red eyeshadow, green eyeliner, blue
+  blush), made by `scripts/build-3d-avatar-maker-masks.mjs` from the made-up skins themselves:
+  - **Bases.** Toigo's made-up skins are MakeHuman's young light skins with their colours graded and makeup
+    painted on: the women's on `young_caucasian_female2`, the men's on `young_caucasian_male`, the ginger one
+    on Toigo's plain ginger. The script fits each grade (a 3 × 3 colour matrix and offset, by least squares,
+    leaving out the most changed texels three times over), so the made-up skin differs from its graded base
+    only where the makeup is.
+  - **Regions.** The eyeliner skin's two biggest changes are the ovals round the eyes; on the mesh an oval is
+    the rim of both lids. The women's skins add a crescent on the upper lid and one on each cheek. The
+    dark-eyed men's smudge goes all round the eye, so the eyeshadow is the women's alone.
+  - **Each mask** is the mean, over the skins that have it, of how far each texel went from its base towards
+    the makeup's colour, so it's full where they agree. Specks are dropped and the edges softened (a 1-texel
+    blur for the eyes, 5 for the blush, whose edge showed on the cheek at 2). The eyeshadow stays out of the oval's middle, the blush 6 texels or
+    more from the eyes and 12 from the lips.
+  - **Both bodies** share the skin layout, and renders of a test picture through the masks put the colours
+    in the same places on each: the eyeliner round the lash line of both lids (a little wider on his lower
+    lid, as Toigo's eyeliner skin has it), the eyeshadow on the upper lid, the blush on the cheekbones.
+- **Painting** (`src/skin.js` `makeupTexel`): blush, then eyeshadow, then eyeliner, each painted over (the
+  picture's colour moved towards the layer's by amount × mask). Fitted against the made-up skins, painting
+  over matched them better than multiplying for every layer, and it lets a pale or bright colour show on any
+  skin; the masks' soft edges and amounts below full let the skin's texture through. Only the 64-texel squares
+  a mask touches are repainted. In Node there's no canvas, so the builder colours by vertex without makeup.
+- **Presets** (`MAKEUP_PRESETS`): Natural, Classic, Violet, Bronzed, Eyeliner, Goth, Dark eyes. Each was
+  fitted to its made-up skin: the colour and amount of each layer that bring the base plus the preset
+  closest to it, the lips from the lips' core. The made-up skin's colour grade was taken out first, so a
+  preset has the makeup's contrast with the skin and not Toigo's tone (fitted with the grade in, Natural's
+  blush came out twice as strong as it looks). Bronzed was fitted as it is, as its base is a different
+  painting. A layer that made it no closer is left off: the men's blush was only Toigo's grade.
+- **The skins.** The seven made-up pictures left the kit, and MakeHuman's `young_caucasian_female2` came in
+  as "Light, smooth" (female), the plain skin the women's were painted on (CC0; every file of it checked). It
+  was made as `make_avatar.py` makes a 2048 skin, with the body's shading taken from the kit's other 2048
+  female skins and their sources, as the bodies weren't rebuilt. `make_avatar.py` now lists it and not the
+  made-up ones. The kit is 1.02 MB smaller (1.21 MB of pictures out; 141 KB of skin and 54 KB of mask in).
+- **Old looks** (`MADE_UP_SKINS`): a made-up skin id opens as its plain skin ("light" for the three light
+  women's, "bronze" for the bronzed one, "caucasian" for the men's) with its preset's makeup and lipstick,
+  unless the look has makeup or a lip colour of its own. Drafts, look files, saved avatars and the AI's design
+  (`readDesign`, colours as "#rrggbb") all carry `makeup`.
+- **The Skin and eyes tab.** A Makeup group with a preset list and No makeup, then each layer's colours and
+  strength (None to Full). Picking a colour while a layer is at none puts it on at its usual strength. The
+  nail colour has a group of its own.
+- **Checked.** Side-by-side EEVEE close-ups (eye, both eyes, cheek, mouth) of the built models with each
+  made-up picture beside its base painted in Node with its preset through the masks, by skin.js's own texel
+  code. The regression test checks the makeup fields and their bounds, the old ids, the mask's places (none on
+  the lips, no blush on the eyes) and the presets' ranges.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -285,7 +341,7 @@ No item is fitted yet; the packs that fill these slots come next.
    clothing over the body.
 6. **More to change:** the community objects, jewellery, horns, wings, tails and hair styles fitted into
    packs for the new slots; a grip for a hand that holds something; skin texture layers (freckles, scars,
-   tattoos, makeup), patterns and pictures on clothing, more face sliders.
+   tattoos) painted as the makeup is, patterns and pictures on clothing, more face sliders.
 7. **Generate avatar.** A server part with one route that asks a chosen model for a look from the card's
    text, or from its portrait when the model can see pictures. Wanderworld's `designMenu`, `readDesign`
    and `/look-design` route are the starting point. Off by default; needs `routes` and a restart.
@@ -307,4 +363,9 @@ No item is fitted yet; the packs that fill these slots come next.
 - Slots cover slots, not regions: sandals and tall boots alike leave an anklet on, and a crop top and a
   T-shirt alike leave a belly piercing on (where the shirt is drawn over it).
 - Drafts live in the browser only.
+- Makeup presets match their old skins' makeup but not every skin's tone: Toigo graded each made-up skin's
+  colours, the goth one much paler all over, and a preset paints only the face. An old male made-up look now
+  follows its age's light skin, where the made-up picture was a young one at any age. The lipstick multiplies
+  over the lips, so it can't be brighter than the lips it's on (the Classic red is a little duller).
+- The eyeshadow and blush go only where Toigo painted them; there's no lower-lid smudge or contour layer.
 - `avatar.js` still carries the anthro code paths and a crowd's low-detail triangle lists.

@@ -32,11 +32,16 @@ file you save, and you import that file yourself.
 | Start | A ready-made look to begin from, a new male or female avatar, or a style (semi-real, or anime proportions) |
 | Body | Body, age, height; a race preset (human, dwarf, halfling, gnome, elf, half-elf, half-orc, tiefling) and six race sliders to mix; eight build sliders; arms, legs, torso and hips, and her bust in detail; arm and leg length, head size |
 | Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (66 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: beards, tusks, horns, a tail |
-| Skin and eyes | 30 skin pictures (MakeHuman's nine in three ages, and 21 more) or a colour of your own; 24 pictured eyes or a colour; nail length and toenails; lip and nail colours |
+| Skin and eyes | 24 skin pictures (MakeHuman's nine in three ages, and 15 more) or a colour of your own; makeup on any skin: eyeshadow, eyeliner, blush and lipstick, each in a colour and strength of your own, or one of seven ready-made looks; 24 pictured eyes or a colour; nail length, toenails and nail colour |
 | Hair | 14 styles in any colour, and any styles a wardrobe pack adds. Long, ponytail, braid, bob and angled bob swing as the avatar moves, and so do a pack's long styles |
 | Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus what any wardrobe packs you install add. Glasses, a face mask, earrings, rings and socks have places of their own, which the Accessories pack fills. Horns or antlers, a necklace, the wrists, the belly, the ankles, a tail, the back (wings, a backpack), the hip and each hand have places of their own too, for packs to fill. Something held in a hand and horns are fixed to the hand or head, so they move with it and never bend |
 
-Every slider's middle is the body's own shape, and each control says what it changes.
+Every slider's middle is the body's own shape, and each control says what it changes. Makeup starts at
+none.
+
+The skins that came with makeup painted on are gone from the skin list; their makeup is a ready-made look
+you can put on any skin (Natural, Classic, Violet, Bronzed, Eyeliner, Goth, Dark eyes). A look or draft that
+wore one opens on its plain skin with that makeup.
 
 ## Wardrobe packs
 
@@ -102,9 +107,10 @@ use and share however you like, with no credit required:
 
 - The bodies' base mesh and shapes, the skins, eyes, eyebrows and eyelashes, ten of the hair styles and
   the modern clothes are from [MakeHuman](http://www.makehumancommunity.org/) (CC0), used as data.
-- Extra face and body shapes, 21 more skins, 15 more eye pictures, the nails and six brow and lash styles are from MakeHuman's community packs
+- Extra face and body shapes, 14 more skins, 15 more eye pictures, the nails and six brow and lash styles are from MakeHuman's community packs
   (CC0), by Elvaerwyn, jujube, habanero, RehmanPolanski, Mindfront, skalldyrssuppe,
-  onlytheghosts, toigo, flower-angel, ken1138, bobby_03, Nyloseth, Hatshj and spamrakuen.
+  onlytheghosts, toigo, flower-angel, ken1138, bobby_03, Nyloseth, Hatshj and spamrakuen. Where the makeup
+  goes was found in toigo's made-up skins.
 - The races' shapes and parts, four hair styles and the fantasy clothing and armour were made in Blender
   by ThatOneCan, who also fitted the nails and baked the new brows and lashes; all released as CC0 1.0 too.
 

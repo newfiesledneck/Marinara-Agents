@@ -4804,7 +4804,7 @@ def skin_textures(B, shade):
     # Skins from MakeHuman's community packs (CC0 by their catalogue; see COMMUNITY_SKINS), the same way:
     # `avatar-<sex>-skin-<name>.webp`.
     for name, pack, item, size in COMMUNITY_SKINS[sex]:
-        folder = os.path.join(wa.extracted_dir(), pack, "skins", item)
+        folder = os.path.join(ASSETS, "skins", item) if pack == "system" else os.path.join(wa.extracted_dir(), pack, "skins", item)
         png = sorted(f for f in os.listdir(folder) if f.lower().endswith(".png") and not f.lower().endswith(("_nrm.png", "_spec.png")))[0]
         a = shrink(read_image(os.path.join(folder, png))[..., :3], size)
         if shade is not None:
@@ -4819,6 +4819,10 @@ def skin_textures(B, shade):
 # Skins from MakeHuman's community packs, for each body: (our name, the pack, its item, size). All CC0 by the
 # packs' catalogues. Left out: the five whose descriptions say genitals are painted in, and those whose own .mhmat
 # says AGPLv3 (callharvey3d_midtoned_female, rehmanpolanski_skin_viking_tattoos; docs/MAKEHUMAN-PACKS.md).
+# Also left out: Toigo's made-up skins, which are MakeHuman's young light skins with makeup painted
+# on. The maker paints makeup on any skin (src/skin.js, through the masks scripts/build-3d-avatar-maker-masks.mjs
+# finds in those skins), and keeps the plain one the women's were painted on, MakeHuman's own second young light
+# skin ("system": from MakeHuman's system assets, CC0), as "light".
 COMMUNITY_SKINS = {
     "female": [
         ("creamy", "skins01_cc0", "skalldyrssuppe_creamy_female", 2048),
@@ -4829,10 +4833,7 @@ COMMUNITY_SKINS = {
         ("ginger", "skins01_cc0", "toigo_light_skin_female_ginger", 2048),
         ("bronze", "skins01_cc0", "toigo_light_skin_female_bronze", 1024),
         ("redhead", "skins01_cc0", "flower-angel_red_head_skin", 2048),
-        ("natural-makeup", "skins01_cc0", "toigo_light_skin_with_natural_makeup", 2048),
-        ("classic-makeup", "skins01_cc0", "toigo_light_skin_with_makeup", 2048),
-        ("violet-makeup", "skins01_cc0", "toigo_light_skin_female_with_violet_makeup", 2048),
-        ("bronze-makeup", "skins01_cc0", "toigo_light_skin_female_bronze_with_makeup", 2048),
+        ("light", "system", "young_caucasian_female2", 2048),
     ],
     "male": [
         ("tattooed", "skins02_cc0", "ken1138_caucasian_male_tattooed_skin", 2048),
@@ -4841,9 +4842,6 @@ COMMUNITY_SKINS = {
         ("bronze", "skins02_cc0", "toigo_light_skin_male_bronze", 1024),
         ("freckles", "skins02_cc0", "toigo_light_skin_male_freckles", 2048),
         ("ginger", "skins02_cc0", "toigo_light_skin_male_ginger", 2048),
-        ("eyeliner", "skins02_cc0", "toigo_light_skin_male_with_eyeliner", 2048),
-        ("goth-makeup", "skins02_cc0", "toigo_light_skin_male_with_goth_makeup", 2048),
-        ("emo-eyes", "skins02_cc0", "toigo_light_skin_male_with_emo_eyes", 2048),
     ],
 }
 

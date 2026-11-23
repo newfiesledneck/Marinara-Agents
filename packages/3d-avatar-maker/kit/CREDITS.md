@@ -17,6 +17,7 @@ data by this repository's own scripts; MakeHuman itself is neither run nor copie
   `avatar-<sex>-<n>.webp`): the bodies' base mesh and shapes, adapted with `assets/scripts/make_avatar.py`.
 - `avatar/avatar-<sex>-skin-<age>-<ethnicity>.webp`, `avatar/avatar-eyes.webp`, and the brow and lash
   styles in the bodies: MakeHuman's skins, eyes, eyebrows and eyelashes.
+- `avatar/avatar-female-skin-light.webp`: MakeHuman's second young light skin (young_caucasian_female2).
 - In the bodies: the face's moves (blinks, mouth shapes and feelings), each a mix of MakeHuman's
   expression unit targets chosen by ThatOneCan; MakeHuman's teeth (teeth_base) and tongue (tongue01), and
   their pictures, shaded darker towards the back of the mouth, in the bodies' mouth picture.
@@ -54,6 +55,8 @@ Released as CC0 1.0 by their maker.
   and body sliders' shapes are MakeHuman's targets (CC0), chosen and paired by ThatOneCan.
 - `avatar/avatar-<sex>-masks.png`: where the lips are in the skin picture, made from the bodies by
   `scripts/build-3d-avatar-maker-masks.mjs`.
+- `avatar/avatar-makeup-masks.png`: where the eyeshadow, eyeliner and blush go in the skin picture, made by
+  the same script from where toigo's made-up skins (CC0) differ from the plain skins they were painted on.
 - In the hair files (`make_hair.py`): the parted, buns, shaved and mohawk hair styles.
 - In the wardrobe files (`make_outfit.py`, `make_outfit2.py`): the shirt, t shirt, tank top, crop top,
   blouse, bikini top, tunic, vest, corset, gambeson, dress, gown, robe, one piece swimsuit, cloak, long
