@@ -16,6 +16,13 @@
       "bannerPath": "../../store/banners/3d-avatar-maker.webp",
       "bannerSmallPath": "../../store/banners/3d-avatar-maker-1200.webp"
     },
+    "3d-avatar-maker-wardrobe-accessories": {
+      "section": "alive",
+      "tagline": "Glasses, jewellery, gloves and socks for 3D Avatar Maker.",
+      "iconPath": "../../store/icons/3d-avatar-maker-wardrobe-accessories.webp",
+      "bannerPath": "../../store/banners/3d-avatar-maker-wardrobe-accessories.webp",
+      "bannerSmallPath": "../../store/banners/3d-avatar-maker-wardrobe-accessories-1200.webp"
+    },
     "3d-avatar-maker-wardrobe-everyday-men": {
       "section": "alive",
       "tagline": "Suits and everyday clothes for 3D Avatar Maker.",

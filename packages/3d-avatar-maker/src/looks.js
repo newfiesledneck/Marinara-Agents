@@ -1134,6 +1134,9 @@ export const UNDERWEAR_BOTTOMS = [
 export const CLOTH_SLOTS = [
   ["head", "Head", "A hood, a helm or a hat. Most hide the hair.", "head"],
   ["brow", "Brow", "A circlet on the brow.", "head"],
+  ["face", "Glasses", "Glasses or a mask over the eyes.", "accessories"],
+  ["mouth", "Face mask", "A mask over the mouth and nose.", "accessories"],
+  ["ears", "Earrings", "A pair of earrings.", "accessories"],
   ["neck", "Neck", "A scarf.", "accessories"],
   ["back", "Cloak or coat", "Worn over everything else.", "body"],
   ["body", "Whole outfit", "A dress, gown, robe or one-piece: top and legs in one.", "body"],
@@ -1144,16 +1147,19 @@ export const CLOTH_SLOTS = [
   ["shoulders", "Shoulders", "Plate pauldrons.", "armour"],
   ["arms", "Forearms", "Leather bracers.", "hands"],
   ["hands", "Hands", "Gloves or plate gauntlets.", "hands"],
+  ["fingers", "Rings", "A ring. Gloves hide it.", "accessories"],
   ["waist", "Belt", "A belt with pouches.", "accessories"],
   ["apron", "Apron", "A work apron, as a smith or a cook wears.", "accessories"],
   ["legs", "Legs", "Trousers, skirts, shorts and the like.", "legs"],
   ["thighs", "Thigh plates", "Plate tassets hung from the waist.", "armour"],
   ["shins", "Shins", "Plate greaves.", "armour"],
+  ["socks", "Socks", "Socks or leg warmers, under the shoes.", "feet"],
   ["feet", "Feet", "Boots, shoes or sandals.", "feet"],
 ];
 /**
  * The nails' slots, the same way: pieces the packer bundles with the gloves and the shoes, which the Skin tab
- * chooses (NAILS) rather than the Clothes tab. Gloves hide the fingernails, shoes the toenails (NAIL_COVERS).
+ * chooses (NAILS) rather than the Clothes tab. Gloves hide the fingernails, shoes and socks the toenails
+ * (COVERED_BY).
  */
 export const NAIL_SLOTS = [
   ["nails", "Fingernails", "Short, medium or long.", "hands"],
@@ -1166,8 +1172,10 @@ export const NAILS = [
   ["long", "Long"],
   ["none", "None"],
 ];
-/** The clothing slot that hides each nail slot. */
-export const NAIL_COVERS = { nails: "hands", toenails: "feet" };
+/** The slots whose pieces are left off while a piece in one of these slots is worn over them. */
+export const COVERED_BY = { nails: ["hands"], toenails: ["feet", "socks"], fingers: ["hands"] };
+/** Whether a piece in `slot` is left off under the slots worn (a Set): a ring under gloves. */
+export const isCovered = (slot, worn) => (COVERED_BY[slot] ?? []).some((over) => worn.has(over));
 /** The pieces: [piece (the kit's name), label, slot]. The kit says which body each is made for. */
 export const CLOTHES = [
   ["hood", "Hood", "head"],
@@ -1310,6 +1318,7 @@ export const CLOTH_PARTS = [
   ["plate", "Plate"],
   ["metal", "Metal fittings"],
   ["gem", "Gem"],
+  ["frame", "Frame"],
 ];
 /** Dyes for clothing parts: [hex, label]. */
 export const DYES = [

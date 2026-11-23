@@ -43,6 +43,8 @@ def spec_of(entry):
         part=entry.get("part", "cloth"),
         skin=entry.get("skin", True),
         force=list(entry.get("force", [])),
+        cut=entry.get("cut", False),
+        **{k: entry[k] for k in ("size", "clearance") if k in entry},
     )
 
 

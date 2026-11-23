@@ -52,7 +52,8 @@ LEGS = ["hips", "thighs", "calves", "underwear-bottom"]
 # the part name, and where the MakeHuman logo is printed (a box in the texture, 0..1 from the top left, or a
 # list of them).
 # A region in `hides` is kept only if hiding it leaves no hole (`safe_hides`), unless it's in `force`;
-# `skin=False` skips lifting faces over the skin between vertices (shoes and hats: solid things, not cloth).
+# `skin=False` skips lifting faces over the skin between vertices (shoes and hats: solid things, not cloth);
+# `cut=True` cuts the piece out by its texture's alpha (lace, glasses' clear lenses).
 PIECES = {
     # The man's.
     "mh_denim_shirt": dict(src="male_casualsuit01", take="top", split="uv", sexes=MALE, slot="top", layer=1, hides=TOPS, tex="tint"),
@@ -166,18 +167,25 @@ def remove_logo(rgb, box):
 
 def piece_texture(name, proxy, fitted, spec, part_of):
     """The piece's texture and each part's colour factor (linear): {part: (r, g, b)}."""
-    rgba = mc.load_rgba(proxy.texture(), SIZE)
+    size = spec.get("size", SIZE)  # (`size`: a smaller picture, for a pack texture of a few flat colours)
+    rgba = mc.load_rgba(proxy.texture(), size)
     rgb = rgba[..., :3]
     starts = np.cumsum([0] + [len(f) for f in fitted.faces])
     corners = [fitted.corner_uv[starts[i] : starts[i + 1]] for i in range(len(fitted.faces))]
-    mask = mc.uv_mask(corners, SIZE)
+    mask = mc.uv_mask(corners, size)
     logos = spec.get("logo") or []
     for box in [logos] if isinstance(logos, tuple) else logos:
         rgb = remove_logo(rgb, box)
     parts = sorted(set(part_of))
+
+    def saved(out):
+        # (`cut`: the pack's alpha kept, as PNG, for a piece cut out by it: lace, a frame round clear lenses.)
+        if spec.get("cut"):
+            return mc.save_image(f"outfit-{name}", np.concatenate([out, rgba[..., 3:]], axis=2))
+        return mc.save_image(f"outfit-{name}", out, fmt="JPEG", quality=88)
+
     if spec["tex"] == "colour":
-        out = mc.fill_outside(rgb, mask)
-        return mc.save_image(f"outfit-{name}", out, fmt="JPEG", quality=88), {p: (1.0, 1.0, 1.0) for p in parts}
+        return saved(mc.fill_outside(rgb, mask)), {p: (1.0, 1.0, 1.0) for p in parts}
     # (The pack's ambient occlusion maps are left out: baked with the whole suit on, they darken a piece
     # where another part covered it, the waistband under a tee.)
     lum = mc.luminance(rgb)
@@ -185,15 +193,14 @@ def piece_texture(name, proxy, fitted, spec, part_of):
     factors = {}
     for p in parts:
         # Each part (a shirt and the overalls over it) scaled by its own brightest cloth, under its own colour.
-        own = mc.uv_mask([c for c, q in zip(corners, part_of) if q == p], SIZE, grow=1)
+        own = mc.uv_mask([c for c, q in zip(corners, part_of) if q == p], size, grow=1)
         hi = np.percentile(lum[own], 92)
         gp = 0.12 + 0.88 * np.clip(lum / max(hi, 1e-3), 0, 1)  # (never black: the colour still shows in folds)
         g = np.where(own, gp, g)
         lin = mc.srgb_to_linear(rgb[own])
         f = lin.mean(0) / max(mc.srgb_to_linear(gp[own]).mean(), 1e-3)
         factors[p] = tuple(float(c) for c in np.clip(f / max(f.max(), 1.0), 0, 1))
-    out = mc.fill_outside(np.repeat(g[..., None], 3, axis=2), mask)
-    return mc.save_image(f"outfit-{name}", out, fmt="JPEG", quality=88), factors
+    return saved(mc.fill_outside(np.repeat(g[..., None], 3, axis=2), mask)), factors
 
 
 def safe_hides(fitted, body, hides, rings=6):
@@ -297,7 +304,8 @@ def make(name, bodies):
         mats = []
         for p in names:
             rough = NAIL_ROUGHNESS if spec["tex"] == "plain" else 0.85 if p != "shoe" else 0.6
-            m = mc.material(f"{name}-{sex}-{p}", image, colour=factor[p], roughness=rough, part=p)
+            cutoff = 0.5 if spec.get("cut") else None
+            m = mc.material(f"{name}-{sex}-{p}", image, colour=factor[p], roughness=rough, alpha_cutoff=cutoff, part=p)
             mats.append(m)
         rig = mc.make_rig(body, fingers=bool(piece.W[:, mc.FINGER_COLUMNS].any()))
         obj = mc.build_object(sex, piece, rig, mats, face_mat=[names.index(p) for p in part_of])

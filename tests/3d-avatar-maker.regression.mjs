@@ -11,9 +11,13 @@ import { fileURLToPath } from "node:url";
 import { Box3 } from "three";
 
 const kitRoot = join(dirname(fileURLToPath(import.meta.url)), "../packages/3d-avatar-maker/kit");
+const packagesRoot = join(kitRoot, "../..");
 globalThis.fetch = async (url) => {
+  // (A wardrobe pack's asset, as the Engine serves an installed package's: from its folder in the repo.)
+  const asset = /\/api\/capability-packages\/([a-z0-9-]+)\/assets\/([^?]+)/u.exec(String(url));
   const name = String(url).split("/kit/")[1]?.split("?")[0];
   try {
+    if (asset) return new Response(await readFile(join(packagesRoot, asset[1], asset[2])), { status: 200 });
     return new Response(await readFile(join(kitRoot, name)), { status: 200 });
   } catch {
     return new Response("missing", { status: 404 });
@@ -354,5 +358,44 @@ for (const figure of Object.values(made)) figure.dispose();
   assert.ok(!(await avatarChoices("male")).clothes.some(({ piece }) => piece === "test_good"), "and not on the other");
   assert.equal(licenceNote({ clothes: ["test_good"] }), LICENCE_NOTE, "a CC0 piece adds no credit");
   assert.match(licenceNote({ clothes: ["test_cc_by", "boots"] }), /CC0.*Test dress by Someone, CC BY 4\.0$/u);
+}
+
+// ── The Accessories pack, as built: its pieces fill the maker's newer slots, and what covers what ──
+{
+  const { readPack } = await import("../packages/3d-avatar-maker/src/packs.js");
+  const id = "3d-avatar-maker-wardrobe-accessories";
+  const manifest = JSON.parse(await readFile(join(packagesRoot, id, "manifest.json"), "utf8"));
+  const index = JSON.parse(await readFile(join(packagesRoot, id, "avatar-pack.json"), "utf8"));
+  const read = readPack({ id, version: manifest.version, status: "active", manifest }, index);
+  assert.equal(read.length, Object.keys(index.pieces).length, "every piece of the Accessories pack is accepted");
+  looks.addPieces(read);
+  const slots = new Set(read.map(({ slot }) => slot));
+  for (const slot of ["face", "mouth", "ears", "fingers", "socks", "hands", "head"])
+    assert.ok(slots.has(slot), `the pack has something to wear in "${slot}"`);
+  // (How many meshes a figure is drawn with: a piece left off under another adds none.)
+  const meshes = async (over) => {
+    const figure = await createAvatar(startOf("female", { hair: "long", toenails: true, ...over }), "Test", "auto");
+    const count = figure.meshes.length;
+    figure.dispose();
+    return count;
+  };
+  const bare = await meshes({ clothes: [] });
+  const gloves = await meshes({ clothes: ["toigo_gloves_short"] });
+  assert.ok((await meshes({ clothes: ["joachip_ring_1"] })) > bare, "a ring is worn");
+  assert.equal(await meshes({ clothes: ["toigo_gloves_short", "joachip_ring_1"] }), gloves, "gloves hide the ring");
+  assert.equal(
+    await meshes({ clothes: ["joepal_crude_low_socks"] }),
+    (await meshes({ clothes: [], toenails: false })) + 1,
+    "socks are worn, and hide the toenails",
+  );
+  assert.equal(
+    await meshes({ clothes: ["aethelraed_unraed_cloche_hat"] }),
+    await meshes({ clothes: ["aethelraed_unraed_cloche_hat"], hair: "none" }),
+    "a pack's hat hides the hair",
+  );
+  assert.ok(
+    (await meshes({ clothes: ["spamrakuen_sagerfrogs_glasses_01", "toigo_pearl_earrings"] })) >= bare + 2,
+    "glasses and earrings are worn together",
+  );
 }
 console.log("3d-avatar-maker.regression: ok");

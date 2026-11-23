@@ -92,6 +92,20 @@ poses with its arms lowered. Not yet checked in a real Engine.
 - Next packs (from the plan note): accessories (needs face, ears, fingers and socks slots first),
   historical and fantasy, modern casual (both with CC-BY items, credited).
 
+## Built (0.1.04)
+
+- Five new slots (looks.js CLOTH_SLOTS): `face` (glasses, eye masks), `mouth` (a face mask), `ears`, `fingers`
+  (rings) and `socks`. `COVERED_BY` says what a worn slot leaves off: gloves the fingernails and a ring, shoes
+  and socks the toenails. A pack may hide the hair (`HIDE_WORDS`), as the kit's hats do.
+- The Accessories pack, `3d-avatar-maker-wardrobe-accessories` 0.1.00, all CC0: six glasses, two eye masks, a
+  medical mask, two earrings, two rings, three gloves, four socks, two hats (22 pieces, 5.0 MiB).
+- Fitting options for small things (`make_mh_clothes.py`): `cut` keeps the pack's alpha as a cut-out (clear
+  lenses, lace), `size` a smaller picture, `clearance` per piece (earrings and rings sit 0.5 mm off the skin;
+  cloth's 2.5 mm squashed a pearl stud flat). Socks and gloves are fitted without lifting faces over the skin
+  (`skin: false`): the body's separate toes and fingers threw a mitten-like sock's vertices into spikes.
+- The packer keeps every triangle of glasses, earrings and rings (`WHOLE_SLOTS`), and the face's keys on what's
+  worn on the face (`HEAD_SLOTS`).
+
 ## Next, in order
 
 1. **Dev catalog.** `_planning/scripts/update-dev-catalog.mjs` rebuilds only the packages in its

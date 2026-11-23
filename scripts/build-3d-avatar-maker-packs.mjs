@@ -32,9 +32,10 @@ const MODELS = join(makerRoot, "assets/models");
 const VERSIONS = {
   "3d-avatar-maker-wardrobe-everyday-women": "0.1.00",
   "3d-avatar-maker-wardrobe-everyday-men": "0.1.00",
+  "3d-avatar-maker-wardrobe-accessories": "0.1.00",
 };
 // The bodies the pieces are fitted to (src/packs.js BODY_REVISION: the bodies made in 0.1.02), and the first
-// maker that reads packs.
+// maker that reads packs (a pack's own `maker` in packs.json when it needs a later one, for its slots).
 const BODY_REVISION = 1;
 const MAKER_VERSION = "0.1.03";
 // The maker's own Capability API, Engine provenance and range: a pack is only of use beside it.
@@ -55,6 +56,7 @@ const { catalog } = await readCatalogFamily(repoRoot);
 for (const [id, pack] of Object.entries(packs)) {
   if (only.length && !only.includes(id)) continue;
   const version = VERSIONS[id];
+  const maker = pack.maker ?? MAKER_VERSION;
   if (!version) throw new Error(`${id}: add its version to VERSIONS in scripts/build-3d-avatar-maker-packs.mjs`);
   const packageRoot = join(repoRoot, "packages", id);
   const models = join(MODELS, "packs", id);
@@ -126,7 +128,7 @@ for (const [id, pack] of Object.entries(packs)) {
     format: 1,
     for: "3d-avatar-maker",
     body: BODY_REVISION,
-    maker: MAKER_VERSION,
+    maker,
     name: pack.name,
     pieces,
   };
@@ -141,7 +143,7 @@ for (const [id, pack] of Object.entries(packs)) {
   const count = Object.keys(pieces).length;
   const description = withPackageActivationGuidance(
     id,
-    `${count} more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker ${MAKER_VERSION} or later.`,
+    `${count} more ${pack.things ?? "pieces of clothing"} for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker ${maker} or later.`,
   );
   const agentDefinition = {
     id,

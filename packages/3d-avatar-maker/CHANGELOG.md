@@ -1,5 +1,10 @@
 # 3D Avatar Maker release notes
 
+## 0.1.04 — 2026-11-23
+
+- New places to wear things: glasses, a face mask, earrings, rings and socks. The new Accessories pack fills them, and adds gloves and two hats.
+- Gloves hide rings, and socks hide the toenails, the way gloves and shoes already hide the nails.
+
 ## 0.1.03 — 2026-11-23
 
 - Wardrobe packs: install a 3D Avatar Maker wardrobe pack and its clothes appear in the Clothes tab, each with a line saying which pack it's from and who made it. The first two are Everyday Women's Clothes and Everyday Men's Clothes and Suits.
