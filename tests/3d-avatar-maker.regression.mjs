@@ -48,7 +48,7 @@ const { exportGlb, lookInGlb, readGlb, slimGeometry, writeGlb } =
 const { relaxedPose, restPose, tPose } = await import("../packages/3d-avatar-maker/src/figure.js");
 const { HUMANOID_BONES, setKitBase } = await import("../packages/3d-avatar-maker/src/kitfiles.js");
 const looks = await import("../packages/3d-avatar-maker/src/looks.js");
-const { checkLook, CLOTHES, HAIRSTYLES, NEUTRAL_LOOK, OUTFIT_PRESETS, outfitLook, RACES } = looks;
+const { checkLook, CLOTHES, HAIRSTYLES, NEUTRAL_LOOK, OUTFIT_PRESETS, outfitLook, RACES, racePreset } = looks;
 setKitBase("http://kit.test/kit/");
 
 // The bones the Engine's avatar poses turn; it refuses a model without the first seven
@@ -94,7 +94,7 @@ for (const body of ["male", "female"]) {
   );
 }
 
-// ── Each body has its paint masks: nails in red, lips in green (scripts/build-3d-avatar-maker-masks.mjs) ──
+// ── Each body has its paint mask: the lips in green (scripts/build-3d-avatar-maker-masks.mjs) ──
 {
   const { inflateSync } = await import("node:zlib");
   for (const body of ["male", "female"]) {
@@ -109,16 +109,13 @@ for (const body of ["male", "female"]) {
       at += 12 + length;
     }
     const rows = inflateSync(Buffer.concat(data));
-    let nails = 0;
     let lips = 0;
     for (let y = 0; y < width; y++)
       for (let x = 0; x < width; x++) {
         const i = y * (width * 3 + 1) + 1 + x * 3;
-        if (rows[i] > 128) nails++;
         if (rows[i + 1] > 128) lips++;
       }
-    assert.ok(nails > 500, `${body}: the masks have the nails (${nails} texels)`);
-    assert.ok(lips > 1000, `${body}: the masks have the lips (${lips} texels)`);
+    assert.ok(lips > 1000, `${body}: the mask has the lips (${lips} texels)`);
   }
   const { canPaint } = await import("../packages/3d-avatar-maker/src/skin.js");
   assert.equal(canPaint(), false, "in Node there's no canvas, so the builder colours by vertex");
@@ -132,7 +129,13 @@ const knight = outfitLook(
 );
 const made = {
   plain: await createAvatar(startOf("female"), "Test", "auto"),
-  dwarf: await createAvatar(startOf("male", { race: "dwarf", facialHair: "beard-02", ...knight }), "Test", "auto"),
+  dwarf: await createAvatar(startOf("male", { ...racePreset("dwarf", "male"), ...knight }), "Test", "auto"),
+  // (A look saved before races were presets: it names the race only, and still opens as that race.)
+  olderDwarf: await createAvatar(
+    checkLook({ body: "male", race: "dwarf", height: 1, limbs: { legs: 1, arms: 1, head: 1 } }),
+    "Test",
+    "auto",
+  ),
   tall: await createAvatar(startOf("female", { height: 1.12, limbs: { legs: 1.15 }, hair: "long" }), "Test", "auto"),
 };
 for (const [name, figure] of Object.entries(made)) {
@@ -158,6 +161,23 @@ for (const [name, figure] of Object.entries(made)) {
   assert.ok(Math.abs(armDrop() - atRest) < 1e-6, `${name}: rest puts the arms back`);
 }
 assert.ok(made.dwarf.meshes.length > made.plain.meshes.length, "armour adds meshes");
+{
+  // A race is a preset: its slider, its sizes and its usual extras, all ordinary look fields.
+  const dwarf = racePreset("dwarf", "male");
+  assert.equal(dwarf.shape.race_dwarf, 1);
+  assert.equal(dwarf.shape.race_elf, 0);
+  assert.equal(dwarf.facialHair, "beard-02");
+  assert.ok(dwarf.height < 0.9 && dwarf.limbs.legs < 0.75, "a dwarf preset is short and short-legged");
+  assert.deepEqual(checkLook(dwarf).shape.race_dwarf, 1, "its slider survives checking");
+  assert.equal(racePreset("halfelf").shape.race_elf, 0.5, "a half-elf is half an elf");
+  const tiefling = racePreset("tiefling");
+  assert.ok(
+    tiefling.tail && tiefling.horns !== "none" && tiefling.skin === "custom",
+    "a tiefling preset brings horns, a tail and a skin",
+  );
+  assert.equal(made.olderDwarf.avatar.shape.race_dwarf, 1, "an older dwarf look gets its race slider");
+  assert.ok(Math.abs(made.olderDwarf.avatar.limbs.legs - 0.7) < 1e-6, "and its sizes, as before");
+}
 const headOf = (figure) => figure.humanoid.head.getWorldPosition(new Box3().min).y;
 assert.ok(
   headOf(made.dwarf) < headOf(made.plain) && headOf(made.tall) > headOf(made.plain),

@@ -288,7 +288,115 @@ def key_mixes(B, macro):
     for name, (moved, mix, _share) in race_mixes(B).items():
         keys["_" + name] = macro_change(**{k: min(1.0, max(0.0, macro[k] + d)) for k, d in moved.items()})
         keys[name] = detail(mix)
-    return {k: keys[k] for k in order + list(RACES) + ["_" + name for name in RACES]}
+    # The face in detail (3D Avatar Maker): each a pair of keys, `<slider>.lo` and `<slider>.hi`, one each
+    # side of the face as made, after every other key so those keep their places. ("eyes", the eye size's
+    # larger end, is the key above; its smaller end is `eye_size.lo`.)
+    detail_keys = []
+    for slider, low, high in FACE_DETAIL + BODY_DETAIL + (BREAST_DETAIL if female else []):
+        for end, mix in (("lo", low), ("hi", high)):
+            if mix is None:
+                continue
+            both = {}
+            for target, weight in mix.items():
+                both.update(S(target, weight) if _sided(target) else {target: weight})
+            keys[f"{slider}.{end}"] = detail(both)
+            detail_keys.append(f"{slider}.{end}")
+    return {k: keys[k] for k in order + list(RACES) + detail_keys + ["_" + name for name in RACES]}
+
+
+def _sided(target):
+    """Whether a MakeHuman target comes as a left and right pair (`eyes/l-eye-…` and `eyes/r-eye-…`)."""
+    folder, name = target.split("/", 1)
+    return os.path.exists(os.path.join(wa.DATA, "targets", folder, f"l-{name}.target.gz"))
+
+
+# The face in detail: [slider, its smaller end's MakeHuman targets {target: weight}, its larger end's]. A
+# target that comes in a left and right pair is given once, for both. Each slider's middle is the face as
+# made. (3D Avatar Maker's src/looks.js FACE_DETAIL names the sliders in the same order.)
+def _pair(folder, low, high, weight=1.0):
+    return ({f"{folder}/{low}": weight}, {f"{folder}/{high}": weight})
+
+
+FACE_DETAIL = [
+    # Eyes
+    ("eye_size", {"eyes/eye-scale-decr": 1.0}, None),
+    ("eye_height", *_pair("eyes", "eye-trans-down", "eye-trans-up")),
+    ("eye_spacing", *_pair("eyes", "eye-trans-in", "eye-trans-out")),
+    ("eye_depth", *_pair("eyes", "eye-push1-out", "eye-push1-in")),
+    ("eye_tilt", *_pair("eyes", "eye-corner2-down", "eye-corner2-up")),
+    ("eye_opening", *_pair("eyes", "eye-height2-decr", "eye-height2-incr")),
+    ("eyelid", *_pair("eyes", "eye-eyefold-up", "eye-eyefold-down")),
+    ("eye_inner_fold", *_pair("eyes", "eye-epicanthus-out", "eye-epicanthus-in")),
+    ("eye_bags", *_pair("eyes", "eye-bag-decr", "eye-bag-incr")),
+    # Brows
+    ("brow_height", *_pair("eyebrows", "eyebrows-trans-down", "eyebrows-trans-up")),
+    ("brow_angle", *_pair("eyebrows", "eyebrows-angle-down", "eyebrows-angle-up")),
+    ("brow_ridge", *_pair("eyebrows", "eyebrows-trans-backward", "eyebrows-trans-forward")),
+    # Nose
+    ("nose_length", *_pair("nose", "nose-scale-vert-decr", "nose-scale-vert-incr")),
+    ("nose_width", *_pair("nose", "nose-scale-horiz-decr", "nose-scale-horiz-incr")),
+    ("nose_depth", *_pair("nose", "nose-scale-depth-decr", "nose-scale-depth-incr")),
+    ("nose_bridge", *_pair("nose", "nose-hump-decr", "nose-hump-incr")),
+    ("nose_tip", *_pair("nose", "nose-point-down", "nose-point-up")),
+    ("nose_tip_width", *_pair("nose", "nose-point-width-decr", "nose-point-width-incr")),
+    ("nostrils", *_pair("nose", "nose-nostrils-width-decr", "nose-nostrils-width-incr")),
+    ("nose_height", *_pair("nose", "nose-trans-down", "nose-trans-up")),
+    # Mouth
+    ("mouth_width", *_pair("mouth", "mouth-scale-horiz-decr", "mouth-scale-horiz-incr")),
+    ("mouth_height", *_pair("mouth", "mouth-trans-down", "mouth-trans-up")),
+    ("mouth_depth", *_pair("mouth", "mouth-trans-backward", "mouth-trans-forward")),
+    ("upper_lip", *_pair("mouth", "mouth-upperlip-volume-decr", "mouth-upperlip-volume-incr")),
+    ("lower_lip", *_pair("mouth", "mouth-lowerlip-volume-decr", "mouth-lowerlip-volume-incr")),
+    ("cupids_bow", *_pair("mouth", "mouth-cupidsbow-decr", "mouth-cupidsbow-incr")),
+    ("mouth_corners", *_pair("mouth", "mouth-angles-down", "mouth-angles-up")),
+    # Jaw and chin
+    ("jaw_forward", *_pair("chin", "chin-prognathism-decr", "chin-prognathism-incr")),
+    ("jaw_width", *_pair("chin", "chin-bones-decr", "chin-bones-incr")),
+    ("chin_height", *_pair("chin", "chin-height-decr", "chin-height-incr")),
+    ("chin_width", *_pair("chin", "chin-width-decr", "chin-width-incr")),
+    ("chin_prominence", *_pair("chin", "chin-prominent-decr", "chin-prominent-incr")),
+    ("chin_cleft", *_pair("chin", "chin-cleft-decr", "chin-cleft-incr")),
+    # Cheeks
+    ("cheekbones", *_pair("cheek", "cheek-bones-decr", "cheek-bones-incr")),
+    ("cheek_fullness", *_pair("cheek", "cheek-volume-decr", "cheek-volume-incr")),
+    ("cheek_hollows", *_pair("cheek", "cheek-inner-incr", "cheek-inner-decr")),
+    # Ears
+    ("ear_size", *_pair("ears", "ear-scale-decr", "ear-scale-incr")),
+    ("ear_angle", *_pair("ears", "ear-wing-decr", "ear-wing-incr")),
+    ("ear_lobes", *_pair("ears", "ear-lobe-decr", "ear-lobe-incr")),
+    ("ear_height", *_pair("ears", "ear-trans-down", "ear-trans-up")),
+    # Forehead and head
+    ("forehead_height", *_pair("forehead", "forehead-scale-vert-decr", "forehead-scale-vert-incr")),
+    ("forehead_slope", *_pair("forehead", "forehead-trans-backward", "forehead-trans-forward")),
+    ("temples", *_pair("forehead", "forehead-temple-decr", "forehead-temple-incr")),
+    ("head_width", *_pair("head", "head-scale-horiz-decr", "head-scale-horiz-incr")),
+    ("head_height", *_pair("head", "head-scale-vert-decr", "head-scale-vert-incr")),
+    ("head_depth", *_pair("head", "head-scale-depth-decr", "head-scale-depth-incr")),
+    ("neck_length", *_pair("neck", "measure-neck-height-decr", "measure-neck-height-incr")),
+]
+
+# The body in detail, the same way (3D Avatar Maker's src/looks.js BODY_DETAIL). Hands and feet are sized
+# by their bones instead: a key that moved them would leave the finger joints behind.
+BODY_DETAIL = [
+    ("upper_arms", *_pair("arms", "measure-upperarm-circ-decr", "measure-upperarm-circ-incr")),
+    ("forearms", *_pair("arms", "lowerarm-fat-decr", "lowerarm-fat-incr")),
+    ("arm_muscle", {"arms/upperarm-muscle-decr": 1.0, "arms/lowerarm-muscle-decr": 1.0}, {"arms/upperarm-muscle-incr": 1.0, "arms/lowerarm-muscle-incr": 1.0}),
+    ("thighs", *_pair("legs", "measure-thigh-circ-decr", "measure-thigh-circ-incr")),
+    ("calves", *_pair("legs", "measure-calf-circ-decr", "measure-calf-circ-incr")),
+    ("leg_muscle", {"legs/upperleg-muscle-decr": 1.0, "legs/lowerleg-muscle-decr": 1.0}, {"legs/upperleg-muscle-incr": 1.0, "legs/lowerleg-muscle-incr": 1.0}),
+    ("buttocks", *_pair("buttocks", "buttocks-volume-decr", "buttocks-volume-incr")),
+    ("torso_taper", *_pair("torso", "torso-vshape-decr", "torso-vshape-incr")),
+    ("back_muscle", *_pair("torso", "torso-muscle-dorsi-decr", "torso-muscle-dorsi-incr")),
+    ("stomach_tone", *_pair("stomach", "stomach-tone-decr", "stomach-tone-incr")),
+    ("hip_width", *_pair("hip", "hip-scale-horiz-decr", "hip-scale-horiz-incr")),
+]
+# Hers only: the bust's shape and place (its size is the "bust" key).
+BREAST_DETAIL = [
+    ("bust_height", *_pair("breast", "breast-trans-down", "breast-trans-up")),
+    ("bust_spacing", *_pair("breast", "breast-dist-decr", "breast-dist-incr")),
+    ("bust_shape", *_pair("breast", "breast-point-decr", "breast-point-incr")),
+    ("bust_lift", *_pair("breast", "breast-volume-vert-down", "breast-volume-vert-up")),
+]
 
 
 # The 5e SRD's races as shape keys (each 0-1; a half-elf is `race_elf` at a half with `ears_pointed` at a
@@ -3176,6 +3284,119 @@ def finger_chains(body, co, faces, mats):
     return chains, backs
 
 
+# ── Nails: a shell of their own on each finger and toe (3D Avatar Maker) ────────────────────────────────
+#
+# MakeHuman's fingertips have only a few large faces, so a nail drawn as those faces (or painted into the skin
+# texture) has a ragged edge. Here each nail is a mesh of its own: an oval, a little squared, laid on the back
+# of the digit's last segment and standing a fraction of a millimetre off the skin, with a rim tucked under it
+# so no gap shows from the side. Its size comes from the digit: about two thirds of its width, a little longer
+# than wide, stopping just short of the tip. It's one material, `nails`, so a colour on it has a clean edge.
+NAIL_LIFT = 0.00035  # how far the nail's top stands off the skin (metres)
+NAIL_SINK = 0.00025  # how far its rim goes under the skin
+NAIL_RINGS = 5
+NAIL_SEGMENTS = 32
+NAIL_SQUARENESS = 2.6  # 2 is an ellipse; higher is squarer
+FINGERNAIL = dict(width=0.68, length=1.2, tip=0.0012)
+THUMBNAIL = dict(width=0.7, length=1.1, tip=0.0012)
+TOENAIL = dict(width=0.72, length=1.0, tip=0.0016)
+
+
+def _toe_lines(body, R, J_old, J_new, shift, s):
+    """Each toe's last segment, posed and scaled as the skin was: {(side, toe): (last joint, tip)}. (MakeHuman's
+    toes have joint helpers but no bones of ours: they move with the ball of the foot.)"""
+    out = {}
+    for side in ("l", "r"):
+        bone = f"ball_{side}"
+        moved = lambda p: (J_new[bone] + R[bone] @ (p - J_old[bone]) - shift) * s  # noqa: E731,B023
+        for toe in range(1, 6):
+            last, tip = (f"toe-{toe}-3", f"toe-{toe}-4") if toe > 1 else ("toe-1-2", "toe-1-3")
+            out[(side, toe)] = (moved(body.at(f"{side}-{last}")), moved(body.at(f"{side}-{tip}")))
+    return out
+
+
+def nail_plates(skin, chains, backs, toes, uv0):
+    """Every nail as one Part: a shell on each finger (`chains`: each finger's joints, the last segment from its
+    third to its tip; `backs`: which way its back faces) and toe (`toes`: _toe_lines'). Its shape keys and
+    weights are the skin's under it, so it follows the fingers' bones and every key. `uv0`: one place in the
+    skin texture the nails all take their colour from."""
+    up_z = np.array([0.0, 0.0, 1.0])
+    digits = []
+    for key, ch in chains.items():
+        along = _unit(ch[3] - ch[2])
+        back = backs[key] - along * (backs[key] @ along)
+        digits.append((ch[2], along, _unit(back), THUMBNAIL if key[1] == 1 else FINGERNAIL))
+    for (last, tip) in toes.values():
+        along = _unit(tip - last)
+        digits.append((last, along, _unit(up_z - along * (up_z @ along)), TOENAIL))
+
+    def cast(origin, direction, reach):
+        loc, nrm, _, dist = skin.bvh.ray_cast(Vector(origin), Vector(direction), reach)
+        if loc is None:
+            return None, None, None
+        n = np.array(nrm)
+        return np.array(loc), (n if n @ direction > 0 else -n), dist
+
+    co, faces = [], []
+    for joint, along, up, shape in digits:
+        side = _unit(np.cross(up, along))
+        # How far the skin is from the line of the joints, straight out along the digit (its tip) and to each side.
+        _, _, tip = cast(joint, along, 0.06)
+        if tip is None:
+            continue
+        def across(t):
+            o = joint + along * t
+            _, _, left = cast(o, -side, 0.04)
+            _, _, right = cast(o, side, 0.04)
+            left = left if left is not None else 0.006
+            right = right if right is not None else 0.006
+            return (left + right) / 2, (right - left) / 2  # (half-width, the middle's offset to the side)
+
+        t = tip * 0.6
+        for _ in range(3):
+            half, middle = across(t)
+            half_width = half * shape["width"]
+            half_length = half_width * shape["length"]
+            t = tip - shape["tip"] - half_length
+        # The oval's points, ring by ring from its middle, each laid on the skin straight out from inside the digit.
+        top, rim = [], []
+        for ring in range(NAIL_RINGS + 1):
+            rho = ring / NAIL_RINGS
+            for j in range(NAIL_SEGMENTS if ring else 1):
+                a = 2 * math.pi * j / NAIL_SEGMENTS
+                x = math.copysign(abs(math.cos(a)) ** (2 / NAIL_SQUARENESS), math.cos(a)) * rho
+                y = math.copysign(abs(math.sin(a)) ** (2 / NAIL_SQUARENESS), math.sin(a)) * rho
+                o = joint + along * (t + x * half_length) + side * (middle + y * half_width) - up * half * 0.5
+                loc, nrm, _ = cast(o, up, half * 3)
+                if loc is None:
+                    loc, nrm = o + up * half * 1.2, up
+                top.append(loc + nrm * NAIL_LIFT)
+                if ring == NAIL_RINGS:
+                    rim.append(loc - nrm * NAIL_SINK)
+        base = len(co)
+        co += top + rim
+        ring_at = lambda r: base + 1 + (r - 1) * NAIL_SEGMENTS  # noqa: E731
+        rim_at = base + 1 + NAIL_RINGS * NAIL_SEGMENTS
+        mine = []
+        for j in range(NAIL_SEGMENTS):
+            k = (j + 1) % NAIL_SEGMENTS
+            mine.append([base, ring_at(1) + j, ring_at(1) + k])
+            for r in range(1, NAIL_RINGS):
+                mine.append([ring_at(r) + j, ring_at(r + 1) + j, ring_at(r + 1) + k, ring_at(r) + k])
+            mine.append([ring_at(NAIL_RINGS) + j, rim_at + j, rim_at + k, ring_at(NAIL_RINGS) + k])
+        # (Facing out of the nail: turned round if the first face faces in.)
+        p = np.array(co)
+        f0 = mine[0]
+        if np.cross(p[f0[1]] - p[f0[0]], p[f0[2]] - p[f0[0]]) @ up < 0:
+            mine = [list(reversed(f)) for f in mine]
+        faces += mine
+    co = np.array(co)
+    _, _, tv, bary = skin.nearest(co)
+    keys = {k: (skin.keys[k][tv] * bary[:, :, None]).sum(1) for k in skin.keys}
+    W = (skin.W[tv] * bary[:, :, None]).sum(1)
+    log(f"nails: {len(digits)} of them, {len(co)} vertices")
+    return Part(co, faces, [PART["nails"]] * len(faces), [[tuple(uv0)] * len(f) for f in faces], _still(keys), W)
+
+
 def _along_skin(n, edges, seeds):
     """Each vertex's distance along the skin (`edges`: per vertex, [(other, length)]) from the nearest of `seeds`."""
     far = np.full(n, np.inf)
@@ -4429,6 +4650,7 @@ def make(B):
         body.keys[k][used] = posed_keys[k] * s
     body.knuckles = [(side, f, k, (J2[f"hand_{side}"] + R[f"hand_{side}"] @ (pos - J[f"hand_{side}"]) - shift) * s, R[f"hand_{side}"] @ d, R[f"hand_{side}"] @ back) for side, f, k, pos, d, back in body.knuckles]
     body.fingertips = [(side, f, (J2[f"hand_{side}"] + R[f"hand_{side}"] @ (pos - J[f"hand_{side}"]) - shift) * s) for side, f, pos in body.fingertips]
+    toes = _toe_lines(body, R, J, J2, shift, s)
     J = {k: (v - shift) * s for k, v in J2.items()}
     body.joints = J
     for e in body.eye.values():
@@ -4536,9 +4758,22 @@ def make(B):
     # (The fingers' bones only now: everything above, the baking and the fitting, knows the people's bones.)
     chains, backs = finger_chains(body, parts[0].co, parts[0].faces, parts[0].mat)
     parts[0].weights = finger_weights(parts[0].co, parts[0].faces, parts[0].weights, chains, backs)
+    # The nails: shells of their own over the fingertips and toes; the faces MakeHuman drew them as are skin now.
+    # (The colour they take, unless coloured: the middle of the left middle finger's nail in the skin texture.)
+    nail_at = [i for i, m in enumerate(parts[0].mat) if m == PART["nails"]]
+    middle_tip = chains[("l", 3)][3]
+    pick = min(nail_at, key=lambda i: np.linalg.norm(parts[0].co[list(parts[0].faces[i])].mean(0) - middle_tip))
+    uv0 = np.mean(np.array(parts[0].uv[pick], dtype=np.float64), axis=0)
+    nails = nail_plates(Skin(parts[0].co, parts[0].faces, parts[0].weights, parts[0].keys), chains, backs, toes, uv0)
+    parts[0].mat = [PART["skin"] if m == PART["nails"] else m for m in parts[0].mat]
+    parts.append(nails)
     obj = join(name, parts + [to_eye_texture(e) for e in eyes], key_names)
-    brows = [join(n, [part], key_names) for n, part in mh_hair(B, body, co, body_keys, key_names, roots, len(co0))]
-    pieces = [join(g.name, [g.part], key_names) for g in wear] + brows + [join(n, [part], key_names) for n, part in extras]
+    # (The pieces beside the body, brows, lashes, beards, underwear, horns and the tail, keep the older keys and
+    # leave out the face and body in detail: 3D Avatar Maker carries those onto them from the skin, as it does
+    # for hair and clothes. Given every key each, the file was more than twice the size.)
+    piece_keys = [k for k in key_names if "." not in k]
+    brows = [join(n, [part], piece_keys) for n, part in mh_hair(B, body, co, body_keys, key_names, roots, len(co0))]
+    pieces = [join(g.name, [g.part], piece_keys) for g in wear] + brows + [join(n, [part], piece_keys) for n, part in extras]
     for o in [obj] + pieces:
         o.data.name = o.name
         for m in shared:

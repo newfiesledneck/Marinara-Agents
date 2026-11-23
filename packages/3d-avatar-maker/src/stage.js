@@ -50,11 +50,11 @@ export function createStage(canvas) {
   floor.position.y = 0.002;
   scene.add(floor);
 
-  const camera = new PerspectiveCamera(30, 1, 0.05, 50);
+  const camera = new PerspectiveCamera(30, 1, 0.01, 50);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = 0.12;
-  controls.minDistance = 0.35;
+  controls.minDistance = 0.1; // (close enough to check a nail or an eyelid)
   controls.maxDistance = 9;
   controls.maxPolarAngle = Math.PI * 0.92;
   controls.listenToKeyEvents(canvas); // arrow keys move the view when the picture has focus

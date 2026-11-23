@@ -37,6 +37,23 @@ it is `avatar-maker-investigation.md` in the shared notes folder.
 Checked: a saved dwarf in plate armour (8.5 MB) loads on the check page with 22 of 22 body bones found and
 poses with its arms lowered. Not yet checked in a real Engine.
 
+## Built (0.1.01)
+
+- Nails are shells of their own on every finger and toe (`make_avatar.py` `nail_plates`), placed on each
+  digit's last segment from its joints, coloured as one part. The faces MakeHuman drew nails as are skin.
+- 46 face sliders in eight foldable groups (eyes, brows, nose, mouth, jaw and chin, cheeks, ears, forehead
+  and head) and 15 body sliders (arms, legs, torso and hips, her bust), each a pair of MakeHuman CC0 targets
+  (`FACE_DETAIL`, `BODY_DETAIL`, `BREAST_DETAIL`; looks.js the same names), with ready-made shapes for each
+  group (`FACE_PRESETS`).
+- Races are presets on one body: six race sliders anyone can mix, a race choice that sets them with height,
+  limbs and usual extras (`racePreset`), wider height and limb ranges. Horns, tusks, a tail and beards are
+  accessories for anyone. Older looks naming a race open as before.
+- An "Anime proportions" style preset on the same head (`STYLES`).
+- The model carries the new keys on the skin and eyes only; the maker carries them onto brows, lashes,
+  beards, underwear, hair and clothes from the skin. This kept the model files near 50 MB (they reached
+  85 MB with every key on every piece).
+- Lip colour is painted through a mask in the skin picture (`src/skin.js`), for a clean edge.
+
 ## Next, in order
 
 1. **Dev catalog.** `_planning/scripts/update-dev-catalog.mjs` rebuilds only the packages in its

@@ -31,7 +31,10 @@ Released as CC0 1.0 by their maker.
 
 - In the bodies' files (`make_avatar.py`): the races' shapes (dwarf, halfling, gnome, elf, half-orc,
   tiefling), the tusks, horns, the tiefling's tail, the beards and the moustache, the eyeballs, the
-  underwear styles, and the finger bones and weights.
+  underwear styles, the finger bones and weights, and the nails (a shell on each finger and toe). The face
+  and body sliders' shapes are MakeHuman's targets (CC0), chosen and paired by ThatOneCan.
+- `avatar/avatar-<sex>-masks.png`: where the lips are in the skin picture, made from the bodies by
+  `scripts/build-3d-avatar-maker-masks.mjs`.
 - In the hair files (`make_hair.py`): the parted, buns, shaved and mohawk hair styles.
 - In the wardrobe files (`make_outfit.py`, `make_outfit2.py`): the shirt, t shirt, tank top, crop top,
   blouse, bikini top, tunic, vest, corset, gambeson, dress, gown, robe, one piece swimsuit, cloak, long

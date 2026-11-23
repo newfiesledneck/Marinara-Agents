@@ -33,6 +33,10 @@ main { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minm
 .group { margin: 0 0 16px; }
 .group > h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--soft); margin: 0 0 6px; font-weight: 650; }
 .says { color: var(--soft); margin: 0 0 8px; }
+details.fold { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: var(--raised); }
+details.fold > summary { cursor: pointer; font-weight: 650; padding: 4px 0; list-style-position: inside; }
+details.fold[open] > summary { margin-bottom: 6px; }
+details.fold > button { margin-top: 4px; }
 .row { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 6px 10px; align-items: center; margin: 0 0 8px; }
 .row > .name { color: var(--text); }
 .row .ends { display: flex; justify-content: space-between; color: var(--soft); font-size: 12px; }
