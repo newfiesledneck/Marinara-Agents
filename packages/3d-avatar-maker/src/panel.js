@@ -7,6 +7,8 @@ import {
   AVATAR_COLOURS,
   BARE,
   BODIES,
+  BODY_DETAIL,
+  BODY_GROUPS,
   BUILT_IN_PRESETS,
   CLOTH_COLOURS,
   CLOTH_PARTS,
@@ -17,7 +19,11 @@ import {
   EYE_COLOURS,
   EYE_PICTURES,
   FACE,
+  FACE_DETAIL,
+  FACE_GROUPS,
+  FACE_PRESETS,
   fromTrack,
+  presetFields,
   HAIR_COLOURS,
   HAIRSTYLES,
   hasSlider,
@@ -27,10 +33,14 @@ import {
   OUTFIT_PRESETS,
   outfitLook,
   RACE_PARTS,
+  RACE_SHAPES,
   RACES,
+  racePreset,
   SHAPES,
   SKIN_TONES,
   SKINS,
+  STYLE_FIELDS,
+  STYLES,
   sliderRange,
   TINT,
   toTrack,
@@ -190,10 +200,21 @@ export function createPanel(actions) {
       ),
       group(
         "Style",
-        "How the avatar is drawn. Semi-real is the only style so far; an anime style is planned.",
+        "A starting point for the face and head. It sets the Face tab's sliders, so everything stays adjustable. An anime drawing style (flat shading and outlines) is planned for the saved file.",
         row(
           "Style",
-          select([["semireal", "Semi-real"]], "semireal", () => {}, "Style"),
+          select(
+            [["", "Choose one…"], ...STYLES.map(([value, label]) => [value, label])],
+            "",
+            (value) => {
+              const style = STYLES.find(([key]) => key === value);
+              if (!style) return;
+              const cleared = Object.fromEntries(STYLE_FIELDS.map((field) => [field, 0]));
+              change({ shape: { ...cleared, ...style[3].shape }, limbs: style[3].limbs });
+            },
+            "Style",
+          ),
+          STYLES.map(([, label, says]) => `${label}: ${says}`).join(" "),
         ),
       ),
       group(
@@ -214,20 +235,26 @@ export function createPanel(actions) {
         row(
           "Race",
           select(
-            RACES.filter(([race]) => choices.races.includes(race)).map(([race, label]) => [race, label]),
-            filled.race,
-            (value) =>
-              change({ race: value, facialHair: undefined, tusks: undefined, horns: undefined, tail: undefined }),
-            "Race",
+            [
+              ["", "Choose one…"],
+              ...RACES.filter(([race]) => choices.races.includes(race)).map(([race, label]) => [race, label]),
+            ],
+            "",
+            (value) => {
+              if (!value) return;
+              const preset = racePreset(value, filled.body);
+              change({ ...preset, shape: preset.shape, limbs: preset.limbs, colours: preset.colours ?? {} });
+            },
+            "Start from a race",
           ),
-          "A build and proportions of its own. Horns, tusks and beards are on the Face tab.",
+          "A preset: it sets the race sliders below, height, limb lengths and that race's usual extras. Change any of them after.",
         ),
         row(
           "Age",
           select(AGES, filled.age, (value) => change({ age: value }), "Age"),
           "Changes the body's shape and the skin picture.",
         ),
-        slider({
+        middleSlider({
           name: "Height",
           says: "The whole figure, taller or shorter.",
           ends: ["Short", "Tall"],
@@ -237,6 +264,14 @@ export function createPanel(actions) {
           onInput: (value) => change({ height: value }, false),
         }),
       ),
+      foldable(
+        "race",
+        "Race features",
+        "Each race's build and face, mixed as you like. A race chosen above sets these.",
+        ...RACE_SHAPES.filter(([key]) => hasSlider(key, choices.keys, filled.body)).map((entry) =>
+          shapeSlider(entry, filled, choices),
+        ),
+      ),
       group(
         "Build",
         "The middle of each slider is the body's own shape.",
@@ -244,11 +279,31 @@ export function createPanel(actions) {
           shapeSlider(entry, filled, choices),
         ),
       ),
+      ...BODY_GROUPS.map(([part, title, says]) => {
+        const sliders = BODY_DETAIL.filter(
+          ([key, , , , , , belongs]) => belongs === part && hasSlider(key, choices.keys, filled.body),
+        );
+        if (!sliders.length) return null;
+        return foldable(
+          `body-${part}`,
+          title,
+          says,
+          ...sliders.map((entry) => shapeSlider(entry, filled, choices)),
+          h(
+            "button",
+            {
+              type: "button",
+              onclick: () => change({ shape: Object.fromEntries(sliders.map(([field]) => [field, 0])) }),
+            },
+            `Back to the ${title.toLowerCase()} as made`,
+          ),
+        );
+      }),
       group(
         "Proportions",
         "",
         ...LIMBS.map(([key, label, least, most, says, ends]) =>
-          slider({
+          middleSlider({
             name: label,
             says,
             ends,
@@ -265,11 +320,33 @@ export function createPanel(actions) {
     face: ({ filled, choices }) => [
       group(
         "Face shape",
-        "",
+        "The face's overall shape. Each part of the face has more below.",
+        presetRow("shape", "Face outline"),
         ...FACE.filter(([key]) => hasSlider(key, choices.keys, filled.body)).map((entry) =>
           shapeSlider(entry, filled, choices),
         ),
       ),
+      ...FACE_GROUPS.map(([part, title, says]) => {
+        const sliders = FACE_DETAIL.filter(
+          ([key, , , , , , belongs]) => belongs === part && hasSlider(key, choices.keys, filled.body),
+        );
+        if (!sliders.length) return null;
+        return foldable(
+          part,
+          title,
+          says,
+          FACE_PRESETS[part] ? presetRow(part, "Ready-made") : null,
+          ...sliders.map((entry) => shapeSlider(entry, filled, choices)),
+          h(
+            "button",
+            {
+              type: "button",
+              onclick: () => change({ shape: Object.fromEntries(presetFields(part).map((field) => [field, 0])) }),
+            },
+            `Back to the ${title.toLowerCase()} as made`,
+          ),
+        );
+      }),
       group(
         "Brows and lashes",
         "",
@@ -296,8 +373,8 @@ export function createPanel(actions) {
         ),
       ),
       group(
-        "Extras",
-        "Any race can wear any of these.",
+        "Accessories",
+        "Anyone can wear any of these, whatever their race.",
         ...RACE_PARTS.filter(([field]) => (choices[field] ?? []).length).map(([field, list, label, says]) =>
           row(
             label,
@@ -575,6 +652,53 @@ export function createPanel(actions) {
     ],
   };
   let pictureSize = null;
+  const opened = new Set(["eyes"]); // the face's folding sections open now
+
+  /**
+   * A slider for a size whose usual is 1 (height, limb lengths, head size): its track has 1 in the middle
+   * whatever its range each way, so a long reach down (a halfling's height) doesn't crowd the usual.
+   */
+  function middleSlider({ least, most, at, onInput, ...rest }) {
+    const toAt = (value) => (value < 1 ? -(1 - value) / (1 - least) : (value - 1) / (most - 1));
+    const fromAt = (track) => Math.round((track < 0 ? 1 + track * (1 - least) : 1 + track * (most - 1)) * 1000) / 1000;
+    return slider({ ...rest, least: -1, most: 1, at: toAt(at), onInput: (track) => onInput(fromAt(track)) });
+  }
+
+  /** A section that folds away, remembered open or shut while the maker is open. */
+  function foldable(name, title, says, ...children) {
+    const section = h(
+      "details",
+      {
+        class: "group fold",
+        open: opened.has(name),
+        ontoggle: () => (section.open ? opened.add(name) : opened.delete(name)),
+      },
+      h("summary", {}, title),
+      says ? h("p", { class: "says" }, says) : null,
+      ...children,
+    );
+    return section;
+  }
+
+  /** A ready-made shape for a part of the face (FACE_PRESETS): sets that part's sliders. */
+  function presetRow(part, label) {
+    const presets = FACE_PRESETS[part] ?? [];
+    return row(
+      label,
+      select(
+        [["", "Choose one…"], ...presets.map(([name], i) => [String(i), name])],
+        "",
+        (value) => {
+          const preset = presets[Number(value)];
+          if (!preset) return;
+          const cleared = Object.fromEntries(presetFields(part).map((field) => [field, 0]));
+          change({ shape: { ...cleared, ...preset[1] } });
+        },
+        `${label} for the ${part === "shape" ? "face" : part}`,
+      ),
+      "Sets the sliders below; adjust them after.",
+    );
+  }
 
   /** One of the build or face sliders: its track has the body's own shape in the middle (or at the left). */
   function shapeSlider(entry, filled, choices) {

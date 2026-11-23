@@ -21,7 +21,13 @@ import {
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { VRMCore, VRMExpression, VRMExpressionManager, VRMExpressionMorphTargetBind, VRMHumanoid } from "@pixiv/three-vrm";
+import {
+  VRMCore,
+  VRMExpression,
+  VRMExpressionManager,
+  VRMExpressionMorphTargetBind,
+  VRMHumanoid,
+} from "@pixiv/three-vrm";
 import { HUMANOID_BONES } from "../src/kitfiles.js";
 
 const said = document.getElementById("said");
@@ -85,14 +91,20 @@ async function main() {
     const expression = new VRMExpression(slot);
     for (const mesh of meshes) {
       const index = mesh.morphTargetDictionary[slot];
-      if (index !== undefined) expression.addBind(new VRMExpressionMorphTargetBind({ primitives: [mesh], index, weight: 1 }));
+      if (index !== undefined)
+        expression.addBind(new VRMExpressionMorphTargetBind({ primitives: [mesh], index, weight: 1 }));
     }
     if (expression.binds.length) {
       manager.registerExpression(expression);
       have.push(slot);
     }
   }
-  const model = new VRMCore({ scene: root, humanoid, expressionManager: manager, meta: { metaVersion: "1", name: "", authors: [], licenseUrl: "" } });
+  const model = new VRMCore({
+    scene: root,
+    humanoid,
+    expressionManager: manager,
+    meta: { metaVersion: "1", name: "", authors: [], licenseUrl: "" },
+  });
   const hipsToHead = nodes.head.getWorldPosition(worldA).y - nodes.hips.getWorldPosition(worldB).y;
   root.scale.setScalar(0.5 / hipsToHead); // the Engine's size for every model: half a metre, hips to head
 
@@ -123,6 +135,13 @@ async function main() {
     `meshes ${info.meshes.length}, materials ${info.materials.length}, pictures ${info.images?.length ?? 0}`,
   ].join("\n");
   window.checked = { missing, have, bytes: bytes.byteLength };
+  // (For looking closer from the console or a test: window.look("leftHand", 0.35) puts the camera on a bone.)
+  window.look = (bone, distance = 0.5) => {
+    const at = (byName.get(bone) ?? humanoid.getRawBoneNode(bone) ?? nodes.head).getWorldPosition(new Vector3());
+    controls.target.copy(at);
+    camera.position.set(at.x + distance * 0.25, at.y + distance * 0.2, at.z + distance);
+    controls.update();
+  };
 
   const started = performance.now();
   const frame = () => {

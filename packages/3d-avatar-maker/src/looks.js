@@ -152,7 +152,8 @@ export const SKIN_TONES = [
 const OLDER_SKIN = [0, 2, 3, 5, 8, 10];
 
 /** Heights a look may have, as a share of the usual. */
-export const HEIGHTS = [0.88, 1.12];
+// (Wide enough for a halfling at 0.58 of a human, which a race preset sets.)
+export const HEIGHTS = [0.55, 1.15];
 
 const isColour = (value) => Number.isInteger(value) && value >= 0 && value <= 0xffffff;
 const isRecord = (value) => !!value && typeof value === "object" && !Array.isArray(value);
@@ -219,7 +220,7 @@ export function checkLook(raw) {
   for (const [field, list] of RACE_PARTS) if (list.some(([style]) => style === raw[field])) look[field] = raw[field];
   if (typeof raw.tail === "boolean") look.tail = raw.tail;
   for (const [field, list] of [
-    ["shape", [...SHAPES, ...FACE, ...ANTHRO_SHAPES]],
+    ["shape", [...SHAPES, ...FACE, ...FACE_DETAIL, ...BODY_DETAIL, ...RACE_SHAPES, ...ANTHRO_SHAPES]],
     ["limbs", LIMBS],
   ]) {
     const kept = {};
@@ -330,6 +331,55 @@ export const RACES = [
   ["halforc", "Half-orc", "race_halforc", 1, { height: 1.05, legs: 1, arms: 1.03, head: 1 }],
   ["tiefling", "Tiefling", "race_tiefling", 1, { height: 1, legs: 1, arms: 1, head: 1 }],
 ];
+/**
+ * The races' shapes as sliders anyone can mix: [look field (the shape key's name), label, least, most, what it
+ * changes, its ends]. A race (RACES) is only a preset: it sets one of these, the height and limbs its sizes
+ * say, and what that race usually has (racePreset). Nothing about a race is a body of its own.
+ */
+export const RACE_SHAPES = [
+  [
+    "race_dwarf",
+    "Dwarf build",
+    0,
+    1,
+    "Broad and stocky: thick limbs, big hands, a broad strong face.",
+    ["None", "Full"],
+  ],
+  ["race_halfling", "Halfling build", 0, 1, "A halfling's build and round, youthful face.", ["None", "Full"]],
+  ["race_gnome", "Gnome build", 0, 1, "A gnome's build, big nose and round face.", ["None", "Full"]],
+  [
+    "race_elf",
+    "Elf features",
+    0,
+    1,
+    "Slender, with fine features and almond eyes (pointed ears are on the Face tab).",
+    ["None", "Full"],
+  ],
+  ["race_halforc", "Orc features", 0, 1, "Heavy-boned and strong, with a broad nose and jaw.", ["None", "Full"]],
+  ["race_tiefling", "Tiefling features", 0, 1, "Sharper cheekbones and a narrower face.", ["None", "Full"]],
+];
+/**
+ * What choosing `race` sets in a look on `body`: its shape slider (the others back to none), its height and
+ * limbs, pointed ears for an elf, and what that race usually has (a dwarf man's beard, a half-orc's tusks, a
+ * tiefling's horns, tail and skin). All of it stays adjustable after.
+ */
+export function racePreset(race, body = "female") {
+  const [, , key = "", weight = 0, sizes = {}] = RACES.find(([value]) => value === race) ?? RACES[0];
+  const shape = Object.fromEntries(RACE_SHAPES.map(([field]) => [field, field === key ? weight : 0]));
+  shape.ears = { elf: 1, halfelf: 0.5 }[race] ?? 0;
+  const custom = { halforc: HALF_ORC_SKINS[0][0], tiefling: TIEFLING_SKINS[0][0] }[race];
+  return {
+    race,
+    shape,
+    height: sizes.height ?? 1,
+    limbs: { arms: sizes.arms ?? 1, legs: sizes.legs ?? 1, head: sizes.head ?? 1 },
+    facialHair: race === "dwarf" && body === "male" ? "beard-02" : BARE,
+    tusks: race === "halforc" ? (body === "male" ? "tusks-02" : "tusks-01") : BARE,
+    horns: race === "tiefling" ? "horns-01" : BARE,
+    tail: race === "tiefling",
+    ...(custom ? { skin: "custom", colours: { skin: custom, eyes: race === "tiefling" ? 0xe8c040 : 0xb08a2a } } : {}),
+  };
+}
 /** What a race is made of: { key, weight, height, legs, arms, head } (a human: no key, every size 1). */
 export const raceOf = (race) => {
   const [, , key = "", weight = 0, sizes = {}] = RACES.find(([value]) => value === race) ?? RACES[0];
@@ -400,6 +450,245 @@ export const FACE = [
   ["eyes", "Eyes", -0.5, 1, "Smaller or larger eyes.", ["Small", "Large"]],
   ["ears", "Pointed ears", 0, 1, "Round ears to long, pointed ones, as an elf's.", ["Round", "Pointed"]],
 ];
+/**
+ * The face in detail: [look field, label, least, most, what it changes, its ends, group]. Each drives two
+ * shape keys, `<field>.lo` and `<field>.hi` (assets/scripts/make_avatar.py FACE_DETAIL, MakeHuman's CC0
+ * targets), one each side of the face as made. A body made before them has none, and shows none.
+ */
+export const FACE_GROUPS = [
+  ["eyes", "Eyes", "Where the eyes sit and their shape. Eye size is under Face shape."],
+  ["brows", "Brows", "The brow line. The brow hair's style and colour are below."],
+  ["nose", "Nose", "Its shape in detail. Overall size is under Face shape."],
+  ["mouth", "Mouth and lips", ""],
+  ["jaw", "Jaw and chin", ""],
+  ["cheeks", "Cheeks", ""],
+  ["ears", "Ears", "Pointed ears are under Face shape."],
+  ["head", "Forehead, head and neck", "Hair and hats follow the head's shape."],
+];
+export const FACE_DETAIL = [
+  ["eye_height", "Height", -1, 1, "Where the eyes sit on the face.", ["Lower", "Higher"], "eyes"],
+  ["eye_spacing", "Spacing", -1, 1, "Closer together or further apart.", ["Close", "Wide"], "eyes"],
+  ["eye_depth", "Depth", -1, 1, "Standing out or set deep under the brow.", ["Prominent", "Deep-set"], "eyes"],
+  ["eye_tilt", "Tilt", -1, 1, "The outer corners lower or higher than the inner.", ["Down", "Up"], "eyes"],
+  ["eye_opening", "Opening", -1, 1, "Narrower or wider open.", ["Narrow", "Wide"], "eyes"],
+  ["eyelid", "Eyelids", -1, 1, "More of the upper lid showing, or a heavier, hooded lid.", ["Open", "Hooded"], "eyes"],
+  ["eye_inner_fold", "Inner fold", -1, 1, "The fold of skin over the inner corner.", ["Less", "More"], "eyes"],
+  ["eye_bags", "Under the eyes", -1, 1, "Smooth or puffy under the eyes.", ["Smooth", "Puffy"], "eyes"],
+  ["brow_height", "Height", -1, 1, "The brows lower or higher.", ["Lower", "Higher"], "brows"],
+  ["brow_angle", "Angle", -1, 1, "The brows' outer ends lower or higher.", ["Down", "Up"], "brows"],
+  ["brow_ridge", "Ridge", -1, 1, "A flat brow, or a heavy ridge standing out.", ["Flat", "Heavy"], "brows"],
+  ["nose_length", "Length", -1, 1, "A shorter or longer nose, top to tip.", ["Short", "Long"], "nose"],
+  ["nose_width", "Width", -1, 1, "A narrower or wider nose.", ["Narrow", "Wide"], "nose"],
+  ["nose_depth", "Projection", -1, 1, "How far the nose stands out from the face.", ["Flat", "Projecting"], "nose"],
+  ["nose_bridge", "Bridge", -1, 1, "A scooped or a humped bridge.", ["Scooped", "Humped"], "nose"],
+  ["nose_tip", "Tip", -1, 1, "The tip turned down or up.", ["Down", "Up"], "nose"],
+  ["nose_tip_width", "Tip width", -1, 1, "A fine or a broad tip.", ["Fine", "Broad"], "nose"],
+  ["nostrils", "Nostrils", -1, 1, "Narrower or flared nostrils.", ["Narrow", "Flared"], "nose"],
+  ["nose_height", "Height", -1, 1, "The nose lower or higher on the face.", ["Lower", "Higher"], "nose"],
+  ["mouth_width", "Width", -1, 1, "A narrower or wider mouth.", ["Narrow", "Wide"], "mouth"],
+  ["mouth_height", "Height", -1, 1, "The mouth lower or higher on the face.", ["Lower", "Higher"], "mouth"],
+  ["mouth_depth", "Depth", -1, 1, "The mouth set back or pushed forward.", ["Back", "Forward"], "mouth"],
+  ["upper_lip", "Upper lip", -1, 1, "A thinner or fuller upper lip.", ["Thin", "Full"], "mouth"],
+  ["lower_lip", "Lower lip", -1, 1, "A thinner or fuller lower lip.", ["Thin", "Full"], "mouth"],
+  ["cupids_bow", "Cupid's bow", -1, 1, "A flat or a deeply curved upper lip line.", ["Flat", "Curved"], "mouth"],
+  ["mouth_corners", "Corners", -1, 1, "The corners of the mouth turned down or up.", ["Down", "Up"], "mouth"],
+  [
+    "jaw_forward",
+    "Jaw forward",
+    -1,
+    1,
+    "The lower jaw back (an overbite) or forward (an underbite).",
+    ["Back", "Forward"],
+    "jaw",
+  ],
+  ["jaw_width", "Jaw width", -1, 1, "A narrower or wider jaw at its angles.", ["Narrow", "Wide"], "jaw"],
+  ["chin_height", "Chin height", -1, 1, "A shorter or longer chin.", ["Short", "Long"], "jaw"],
+  ["chin_width", "Chin width", -1, 1, "A pointed or a broad chin.", ["Pointed", "Broad"], "jaw"],
+  ["chin_prominence", "Chin forward", -1, 1, "A receding or a prominent chin.", ["Receding", "Prominent"], "jaw"],
+  ["chin_cleft", "Cleft", -1, 1, "A smooth chin or a cleft in it.", ["Smooth", "Cleft"], "jaw"],
+  ["cheekbones", "Cheekbones", -1, 1, "Flat or high, strong cheekbones.", ["Flat", "High"], "cheeks"],
+  ["cheek_fullness", "Fullness", -1, 1, "Thinner or fuller cheeks.", ["Thin", "Full"], "cheeks"],
+  ["cheek_hollows", "Hollows", -1, 1, "Full under the cheekbones, or hollow.", ["Full", "Hollow"], "cheeks"],
+  ["ear_size", "Size", -1, 1, "Smaller or larger ears.", ["Small", "Large"], "ears"],
+  ["ear_angle", "Angle", -1, 1, "Ears lying flat or standing out.", ["Flat", "Out"], "ears"],
+  ["ear_lobes", "Lobes", -1, 1, "Smaller or larger lobes.", ["Small", "Large"], "ears"],
+  ["ear_height", "Height", -1, 1, "The ears lower or higher.", ["Lower", "Higher"], "ears"],
+  ["forehead_height", "Forehead height", -1, 1, "A lower or higher forehead.", ["Low", "High"], "head"],
+  ["forehead_slope", "Forehead slope", -1, 1, "A sloping or an upright forehead.", ["Sloping", "Upright"], "head"],
+  ["temples", "Temples", -1, 1, "Hollow or full temples.", ["Hollow", "Full"], "head"],
+  ["head_width", "Head width", -1, 1, "A narrower or wider head.", ["Narrow", "Wide"], "head"],
+  ["head_height", "Head height", -1, 1, "A shorter or taller head.", ["Short", "Tall"], "head"],
+  ["head_depth", "Head depth", -1, 1, "A shallower or deeper head, front to back.", ["Shallow", "Deep"], "head"],
+  ["neck_length", "Neck length", -1, 1, "A shorter or longer neck.", ["Short", "Long"], "head"],
+];
+/** The body in detail, the same way (make_avatar.py BODY_DETAIL and, hers only, BREAST_DETAIL). */
+export const BODY_GROUPS = [
+  ["arms", "Arms", "Arm length is under Proportions."],
+  ["legs", "Legs", "Leg length is under Proportions."],
+  ["torso", "Torso and hips", ""],
+  ["bust", "Bust", "Its size is the Chest slider above."],
+];
+export const BODY_DETAIL = [
+  ["upper_arms", "Upper arms", -1, 1, "Slimmer or thicker upper arms.", ["Slim", "Thick"], "arms"],
+  ["forearms", "Forearms", -1, 1, "Slimmer or thicker forearms.", ["Slim", "Thick"], "arms"],
+  ["arm_muscle", "Arm muscle", -1, 1, "Softer or more muscular arms.", ["Soft", "Muscular"], "arms"],
+  ["thighs", "Thighs", -1, 1, "Slimmer or thicker thighs.", ["Slim", "Thick"], "legs"],
+  ["calves", "Calves", -1, 1, "Slimmer or thicker calves.", ["Slim", "Thick"], "legs"],
+  ["leg_muscle", "Leg muscle", -1, 1, "Softer or more muscular legs.", ["Soft", "Muscular"], "legs"],
+  ["buttocks", "Buttocks", -1, 1, "Flatter or fuller buttocks.", ["Flat", "Full"], "torso"],
+  [
+    "torso_taper",
+    "Taper",
+    -1,
+    1,
+    "A straight torso, or one narrowing from the shoulders.",
+    ["Straight", "V-shaped"],
+    "torso",
+  ],
+  ["back_muscle", "Back", -1, 1, "A narrower or broader, more muscled back.", ["Narrow", "Broad"], "torso"],
+  ["stomach_tone", "Stomach", -1, 1, "A softer or more toned stomach.", ["Soft", "Toned"], "torso"],
+  [
+    "hip_width",
+    "Hip bones",
+    -1,
+    1,
+    "Narrower or wider hip bones (Hips above is the hips and seat).",
+    ["Narrow", "Wide"],
+    "torso",
+  ],
+  ["bust_height", "Height", -1, 1, "The bust lower or higher.", ["Lower", "Higher"], "bust"],
+  ["bust_spacing", "Spacing", -1, 1, "Closer together or further apart.", ["Close", "Apart"], "bust"],
+  ["bust_shape", "Shape", -1, 1, "Rounder or more pointed.", ["Round", "Pointed"], "bust"],
+  ["bust_lift", "Lift", -1, 1, "Fuller below or above.", ["Low", "Lifted"], "bust"],
+];
+/**
+ * Ready-made shapes for a part of the face: { group: [[name, { field: value }], …] }. Choosing one sets
+ * its group's sliders (those it doesn't name back to the face as made), and may set a slider of the face's
+ * overall shape too (eye or nose size). Everything stays adjustable after. The "shape" group is the whole
+ * face's outline and sets sliders across the jaw, cheeks and head.
+ */
+export const FACE_PRESETS = {
+  shape: [
+    ["Round", { head_width: 0.4, cheek_fullness: 0.6, jaw_width: -0.2, chin_width: 0.2, chin_height: -0.3 }],
+    ["Oval", { head_height: 0.3, jaw_width: -0.3, chin_width: -0.2 }],
+    ["Square", { jaw_width: 0.8, chin_width: 0.6, head_width: 0.3 }],
+    ["Heart", { jaw_width: -0.6, chin_width: -0.8, temples: 0.5, forehead_height: 0.3 }],
+    ["Long", { head_height: 0.7, chin_height: 0.6, head_width: -0.3 }],
+    ["Diamond", { cheekbones: 0.8, jaw_width: -0.4, chin_width: -0.6, temples: -0.4 }],
+  ],
+  eyes: [
+    ["Almond", { eye_opening: -0.3, eye_tilt: 0.3 }],
+    ["Round", { eye_opening: 0.6, eyelid: -0.4 }],
+    ["Upturned", { eye_tilt: 0.8 }],
+    ["Downturned", { eye_tilt: -0.7, eyelid: 0.3 }],
+    ["Hooded", { eyelid: 0.9, eye_opening: -0.2 }],
+    ["Deep-set", { eye_depth: 0.8 }],
+    ["Wide-set", { eye_spacing: 0.7 }],
+    ["Close-set", { eye_spacing: -0.7 }],
+    ["Inner fold", { eye_inner_fold: 0.9, eyelid: 0.4, eye_opening: -0.3 }],
+  ],
+  brows: [
+    ["Arched", { brow_angle: 0.6, brow_height: 0.3 }],
+    ["Straight", { brow_angle: -0.3 }],
+    ["Heavy", { brow_ridge: 0.8, brow_height: -0.4 }],
+    ["Raised", { brow_height: 0.8 }],
+  ],
+  nose: [
+    ["Button", { nose_length: -0.5, nose_tip: 0.5, nose_tip_width: 0.3, nose_depth: -0.3 }],
+    ["Roman", { nose_bridge: 0.8, nose_length: 0.4, nose_tip: -0.3 }],
+    ["Snub", { nose_tip: 0.9, nose_length: -0.4 }],
+    ["Narrow", { nose_width: -0.6, nose_tip_width: -0.5, nostrils: -0.4 }],
+    ["Broad", { nose_width: 0.6, nostrils: 0.7, nose_tip_width: 0.5 }],
+    ["Scooped", { nose_bridge: -0.8, nose_tip: 0.4 }],
+  ],
+  mouth: [
+    ["Full lips", { upper_lip: 0.8, lower_lip: 0.8 }],
+    ["Thin lips", { upper_lip: -0.7, lower_lip: -0.6 }],
+    ["Wide", { mouth_width: 0.7 }],
+    ["Small", { mouth_width: -0.6, upper_lip: 0.2, lower_lip: 0.2 }],
+    ["Bow-shaped", { cupids_bow: 0.9, upper_lip: 0.4 }],
+    ["Smiling corners", { mouth_corners: 0.6 }],
+  ],
+  jaw: [
+    ["Strong", { jaw_width: 0.7, chin_width: 0.5, chin_prominence: 0.4 }],
+    ["Soft", { jaw_width: -0.6, chin_width: -0.3 }],
+    ["Pointed chin", { chin_width: -0.9, chin_height: 0.3 }],
+    ["Underbite", { jaw_forward: 0.9, chin_prominence: 0.4 }],
+    ["Overbite", { jaw_forward: -0.8, chin_prominence: -0.4 }],
+    ["Cleft chin", { chin_cleft: 0.9 }],
+  ],
+  cheeks: [
+    ["High cheekbones", { cheekbones: 0.8, cheek_hollows: 0.3 }],
+    ["Full cheeks", { cheek_fullness: 0.8, cheek_hollows: -0.4 }],
+    ["Gaunt", { cheek_fullness: -0.6, cheek_hollows: 0.8, temples: -0.3 }],
+  ],
+  ears: [
+    ["Small and flat", { ear_size: -0.5, ear_angle: -0.6 }],
+    ["Large", { ear_size: 0.7, ear_lobes: 0.4 }],
+    ["Sticking out", { ear_angle: 0.9 }],
+  ],
+  head: [
+    ["High forehead", { forehead_height: 0.8 }],
+    ["Long neck", { neck_length: 0.8 }],
+    ["Short neck", { neck_length: -0.7 }],
+  ],
+};
+/**
+ * Styles: [value, label, what it says, the look it sets]. A style is a starting point on the same body:
+ * its face and head proportions (every face slider it doesn't name goes back to the face as made). How
+ * the avatar is drawn (flat anime shading with outlines) is the saved file's to carry and comes later.
+ */
+export const STYLES = [
+  ["semireal", "Semi-real", "The body and face as made.", { shape: {}, limbs: { head: 1 } }],
+  [
+    "anime",
+    "Anime proportions (trial)",
+    "Large eyes set low and apart, a small nose and mouth, a narrow pointed chin and a slightly larger head. A trial on the semi-real head: the anime look itself (its eyes, flat shading and outlines) is still to come.",
+    {
+      shape: {
+        eyes: 1,
+        eye_height: -0.35,
+        eye_spacing: 0.35,
+        eye_opening: 0.7,
+        eye_tilt: 0.15,
+        eyelid: -0.5,
+        eye_depth: -0.5,
+        brow_ridge: -0.8,
+        brow_height: 0.4,
+        nose: -0.5,
+        nose_width: -0.6,
+        nose_depth: -0.6,
+        nose_length: -0.4,
+        nostrils: -0.8,
+        nose_tip: 0.4,
+        nose_bridge: -0.4,
+        mouth_width: -0.5,
+        upper_lip: -0.5,
+        lower_lip: -0.2,
+        jaw: -0.5,
+        jaw_width: -0.7,
+        chin_width: -0.8,
+        chin_height: -0.2,
+        chin_prominence: -0.2,
+        cheeks: -0.3,
+        cheekbones: -0.4,
+        cheek_fullness: 0.3,
+        cheek_hollows: -0.6,
+        forehead_height: 0.5,
+        head_height: 0.2,
+        head_width: 0.1,
+      },
+      limbs: { head: 1.1 },
+    },
+  ],
+];
+/** The face's fields a style sets (those it doesn't name go back to the face as made). */
+export const STYLE_FIELDS = [...FACE.map(([field]) => field), ...FACE_DETAIL.map(([field]) => field)];
+/** The fields a preset of `group` puts back to the face as made when it doesn't name them. */
+export const presetFields = (group) =>
+  group === "shape"
+    ? FACE_DETAIL.filter(([, , , , , , part]) => ["jaw", "cheeks", "head"].includes(part)).map(([field]) => field)
+    : FACE_DETAIL.filter(([, , , , , , part]) => part === group).map(([field]) => field);
 /** The anthro bodies' own sliders, the same way, and the card's section each is in. A body has those its
  *  model has the shape keys for (hasSlider). */
 export const ANTHRO_SHAPES = [
@@ -422,6 +711,9 @@ const KEY_PAIRS = {
   earSize: ["ears_small", "ears_tall"],
   horns: ["horns_small", "horns"],
   tailLength: ["tail_short", "tail_long"],
+  // (Eye size's smaller end came with the face in detail.)
+  eyes: ["eye_size.lo", "eyes"],
+  ...Object.fromEntries([...FACE_DETAIL, ...BODY_DETAIL].map(([field]) => [field, [`${field}.lo`, `${field}.hi`]])),
 };
 /** The keys `slider` drives on `sex`'s body: [below the middle (or null), above]. (Her chest key is "bust".) */
 export const sliderKeys = (slider, sex) =>
@@ -443,23 +735,18 @@ export const fromTrack = (at, [least, most]) => (at < 0 ? -at * least : at * mos
 /** Arm and leg length and head size: [field, label, least, most, what it changes, its ends]; 1, the middle,
  *  is the model's own. */
 export const LIMBS = [
-  ["arms", "Arm length", 0.85, 1.15, "Shorter or longer arms, no thicker.", ["Short", "Long"]],
-  [
-    "legs",
-    "Leg length",
-    0.85,
-    1.15,
-    "Shorter or longer legs, no thicker. Longer legs stand taller.",
-    ["Short", "Long"],
-  ],
-  ["head", "Head size", 0.9, 1.1, "A smaller or larger head (and its hair).", ["Small", "Large"]],
+  ["arms", "Arm length", 0.75, 1.2, "Shorter or longer arms, no thicker.", ["Short", "Long"]],
+  ["legs", "Leg length", 0.65, 1.2, "Shorter or longer legs, no thicker. Longer legs stand taller.", ["Short", "Long"]],
+  ["head", "Head size", 0.85, 1.45, "A smaller or larger head (and its hair).", ["Small", "Large"]],
 ];
 /**
  * Every slider at the model's own shape: where the player's own look starts, and what the Look card's
  * Reset goes back to. (Townsfolk start from their name instead, so a crowd differs: avatar.js avatarLook.)
  */
 export const NEUTRAL_LOOK = {
-  shape: Object.fromEntries([...SHAPES, ...FACE, ...ANTHRO_SHAPES].map(([key]) => [key, 0])),
+  shape: Object.fromEntries(
+    [...SHAPES, ...FACE, ...FACE_DETAIL, ...BODY_DETAIL, ...RACE_SHAPES, ...ANTHRO_SHAPES].map(([key]) => [key, 0]),
+  ),
   limbs: Object.fromEntries(LIMBS.map(([key]) => [key, 1])),
   height: 1,
 };

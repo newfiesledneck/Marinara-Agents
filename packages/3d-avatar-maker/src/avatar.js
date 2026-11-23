@@ -37,6 +37,9 @@ import {
   EYE_COLOURS,
   EYE_PICTURES,
   FACE,
+  FACE_DETAIL,
+  BODY_DETAIL,
+  RACE_SHAPES,
   FUR_COLOURS,
   HALF_ORC_SKINS,
   HORNS,
@@ -65,6 +68,7 @@ import {
   USUAL_HAIR_COLOURS,
 } from "./looks.js";
 import { geometryOf, load, rigOf, sexFor, skeletonFor, texture, view } from "./kitfiles.js";
+import { paintedSkin } from "./skin.js";
 import { hashString, rng } from "./util.js";
 
 /** The region of the body each bone's vertices are, for what an outfit piece `hides`. */
@@ -113,6 +117,7 @@ export const HIDE_WORDS = [...new Set(Object.values(REGION_OF)), "underwear", "u
  *  its claws and pads, which gloves would otherwise let through). */
 const COVERED = new Set([
   "skin",
+  "nails", // (the nails' own shells: under gloves and shoes with the fingertips and toes)
   "underwear",
   "underwear_trim",
   ...["fur", "fur2", "fur_tufts", "fur2_tufts", "nose", "claws", "scales", "scales2", "horns"],
@@ -253,6 +258,11 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
     tusks: race === "halforc" ? (sex === "male" ? oneOf(["tusks-01", "tusks-02"]) : "tusks-01") : BARE,
     horns: race === "tiefling" ? oneOf(HORNS.slice(1))[0] : BARE,
   };
+  // An older look that names a race but not its slider: the race folded in once, its sizes multiplying the
+  // look's own as they used to, so it opens as it was. (A race is otherwise only a preset: looks.js racePreset.)
+  const { key: legacyKey, weight: legacyWeight, ...legacySizes } = raceOf(race);
+  const legacy = !!legacyKey && chosen.shape?.[legacyKey] === undefined;
+  const sized = (field) => (legacy ? legacySizes[field] : 1);
   const raceSkin = { halforc: HALF_ORC_SKINS, tiefling: TIEFLING_SKINS }[race];
   const usualRaceSkin = raceSkin ? oneOf(raceSkin)[0] : undefined;
   const random = rng(hashString(`${name || "wanderer"}:avatar`));
@@ -276,9 +286,14 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
     shape[key] = chosen.shape?.[key] ?? Math.round(usual * 100) / 100;
   }
   const limbs = {};
-  for (const [key, , least, most] of LIMBS)
-    limbs[key] =
+  // (The face in detail is the face as made unless chosen: no roll, so a look keeps its face.)
+  for (const [key] of [...FACE_DETAIL, ...BODY_DETAIL]) shape[key] = chosen.shape?.[key] ?? 0;
+  for (const [key] of RACE_SHAPES) shape[key] = chosen.shape?.[key] ?? (legacy && key === legacyKey ? legacyWeight : 0);
+  for (const [key, , least, most] of LIMBS) {
+    const own =
       chosen.limbs?.[key] ?? Math.round(clamp(1 + around(key === "head" ? 0.02 : 0.03), least, most) * 1000) / 1000;
+    limbs[key] = clamp(own * sized(key), least, most);
+  }
   const usualHeight = 0.94 + random() * 0.12;
   const usualSkin = Math.floor(random() * SKIN_TONES.length);
   const usualEyes = EYE_COLOURS[Math.floor(random() * 7)][0];
@@ -374,7 +389,7 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
     gender: own,
     shape,
     limbs,
-    height: clamp(chosen.height ?? usualHeight, HEIGHTS[0], HEIGHTS[1]),
+    height: clamp((chosen.height ?? usualHeight) * sized("height"), HEIGHTS[0], HEIGHTS[1]),
     colours,
     hair: anthro ? BARE : HAIRSTYLES.some(([style]) => style === chosen.hair) ? chosen.hair : usualHair,
     hairColour,
@@ -408,7 +423,7 @@ export function keyWeights(look, sex, keys, flat = false) {
     ruff_flat: flat ? 1 : 0,
     collar_fit: flat ? 1 : 0, // (a dragon's deep neck, brought in to a person's where a collar goes round it)
   };
-  for (const entry of [...SHAPES, ...FACE, ...ANTHRO_SHAPES]) {
+  for (const entry of [...SHAPES, ...FACE, ...FACE_DETAIL, ...BODY_DETAIL, ...RACE_SHAPES, ...ANTHRO_SHAPES]) {
     const [slider] = entry;
     const [low, high] = sliderKeys(slider, sex);
     const [least, most] = sliderRange(entry, keys);
@@ -420,8 +435,6 @@ export function keyWeights(look, sex, keys, flat = false) {
     } else weights[high] = value;
   }
   // A race's own key (a half-elf's is the elf's, half as far).
-  const { key: raceKey, weight: raceWeight } = raceOf(look.race);
-  if (raceKey) weights[raceKey] = raceWeight;
   // (Only the keys the body has: a human piece on an anthro body follows the ones they share.)
   for (const key of Object.keys(weights)) if (!keys.includes(key)) delete weights[key];
   return weights;
@@ -1022,17 +1035,24 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   moved = moveJoints(root, bones, kit.file.jointMoves, weights);
   // A race: its key on the skin, carried onto the underwear worn (and, below, the hair and clothes), and its
   // sizes: the legs, arms and head with the look's own, and the whole figure.
-  const race = { ...raceOf(filled.race), ...SPECIES_SIZES[filled.species] };
-  const raceKey = weights[race.key] ? race.key : "";
-  if (raceKey)
+  // (A race is its sliders now; only an anthro kind still brings sizes of its own.)
+  const race = { height: 1, legs: 1, arms: 1, head: 1, ...SPECIES_SIZES[filled.species] };
+  const isRace = (key) => key.startsWith("race_");
+  // Keys the body's own pieces don't carry, worked out from the skin the first time a worn piece needs one:
+  // a race's onto the underwear, and the face and body in detail (`<slider>.lo`, `.hi`) onto the underwear,
+  // brows, lashes, facial hair, horns, tusks and tail (the model leaves them out of those, to stay small).
+  for (const [key, weight] of Object.entries(weights)) {
+    if (!weight || !(isRace(key) || key.includes(".")) || !kit.morphs[key]) continue;
     for (const mesh of kit.meshes) {
-      if (!/^underwear/u.test(mesh.piece ?? "") || mesh.morphs?.[raceKey] || !isWorn(mesh, filled, sex)) continue;
+      if (!mesh.piece || mesh.morphs?.[key] || !isWorn(mesh, filled, sex)) continue;
+      if (isRace(key) && !/^underwear/u.test(mesh.piece)) continue; // (the face's pieces have the races' keys)
       mesh.carried ??= new Set();
-      if (mesh.carried.has(raceKey)) continue;
-      mesh.carried.add(raceKey);
+      if (mesh.carried.has(key)) continue;
+      mesh.carried.add(key);
       const own = kit.position.subarray(mesh.start * 3, (mesh.start + mesh.count) * 3);
-      (kit.morphs[raceKey] ??= []).push(carried(kit, raceKey, own, (mesh.near ??= nearestSkin(kit, own)), mesh.start));
+      kit.morphs[key].push(carried(kit, key, own, (mesh.near ??= nearestSkin(kit, own)), mesh.start));
     }
+  }
 
   // Arm and leg length: each bone of the limb stretched along itself in its own space (its inverse bind
   // matrix), and the next one moved out to match, so the limb grows longer, not thicker, and the hands and
@@ -1097,33 +1117,50 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   }
   const textureOfPart = (part) => kit.meshes.find((mesh) => mesh.part === part)?.texture;
   const swapped = new Map();
-  if (filled.skin !== "custom")
-    swapped.set(textureOfPart("skin"), texture(`avatar-${sex}-skin-${filled.age}-${filled.skin}`));
+  const skinPicture = filled.skin !== "custom" ? `avatar-${sex}-skin-${filled.age}-${filled.skin}` : null;
+  if (skinPicture) swapped.set(textureOfPart("skin"), texture(skinPicture));
   if (filled.eyePicture !== TINT) swapped.set(textureOfPart("iris"), texture("avatar-eyes"));
   const anthro = filled.species !== "human";
+  // The skin and lips share one picture: painted for this avatar (skin.js) with its skin colour and its
+  // lips coloured through the body's mask, so their edge is clean. Where it can't be painted (no canvas,
+  // as in Node, or no mask for the body), they're coloured by vertex as before. (The nails are shells of
+  // their own, coloured by vertex.)
+  const painted =
+    anthro || !kit.file.keys
+      ? null
+      : await paintedSkin({
+          sex,
+          base: skinPicture ?? textureOfPart("skin"),
+          skin: filled.skin === "custom" ? filled.colours.skin : WHITE,
+          lips: filled.colours.lips,
+        }).catch(() => null);
+  if (painted) swapped.set(textureOfPart("skin"), painted);
+  const paintedParts = new Set(painted ? ["skin", "lips"] : []);
   // (An anthro body's parts are its own: fur and its tufts, scales, horns…; what isn't here stays as made.)
   const colourOf = (part) =>
-    ({
-      skin: filled.skin === "custom" ? filled.colours.skin : WHITE,
-      underwear: filled.colours.underwear,
-      underwear_trim: mixHex(filled.colours.underwear, 0x000000, 0.3),
-      iris: filled.eyePicture === TINT ? filled.colours.eyes : WHITE,
-      eyes: filled.colours.eyes,
-      eyebrows: filled.colours.brows,
-      eyelashes: anthro ? undefined : mixHex(filled.colours.brows, 0x000000, 0.5),
-      lips: filled.colours.lips,
-      nails: filled.colours.nails,
-      fur: filled.colours.fur,
-      fur_tufts: filled.colours.fur,
-      fur2: filled.colours.fur2,
-      fur2_tufts: filled.colours.fur2,
-      nose: filled.colours.nose,
-      claws: filled.colours.claws ?? filled.colours.horns, // (a dragon's are its horns' colour)
-      scales: filled.colours.scales,
-      scales2: filled.colours.scales2,
-      horns: filled.colours.horns,
-      hair: filled.hairColour, // (facial hair)
-    })[part];
+    paintedParts.has(part)
+      ? WHITE
+      : {
+          skin: filled.skin === "custom" ? filled.colours.skin : WHITE,
+          underwear: filled.colours.underwear,
+          underwear_trim: mixHex(filled.colours.underwear, 0x000000, 0.3),
+          iris: filled.eyePicture === TINT ? filled.colours.eyes : WHITE,
+          eyes: filled.colours.eyes,
+          eyebrows: filled.colours.brows,
+          eyelashes: anthro ? undefined : mixHex(filled.colours.brows, 0x000000, 0.5),
+          lips: filled.colours.lips,
+          nails: filled.colours.nails,
+          fur: filled.colours.fur,
+          fur_tufts: filled.colours.fur,
+          fur2: filled.colours.fur2,
+          fur2_tufts: filled.colours.fur2,
+          nose: filled.colours.nose,
+          claws: filled.colours.claws ?? filled.colours.horns, // (a dragon's are its horns' colour)
+          scales: filled.colours.scales,
+          scales2: filled.colours.scales2,
+          horns: filled.colours.horns,
+          hair: filled.hairColour, // (facial hair)
+        }[part];
   const colour = new Uint16Array(position.length);
   const tint = new Color();
   for (const mesh of kit.meshes) {
@@ -1186,10 +1223,13 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     for (const made of partMeshes(key, part, SMALL_SLOTS.has(slot))) {
       const { mesh, geometry: shared, morphs, colours } = made;
       // (A race's build, carried onto the piece from the skin the first time one of that race wears it.)
-      if (raceKey && !morphs[raceKey]) {
-        const own = shared.attributes.position.array;
-        morphs[raceKey] = [carried(kit, raceKey, own, (made.near ??= nearestSkin(kit, own)))];
-      }
+      // (The face in detail, the same way: hair, hats and collars follow a wider head, a longer neck or a
+      // higher forehead. Each key is carried the first time it's used on the piece, and kept.)
+      for (const [name, weight] of Object.entries(weights))
+        if (weight && (name.includes(".") || isRace(name)) && !morphs[name] && kit.morphs[name]) {
+          const own = shared.attributes.position.array;
+          morphs[name] = [carried(kit, name, own, (made.near ??= nearestSkin(kit, own)))];
+        }
       let geometry = shared;
       let colour = null;
       if (mesh.partOf) {

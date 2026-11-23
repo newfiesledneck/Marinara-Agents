@@ -1,5 +1,13 @@
 # 3D Avatar Maker release notes
 
+## 0.1.01 — 2026-11-23
+
+- Nails are now a part of their own on every finger and toe, so a nail colour has a clean edge.
+- 46 new face sliders in eight groups (eyes, brows, nose, mouth, jaw and chin, cheeks, ears, head), with ready-made shapes for each, such as hooded eyes, a Roman nose or an underbite.
+- 15 new body sliders for the arms, legs, torso and hips, and her bust.
+- Races are presets on the same body: choosing one sets race sliders you can mix and adjust, plus height and limbs. Horns, tusks, a tail and beards are accessories anyone can wear.
+- A first Anime proportions style, and clean-edged lip colour.
+
 ## 0.1.00 — 2026-11-22
 
 - First version: a Home tab where you build a 3D avatar for a character or persona and save it as a GLB file for the 3D Avatars agent.

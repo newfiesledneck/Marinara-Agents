@@ -43,13 +43,24 @@ executable (Blender 5.3 is what the scripts were written with) and keep that pat
 
 ```bash
 "$BLENDER" --background --factory-startup --python packages/3d-avatar-maker/assets/scripts/make_avatar.py
+node scripts/build-3d-avatar-maker-kit.mjs
+node scripts/build-3d-avatar-maker-masks.mjs
 ```
 
-The scripts and the packer were copied from Wanderworld and still carry its paths in places: the body
-script reads MakeHuman's data from the user's asset folder, and the packer is still Wanderworld's
-`scripts/build-wanderworld-people.mjs --avatar`. Give this package its own packer (reading and writing
-only under `packages/3d-avatar-maker/`) before the first model change, so packing never touches
-Wanderworld's kit.
+The first writes the models into `assets/models/`; the second packs them into `kit/avatar` and
+`kit/wardrobe` (ffmpeg on `PATH`, or `FFMPEG`); the third makes each body's paint masks
+(`kit/avatar/avatar-<sex>-masks.png`: where the nails and lips are in the skin picture, so `src/skin.js`
+colours them with a clean edge). Run the third whenever a body is repacked. The packer reads and writes only under
+`packages/3d-avatar-maker/`. The body script reads MakeHuman's data from the user's asset folder
+(`MAKEHUMAN_DATA` and `MAKEHUMAN_ASSETS`, else `_planning/Wanderworld asset packs/MakeHuman`).
+
+The face and body sliders are pairs of shape keys, `<slider>.lo` and `<slider>.hi` (`FACE_DETAIL`,
+`BODY_DETAIL`, `BREAST_DETAIL` in `make_avatar.py`, the same names in `src/looks.js`). Only the skin and eyes
+carry them in the model; the pieces beside the body (brows, lashes, beards, underwear, horns, tail) and the
+hair and clothes get them at run time from the skin (`src/avatar.js` `carried`). Giving every piece every key
+took the model file past 85 MB; keep model files well under GitHub's 100 MB limit. Run the body script one
+body per Blender process (`-- male`, then `-- female`): a second body in the same process once failed to
+overwrite an eye picture the first had just written.
 
 Judge model work against the avatar's bar: it is what the user looks at all the time, so check renders up
 close, in the maker's own view and on the check page, not only in Blender.

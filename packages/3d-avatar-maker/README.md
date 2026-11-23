@@ -26,10 +26,10 @@ file you save, and you import that file yourself.
 
 | Tab | Choices |
 | --- | --- |
-| Start | A ready-made look to begin from, or a new male or female avatar |
-| Body | Body, race (human, dwarf, halfling, gnome, elf, half-elf, half-orc, tiefling), age, height, eight build sliders, arm and leg length, head size |
-| Face | Jaw, cheekbones, nose, eyes, pointed ears; brow and lash style; beards, tusks, horns, a tail |
-| Skin and eyes | Nine skin pictures (three by three ages) or a colour of your own; pictured or coloured eyes; lips and nails |
+| Start | A ready-made look to begin from, a new male or female avatar, or a style (semi-real, or anime proportions) |
+| Body | Body, age, height; a race preset (human, dwarf, halfling, gnome, elf, half-elf, half-orc, tiefling) and six race sliders to mix; eight build sliders; arms, legs, torso and hips, and her bust in detail; arm and leg length, head size |
+| Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (46 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: beards, tusks, horns, a tail |
+| Skin and eyes | Nine skin pictures (three by three ages) or a colour of your own; pictured or coloured eyes; lip and nail colours |
 | Hair | 14 styles in any colour |
 | Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour |
 
