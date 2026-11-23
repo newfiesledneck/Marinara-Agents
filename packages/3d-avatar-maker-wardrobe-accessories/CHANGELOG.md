@@ -1,5 +1,11 @@
 # 3D Avatar Maker: Accessories release notes
 
+## 0.2.01 — 2026-11-23
+
+- 50 new pieces for the slots 3D Avatar Maker 0.1.10 added. Jewellery: four bracelets and bangles, five anklets, four necklaces and a spiked collar, three pairs of earrings, ear and face piercings, and four for the belly. Six kinds of horns and antlers, seven pairs of wings and two tails. Things to hold or carry: a sword, a microphone, a tennis racket, a shopping bag, a shoulder bag, a sling purse and an electric guitar. Also a headset, a head mirror, a stethoscope and two tactical vests.
+- Horns, wings, tails, held things, earrings and the solid bracelets and anklets are fixed to one bone, so they keep their shape as the avatar moves.
+- The pack now needs 3D Avatar Maker 0.1.10 or later.
+
 ## 0.2.00 — 2026-11-23
 
 - The hats, hoods, veil, headband, top hat, pith helmet and brass circlet from the retired Historical and Fantasy and Modern Casual packs are here now, with the same names, so saved avatars still find them. Clothes went to the new 3D Avatar Maker: Clothes pack.

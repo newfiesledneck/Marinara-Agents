@@ -34,7 +34,7 @@ file you save, and you import that file yourself.
 | Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (66 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: beards, tusks, horns, a tail |
 | Skin and eyes | 30 skin pictures (MakeHuman's nine in three ages, and 21 more) or a colour of your own; 24 pictured eyes or a colour; nail length and toenails; lip and nail colours |
 | Hair | 14 styles in any colour, and any styles a wardrobe pack adds. Long, ponytail, braid, bob and angled bob swing as the avatar moves, and so do a pack's long styles |
-| Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus what any wardrobe packs you install add. Glasses, a face mask, earrings, rings and socks have places of their own, which the Accessories pack fills. Horns or antlers, a necklace, the wrists, the belly, the ankles, a tail, the back (wings, a backpack), the hip and each hand have places of their own too, for packs to fill. Something held in a hand and horns are fixed to the hand or head, so they move with it and never bend |
+| Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus what any wardrobe packs you install add. Glasses, a face mask, earrings, rings and socks have places of their own, which the Accessories pack fills. Horns or antlers, a necklace, the wrists, the belly, the ankles, a tail, the back (wings, a guitar on its strap), the hip and each hand have places of their own too, which the Accessories pack fills as well. Something held in a hand and horns are fixed to the hand or head, so they move with it and never bend |
 
 Every slider's middle is the body's own shape, and each control says what it changes.
 
@@ -42,7 +42,8 @@ Every slider's middle is the body's own shape, and each control says what it cha
 
 More clothes come as two separate packages you install from the catalog: 3D Avatar Maker: Clothes (178
 garments: dresses, suits, tops, trousers, skirts, underwear, swimwear and shoes) and 3D Avatar Maker:
-Accessories (45 hats, helmets, glasses, masks, earrings, rings, gloves and socks). Both are mostly CC BY. They
+Accessories (95 pieces: hats, helmets, glasses, masks, jewellery, gloves and socks, horns, wings, tails and
+things to hold or carry). Both are mostly CC BY. They
 replace the earlier Everyday Women's, Everyday Men's, Historical and Fantasy, and Modern Casual packs, keeping
 every piece's name, so a saved avatar still finds its clothes. The maker finds the installed packs when it opens (reload it after
 installing one) and lists their clothes in the Clothes tab, each with a line saying which pack it's from and

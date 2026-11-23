@@ -2,7 +2,7 @@
  "format": 1,
  "for": "3d-avatar-maker",
  "body": 1,
- "maker": "0.1.04",
+ "maker": "0.1.10",
  "name": "Accessories",
  "pieces": {
   "aethelraed_unraed_cloche_hat": {
@@ -133,6 +133,160 @@
    "source": "http://www.makehumancommunity.org/node/415",
    "credit": "\"drednicolson_pith_helmet\" by DredNicolson (http://www.makehumancommunity.org/node/415), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "elvs_bangle_bracelet1": {
+   "label": "Gold bangle",
+   "slot": "wrists",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1432",
+   "credit": "\"elvs_bangle_bracelet1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1432), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "lowerarm_r"
+  },
+  "elvs_bracelet_pearls_l1": {
+   "label": "Pearl bracelet",
+   "slot": "wrists",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "gem",
+      15987699
+     ]
+    ],
+    "female": [
+     [
+      "gem",
+      15987699
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1437",
+   "credit": "\"elvs_bracelet_pearls-l1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1437), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "lowerarm_l"
+  },
+  "elvs_braided_anklet1": {
+   "label": "Braided anklet",
+   "slot": "ankles",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cord",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "cord",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2586",
+   "credit": "\"elvs_braided_anklet1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2586), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "calf_l"
+  },
+  "elvs_candy_cane_necklace": {
+   "label": "Candy cane necklace",
+   "slot": "necklace",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "gem",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "gem",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1244",
+   "credit": "\"elvs_candy_cane_necklace\" by Elvaerwyn (http://www.makehumancommunity.org/node/1244), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_cat_tail_as_clothes_1": {
+   "label": "Cat tail",
+   "slot": "tail",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "fur",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "fur",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/extras.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1269",
+   "credit": "\"elvs_cat_tail_as_clothes_1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1269), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "pelvis"
+  },
   "elvs_charity_veil1": {
    "label": "Veil",
    "slot": "head",
@@ -157,6 +311,99 @@
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/2610",
    "credit": "\"elvs_charity_veil1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2610), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_childrens_costume_wings1": {
+   "label": "Costume wings",
+   "slot": "on_back",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1468",
+   "credit": "\"elvs_childrens_costume_wings1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1468), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "spine_03"
+  },
+  "elvs_chunky_chain_anklet": {
+   "label": "Chunky chain anklet",
+   "slot": "ankles",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2585",
+   "credit": "\"elvs_chunky_chain_anklet\" by Elvaerwyn (http://www.makehumancommunity.org/node/2585), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "calf_l"
+  },
+  "elvs_circle_chain_anklet1": {
+   "label": "Circle chain anklet",
+   "slot": "ankles",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2587",
+   "credit": "\"elvs_circle_chain_anklet1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2587), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "calf_l"
   },
   "elvs_covid_goggles1": {
    "label": "Safety glasses",
@@ -218,6 +465,36 @@
    "source": "http://www.makehumancommunity.org/node/2523",
    "credit": "\"elvs_covid_mask\" by Elvaerwyn (http://www.makehumancommunity.org/node/2523), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "elvs_deer_antlers_1": {
+   "label": "Deer antlers",
+   "slot": "horns",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "plate",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "plate",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/extras.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2376",
+   "credit": "\"elvs_deer_antlers_1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2376), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
   "elvs_dirty_lil_maid_bonnet": {
    "label": "Maid's frilled headband",
    "slot": "head",
@@ -240,6 +517,342 @@
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/1575",
    "credit": "\"elvs_dirty_lil_maid_bonnet\" by Elvaerwyn (http://www.makehumancommunity.org/node/1575), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_double_hoops": {
+   "label": "Double hoops",
+   "slot": "ears",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1460",
+   "credit": "\"elvs_double_hoops\" by Elvaerwyn (http://www.makehumancommunity.org/node/1460), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "Head"
+  },
+  "elvs_dual_fanned_wings_collaberation": {
+   "label": "Fanned feather wings",
+   "slot": "on_back",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1514",
+   "credit": "\"elvs_dual_fanned_wings_collaberation\" by Elvaerwyn (http://www.makehumancommunity.org/node/1514), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "spine_03"
+  },
+  "elvs_f_earring_array1_l": {
+   "label": "Ear piercings, left ear",
+   "slot": "ears",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1476",
+   "credit": "\"elvs_f_earring_array1_l\" by Elvaerwyn (http://www.makehumancommunity.org/node/1476), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "Head"
+  },
+  "elvs_fluffy_tail_as_clothes_1": {
+   "label": "Fluffy tail",
+   "slot": "tail",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "fur",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "fur",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/extras.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1193",
+   "credit": "\"elvs_fluffy_tail_as_clothes_1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1193), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "pelvis"
+  },
+  "elvs_gazelle_horns_1": {
+   "label": "Gazelle horns",
+   "slot": "horns",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "plate",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "plate",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/extras.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2388",
+   "credit": "\"elvs_gazelle_horns_1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2388), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_gazelle_horns_2": {
+   "label": "Gazelle horns, swept back",
+   "slot": "horns",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "plate",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "plate",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/extras.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2389",
+   "credit": "\"elvs_gazelle_horns_2\" by Elvaerwyn (http://www.makehumancommunity.org/node/2389), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_goth_statement_necklace1": {
+   "label": "Gothic statement necklace",
+   "slot": "necklace",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1918",
+   "credit": "\"elvs_goth_statement_necklace1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1918), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_heart_belly_jewel": {
+   "label": "Heart belly jewel",
+   "slot": "belly",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "gem",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "gem",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1271",
+   "credit": "\"elvs_heart_belly_jewel\" by Elvaerwyn (http://www.makehumancommunity.org/node/1271), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_interlocking_rings_anklet1": {
+   "label": "Interlocking rings anklet",
+   "slot": "ankles",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2588",
+   "credit": "\"elvs_interlocking_rings_anklet1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2588), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "calf_l"
+  },
+  "elvs_longhorn_steer_horns_1": {
+   "label": "Longhorn steer horns",
+   "slot": "horns",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "plate",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "plate",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/extras.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2379",
+   "credit": "\"elvs_longhorn_steer_horns_1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2379), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_m_facial_jewel_array1": {
+   "label": "Face piercings",
+   "slot": "brow",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1477",
+   "credit": "\"elvs_m_facial_jewel_array1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1477), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "Head"
   },
   "elvs_male_flat_cap1": {
    "label": "Flat cap",
@@ -273,6 +886,128 @@
    "source": "http://www.makehumancommunity.org/node/1814",
    "credit": "\"elvs_male_flat_cap1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1814), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "elvs_moose_antlers_1": {
+   "label": "Moose antlers",
+   "slot": "horns",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "plate",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "plate",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/extras.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2375",
+   "credit": "\"elvs_moose_antlers_1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2375), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_multi_bangle_bracelet1": {
+   "label": "Stacked bangles",
+   "slot": "wrists",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1433",
+   "credit": "\"elvs_multi_bangle_bracelet1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1433), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "lowerarm_l"
+  },
+  "elvs_navel_ring_heartfob": {
+   "label": "Navel ring with a heart",
+   "slot": "belly",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1268",
+   "credit": "\"elvs_navel_ring_heartfob\" by Elvaerwyn (http://www.makehumancommunity.org/node/1268), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_pearl_anklet_1": {
+   "label": "Pearl anklet",
+   "slot": "ankles",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "gem",
+      15789282
+     ]
+    ],
+    "female": [
+     [
+      "gem",
+      15789282
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2589",
+   "credit": "\"elvs_pearl_anklet_1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2589), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "calf_l"
+  },
   "elvs_santa_hat": {
    "label": "Santa hat",
    "slot": "head",
@@ -304,6 +1039,36 @@
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/1273",
    "credit": "\"elvs_santa_hat\" by Elvaerwyn (http://www.makehumancommunity.org/node/1273), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_sling_purse1": {
+   "label": "Sling purse",
+   "slot": "hip",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "leather",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "leather",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1459",
+   "credit": "\"elvs_sling_purse1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1459), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
   "elvs_slouchy_beanie1": {
    "label": "Slouchy beanie",
@@ -337,6 +1102,191 @@
    "source": "http://www.makehumancommunity.org/node/2088",
    "credit": "\"elvs_slouchy_beanie1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2088), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "elvs_stars_belly_circlet": {
+   "label": "Star ring round the navel",
+   "slot": "belly",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1272",
+   "credit": "\"elvs_stars_belly_circlet\" by Elvaerwyn (http://www.makehumancommunity.org/node/1272), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_static_wings1_dragonfly": {
+   "label": "Dragonfly wings",
+   "slot": "on_back",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1489",
+   "credit": "\"elvs_static_wings1_dragonfly\" by Elvaerwyn (http://www.makehumancommunity.org/node/1489), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "spine_03"
+  },
+  "elvs_static_wings2_dragon1": {
+   "label": "Dragon wings",
+   "slot": "on_back",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "leather",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "leather",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1490",
+   "credit": "\"elvs_static_wings2_dragon1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1490), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "spine_03"
+  },
+  "elvs_static_wings3_butterfly1": {
+   "label": "Butterfly wings",
+   "slot": "on_back",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1491",
+   "credit": "\"elvs_static_wings3_butterfly1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1491), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "spine_03"
+  },
+  "elvs_static_wings4_bone_wings1": {
+   "label": "Bone wings",
+   "slot": "on_back",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "plate",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "plate",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1493",
+   "credit": "\"elvs_static_wings4_bone_wings1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1493), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "spine_03"
+  },
+  "elvs_static_wings5_fairy_moth1": {
+   "label": "Moth wings",
+   "slot": "on_back",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1628",
+   "credit": "\"elvs_static_wings5_fairy_moth1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1628), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "spine_03"
+  },
   "elvs_tophat1": {
    "label": "Top hat",
    "slot": "head",
@@ -368,6 +1318,67 @@
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/1360",
    "credit": "\"elvs_tophat1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1360), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_twisty_hoops1": {
+   "label": "Twisted hoops",
+   "slot": "ears",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      15987699
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      15987699
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1442",
+   "credit": "\"elvs_twisty_hoops1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1442), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "Head"
+  },
+  "elvs_unicorn_horn_1": {
+   "label": "Unicorn horn",
+   "slot": "horns",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "plate",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "plate",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/extras.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2385",
+   "credit": "\"elvs_unicorn_horn_1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2385), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
   "elvs_unisex_chef_hat_1": {
    "label": "Chef's hat",
@@ -525,6 +1536,36 @@
    "licence": "CC0-1.0",
    "author": "Joel Palmius",
    "source": "http://www.makehumancommunity.org/node/32",
+   "credit": null
+  },
+  "joepal_crude_sword": {
+   "label": "Sword",
+   "slot": "hand_right",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Joel Palmius",
+   "source": "http://www.makehumancommunity.org/node/428",
    "credit": null
   },
   "joepal_medical_mouth_protection": {
@@ -749,6 +1790,52 @@
    "source": "http://www.makehumancommunity.org/node/3172",
    "credit": "\"mindfront_sherpa_hat\" by Mindfront (http://www.makehumancommunity.org/node/3172), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "mindfront_tactical_vest_female": {
+   "label": "Tactical vest",
+   "slot": "armour",
+   "bodies": [
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/armour.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Mindfront",
+   "source": "http://www.makehumancommunity.org/node/847",
+   "credit": "\"mindfront_tactical_vest_female\" by Mindfront (http://www.makehumancommunity.org/node/847), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "mindfront_tactical_vest_male": {
+   "label": "Tactical vest",
+   "slot": "armour",
+   "bodies": [
+    "male"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/armour.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Mindfront",
+   "source": "http://www.makehumancommunity.org/node/848",
+   "credit": "\"mindfront_tactical_vest_male\" by Mindfront (http://www.makehumancommunity.org/node/848), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
   "punkduck_bicycle_helmet_time_trial_aero_helmet": {
    "label": "Aero cycling helmet",
    "slot": "head",
@@ -781,6 +1868,37 @@
    "source": "http://www.makehumancommunity.org/node/670",
    "credit": "\"punkduck_bicycle_helmet_time_trial_aero_helmet\" by punkduck (http://www.makehumancommunity.org/node/670), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "punkduck_bracelet_infinity_love": {
+   "label": "Infinity bracelet",
+   "slot": "wrists",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16769968
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16769968
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/1440",
+   "credit": "\"punkduck_bracelet_infinity_love\" by punkduck (http://www.makehumancommunity.org/node/1440), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "lowerarm_l"
+  },
   "punkduck_brass_circlet_crown": {
    "label": "Brass circlet",
    "slot": "brow",
@@ -810,6 +1928,37 @@
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/1383",
    "credit": "\"punkduck_brass_circlet_crown\" by punkduck (http://www.makehumancommunity.org/node/1383), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_electric_guitar": {
+   "label": "Electric guitar",
+   "slot": "on_back",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "frame",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "frame",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/525",
+   "credit": "\"punkduck_electric_guitar\" by punkduck (http://www.makehumancommunity.org/node/525), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "spine_02"
   },
   "punkduck_french_lingerie_stockings": {
    "label": "Lace-top stockings",
@@ -867,6 +2016,158 @@
    "source": "http://www.makehumancommunity.org/node/664",
    "credit": "\"punkduck_goggles\" by punkduck (http://www.makehumancommunity.org/node/664), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "punkduck_handbag01": {
+   "label": "Shoulder bag",
+   "slot": "hip",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "leather",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "leather",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/959",
+   "credit": "\"punkduck_handbag01\" by punkduck (http://www.makehumancommunity.org/node/959), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_head_mirror": {
+   "label": "Head mirror",
+   "slot": "brow",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/2035",
+   "credit": "\"punkduck_head_mirror\" by punkduck (http://www.makehumancommunity.org/node/2035), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "Head"
+  },
+  "punkduck_microphone": {
+   "label": "Microphone",
+   "slot": "hand_right",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/972",
+   "credit": "\"punkduck_microphone\" by punkduck (http://www.makehumancommunity.org/node/972), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_necklace_native_american_fashion": {
+   "label": "Beaded necklace",
+   "slot": "necklace",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "gem",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "gem",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/924",
+   "credit": "\"punkduck_necklace_native_american_fashion_\" by punkduck (http://www.makehumancommunity.org/node/924), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_pearl_chain_earrings": {
+   "label": "Pearl drop earrings",
+   "slot": "ears",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "gem",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "gem",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/1314",
+   "credit": "\"punkduck_pearl-chain_earrings\" by punkduck (http://www.makehumancommunity.org/node/1314), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "Head"
+  },
   "punkduck_riding_helmet": {
    "label": "Riding helmet",
    "slot": "head",
@@ -899,6 +2200,66 @@
    "source": "http://www.makehumancommunity.org/node/1567",
    "credit": "\"punkduck_riding_helmet\" by punkduck (http://www.makehumancommunity.org/node/1567), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "punkduck_shopping_bag01": {
+   "label": "Shopping bag",
+   "slot": "hand_left",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/967",
+   "credit": "\"punkduck_shopping_bag01\" by punkduck (http://www.makehumancommunity.org/node/967), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_spike_collar": {
+   "label": "Spiked collar",
+   "slot": "necklace",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "leather",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "leather",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/971",
+   "credit": "\"punkduck_spike_collar\" by punkduck (http://www.makehumancommunity.org/node/971), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
   "punkduck_sport_sunglasses": {
    "label": "Sports sunglasses",
    "slot": "face",
@@ -928,6 +2289,36 @@
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/695",
    "credit": "\"punkduck_sport-sunglasses\" by punkduck (http://www.makehumancommunity.org/node/695), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_stethoscope": {
+   "label": "Stethoscope",
+   "slot": "necklace",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cord",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "cord",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/2036",
+   "credit": "\"punkduck_stethoscope\" by punkduck (http://www.makehumancommunity.org/node/2036), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
   "punkduck_sun_visor_sports_visor": {
    "label": "Sun visor",
@@ -990,6 +2381,97 @@
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/663",
    "credit": "\"punkduck_swim_cap\" by punkduck (http://www.makehumancommunity.org/node/663), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_tennis_racket": {
+   "label": "Tennis racket",
+   "slot": "hand_right",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "frame",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "frame",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/objects.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/750",
+   "credit": "\"punkduck_tennis_racket\" by punkduck (http://www.makehumancommunity.org/node/750), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_twisted_pearl_necklace": {
+   "label": "Twisted pearl necklace",
+   "slot": "necklace",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "gem",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "gem",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/1316",
+   "credit": "\"punkduck_twisted_pearl_necklace\" by punkduck (http://www.makehumancommunity.org/node/1316), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_wireless_headset": {
+   "label": "Headset",
+   "slot": "ears",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "frame",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "frame",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/1428",
+   "credit": "\"punkduck_wireless_headset\" by punkduck (http://www.makehumancommunity.org/node/1428), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "bone": "Head"
   },
   "spamrakuen_sagerfrogs_glasses_01": {
    "label": "Glasses, rectangular",
@@ -1361,6 +2843,36 @@
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1070",
    "credit": null
+  },
+  "wojackowl_belly_piercing": {
+   "label": "Belly piercing",
+   "slot": "belly",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "WojackOWL",
+   "source": "http://www.makehumancommunity.org/node/3470",
+   "credit": "\"wojackowl_belly_piercing\" by WojackOWL (http://www.makehumancommunity.org/node/3470), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
   "wolgade_diamond_ring_01": {
    "label": "Diamond ring",

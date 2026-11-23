@@ -1176,7 +1176,7 @@ export const UNDERWEAR_BOTTOMS = [
  */
 export const CLOTH_SLOTS = [
   ["head", "Head", "A hood, a helm or a hat. Most hide the hair.", "head"],
-  ["brow", "Brow", "A circlet on the brow.", "head"],
+  ["brow", "Brow", "A circlet or band on the brow, or piercings in the face.", "head"],
   [
     "horns",
     "Horns or antlers",
@@ -1190,7 +1190,7 @@ export const CLOTH_SLOTS = [
   ["neck", "Neck", "A scarf.", "accessories"],
   ["necklace", "Necklace", "A necklace, a chain or a collar. A scarf hides it.", "accessories"],
   ["back", "Cloak or coat", "Worn over everything else.", "body"],
-  ["on_back", "On the back", "Wings, a backpack, or a guitar slung across the back.", "objects"],
+  ["on_back", "On the back", "Wings, a backpack, or a guitar on its strap.", "objects"],
   ["body", "Whole outfit", "A dress, gown, robe or one-piece: top and legs in one.", "body"],
   ["top", "Shirt or top", "Next to the skin, under everything else.", "tops"],
   ["over", "Over the shirt", "A tunic, vest, corset, padded gambeson or jacket.", "tops"],

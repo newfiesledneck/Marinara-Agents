@@ -282,6 +282,36 @@ No item is fitted yet; the packs that fill these slots come next.
   judged; `docs/MAKEHUMAN-PACKS.md` "The merge pass" lists each one kept and each one left out, and why.
 - Later passes add hair styles, body parts and held objects to the Accessories pack.
 
+## Accessories 0.2.01: jewellery, horns, wings and things to hold (packs; two lines of the maker's text)
+
+- **50 new pieces** in `3d-avatar-maker-wardrobe-accessories` (95 in all, 37.7 MiB). They fill the slots 0.1.10
+  added, so the pack now needs maker 0.1.10. `docs/MAKEHUMAN-PACKS.md` "Jewellery, body parts and objects" lists
+  each item kept and each left out, and why.
+  - **Jewellery:** four bracelets and five anklets fixed to the forearm or calf they were made on, four
+    necklaces and a spiked collar that bend with the neck, three pairs of earrings, piercings in the left ear,
+    piercings in the face (in the Brow slot), and four pieces for the belly.
+  - **Body parts:** six horns and antlers, seven pairs of wings fixed to the upper back, two tails fixed to
+    the hips.
+  - **Things:** a sword, a microphone and a tennis racket in the right hand, a shopping bag in the left; a
+    shoulder bag and a sling purse at the hip; an electric guitar on its strap in front, fixed to the middle of
+    the back; a headset in the Earrings slot, a head mirror in Brow, a stethoscope in Necklace, and a tactical
+    vest for each body in Body armour.
+- **Thinning** (`make_mh_packs.py` `decimate`): a piece modelled far finer than needed is fitted whole and
+  then thinned to a share of its faces. Each point left takes the shape keys and weights of the fitted point
+  nearest it. The bangle went from 18.7k vertices to 3.9k, the ear piercings from 61k, and wings, the purse and
+  the vests by half. A piece with no picture of its own can be `tex: plain` in its own `colour`.
+- **The maker's text:** the Brow slot now says it takes a band or face piercings, and On the back says a guitar
+  on its strap. Both wait for the maker's next release.
+- **Left out:** the scuba rig (its `.mhclo` says CC BY-NC-SA), the Care Bears gemstone and the MakeHuman medal
+  (named for a brand), the chunky heart chain (23k vertices even thinned), the scruffy beard (a beard belongs on
+  the Face tab) and two sets of fingernails (the nails are the Skin tab's own).
+- **Checked:** the regression test wears every piece of the pack on each body it's for, and checks that a fixed
+  one is bound to its bone alone and that the others bend with the body. It also checks what covers what with
+  real pieces: gloves and bracers hide a bracelet, socks an anklet, a scarf the collar, a dress a belly
+  piercing, a hat the antlers. Every piece was rendered on both bodies and the fixed ones in the relaxed pose,
+  the T-pose and with the head and hands turned. Worn under a vest, a T-shirt, jeans, a sweater and a cap, the
+  belly pieces, anklet, necklace, bangle and headset showed no gap in `COVERED_BY`, so it is unchanged.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -294,8 +324,9 @@ No item is fitted yet; the packs that fill these slots come next.
 4. **More expressions.** Visemes beyond VRM's five vowels, a wink and a smirk as custom expressions.
 5. **More that swings:** skirts, cloaks and coat tails on chains of their own, and colliders that allow for
    clothing over the body.
-6. **More to change:** the community objects, jewellery, horns, wings, tails and hair styles fitted into
-   packs for the new slots; a grip for a hand that holds something; skin texture layers (freckles, scars,
+6. **More to change:** the community hair styles fitted into the Accessories pack; a grip for a hand that
+   holds something (the sword, microphone, racket and bag sit in an open hand, and the guitar's neck floats
+   where a hand would hold it); a held piece for the other hand (each is fitted for one); skin texture layers (freckles, scars,
    tattoos, makeup), patterns and pictures on clothing, more face sliders.
 7. **Generate avatar.** A server part with one route that asks a chosen model for a look from the card's
    text, or from its portrait when the model can see pictures. Wanderworld's `designMenu`, `readDesign`
@@ -314,7 +345,10 @@ No item is fitted yet; the packs that fill these slots come next.
 - The sides of a long style are found from the mesh, so a chain can follow an uneven path, and the two sides
   of a symmetrical style can get chains of different lengths.
 - A hand that holds something stays open, as the maker has no grip pose yet. A held piece is fitted for one
-  hand; the other hand needs a piece of its own.
+  hand; the other hand needs a piece of its own. In the relaxed pose the sword's blade and the racket's head
+  cross the front of the thigh, as they were modelled pointing forward from an A-pose hand.
+- A bracelet or anklet is made for the wrist or ankle its maker modelled it on (the bangle the right, the others
+  the left).
 - Slots cover slots, not regions: sandals and tall boots alike leave an anklet on, and a crop top and a
   T-shirt alike leave a belly piercing on (where the shirt is drawn over it).
 - Drafts live in the browser only.
