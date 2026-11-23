@@ -92,6 +92,26 @@ for (const body of ["male", "female"]) {
     choices.brows.length && choices.lashes.length && choices.bottoms.length,
     `${body}: brows, lashes, underwear`,
   );
+  // Every skin the body offers has its picture in the kit, at every age.
+  const { access } = await import("node:fs/promises");
+  for (const [skin] of looks.skinsFor(body))
+    for (const [age] of looks.AGES) {
+      const picture = looks.skinPicture(skin, body, age);
+      if (picture) await access(join(kitRoot, "avatar", `${picture}.webp`));
+    }
+  // Every face and body slider the lists offer has its shape key on this body.
+  for (const [slider] of [...looks.FACE_DETAIL, ...looks.BODY_DETAIL].filter(
+    ([, , , , , , group]) => group !== "bust" || body === "female",
+  ))
+    assert.ok(looks.hasSlider(slider, choices.keys, body), `${body}: has the ${slider} slider`);
+}
+// A community skin only one body has opens on the other as MakeHuman's light skin.
+{
+  const { avatarLook } = await import("../packages/3d-avatar-maker/src/avatar.js");
+  assert.equal(avatarLook("a", "auto", { body: "female", skin: "redhead" }).skin, "redhead");
+  assert.equal(avatarLook("a", "auto", { body: "male", skin: "redhead" }).skin, "caucasian");
+  assert.equal(looks.skinPicture("freckles", "male", "old"), "avatar-male-skin-freckles");
+  assert.equal(looks.skinPicture("asian", "male", "old"), "avatar-male-skin-old-asian");
 }
 
 // ── Each body has its paint mask: the lips in green (scripts/build-3d-avatar-maker-masks.mjs) ──

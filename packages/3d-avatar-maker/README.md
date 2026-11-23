@@ -64,8 +64,11 @@ use and share however you like, with no credit required:
 
 - The bodies' base mesh and shapes, the skins, eyes, eyebrows and eyelashes, ten of the hair styles and
   the modern clothes are from [MakeHuman](http://www.makehumancommunity.org/) (CC0), used as data.
+- Extra face and body shapes, 23 more skins, 15 more eye pictures, the nails and six brow and lash styles are from MakeHuman's community packs
+  (CC0), by Elvaerwyn, jujube, habanero, RehmanPolanski, Mindfront, callharvey3d, skalldyrssuppe,
+  onlytheghosts, toigo, flower-angel, ken1138, bobby_03, Nyloseth, Hatshj and spamrakuen.
 - The races' shapes and parts, four hair styles and the fantasy clothing and armour were made in Blender
-  by ThatOneCan, and are released as CC0 1.0 too.
+  by ThatOneCan, who also fitted the nails and baked the new brows and lashes; all released as CC0 1.0 too.
 
 [kit/CREDITS.md](kit/CREDITS.md) lists each file. The package's code is under the repository's licence, and
 its bundle includes [three.js](https://threejs.org/) (MIT).

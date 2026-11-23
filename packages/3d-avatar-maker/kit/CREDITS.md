@@ -25,13 +25,29 @@ data by this repository's own scripts; MakeHuman itself is neither run nor copie
   leggings, female shorts, female skirt, fedora, fedora cocked, shoes black, shoes brown, boots black,
   trainers white, trainers blue and trainers worn.
 
+## From MakeHuman community packs (CC0), used as data
+
+Items from the MakeHuman community asset packs, each CC0 by its pack catalogue and its own files
+(`docs/MAKEHUMAN-PACKS.md` lists each item checked). No credit is required; the authors are named as thanks.
+
+- In the bodies' files, as one-way face and body sliders (`make_avatar.py` FACE_DETAIL, BODY_DETAIL): cheek, ear,
+  nose, hand and arm shapes by Elvaerwyn, jujube, habanero, RehmanPolanski and Mindfront.
+- `avatar/avatar-<sex>-skin-<name>.webp`: skins by callharvey3d, skalldyrssuppe, onlytheghosts, toigo,
+  flower-angel, ken1138, Mindfront and RehmanPolanski (`make_avatar.py` COMMUNITY_SKINS names each).
+- In `wardrobe/avatar-outfits-hands.pack.png` and `-feet.pack.png`: the short, medium and long fingernails and the
+  toenails, Mindfront's (bodyparts04_cc0), fitted to the bodies in Blender by ThatOneCan (`make_mh_clothes.py`).
+- In the bodies' files: brow styles 13–16 and lash styles 5–6, Mindfront's strand brows and lashes (eyebrows01_cc0,
+  eyelashes01_cc0) baked in Blender by ThatOneCan onto MakeHuman's eyebrow009 and eyelashes02 cards (`bake_brows.py`).
+- In `avatar/avatar-eyes.webp`, after MakeHuman's nine: eye pictures by bobby_03, Mindfront, Nyloseth, Hatshj and
+  spamrakuen (`make_avatar.py` COMMUNITY_EYES).
+
 ## Made in Blender by ThatOneCan (CC0)
 
 Released as CC0 1.0 by their maker.
 
 - In the bodies' files (`make_avatar.py`): the races' shapes (dwarf, halfling, gnome, elf, half-orc,
   tiefling), the tusks, horns, the tiefling's tail, the beards and the moustache, the eyeballs, the
-  underwear styles, the finger bones and weights, and the nails (a shell on each finger and toe). The face
+  underwear styles, the finger bones and weights. The face
   and body sliders' shapes are MakeHuman's targets (CC0), chosen and paired by ThatOneCan.
 - `avatar/avatar-<sex>-masks.png`: where the lips are in the skin picture, made from the bodies by
   `scripts/build-3d-avatar-maker-masks.mjs`.
