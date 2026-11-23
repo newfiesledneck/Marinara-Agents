@@ -10,7 +10,7 @@
   },
   "id": "3d-avatar-maker",
   "name": "3D Avatar Maker",
-  "version": "0.1.04",
+  "version": "0.1.05",
   "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the face doesn't move yet. Install it, then open Home → 3D Avatar Maker.",
   "engine": {
     "min": "2.4.6",
@@ -51,7 +51,6 @@
         "kit/avatar/avatar-female-skin-middle-african.webp",
         "kit/avatar/avatar-female-skin-middle-asian.webp",
         "kit/avatar/avatar-female-skin-middle-caucasian.webp",
-        "kit/avatar/avatar-female-skin-midtoned.webp",
         "kit/avatar/avatar-female-skin-natural-makeup.webp",
         "kit/avatar/avatar-female-skin-old-african.webp",
         "kit/avatar/avatar-female-skin-old-asian.webp",
@@ -87,7 +86,6 @@
         "kit/avatar/avatar-male-skin-old-asian.webp",
         "kit/avatar/avatar-male-skin-old-caucasian.webp",
         "kit/avatar/avatar-male-skin-tattooed.webp",
-        "kit/avatar/avatar-male-skin-viking-tattoos.webp",
         "kit/avatar/avatar-male-skin-young-african.webp",
         "kit/avatar/avatar-male-skin-young-asian.webp",
         "kit/avatar/avatar-male-skin-young-caucasian.webp",
@@ -113,8 +111,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "af14c8e5144e24bc3ec0cc76ae011ad8d63d5f7701475c730c8d302a94078604",
-      "bytes": 705585
+      "sha256": "b1af6652bdfa177e993e60bad993c7ca520b4d0f83ed5b2d896fa9c0b25ed122",
+      "bytes": 705504
     },
     {
       "path": "3d-avatar-maker-icon.webp",
@@ -195,11 +193,6 @@
       "path": "kit/avatar/avatar-female-skin-middle-caucasian.webp",
       "sha256": "9e8a64a96c72f9f7cb74f7dcb650506ad97a143b5afe4e29a0099398f883bf1f",
       "bytes": 197514
-    },
-    {
-      "path": "kit/avatar/avatar-female-skin-midtoned.webp",
-      "sha256": "7cc18c91a527e6afc4a1b471b3abdf24c055f58e7451c5249f7d31188c1b1cd0",
-      "bytes": 127080
     },
     {
       "path": "kit/avatar/avatar-female-skin-natural-makeup.webp",
@@ -375,11 +368,6 @@
       "path": "kit/avatar/avatar-male-skin-tattooed.webp",
       "sha256": "556a375c05b587cd68888071d04ee323aea80d11afd4b999e930db99bdba15cc",
       "bytes": 233484
-    },
-    {
-      "path": "kit/avatar/avatar-male-skin-viking-tattoos.webp",
-      "sha256": "d16f82ec193f79af81f4d2829b3c48314fa3cb5ce9a369ec905957eb1a7da47e",
-      "bytes": 260042
     },
     {
       "path": "kit/avatar/avatar-male-skin-young-african.webp",

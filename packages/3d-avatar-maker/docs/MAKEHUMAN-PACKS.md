@@ -18,11 +18,11 @@ The package uses data from these items, read by `assets/scripts/make_avatar.py` 
   mindfront_hand_fingers_correction, mindfront_hand_hypothenar, mindfront_hand_thenar_eminence); arms01_cc0
   (mindfront_arm_upper_shape, mindfront_arm_lower_shape, mindfront_arm_wrist_ulna, mindfront_armpit,
   elvs_ladies_elbow_dimples).
-- Skins (`COMMUNITY_SKINS`): skins01_cc0 (callharvey3d_midtoned_female, skalldyrssuppe_creamy_female,
+- Skins (`COMMUNITY_SKINS`): skins01_cc0 (skalldyrssuppe_creamy_female,
   onlytheghosts_young/middle_aged/old_eurasian_female, toigo_light_skin_female_freckles / _ginger / _bronze,
   flower-angel_red_head_skin, toigo_light_skin_with_natural_makeup, toigo_light_skin_with_makeup,
   toigo_light_skin_female_with_violet_makeup, toigo_light_skin_female_bronze_with_makeup); skins02_cc0
-  (ken1138_caucasian_male_tattooed_skin, mindfront_aksel_skin, rehmanpolanski_skin_viking_tattoos,
+  (ken1138_caucasian_male_tattooed_skin, mindfront_aksel_skin,
   onlytheghosts_old_eurasian_male, toigo_light_skin_male_bronze / _freckles / _ginger / _with_eyeliner /
   _with_goth_makeup / _with_emo_eyes).
 - Eye pictures (`COMMUNITY_EYES`): system_eye_materials01_cc0 (bobby_03_diffuse_amber/hazel/sea_breeze/blue/grey_eyes,
@@ -39,18 +39,19 @@ The package uses data from these items, read by `assets/scripts/make_avatar.py` 
 
 The separate packages `3d-avatar-maker-wardrobe-everyday-women`, `-everyday-men` and `-accessories` carry
 community clothes, listed with their authors in `assets/packs.json` and each pack's README, fitted by
-`make_mh_packs.py`. Every item's own `.mhclo` says CC0 too (Cortu's as "Cortu Johnstone - CC0"), or names no
-licence (spamrakuen's glasses, joachip_ring_1), where the catalogue's CC0 stands.
+`make_mh_packs.py`. Every one of each item's own files says CC0 too, or names no licence (spamrakuen's glasses, joachip_ring_1),
+where the catalogue's CC0 stands. The packs' 0.1.01 took out six items whose `.obj` says AGPL-3 though their
+`.mhclo` says CC0 (see the section after next).
 
 - Everyday women's: dress01_cc0 (eight toigo dresses, aethelraed_flapper_dress), shirts01_cc0 (six toigo tops,
   joepal_crude_t-shirt_female), skirts01_cc0 (four toigo skirts), pants01_cc0 toigo_harem_pants, shoes01_cc0
-  (four toigo shoes, cortu_t-bar).
+  (four toigo shoes).
 - Everyday men's: suits01_cc0 (four toigo men's suits, toigo_female_double-breasted_suit, toigo_female_suit_2),
   shirts01_cc0 namuhekam_male_polo_shirt and elvs_crude_t-shirt_male, pants01_cc0 toigo_wool_pants,
-  cortu_cargo_pants and cortu_jeans_shorts, shoes01_cc0 toigo_ankle_boots_male.
+  shoes01_cc0 toigo_ankle_boots_male.
 - Accessories: glasses01_cc0 (spamrakuen_sagerfrogs_glasses_01 to _04, spamrakuen_tbm_glasses_frames_01,
-  toigo_round_glasses_leopard), masks01_cc0 (culturalibre_hero_mask_3 and _4, joepal_medical_mouth_protection),
-  jewelry01_cc0 (toigo_pearl_earrings, culturalibre_heroine_lightning_earrings, joachip_ring_1,
+  toigo_round_glasses_leopard), masks01_cc0 (joepal_medical_mouth_protection),
+  jewelry01_cc0 (toigo_pearl_earrings, joachip_ring_1,
   wolgade_diamond_ring_01), gloves01_cc0 (toigo_gloves_short, _medium and _long), underwear04_cc0 (all four
   socks), hats01_cc0 (aethelraed_unraed_cloche_hat, joepal_xmas_cap).
 - Left out for fit or size, not licence: mindfront_kimono (its scale references are helper vertices; fitted, it
@@ -161,6 +162,120 @@ isn't clearly CC0 or CC-BY, so these are left out unless that's decided otherwis
 - underwear02_cc0.zip: jaldmic_stockings (catalogue CC-BY, files AGPL3 (see also http://www.makehuman.org/doc/node/external_tools_license.html))
 - underwear02_cc0.zip: punkduck_bandeau_bra (catalogue CC-BY, files AGPL3 (see also http://www.makehuman.org/doc/node/external_tools_license.html))
 - underwear02_cc0.zip: punkduck_string_4 (catalogue CC-BY, files AGPL3 (see also http://www.makehuman.org/doc/node/external_tools_license.html))
+
+## Excluded: a model or material file says AGPL-3 though the item's other files don't (105)
+
+The check above read each item's `.mhclo` (or `.mhmat`). On 2026-11-23 every text file of every item was read,
+in all 63 zips. These items have an AGPL-3 line in another file, usually the `.obj` that holds the mesh, while
+their `.mhclo` and catalogue say CC0 or CC-BY. They are left out on the same grounds as the 83 above. The
+files named are the ones with the line. MakeHuman's own system assets (`makehuman_system_assets_cc0`) carry
+no licence lines at all, so the kit's MakeHuman hair, clothes, eyes and skins are unaffected.
+
+- bodyparts01_cc0.zip: culturalibre_faun_horns: faun_horns.obj
+- bodyparts01_cc0.zip: culturalibre_minotaur_horns: minotaur_horns.obj
+- bodyparts03_cc-by.zip: culturalibre_cl_devil_tail: cl_devil_tail.obj
+- bodyparts03_cc-by.zip: culturalibre_tigra_tail: tigra_tail.obj
+- bodyparts05_cc0.zip: culturalibre_faun_beard: faun_beard.obj
+- bodyparts05_cc0.zip: rehmanpolanski_beard_viking: beardviking.obj
+- bodyparts05_cc0.zip: rehmanpolanski_moustache_viking: moustacheviking.obj
+- bodyparts06_cc-by.zip: culturalibre_dal_moustache: dali_moustache.obj
+- equipment01_cc0.zip: culturalibre_hand_claws: hand_claws.obj
+- equipment01_cc0.zip: culturalibre_hero_kalistick: hero_kalistick.obj
+- equipment01_cc0.zip: culturalibre_hero_kalistick_lefthanded: hero_kalistick_lefthanded.obj
+- equipment01_cc0.zip: culturalibre_magic_sceptre: magic_sceptre.obj
+- equipment01_cc0.zip: culturalibre_war_hammer: warhammer.obj
+- equipment01_cc0.zip: culturalibre_wooden_bow: wooden_bow.obj
+- equipment02_cc-by.zip: culturalibre_cl_gun: cl_gun.obj
+- equipment02_cc-by.zip: culturalibre_cl_gun_left_hand: cl_gun_left_hand.obj
+- equipment03_cc-by.zip: culturalibre_suitcase: suitcase.obj
+- glasses01_cc0.zip: culturalibre_doc_ock_glasses: doc_ock_glasses.obj
+- glasses02_ccby.zip: punkduck_glasses_modern_form: glasses.obj
+- gloves01_cc0.zip: culturalibre_hero-heroine_gloves_2: hero-heroine_gloves_2.obj
+- gloves01_cc0.zip: culturalibre_hero-heroine_gloves_3: hero-heroine_gloves_3.obj
+- gloves01_cc0.zip: culturalibre_hero-heroine_gloves_4: hero-heroine_gloves_4.obj
+- gloves01_cc0.zip: culturalibre_hero-heroine_gloves_5: hero-heroine_gloves_5.obj
+- hair01_cc0.zip: cortu_shaggy_green_hair: shaggy_green.obj
+- hair01_cc0.zip: cortu_short_messy_hair: short_messy.obj
+- hair01_cc0.zip: cortu_straight_bangs: straight_bangs.obj
+- hair01_cc0.zip: cortu_strawberry_cloud_hair: strawberry_cloud.obj
+- hair01_cc0.zip: culturalibre_hair_05: hair_05.obj
+- hair01_cc0.zip: culturalibre_hair_06: hair_06.obj
+- hair03_ccby.zip: culturalibre_hair_11: hair_01.obj
+- hair03_ccby.zip: culturalibre_hair_12: hair_02.obj
+- hair03_ccby.zip: culturalibre_hair_13: hair_03.obj
+- hair03_ccby.zip: culturalibre_hair_14: hair_04.obj
+- hair03_ccby.zip: culturalibre_hair_17: hair_07.obj
+- hair03_ccby.zip: culturalibre_hair_18: hair_08.obj
+- hats02_cc0.zip: culturalibre_motorcycle_helmet: motorcyclehelmet.obj
+- hats02_cc0.zip: culturalibre_skull_helmet: skull_helmet.obj
+- hats02_cc0.zip: culturalibre_warrior_helmet: warrior_helmet.obj
+- hats03_cc-by.zip: culturalibre_cl_bowler_hat: cl_bowler_hat.obj
+- hats03_cc-by.zip: culturalibre_cl_don_quixote_hat: cl_don_quixote_hat.obj
+- hats04_cc-by.zip: culturalibre_warrior_helmet_02: warrior_helmet_02.obj
+- jewelry01_cc0.zip: culturalibre_hero_gem: hero_gem.obj
+- jewelry01_cc0.zip: culturalibre_heroine_lightning_earrings: heroine_lightning_earrings.obj (was in a wardrobe pack until its 0.1.01)
+- jewelry02_cc-by.zip: culturalibre_cl_spiral_bracelets: cl_spiral_bracelets.obj
+- jewelry02_cc-by.zip: culturalibre_leather_bracelet: leather_bracelet.obj
+- masks01_cc0.zip: culturalibre_hero-heroine_hood_1: hero-heroine_hood_1.obj
+- masks01_cc0.zip: culturalibre_hero-heroine_hood_2: hero-heroine_hood_2.obj
+- masks01_cc0.zip: culturalibre_hero_mask_1: hero_mask_1.obj
+- masks01_cc0.zip: culturalibre_hero_mask_2: hero_mask_2.obj
+- masks01_cc0.zip: culturalibre_hero_mask_3: hero_mask_3.obj (was in a wardrobe pack until its 0.1.01)
+- masks01_cc0.zip: culturalibre_hero_mask_4: hero_mask_4.obj (was in a wardrobe pack until its 0.1.01)
+- masks01_cc0.zip: culturalibre_heroine_mask_1: heroine_mask_1.obj
+- masks02_ccby.zip: culturalibre_bandana_mask: bandana_mask.obj
+- pants01_cc0.zip: cortu_cargo_pants: cargo_pants.obj (was in a wardrobe pack until its 0.1.01)
+- pants01_cc0.zip: cortu_jeans_shorts: jean_shorts.obj (was in a wardrobe pack until its 0.1.01)
+- pants02_ccby.zip: punkduck_female_tight_jeans: tightjeans.obj
+- shoes01_cc0.zip: cortu_floppy_overknee_shoes: floppy_overknee_shoe.obj
+- shoes01_cc0.zip: cortu_t-bar: tbar.obj (was in a wardrobe pack until its 0.1.01)
+- shoes01_cc0.zip: culturalibre_hero_boots_1: hero_boots_1.obj
+- shoes01_cc0.zip: culturalibre_hero_boots_2: hero_boots_2.obj
+- shoes01_cc0.zip: culturalibre_hero_boots_3: hero_boots_3.obj
+- shoes01_cc0.zip: culturalibre_hero_boots_4: hero_boots_4.obj
+- shoes01_cc0.zip: culturalibre_hero_boots_5: hero_boots_5.obj
+- shoes01_cc0.zip: culturalibre_heroine_boots_1: heroine_boots_1.obj
+- shoes01_cc0.zip: culturalibre_heroine_boots_2: heroine_boots_2.obj
+- shoes01_cc0.zip: culturalibre_heroine_boots_3: heroine_boots_3.obj
+- shoes01_cc0.zip: culturalibre_male_boots: male_boots.obj
+- shoes02_ccby.zip: culturalibre_sneakers: sneakers.obj
+- skins01_cc0.zip: blindsaypatten_uniform_skin_texture: blindsaypatten_uniform_skin_texture.mhmat
+- skins01_cc0.zip: callharvey3d_midtoned_female: callharvey3d_midtoned_female.mhmat (was in the kit until 0.1.05)
+- skins02_cc0.zip: rehmanpolanski_skin_viking_tattoos: rehmanpolanski_skin_viking_tattoos.mhmat (was in the kit until 0.1.05)
+- skirts02_cc-by.zip: mtknife_low_mini_skirt: low_mini_skirt.obj
+- suits02_cc0.zip: culturalibre_hero_suit_1: hero_suit_1.obj
+- suits02_cc0.zip: culturalibre_hero_suit_2: hero_suit_2.obj
+- suits02_cc0.zip: culturalibre_hero_suit_3: hero_suit_3.obj
+- suits02_cc0.zip: culturalibre_heroine_suit_2: heroine_suit_2.obj
+- suits02_cc0.zip: rehmanpolanski_viking_boots: bootsviking.obj
+- suits02_cc0.zip: rehmanpolanski_viking_pants: pantsviking.obj
+- suits02_cc0.zip: rehmanpolanski_viking_tunic: tunicviking.obj
+- suits03_cc-by.zip: punkduck_diver_suit: diver_suit.obj
+- system_clothes_materials01_cc0.zip: male_casualsuit01: toigo_male_casual_suit_01_khaki.mhmat, toigo_male_casual_suit_01_purple_shirt.mhmat, toigo_male_casual_suit_01_purple_shirt_with_black_jeans.mhmat, toigo_male_casual_suit_01_red_shirt_with_black_jeans.mhmat, toigo_male_casual_suit_01_teal_shirt_with_black_jeans.mhmat, toigo_male_casual_suit_01_white_shirt.mhmat, toigo_male_casual_suit_01_yellow_shirt.mhmat
+- system_clothes_materials01_cc0.zip: male_elegantsuit01: toigo_male_elegant_suit_blue_pinstripe_with_paisley_tie.mhmat, toigo_male_elegant_suit_blue_with_red_striped_tie.mhmat, toigo_male_elegant_suit_brown.mhmat, toigo_male_elegant_suit_burgundy.mhmat, toigo_male_elegant_suit_eggplant.mhmat, toigo_male_elegant_suit_gray.mhmat, toigo_male_elegant_suit_gray_pinstripe_with_paisley_tie.mhmat, toigo_male_elegant_suit_olive.mhmat, toigo_male_elegant_suit_teal.mhmat
+- system_eye_materials02_cc0.zip: gpedroso_blank_eye: gpedroso_blank_eye.mhmat
+- system_eye_materials02_cc0.zip: titleknown_trans_eyes: titleknown_trans_eyes.mhmat
+- system_eye_materials03_cc-by.zip: callharvey3d_harvey_eye1: callharvey3d_harvey_eye1.mhmat
+- system_eye_materials03_cc-by.zip: callharvey3d_harvey_eye2: callharvey3d_harvey_eye2.mhmat
+- system_eye_materials03_cc-by.zip: elvs_santa_helpers_eyes: elvs_santa_helpers_eyes.mhmat
+- system_hair_materials01_cc0 (1).zip: ponytail01: dariush086_ponytail01_black.mhmat, dariush086_ponytail01_brown.mhmat, dariush086_ponytail01_gold.mhmat, dariush086_ponytail01_green.mhmat, dariush086_ponytail01_pink.mhmat, dariush086_ponytail01_platinum.mhmat, dariush086_ponytail01_red.mhmat, dariush086_ponytail01_violet.mhmat, mtknife_ponytail01_deep_red.mhmat
+- system_hair_materials01_cc0 (1).zip: short02: bogdan666_short_02_brown.mhmat, bogdan666_short_02_gray.mhmat, bogdan666_short_02_red.mhmat
+- system_hair_materials01_cc0 (1).zip: short04: toigo_short_04_auburn.mhmat, toigo_short_04_blonde.mhmat, toigo_short_04_blue.mhmat, toigo_short_04_brown.mhmat, toigo_short_04_ginger.mhmat, toigo_short_04_gray.mhmat
+- system_hair_materials02_cc0 (1).zip: bob01: elvaerwyn_bob_01_blood_copper.mhmat
+- system_hair_materials02_cc0 (1).zip: bob02: elvaerwyn_bob_02_50s_cherrybomb.mhmat, elvaerwyn_bob_02_candy_fushia.mhmat, elvaerwyn_bob_02_honey_blonde.mhmat, elvaerwyn_bob_02_platinum.mhmat, elvaerwyn_bob_02_pumpkin.mhmat, elvaerwyn_bob_02_retro_black.mhmat, elvaerwyn_bob_02_retro_grey.mhmat, elvaerwyn_bob_02_retro_oilslickster.mhmat, elvaerwyn_bob_02_tangerine.mhmat
+- system_hair_materials02_cc0 (1).zip: short04: toigo_short_04_green.mhmat, toigo_short_04_violet.mhmat
+- underwear01_cc0.zip: v0rt3x_armsleeves_black_fishnet_large: armsleeve_fishnet_large.obj
+- underwear01_cc0.zip: v0rt3x_armsleeves_black_fishnet_medium: armsleeve_fishnet_medium.obj
+- underwear01_cc0.zip: v0rt3x_armsleeves_black_fishnet_small: armsleeve_fishnet_small.obj
+- underwear01_cc0.zip: v0rt3x_armsleeves_white_fishnet_large: armsleeve_white_l.obj
+- underwear01_cc0.zip: v0rt3x_armsleeves_white_fishnet_medium: armsleeve_white_m.obj
+- underwear01_cc0.zip: v0rt3x_armsleeves_white_fishnet_small: armsleeve_white_s.obj
+- underwear01_cc0.zip: v0rt3x_stockings_black_fishnet_large: stockings_fishnet_large.obj
+- underwear01_cc0.zip: v0rt3x_stockings_black_fishnet_medium: stockings_fishnet_medium.obj
+- underwear01_cc0.zip: v0rt3x_stockings_black_fishnet_small: stockings_fishnet_small.obj
+- underwear01_cc0.zip: v0rt3x_stockings_white_fishnet_large: stockings_white_l.obj
+- underwear01_cc0.zip: v0rt3x_stockings_white_fishnet_medium: stockings_white_m.obj
+- underwear01_cc0.zip: v0rt3x_stockings_white_fishnet_small: stockings_white_s.obj
 
 ## In a zip named for another licence: use the catalogue's (27)
 

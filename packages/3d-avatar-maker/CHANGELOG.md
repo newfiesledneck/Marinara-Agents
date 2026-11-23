@@ -1,5 +1,9 @@
 # 3D Avatar Maker release notes
 
+## 0.1.05 — 2026-11-23
+
+- Took out two skins, Mid-toned and Viking tattoos. Their material files say AGPL-3, which doesn't match the CC0 their catalogue gives. An avatar saved with one of them opens with the default skin instead.
+
 ## 0.1.04 — 2026-11-23
 
 - New places to wear things: glasses, a face mask, earrings, rings and socks. The new Accessories pack fills them, and adds gloves and two hats.

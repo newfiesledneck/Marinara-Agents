@@ -857,7 +857,6 @@ export const SKINS = [
  * whatever the age chosen; the age's shape keys still apply.
  */
 export const COMMUNITY_SKINS = [
-  ["midtoned", "Mid-toned", ["female"]],
   ["creamy", "Creamy", ["female"]],
   ["redhead", "Redhead's", ["female"]],
   ["freckles", "Light, freckled", ["female", "male"]],
@@ -875,7 +874,6 @@ export const COMMUNITY_SKINS = [
   ["goth-makeup", "Light, goth make-up", ["male"]],
   ["emo-eyes", "Light, dark eye make-up", ["male"]],
   ["tattooed", "Tattooed", ["male"]],
-  ["viking-tattoos", "Viking tattoos", ["male"]],
 ];
 /** The skins `sex`'s body has: MakeHuman's three, its community ones, then a colour of one's own. */
 export const skinsFor = (sex) => [

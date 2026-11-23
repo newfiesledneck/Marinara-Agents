@@ -29,7 +29,7 @@ file you save, and you import that file yourself.
 | Start | A ready-made look to begin from, a new male or female avatar, or a style (semi-real, or anime proportions) |
 | Body | Body, age, height; a race preset (human, dwarf, halfling, gnome, elf, half-elf, half-orc, tiefling) and six race sliders to mix; eight build sliders; arms, legs, torso and hips, and her bust in detail; arm and leg length, head size |
 | Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (66 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: beards, tusks, horns, a tail |
-| Skin and eyes | 32 skin pictures (MakeHuman's nine in three ages, and 23 more) or a colour of your own; 24 pictured eyes or a colour; nail length and toenails; lip and nail colours |
+| Skin and eyes | 30 skin pictures (MakeHuman's nine in three ages, and 21 more) or a colour of your own; 24 pictured eyes or a colour; nail length and toenails; lip and nail colours |
 | Hair | 14 styles in any colour |
 | Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus what any wardrobe packs you install add. Glasses, a face mask, earrings, rings and socks have places of their own, which the Accessories pack fills |
 
@@ -74,8 +74,8 @@ use and share however you like, with no credit required:
 
 - The bodies' base mesh and shapes, the skins, eyes, eyebrows and eyelashes, ten of the hair styles and
   the modern clothes are from [MakeHuman](http://www.makehumancommunity.org/) (CC0), used as data.
-- Extra face and body shapes, 23 more skins, 15 more eye pictures, the nails and six brow and lash styles are from MakeHuman's community packs
-  (CC0), by Elvaerwyn, jujube, habanero, RehmanPolanski, Mindfront, callharvey3d, skalldyrssuppe,
+- Extra face and body shapes, 21 more skins, 15 more eye pictures, the nails and six brow and lash styles are from MakeHuman's community packs
+  (CC0), by Elvaerwyn, jujube, habanero, RehmanPolanski, Mindfront, skalldyrssuppe,
   onlytheghosts, toigo, flower-angel, ken1138, bobby_03, Nyloseth, Hatshj and spamrakuen.
 - The races' shapes and parts, four hair styles and the fantasy clothing and armour were made in Blender
   by ThatOneCan, who also fitted the nails and baked the new brows and lashes; all released as CC0 1.0 too.

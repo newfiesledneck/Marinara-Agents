@@ -30,9 +30,9 @@ const MODELS = join(makerRoot, "assets/models");
 
 // Each pack's version (+0.0.01 for every committed rebuild, with a CHANGELOG.md entry, as the maker's).
 const VERSIONS = {
-  "3d-avatar-maker-wardrobe-everyday-women": "0.1.00",
-  "3d-avatar-maker-wardrobe-everyday-men": "0.1.00",
-  "3d-avatar-maker-wardrobe-accessories": "0.1.00",
+  "3d-avatar-maker-wardrobe-everyday-women": "0.1.01",
+  "3d-avatar-maker-wardrobe-everyday-men": "0.1.01",
+  "3d-avatar-maker-wardrobe-accessories": "0.1.01",
 };
 // The bodies the pieces are fitted to (src/packs.js BODY_REVISION: the bodies made in 0.1.02), and the first
 // maker that reads packs (a pack's own `maker` in packs.json when it needs a later one, for its slots).

@@ -32,8 +32,8 @@ Items from the MakeHuman community asset packs, each CC0 by its pack catalogue a
 
 - In the bodies' files, as one-way face and body sliders (`make_avatar.py` FACE_DETAIL, BODY_DETAIL): cheek, ear,
   nose, hand and arm shapes by Elvaerwyn, jujube, habanero, RehmanPolanski and Mindfront.
-- `avatar/avatar-<sex>-skin-<name>.webp`: skins by callharvey3d, skalldyrssuppe, onlytheghosts, toigo,
-  flower-angel, ken1138, Mindfront and RehmanPolanski (`make_avatar.py` COMMUNITY_SKINS names each).
+- `avatar/avatar-<sex>-skin-<name>.webp`: skins by skalldyrssuppe, onlytheghosts, toigo, flower-angel, ken1138
+  and Mindfront (`make_avatar.py` COMMUNITY_SKINS names each).
 - In `wardrobe/avatar-outfits-hands.pack.png` and `-feet.pack.png`: the short, medium and long fingernails and the
   toenails, Mindfront's (bodyparts04_cc0), fitted to the bodies in Blender by ThatOneCan (`make_mh_clothes.py`).
 - In the bodies' files: brow styles 13–16 and lash styles 5–6, Mindfront's strand brows and lashes (eyebrows01_cc0,

@@ -10,8 +10,8 @@
   },
   "id": "3d-avatar-maker-wardrobe-everyday-men",
   "name": "3D Avatar Maker: Everyday Men's Clothes and Suits",
-  "version": "0.1.00",
-  "description": "12 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.03 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+  "version": "0.1.01",
+  "description": "10 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.03 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
   "engine": {
     "min": "2.4.6",
     "maxExclusive": "4.0.0"
@@ -36,13 +36,13 @@
   "files": [
     {
       "path": "agents.json",
-      "sha256": "0d29e77ebb4d1056026ea77b8d12343446dd6e93a3ad0ca92ac61e6ca62fe717",
+      "sha256": "d624d0e9655dc68c3e0537d25430f0ff972264ca32cfcfbc71fd1f7f06e52e9e",
       "bytes": 752
     },
     {
       "path": "avatar-pack.json",
-      "sha256": "0ec9a2fa63a322bd0c2427cedf2f5fb57c671f3e74e6afed1f8ad061b04aa327",
-      "bytes": 6047
+      "sha256": "f13161d35e8195d8c9a42bb024bc82ea771462b69cc2e2de1c544000a1438e0b",
+      "bytes": 5018
     },
     {
       "path": "wardrobe/body.pack.png",
@@ -56,8 +56,8 @@
     },
     {
       "path": "wardrobe/legs.pack.png",
-      "sha256": "6451c30ec1d2f951eef31760d6dfdd5d54a0755515e0be172acc195de1024487",
-      "bytes": 577523
+      "sha256": "0e6816dc8d75b01f3a009e1262cd3c9220a158718dd65acf9778828bd3329f87",
+      "bytes": 266796
     },
     {
       "path": "wardrobe/tops.pack.png",

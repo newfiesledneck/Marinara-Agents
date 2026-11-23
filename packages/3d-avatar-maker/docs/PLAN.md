@@ -63,7 +63,7 @@ poses with its arms lowered. Not yet checked in a real Engine.
 - 29 one-way face and body sliders from community targets (cheeks, ears, nose, arms, hands), each only a
   `.hi` key. The finer anatomy ones (`detail_…`) start partly on in a new avatar (`NEUTRAL_LOOK`); presets
   and styles leave them alone.
-- 23 community skins, one picture each at its own age (`COMMUNITY_SKINS`, `skinsFor(sex)`, `skinPicture`).
+- 23 community skins, one picture each at its own age (`COMMUNITY_SKINS`, `skinsFor(sex)`, `skinPicture`); 21 since 0.1.05.
   A skin only one body has opens on the other as MakeHuman's light skin.
 - 15 community eye pictures (realistic, cat's eyes, reptile, dragon, a trial anime one): the eye atlas is
   5 × 5 now (`EYE_GRID`). `make_avatar.py -- eyes` rebuilds the eye pictures alone.
@@ -105,6 +105,14 @@ poses with its arms lowered. Not yet checked in a real Engine.
   (`skin: false`): the body's separate toes and fingers threw a mitten-like sock's vertices into spikes.
 - The packer keeps every triangle of glasses, earrings and rings (`WHOLE_SLOTS`), and the face's keys on what's
   worn on the face (`HEAD_SLOTS`).
+
+## Built (0.1.05)
+
+- A licence fix. The first review read only each item's `.mhclo` or `.mhmat`; reading every file of every
+  item found 105 more with an AGPL-3 line, mostly in the `.obj` (`docs/MAKEHUMAN-PACKS.md`). Eight were in
+  use and are out: the Mid-toned and Viking tattoos skins from the kit, and from the packs (each now 0.1.01)
+  Cortu's cargo trousers, denim shorts and T-bar shoes, both culturalibre eye masks and the lightning
+  earrings. A new pack item must pass the same every-file check.
 
 ## Next, in order
 

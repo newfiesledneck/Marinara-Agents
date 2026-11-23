@@ -4,6 +4,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.05",
+          "date": "2026-11-23",
+          "notes": "- Took out two skins, Mid-toned and Viking tattoos. Their material files say AGPL-3, which doesn't match the CC0 their catalogue gives. An avatar saved with one of them opens with the default skin instead.",
+          "highlight": false
+        },
+        {
           "version": "0.1.04",
           "date": "2026-11-23",
           "notes": "- New places to wear things: glasses, a face mask, earrings, rings and socks. The new Accessories pack fills them, and adds gloves and two hats.\n- Gloves hide rings, and socks hide the toenails, the way gloves and shoes already hide the nails.",
@@ -38,6 +44,12 @@
     "3d-avatar-maker-wardrobe-accessories": {
       "versions": [
         {
+          "version": "0.1.01",
+          "date": "2026-11-23",
+          "notes": "- Took out the cat mask, the hero mask and the lightning earrings. Their model files say AGPL-3, which doesn't match the CC0 their catalogue gives, so they are left out like other such items. 19 pieces remain.",
+          "highlight": false
+        },
+        {
           "version": "0.1.00",
           "date": "2026-11-23",
           "notes": "- First version: 22 accessories for 3D Avatar Maker's Clothes tab: six pairs of glasses, two eye masks, a medical mask, pearl and lightning earrings, two rings, three lengths of gloves, four kinds of socks and leg warmers, a cloche hat and a Christmas hat.\n- Every piece is from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.04 or later.",
@@ -48,6 +60,12 @@
     "3d-avatar-maker-wardrobe-everyday-men": {
       "versions": [
         {
+          "version": "0.1.01",
+          "date": "2026-11-23",
+          "notes": "- Took out the cargo trousers and denim shorts. Their model files say AGPL-3, which doesn't match the CC0 their catalogue gives, so they are left out like other such items. 10 pieces remain.",
+          "highlight": false
+        },
+        {
           "version": "0.1.00",
           "date": "2026-11-23",
           "notes": "- First version: 12 pieces of clothing for 3D Avatar Maker's Clothes tab: four men's suits and two women's trouser suits, a polo shirt, a T-shirt, wool and cargo trousers, denim shorts and ankle boots.\n- Every piece is from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.03 or later.",
@@ -57,6 +75,12 @@
     },
     "3d-avatar-maker-wardrobe-everyday-women": {
       "versions": [
+        {
+          "version": "0.1.01",
+          "date": "2026-11-23",
+          "notes": "- Took out the T-bar shoes. Their model file says AGPL-3, which doesn't match the CC0 their catalogue gives, so they are left out like other such items. 25 pieces remain.",
+          "highlight": false
+        },
         {
           "version": "0.1.00",
           "date": "2026-11-23",
