@@ -20,11 +20,16 @@ The package uses data from these items, read by `assets/scripts/make_avatar.py` 
   elvs_ladies_elbow_dimples).
 - Skins (`COMMUNITY_SKINS`): skins01_cc0 (skalldyrssuppe_creamy_female,
   onlytheghosts_young/middle_aged/old_eurasian_female, toigo_light_skin_female_freckles / _ginger / _bronze,
-  flower-angel_red_head_skin, toigo_light_skin_with_natural_makeup, toigo_light_skin_with_makeup,
-  toigo_light_skin_female_with_violet_makeup, toigo_light_skin_female_bronze_with_makeup); skins02_cc0
-  (ken1138_caucasian_male_tattooed_skin, mindfront_aksel_skin,
-  onlytheghosts_old_eurasian_male, toigo_light_skin_male_bronze / _freckles / _ginger / _with_eyeliner /
-  _with_goth_makeup / _with_emo_eyes).
+  flower-angel_red_head_skin); skins02_cc0 (ken1138_caucasian_male_tattooed_skin, mindfront_aksel_skin,
+  onlytheghosts_old_eurasian_male, toigo_light_skin_male_bronze / _freckles / _ginger). Beside them, MakeHuman's
+  own young_caucasian_female2 (system assets, CC0 in its .mhmat; its picture and thumbnail carry no licence
+  text) as the "light" skin.
+- Makeup masks (`scripts/build-3d-avatar-maker-masks.mjs` MADE_UP), read as data and not shipped: skins01_cc0
+  toigo_light_skin_with_natural_makeup, toigo_light_skin_with_makeup, toigo_light_skin_female_with_violet_makeup,
+  toigo_light_skin_female_bronze_with_makeup, toigo_light_skin_female_ginger_with_makeup; skins02_cc0
+  toigo_light_skin_male_with_eyeliner / _with_goth_makeup / _with_emo_eyes. Each is compared with the plain skin
+  it was painted on, so the maker's eyeshadow, eyeliner and blush go where these paint them. The made-up
+  pictures themselves left the kit: the maker paints makeup on any skin.
 - Eye pictures (`COMMUNITY_EYES`): system_eye_materials01_cc0 (bobby_03_diffuse_amber/hazel/sea_breeze/blue/grey_eyes,
   mindfront_brown_eye_02, nyloseth_sapphire_blue_eyes, spamrakuen_sr_anime_eyes_navy); system_eye_materials02_cc0
   (nyloseth_blue/brown/green/sapphire/yellow cat eyes, hatshj_reptile_eyes, bobby_03_daz_dragon_eyes). Left out
@@ -34,17 +39,85 @@ The package uses data from these items, read by `assets/scripts/make_avatar.py` 
   mindfront_nails_03_long, mindfront_nails_toes_01.
 - Brows and lashes, baked onto MakeHuman's cards (`bake_brows.py` STYLES): eyebrows01_cc0 mindfront_eyebrows_02, _04,
   _07, _09; eyelashes01_cc0 mindfront_eyelashes_01, _05.
+- Hair (`make_mh_hair.py` STYLES): hair01_cc0 toigo_blunt_bob, toigo_curled_under_bob, toigo_inverted_bob and the
+  three `_with_bangs`. Every file of each says CC0 or names no licence. See "The hair pass" below.
 
 ## In the wardrobe packs
 
 Two packages carry the community clothes, listed with their authors in `assets/packs.json` and each pack's
 README, fitted by `make_mh_packs.py`: `3d-avatar-maker-wardrobe-clothes` (every garment: dresses, suits and
-bodysuits, tops, trousers, shorts, skirts, underwear, swimwear and shoes) and
-`3d-avatar-maker-wardrobe-accessories` (hats and helmets, hoods, the circlet, glasses, goggles and masks,
-earrings, rings, gloves and socks). CC0 and CC BY pieces share a pack; each piece carries its own licence and
-credit. Until the merge (Clothes 0.1.00, Accessories 0.2.00) there were five packs, described below as they were
-built; every piece kept its id when it moved.
+bodysuits, tops, trousers, shorts, skirts, underwear and lingerie, swimwear and shoes) and
+`3d-avatar-maker-wardrobe-accessories` (hats and helmets, hoods, the circlet and a feather headdress, glasses,
+goggles and masks, earrings, a choker, rings, gloves and socks, and since 0.2.02 hair styles). CC0 and CC BY pieces share a pack; each piece
+carries its own licence and credit. Until the merge (Clothes 0.1.00, Accessories 0.2.00) there were five packs,
+described below as they were built; every piece kept its id when it moved. Since Clothes 0.1.01, bras, bikini
+tops, briefs, thongs and bikini bottoms are in the slots `underwear_top` and `underwear_bottom`, which the maker
+offers in its Underwear lists (the underwear pass, below).
 
+### The underwear pass (2026-11-23)
+
+Underwear got slots of its own (`underwear_top`, `underwear_bottom`: looks.js `UNDERWEAR_SLOTS`), so a shirt,
+skirt or trousers can be worn over a pack's bra or briefs, and the maker can show underwear under clothes. Then
+the underwear and lingerie the merge pass left out were tried. Every file of each new item was read for a
+licence line first (`.mhclo`, `.mhmat` and `.obj`; all CC BY, none AGPL), each was fitted with
+`make_mh_packs.py` and the options it already has, and rendered on its body in Blender (EEVEE), front, side and
+back.
+
+- Moved to the underwear slots, no refit (their models keep the slot, layer and hide words they were fitted with;
+  the builder writes layer 0 and drops their underwear hide words):
+  - Underwear top: wolgade_female_top_01 (CC0), punkduck_bandeau_bikini_bra, punkduck_bikini02_bra,
+    punkduck_brazilian_bikini_bra, punkduck_french_lingerie_bra, punkduck_frill_bikini_top, punkduck_sport_bra,
+    elvs_bandeau_swimwear_top_1, joepal_plain_bra.
+  - Underwear bottom: wolgade_female_panties_01 (CC0), elvs_crude_bootyshorts, elvs_lace_panty,
+    punkduck_bandeau_bikini_slip, punkduck_bikini02_slip, punkduck_brazilian_bikini_slip,
+    punkduck_french_lingerie_mini_briefs, punkduck_frill_bikini_bottom, punkduck_sport_briefs,
+    elvs_swimwear_micro_shorts.
+- Worn on bare skin (`noUnderwear`: the underwear their hide words name is left off under them, even with
+  underwear shown under clothes), a judgment call: swimwear and tight one-pieces are worn without underwear, and
+  underwear would show through them. mindfront_bikini_01, elvs_vintage_swimwear1_50s_strapless,
+  mindfront_f_one-piece_swimsuit_01, punkduck_female_strapless_bodysuit, punkduck_one_piece_bikini01,
+  punkduck_shapewear, punkduck_short_bodysuit_female, punkduck_triathlon_suit_female, the new teddy, and the
+  men's swimming trunks elvs_male_swim_shorts1 and mindfront_male_swimming_trunks_01, _02 and _03. The kit's
+  swimsuit, bikini, swim trunks and bikini armour do the same (looks.js `NO_UNDERWEAR`). The halterneck romper,
+  the babydoll and every dress are worn over underwear.
+- Added to Clothes, CC BY as each item's files say (Elvaerwyn's "CC_by" credited under 4.0):
+  - underwear top: underwear02_cc0 elvs_bow_front_bra ("Bra with a bow"; open cups, which the merge pass left
+    out; added because every item is optional); underwear03_cc-by elvs_camisole1 ("Lace camisole",
+    13.5k vertices, a little over the merge pass's 12k line, kept as the only camisole);
+  - underwear bottom: underwear02_cc0 elvs_bow_bottom_panty (open back), punkduck_string_5 (labelled
+    "Embroidered briefs": it covers the back, not a thong), punkduck_french_lingerie_thong; underwear01_cc0
+    punkduck_strappy_lace_thong (its catalogue says CC0, its `.mhclo` and `.obj` say CC BY 4.0, so it's credited
+    under CC BY 4.0; fitted with `cut`);
+  - whole outfit: punkduck_teddy_erotic_lingerie ("Lace teddy", worn on bare skin; hides no skin, as it's open at
+    the sides; fitted with `cut`);
+  - belt: punkduck_french_lingerie_suspender_belt, in the Belt slot (`waist`), which leaves the briefs on under it.
+    A skirt doesn't hide it.
+- Added to Accessories: hats03_cc-by elvs_basic_brave_feathers1 ("Feather headdress", Head slot, over the hair;
+  the merge pass left it out by choice, and it fits); jewelry01_cc0 punkduck_lace-choker ("Lace choker", id
+  `punkduck_lace_choker`, Necklace slot; catalogue CC0, files CC BY 3.0, so credited under CC BY 3.0).
+- Left out: elvs_all_tied_up_bikini (78k vertices, far over the size line; none of the fitting options reduce
+  it). The other items of underwear01 to underwear03 are out for licence: their files say AGPL-3 (punkduck_string_2 and
+  _4, punkduck_bandeau_bra, punkduck_transparent_bra, kwnet_at_pantyhose01, marco_105's stockings and arm sleeves,
+  jaldmic_stockings, and the v0rt3x fishnets, listed below).
+- Fit flaws from the pipeline, for the refit after the fitting rework (not worked around): on the heavy, muscular
+  body the fitter reports points of every new piece up to about 11 mm under the skin; elvs_bow_front_bra and
+  elvs_camisole1 have a few points of skin through them at rest (1 mm) and more on that body (6 to 7 mm); the
+  feather headdress's band lets about 30 mm of the head through in places, which the renders don't show.
+- Where underwear shows through clothes today, from renders with it shown under clothes (none of these were
+  worked around; the fitting rework, which fits each layer clear of the ones under it with underwear as layer 0,
+  is meant to fix them):
+  - As meant: the kit's bra and joepal_plain_bra show their straps at punkduck_off_shoulder_long_sleeve_top, the
+    kit's bra beside the straps of punkduck_spaghetti_strap_tank_top and punkduck_v_neck_top, elvs_camisole1 under
+    the open mindfront_cardigan_long_open_front, and briefs under the kit's short skirt,
+    punkduck_black_mini_skirt and mtknife_pleated_mini_skirt.
+  - Through tops and dresses: the kit's bra through the kit's T-shirt and mh_female_tee (cups, band and centre)
+    and through toigo_halter_dress_knee_length (cups and band, the briefs at its hips); punkduck_sport_bra through
+    the whole chest of toigo_basic_tucked_t_shirt.
+  - Through trousers and shorts: the kit's briefs at the waist of mh_female_jeans and mindfront_female_trousers_1,
+    front and back; on the male body through the crotch of the kit's trousers and shorts, and at the waist and back
+    of elvs_male_trouser; punkduck_strappy_lace_thong's straps lie over punkduck_female_short_jeans altogether.
+  - Small: dots of the briefs at the waistband of punkduck_black_mini_skirt and mtknife_pleated_mini_skirt.
+  - The suspender belt is drawn through elvs_pencil_skirt, the show setting or not, as it's a Belt piece.
 ### The merge pass (2026-11-23)
 
 The four packs Everyday Women's, Everyday Men's, Historical and Fantasy, and Modern Casual were merged into
@@ -77,7 +150,8 @@ fitter flagged again on the heavy, muscular body (heavy, muscle, belly and bust 
   - skirts: skirts02_cc-by elvs_asymmetrical_skirt, elvs_disco_mini_skirt, elvs_gored_midi_skirt,
     elvs_pleated_plaid_mini_skirt, punkduck_skirt_native_american_fashion;
   - underwear and swimwear (bras and tops in the Shirt or top slot, briefs in Legs, one-pieces as a whole
-    outfit; each hides the body's own underwear it replaces): underwear01_cc0 wolgade_female_top_01 and
+    outfit; each hides the body's own underwear it replaces; the bras and briefs moved to the underwear slots in the
+    underwear pass): underwear01_cc0 wolgade_female_top_01 and
     wolgade_female_panties_01 (CC0); underwear02_cc0 (a zip named CC0 whose catalogue and files say CC BY)
     elvs_crude_bootyshorts, elvs_lace_panty, mindfront_bikini_01, punkduck_babydoll, punkduck_bandeau_bikini_bra
     and _slip, punkduck_bikini02_bra and _slip, punkduck_brazilian_bikini_bra and _slip,
@@ -112,7 +186,7 @@ fitter flagged again on the heavy, muscular body (heavy, muscle, belly and bust 
   elvs_flatshoe_buckle_1 (40k), elvs_zombie_killer_sneakers (77k), elvs_knee_high_heel_boots1 (37k, heeled),
   elvs_wedge_tall_boots1 (23k, a wedge heel), elvs_all_tied_up_bikini (78k), elvs_camisole1 (13k),
   elvs_ladies_sunglass1 (19k).
-- Left out as explicit lingerie, kept out of packs meant for shareable avatars (they could be added if wanted):
+- Left out as explicit lingerie, kept out of packs meant for shareable avatars (all added in the underwear pass):
   the thongs punkduck_string_5, punkduck_french_lingerie_thong and punkduck_strappy_lace_thong,
   punkduck_teddy_erotic_lingerie, punkduck_french_lingerie_suspender_belt (no slot fits it either), and after
   fitting elvs_bow_front_bra and elvs_bow_bottom_panty (open cups and an open back leave the breasts and
@@ -131,8 +205,44 @@ fitter flagged again on the heavy, muscular body (heavy, muscle, belly and bust 
   - matcreator_mc-scifi-armor_guardian: only boots and bracers, two slots in one piece, and the toes break up;
   - punkduck_female_half-boots: heeled, so the toes come through the maker's flat foot;
   - donitz_monk_robe_hood_off: made to lie on the robe's collar; alone it hangs off the back as a flap.
-- Left out by choice: elvs_basic_brave_feathers1, a "brave" feather headdress (a costume stereotype; it fits).
+- Left out by choice: elvs_basic_brave_feathers1, a "brave" feather headdress (a costume stereotype; it fits;
+  added in the underwear pass).
 - Not tried here, for later passes: objects (equipment), jewellery needing new slots, body parts and all hair.
+
+### The hair pass (2026-11-23)
+
+The three hair packs (hair01_cc0, hair02_ccby, hair03_ccby, 60 items) were extracted whole and every file of
+every item read again for a licence line. The 29 with an AGPL-3 line were already listed below and stay out.
+That left 31: the 29 first counted (7 CC0, 22 CC BY) and the two under "Other" whose files say CC BY.
+The rest were fitted the way the kit's MakeHuman hair is (`make_mh_hair.py`) to each body the item was made for
+(both, unless its catalogue or tags say female or male models), then rendered in Blender (EEVEE) front, side
+and back with close-ups of the hairline and both ears. CC0 styles go in the kit; CC BY ones in the Accessories
+pack (`assets/packs.json` `hair`, fitted with `make_mh_hair.py -- packs`).
+
+- Added to the kit (CC0): toigo_blunt_bob, toigo_curled_under_bob, toigo_inverted_bob and each `_with_bangs`,
+  by MargaretToigo, on both bodies. Their fringe is a sheet of its own over the crown; its back edge is tucked
+  8 mm under the main sheet, where it stood up as a ridge.
+- Added to the Accessories pack (CC BY 4.0; the files say "CC_by" or "CC-BY"), by Elvaerwyn: elvs_50s_updo,
+  elvs_adrienne_hair, elvs_ashley_may_hair, elvs_braid_bun, elvs_daisy_hair, elvs_hazel_hair,
+  elvs_island_princess_hair, elvs_katherine_hair, elvs_lady_hippy_hair, elvs_short_daisy_hair, elvs_wavy_bob
+  (female), elvs_keylth_hair, elvs_that_80s_babe_hair (both) and elvs_maxwell_hair (male). elvs_lady_hippy_hair has
+  8 repeated faces, dropped as the fitter reads it (`whole_faces`).
+- Left out for licence: the 29 AGPL-3 items (culturalibre_hair_01, _02, _05, _06, _11 to _14, _17 and _18, cortu's four,
+  elvs_double_mh_braid, elvs_french_braid_variation, elvs_unkempt_french_braid, elvs_witchy_lil_bob,
+  learning_anime_hair, littleright_bobcut_hair, rehmanpolanski_hair_bun_brown, sonntag78's two, grinsegold's two
+  and punkduck_alpha7's four; see the two AGPL lists).
+- Left out as too heavy (over about 15k vertices): elvs_braided_rows (21.7k), elvs_lara_hair (16.0k, and named
+  for a film character), elvs_short_side_do (50.3k), o4saken_curly01 (123k).
+- Left out after rendering:
+  - faydaen_hair_1 (CC0): a 541-vertex updo whose loose locks are flat strips standing off the head, and its bun
+    faceted;
+  - elvs_grump_hair: layered cards stand off the sides and a tuft stands up at the crown;
+  - elvs_inverted_curly_bob: sparse at the nape, where the neck shows through, and its locks hang over the face;
+  - elvs_micky_afro: two faceted puffs, and its picture's speckle reads as dirt once the maker colours it;
+  - elvs_reverse_french_braid_bun (catalogue CC0, files CC BY; under "Other" below): its picture's dark blotches read
+    as smudges, and its swoop covers one eye;
+  - o4saken_chinesebob01 and o4saken_long01 (the latter catalogue CC0, files CC BY 4.0; 15.0k vertices): the
+    "base scalp" cards at the crown stand up ragged.
 
 ### The five packs before the merge
 

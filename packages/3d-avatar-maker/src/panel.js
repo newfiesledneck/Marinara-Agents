@@ -30,6 +30,9 @@ import {
   HEIGHTS,
   HORN_COLOURS,
   LIMBS,
+  MAKEUP_LAYERS,
+  MAKEUP_PRESETS,
+  makeupPreset,
   missingFromLook as missing,
   missingNotes,
   OUTFIT_PRESETS,
@@ -193,6 +196,14 @@ function colours(name, list, current, onPick, says = "") {
     h("div", {}, box, says ? h("div", { class: "ends" }, h("span", {}, says)) : null),
   );
 }
+
+/** A list's [value, label] choices, a pack's named for its pack where another choice has the same label. */
+const namedChoices = (choices) =>
+  choices.map(([value, label]) =>
+    Object.hasOwn(PACK_PIECES, value) && choices.some(([other, same]) => other !== value && same === label)
+      ? [value, `${label} (${PACK_PIECES[value].packName})`]
+      : [value, label],
+  );
 
 /** Where a pack's piece or hair style (id in list, looks.js PACK_PIECES or PACK_HAIR) is from, or null. */
 const fromPack = (list, id) => {
@@ -460,7 +471,7 @@ export function createPanel(actions) {
       ),
     ],
 
-    skin: ({ filled }) => [
+    skin: ({ look, filled }) => [
       group(
         "Skin",
         "",
@@ -495,8 +506,74 @@ export function createPanel(actions) {
           : null,
       ),
       group(
-        "Lips and nails",
-        "Left alone, each colour follows the skin.",
+        "Makeup",
+        "On any skin. Each layer is a colour and a strength; at none, the skin is as it is.",
+        row(
+          "Preset",
+          select(
+            [["", "Choose one…"], ["none", "No makeup"], ...MAKEUP_PRESETS.map(([value, label]) => [value, label])],
+            "",
+            (value) => {
+              if (!value) return;
+              const { makeup, lips } = makeupPreset(value);
+              change({ makeup: { $set: makeup }, colours: { lips } });
+            },
+            "Makeup preset",
+          ),
+          "Ready-made makeup. It sets every layer below, which stay adjustable.",
+        ),
+        ...MAKEUP_LAYERS.flatMap(([layer, label, says, list, usual]) => {
+          // (The lipstick's colour is the lips' colour, colours.lips; its strength is makeup.lipstick.)
+          const lipstick = layer === "lipstick";
+          const colour = lipstick ? look.colours?.lips : filled.makeup[layer]?.colour;
+          const amount =
+            colour === undefined ? 0 : lipstick ? (filled.makeup.lipstick?.amount ?? 1) : filled.makeup[layer].amount;
+          const set = (hex, strength) =>
+            lipstick
+              ? {
+                  colours: { lips: strength ? hex : undefined },
+                  makeup: { lipstick: strength && strength < 1 ? { amount: strength } : undefined },
+                }
+              : { makeup: { [layer]: strength ? { colour: hex, amount: strength } : undefined } };
+          // (The colour and strength as they are now: a slider being dragged doesn't redraw the panel.)
+          let now = { hex: colour ?? list[0][0], strength: amount };
+          const strength = slider({
+            name: `${label} strength`,
+            says: `How strongly the ${label.toLowerCase()} shows, from none to full.`,
+            ends: ["None", "Full"],
+            least: 0,
+            most: 1,
+            at: amount,
+            onInput: (value) => {
+              now = { ...now, strength: value };
+              change(set(now.hex, value), false);
+            },
+          });
+          return [
+            colours(
+              label,
+              list,
+              colour,
+              (hex, redraw) => {
+                // (Picking a colour while there's none puts it on at its usual strength.)
+                const was = now.strength;
+                now = { hex, strength: was || usual };
+                change(set(hex, now.strength), redraw || !was);
+              },
+              says,
+            ),
+            strength,
+          ];
+        }),
+        h(
+          "button",
+          { type: "button", onclick: () => change({ makeup: undefined, colours: { lips: undefined } }) },
+          "No makeup (the skin's own lips)",
+        ),
+      ),
+      group(
+        "Nails",
+        "Left alone, their colour follows the skin.",
         row(
           "Fingernails",
           select(NAILS, filled.nails, (value) => change({ nails: value }), "Fingernails"),
@@ -515,7 +592,7 @@ export function createPanel(actions) {
           ),
           "Shoes hide them.",
         ),
-        ...AVATAR_COLOURS.filter(([field]) => field === "lips" || field === "nails").map(([field, label, list, says]) =>
+        ...AVATAR_COLOURS.filter(([field]) => field === "nails").map(([field, label, list, says]) =>
           colours(
             label,
             list,
@@ -526,8 +603,8 @@ export function createPanel(actions) {
         ),
         h(
           "button",
-          { type: "button", onclick: () => change({ colours: { lips: undefined, nails: undefined } }) },
-          "Back to the skin's own lips and nails",
+          { type: "button", onclick: () => change({ colours: { nails: undefined } }) },
+          "Back to the skin's own nails",
         ),
       ),
     ],
@@ -536,7 +613,9 @@ export function createPanel(actions) {
       group(
         "Hair",
         "",
-        missing(look).hair ? h("p", { class: "says" }, missingNotes({ ...look, clothes: [] }).join(" ")) : null,
+        missing(look).hair
+          ? h("p", { class: "says" }, missingNotes({ hair: look.hair, fromPacks: look.fromPacks }).join(" "))
+          : null,
         row(
           "Style",
           select(
@@ -607,29 +686,69 @@ export function createPanel(actions) {
         ),
         group(
           "Underwear",
-          "Hidden by whatever is worn over it.",
+          "Always the innermost layer. Installed wardrobe packs add more to each list. A swimsuit or bodysuit worn on its own leaves it off.",
+          // (Underwear from a pack that isn't installed: kept in the look, not worn, as a piece is.)
+          ...missing(look).underwear.map((style) =>
+            h(
+              "div",
+              { class: "piece" },
+              h(
+                "p",
+                { class: "says" },
+                missingNotes({ underwear: { top: style }, fromPacks: look.fromPacks }).join(" "),
+              ),
+              h(
+                "button",
+                {
+                  type: "button",
+                  onclick: () =>
+                    change({ underwear: { [style === filled.underwear.top ? "top" : "bottom"]: undefined } }),
+                },
+                "Take it out of the look",
+              ),
+            ),
+          ),
           choices.tops.length
             ? row(
                 "Top",
                 select(
-                  [[BARE, "None"], ...UNDERWEAR_TOPS.filter(([style]) => choices.tops.includes(style))],
+                  namedChoices([[BARE, "None"], ...UNDERWEAR_TOPS.filter(([style]) => choices.tops.includes(style))]),
                   filled.underwear.top,
                   (value) => change({ underwear: { top: value } }),
                   "Underwear top",
                 ),
               )
             : null,
+          fromPack(PACK_PIECES, filled.underwear.top),
           row(
             "Bottom",
             select(
-              [[BARE, "None"], ...UNDERWEAR_BOTTOMS.filter(([style]) => choices.bottoms.includes(style))],
+              namedChoices([[BARE, "None"], ...UNDERWEAR_BOTTOMS.filter(([style]) => choices.bottoms.includes(style))]),
               filled.underwear.bottom,
               (value) => change({ underwear: { bottom: value } }),
               "Underwear bottom",
             ),
           ),
-          colours("Colour", CLOTH_COLOURS, filled.colours.underwear, (hex, redraw) =>
-            change({ colours: { underwear: hex } }, redraw),
+          fromPack(PACK_PIECES, filled.underwear.bottom),
+          row(
+            "Show underwear under clothes",
+            select(
+              [
+                ["on", "On"],
+                ["off", "Off"],
+              ],
+              filled.underwear.underClothes ? "on" : "off",
+              (value) => change({ underwear: { underClothes: value === "on" } }),
+              "Show underwear under clothes",
+            ),
+            "On: the underwear stays on under clothes, so a bra strap can show at an open neckline and briefs under a skirt. Clothes aren't fitted around underwear yet, so it pokes through many of them. Off: clothes hide the underwear they cover, which avoids that.",
+          ),
+          colours(
+            "Colour",
+            CLOTH_COLOURS,
+            filled.colours.underwear,
+            (hex, redraw) => change({ colours: { underwear: hex } }, redraw),
+            "Dyes the underwear, a pack's too where it's made to be dyed; a patterned piece keeps its own colours.",
           ),
         ),
         group(

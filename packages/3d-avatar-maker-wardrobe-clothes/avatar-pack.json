@@ -2,7 +2,7 @@
  "format": 1,
  "for": "3d-avatar-maker",
  "body": 1,
- "maker": "0.1.03",
+ "maker": "0.1.11",
  "name": "Clothes",
  "pieces": {
   "aethelraed_flapper_dress": {
@@ -29,7 +29,8 @@
    "licence": "CC0-1.0",
    "author": "Aethelraed_Unraed",
    "source": "http://www.makehumancommunity.org/node/581",
-   "credit": null
+   "credit": null,
+   "hang": 0.4
   },
   "donitz_monk_robe": {
    "label": "Monk's robe",
@@ -65,7 +66,8 @@
    "licence": "CC0-1.0",
    "author": "Donitz",
    "source": "http://www.makehumancommunity.org/node/3238",
-   "credit": null
+   "credit": null,
+   "hang": 0.45
   },
   "drednicolson_asymmetric_tunic_and_sash": {
    "label": "Tunic with a sash",
@@ -151,14 +153,12 @@
   },
   "elvs_bandeau_swimwear_top_1": {
    "label": "Gathered bandeau top",
-   "slot": "top",
+   "slot": "underwear_top",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-top"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -168,7 +168,7 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/tops.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/1956",
@@ -206,16 +206,83 @@
    "source": "http://www.makehumancommunity.org/node/1279",
    "credit": "\"elvs_basic_felt_elf_shoes\" by Elvaerwyn (http://www.makehumancommunity.org/node/1279), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
-  "elvs_crude_bootyshorts": {
-   "label": "Lace shorts",
-   "slot": "legs",
+  "elvs_bow_bottom_panty": {
+   "label": "Briefs with a bow",
+   "slot": "underwear_bottom",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-bottom"
+   "layer": 0,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/underwear.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1665",
+   "credit": "\"elvs_bow_bottom_panty\" by Elvaerwyn (http://www.makehumancommunity.org/node/1665), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_bow_front_bra": {
+   "label": "Bra with a bow",
+   "slot": "underwear_top",
+   "bodies": [
+    "female"
    ],
+   "layer": 0,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/underwear.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1666",
+   "credit": "\"elvs_bow_front_bra\" by Elvaerwyn (http://www.makehumancommunity.org/node/1666), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_camisole1": {
+   "label": "Lace camisole",
+   "slot": "underwear_top",
+   "bodies": [
+    "female"
+   ],
+   "layer": 0,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/underwear.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1930",
+   "credit": "\"elvs_camisole1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1930), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_crude_bootyshorts": {
+   "label": "Lace shorts",
+   "slot": "underwear_bottom",
+   "bodies": [
+    "female"
+   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -225,11 +292,12 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/legs.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/1718",
-   "credit": "\"elvs_crude_bootyshorts\" by Elvaerwyn (http://www.makehumancommunity.org/node/1718), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"elvs_crude_bootyshorts\" by Elvaerwyn (http://www.makehumancommunity.org/node/1718), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "tint": true
   },
   "elvs_crude_t_shirt_male": {
    "label": "Plain T-shirt",
@@ -663,7 +731,8 @@
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/2558",
-   "credit": "\"elvs_goddess_dress1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2558), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"elvs_goddess_dress1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2558), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
   },
   "elvs_goddess_dress2": {
    "label": "Goddess dress, long",
@@ -689,7 +758,8 @@
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/2559",
-   "credit": "\"elvs_goddess_dress2\" by Elvaerwyn (http://www.makehumancommunity.org/node/2559), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"elvs_goddess_dress2\" by Elvaerwyn (http://www.makehumancommunity.org/node/2559), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.35
   },
   "elvs_goddess_dress5": {
    "label": "Goddess dress, green",
@@ -741,7 +811,8 @@
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/2564",
-   "credit": "\"elvs_goddess_dress7\" by Elvaerwyn (http://www.makehumancommunity.org/node/2564), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"elvs_goddess_dress7\" by Elvaerwyn (http://www.makehumancommunity.org/node/2564), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.25
   },
   "elvs_gored_elephant_pants": {
    "label": "Flared trousers",
@@ -1004,14 +1075,12 @@
   },
   "elvs_lace_panty": {
    "label": "Scalloped briefs",
-   "slot": "legs",
+   "slot": "underwear_bottom",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-bottom"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -1021,7 +1090,7 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/legs.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/1931",
@@ -1205,7 +1274,8 @@
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/1321",
-   "credit": "\"elvs_male_swim_shorts1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1321), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"elvs_male_swim_shorts1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1321), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "elvs_male_tankshirt1": {
    "label": "Tank shirt",
@@ -1358,7 +1428,8 @@
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/2581",
-   "credit": "\"elvs_pencil_skirt\" by Elvaerwyn (http://www.makehumancommunity.org/node/2581), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"elvs_pencil_skirt\" by Elvaerwyn (http://www.makehumancommunity.org/node/2581), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.2
   },
   "elvs_pleated_plaid_mini_skirt": {
    "label": "Pleated tartan mini skirt",
@@ -1518,14 +1589,12 @@
   },
   "elvs_swimwear_micro_shorts": {
    "label": "Swim shorts, gathered",
-   "slot": "legs",
+   "slot": "underwear_bottom",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-bottom"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -1535,7 +1604,7 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/legs.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/1957",
@@ -1565,7 +1634,8 @@
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/1495",
-   "credit": "\"elvs_vintage_swimwear1_50s_strapless\" by Elvaerwyn (http://www.makehumancommunity.org/node/1495), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"elvs_vintage_swimwear1_50s_strapless\" by Elvaerwyn (http://www.makehumancommunity.org/node/1495), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "janexx_old_female_sweater": {
    "label": "Pullover",
@@ -1620,14 +1690,12 @@
   },
   "joepal_plain_bra": {
    "label": "Plain bra",
-   "slot": "top",
+   "slot": "underwear_top",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-top"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -1637,11 +1705,12 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/tops.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-4.0",
    "author": "Joel Palmius",
    "source": "http://www.makehumancommunity.org/node/3384",
-   "credit": "\"joepal_plain_bra\" by Joel Palmius (http://www.makehumancommunity.org/node/3384), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"joepal_plain_bra\" by Joel Palmius (http://www.makehumancommunity.org/node/3384), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "tint": true
   },
   "madmanny_tight_leather_boots": {
    "label": "Tight leather boots",
@@ -1719,7 +1788,8 @@
    "licence": "CC-BY-4.0",
    "author": "Mindfront",
    "source": "http://www.makehumancommunity.org/node/336",
-   "credit": "\"mindfront_bikini_01\" by Mindfront (http://www.makehumancommunity.org/node/336), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"mindfront_bikini_01\" by Mindfront (http://www.makehumancommunity.org/node/336), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "mindfront_cardigan_long_open_front": {
    "label": "Long open cardigan",
@@ -1981,7 +2051,8 @@
    "licence": "CC-BY-4.0",
    "author": "Mindfront",
    "source": "http://www.makehumancommunity.org/node/331",
-   "credit": "\"mindfront_f_one-piece_swimsuit_01\" by Mindfront (http://www.makehumancommunity.org/node/331), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"mindfront_f_one-piece_swimsuit_01\" by Mindfront (http://www.makehumancommunity.org/node/331), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "mindfront_female_trousers_1": {
    "label": "Trousers",
@@ -2155,7 +2226,8 @@
    "licence": "CC-BY-4.0",
    "author": "Mindfront",
    "source": "http://www.makehumancommunity.org/node/329",
-   "credit": "\"mindfront_male_swimming_trunks_01\" by Mindfront (http://www.makehumancommunity.org/node/329), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"mindfront_male_swimming_trunks_01\" by Mindfront (http://www.makehumancommunity.org/node/329), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "mindfront_male_swimming_trunks_02": {
    "label": "Swimming trunks, orange",
@@ -2180,7 +2252,8 @@
    "licence": "CC-BY-4.0",
    "author": "Mindfront",
    "source": "http://www.makehumancommunity.org/node/340",
-   "credit": "\"mindfront_male_swimming_trunks_02\" by Mindfront (http://www.makehumancommunity.org/node/340), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"mindfront_male_swimming_trunks_02\" by Mindfront (http://www.makehumancommunity.org/node/340), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "mindfront_male_swimming_trunks_03": {
    "label": "Board shorts",
@@ -2205,7 +2278,8 @@
    "licence": "CC-BY-4.0",
    "author": "Mindfront",
    "source": "http://www.makehumancommunity.org/node/851",
-   "credit": "\"mindfront_male_swimming_trunks_03\" by Mindfront (http://www.makehumancommunity.org/node/851), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"mindfront_male_swimming_trunks_03\" by Mindfront (http://www.makehumancommunity.org/node/851), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "mindfront_male_trousers_1": {
    "label": "Trousers, tan",
@@ -2438,7 +2512,8 @@
    "licence": "CC-BY-4.0",
    "author": "MTKnife",
    "source": "http://www.makehumancommunity.org/node/1961",
-   "credit": "\"mtknife_pleated_mini_skirt\" by MTKnife (http://www.makehumancommunity.org/node/1961), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"mtknife_pleated_mini_skirt\" by MTKnife (http://www.makehumancommunity.org/node/1961), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
   },
   "namuhekam_male_polo_shirt": {
    "label": "Polo shirt",
@@ -2493,14 +2568,12 @@
   },
   "punkduck_bandeau_bikini_bra": {
    "label": "Bandeau bikini top",
-   "slot": "top",
+   "slot": "underwear_top",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-top"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -2510,7 +2583,7 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/tops.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/460",
@@ -2518,14 +2591,12 @@
   },
   "punkduck_bandeau_bikini_slip": {
    "label": "Bandeau bikini bottom",
-   "slot": "legs",
+   "slot": "underwear_bottom",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-bottom"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -2535,7 +2606,7 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/legs.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/461",
@@ -2543,14 +2614,12 @@
   },
   "punkduck_bikini02_bra": {
    "label": "Bikini top",
-   "slot": "top",
+   "slot": "underwear_top",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-top"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -2560,7 +2629,7 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/tops.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/513",
@@ -2568,14 +2637,12 @@
   },
   "punkduck_bikini02_slip": {
    "label": "Bikini bottom",
-   "slot": "legs",
+   "slot": "underwear_bottom",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-bottom"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -2585,7 +2652,7 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/legs.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/514",
@@ -2640,18 +2707,17 @@
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/421",
-   "credit": "\"punkduck_black_mini_skirt\" by punkduck (http://www.makehumancommunity.org/node/421), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_black_mini_skirt\" by punkduck (http://www.makehumancommunity.org/node/421), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
   },
   "punkduck_brazilian_bikini_bra": {
    "label": "Brazilian bikini top",
-   "slot": "top",
+   "slot": "underwear_top",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-top"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -2661,7 +2727,7 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/tops.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/429",
@@ -2669,14 +2735,12 @@
   },
   "punkduck_brazilian_bikini_slip": {
    "label": "Brazilian bikini bottom",
-   "slot": "legs",
+   "slot": "underwear_bottom",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-bottom"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -2686,7 +2750,7 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/legs.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/430",
@@ -2803,7 +2867,8 @@
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/816",
-   "credit": "\"punkduck_female_strapless_bodysuit\" by punkduck (http://www.makehumancommunity.org/node/816), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_female_strapless_bodysuit\" by punkduck (http://www.makehumancommunity.org/node/816), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "punkduck_figure_skating_dress": {
    "label": "Figure skating dress",
@@ -2834,14 +2899,12 @@
   },
   "punkduck_french_lingerie_bra": {
    "label": "Lace bra",
-   "slot": "top",
+   "slot": "underwear_top",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-top"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -2851,22 +2914,21 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/tops.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/470",
-   "credit": "\"punkduck_french_lingerie_bra\" by punkduck (http://www.makehumancommunity.org/node/470), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_french_lingerie_bra\" by punkduck (http://www.makehumancommunity.org/node/470), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "tint": true
   },
   "punkduck_french_lingerie_mini_briefs": {
    "label": "Lace briefs",
-   "slot": "legs",
+   "slot": "underwear_bottom",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-bottom"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -2876,22 +2938,68 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/legs.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/471",
-   "credit": "\"punkduck_french_lingerie_mini_briefs\" by punkduck (http://www.makehumancommunity.org/node/471), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_french_lingerie_mini_briefs\" by punkduck (http://www.makehumancommunity.org/node/471), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "tint": true
   },
-  "punkduck_frill_bikini_bottom": {
-   "label": "Frilled bikini bottom",
-   "slot": "legs",
+  "punkduck_french_lingerie_suspender_belt": {
+   "label": "Suspender belt",
+   "slot": "waist",
    "bodies": [
     "female"
    ],
    "layer": 1,
-   "hides": [
-    "underwear-bottom"
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      15790320
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/930",
+   "credit": "\"punkduck_french_lingerie_suspender_belt\" by punkduck (http://www.makehumancommunity.org/node/930), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_french_lingerie_thong": {
+   "label": "Lace thong",
+   "slot": "underwear_bottom",
+   "bodies": [
+    "female"
    ],
+   "layer": 0,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16316665
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/underwear.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/1064",
+   "credit": "\"punkduck_french_lingerie_thong\" by punkduck (http://www.makehumancommunity.org/node/1064), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "tint": true
+  },
+  "punkduck_frill_bikini_bottom": {
+   "label": "Frilled bikini bottom",
+   "slot": "underwear_bottom",
+   "bodies": [
+    "female"
+   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -2901,7 +3009,7 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/legs.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-4.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/1504",
@@ -2909,14 +3017,12 @@
   },
   "punkduck_frill_bikini_top": {
    "label": "Frilled bikini top",
-   "slot": "top",
+   "slot": "underwear_top",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-top"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -2926,7 +3032,7 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/tops.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-4.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/1505",
@@ -3114,7 +3220,8 @@
    "licence": "CC-BY-4.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/1379",
-   "credit": "\"punkduck_medieval_dress\" by punkduck (http://www.makehumancommunity.org/node/1379), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_medieval_dress\" by punkduck (http://www.makehumancommunity.org/node/1379), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.1
   },
   "punkduck_middle_length_qipao": {
    "label": "Qipao, mid length",
@@ -3192,7 +3299,8 @@
    "licence": "CC-BY-4.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/1483",
-   "credit": "\"punkduck_one_piece_bikini01\" by punkduck (http://www.makehumancommunity.org/node/1483), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_one_piece_bikini01\" by punkduck (http://www.makehumancommunity.org/node/1483), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "punkduck_retro_polka_dot_skirt": {
    "label": "Polka-dot skirt",
@@ -3217,7 +3325,8 @@
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/780",
-   "credit": "\"punkduck_retro_polka_dot_skirt\" by punkduck (http://www.makehumancommunity.org/node/780), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_retro_polka_dot_skirt\" by punkduck (http://www.makehumancommunity.org/node/780), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0
   },
   "punkduck_retro_top": {
    "label": "Retro top",
@@ -3326,7 +3435,8 @@
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/555",
-   "credit": "\"punkduck_shapewear\" by punkduck (http://www.makehumancommunity.org/node/555), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_shapewear\" by punkduck (http://www.makehumancommunity.org/node/555), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "punkduck_short_bodysuit_female": {
    "label": "Short bodysuit",
@@ -3353,7 +3463,8 @@
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/855",
-   "credit": "\"punkduck_short_bodysuit_female\" by punkduck (http://www.makehumancommunity.org/node/855), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_short_bodysuit_female\" by punkduck (http://www.makehumancommunity.org/node/855), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "punkduck_skirt_native_american_fashion": {
    "label": "Long skirt, striped hem",
@@ -3457,14 +3568,12 @@
   },
   "punkduck_sport_bra": {
    "label": "Sports bra",
-   "slot": "top",
+   "slot": "underwear_top",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-top"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -3474,36 +3583,110 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/tops.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/1225",
-   "credit": "\"punkduck_sport_bra\" by punkduck (http://www.makehumancommunity.org/node/1225), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_sport_bra\" by punkduck (http://www.makehumancommunity.org/node/1225), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "tint": true
   },
   "punkduck_sport_briefs": {
    "label": "Sports briefs",
-   "slot": "legs",
+   "slot": "underwear_bottom",
+   "bodies": [
+    "female"
+   ],
+   "layer": 0,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      15987699
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/underwear.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/749",
+   "credit": "\"punkduck_sport_briefs\" by punkduck (http://www.makehumancommunity.org/node/749), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "tint": true
+  },
+  "punkduck_strappy_lace_thong": {
+   "label": "Strappy lace thong",
+   "slot": "underwear_bottom",
+   "bodies": [
+    "female"
+   ],
+   "layer": 0,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      2434341
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/underwear.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/1166",
+   "credit": "\"punkduck_strappy_lace_thong\" by punkduck (http://www.makehumancommunity.org/node/1166), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "tint": true
+  },
+  "punkduck_string_5": {
+   "label": "Embroidered briefs",
+   "slot": "underwear_bottom",
+   "bodies": [
+    "female"
+   ],
+   "layer": 0,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/underwear.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/542",
+   "credit": "\"punkduck_string_5\" by punkduck (http://www.makehumancommunity.org/node/542), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_teddy_erotic_lingerie": {
+   "label": "Lace teddy",
+   "slot": "body",
    "bodies": [
     "female"
    ],
    "layer": 1,
    "hides": [
+    "underwear-top",
     "underwear-bottom"
    ],
    "parts": {
     "female": [
      [
       "cloth",
-      15987699
+      16777215
      ]
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/legs.pack.png",
+   "bundle": "wardrobe/body.pack.png",
    "licence": "CC-BY-3.0",
    "author": "punkduck",
-   "source": "http://www.makehumancommunity.org/node/749",
-   "credit": "\"punkduck_sport_briefs\" by punkduck (http://www.makehumancommunity.org/node/749), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "source": "http://www.makehumancommunity.org/node/424",
+   "credit": "\"punkduck_teddy_erotic_lingerie\" by punkduck (http://www.makehumancommunity.org/node/424), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "punkduck_tennis_dress": {
    "label": "Tennis dress",
@@ -3587,7 +3770,8 @@
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/668",
-   "credit": "\"punkduck_triathlon_suit_female\" by punkduck (http://www.makehumancommunity.org/node/668), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_triathlon_suit_female\" by punkduck (http://www.makehumancommunity.org/node/668), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "punkduck_tube_dress": {
    "label": "Tube dress",
@@ -3714,7 +3898,8 @@
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/443",
-   "credit": "\"punkduck_winter_coat\" by punkduck (http://www.makehumancommunity.org/node/443), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_winter_coat\" by punkduck (http://www.makehumancommunity.org/node/443), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.3
   },
   "toigo_ankle_boots_female": {
    "label": "Ankle boots",
@@ -3884,7 +4069,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1706",
-   "credit": null
+   "credit": null,
+   "hang": 0.1
   },
   "toigo_bodice_style_top": {
    "label": "Bodice top",
@@ -3935,7 +4121,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1730",
-   "credit": null
+   "credit": null,
+   "hang": 0.15
   },
   "toigo_camisole_top": {
    "label": "Camisole top",
@@ -4125,7 +4312,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1853",
-   "credit": null
+   "credit": null,
+   "hang": 0.3
   },
   "toigo_halter_dress_midi": {
    "label": "Halter dress, midi",
@@ -4151,7 +4339,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1854",
-   "credit": null
+   "credit": null,
+   "hang": 0.3
   },
   "toigo_halter_dress_with_fluted_skirt": {
    "label": "Halter dress, fluted skirt",
@@ -4177,7 +4366,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1855",
-   "credit": null
+   "credit": null,
+   "hang": 0.35
   },
   "toigo_harem_pants": {
    "label": "Harem trousers",
@@ -4278,7 +4468,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1727",
-   "credit": null
+   "credit": null,
+   "hang": 0.1
   },
   "toigo_male_double_breasted_suit": {
    "label": "Double-breasted suit",
@@ -4413,7 +4604,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1724",
-   "credit": null
+   "credit": null,
+   "hang": 0.4
   },
   "toigo_skirt_with_lace_ruffle": {
    "label": "Skirt with lace ruffle",
@@ -4438,7 +4630,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1731",
-   "credit": null
+   "credit": null,
+   "hang": 0.2
   },
   "toigo_strapless_ruffle_top_dress": {
    "label": "Strapless ruffle dress",
@@ -4464,7 +4657,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1705",
-   "credit": null
+   "credit": null,
+   "hang": 0.1
   },
   "toigo_suit_with_dinner_jacket": {
    "label": "White dinner jacket suit",
@@ -4517,7 +4711,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1668",
-   "credit": null
+   "credit": null,
+   "hang": 0.25
   },
   "toigo_tiered_skirt": {
    "label": "Tiered skirt",
@@ -4542,7 +4737,8 @@
    "licence": "CC0-1.0",
    "author": "MargaretToigo",
    "source": "http://www.makehumancommunity.org/node/1641",
-   "credit": null
+   "credit": null,
+   "hang": 0.2
   },
   "toigo_turtleneck_halter_top": {
    "label": "Turtleneck halter top",
@@ -4596,14 +4792,12 @@
   },
   "wolgade_female_panties_01": {
    "label": "Briefs",
-   "slot": "legs",
+   "slot": "underwear_bottom",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-bottom"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -4613,22 +4807,21 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/legs.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC0-1.0",
    "author": "wolgade",
    "source": "http://www.makehumancommunity.org/node/338",
-   "credit": null
+   "credit": null,
+   "tint": true
   },
   "wolgade_female_top_01": {
    "label": "Bra top",
-   "slot": "top",
+   "slot": "underwear_top",
    "bodies": [
     "female"
    ],
-   "layer": 1,
-   "hides": [
-    "underwear-top"
-   ],
+   "layer": 0,
+   "hides": [],
    "parts": {
     "female": [
      [
@@ -4638,7 +4831,7 @@
     ]
    },
    "variants": [],
-   "bundle": "wardrobe/tops.pack.png",
+   "bundle": "wardrobe/underwear.pack.png",
    "licence": "CC0-1.0",
    "author": "wolgade",
    "source": "http://www.makehumancommunity.org/node/339",

@@ -2,7 +2,7 @@
  "format": 1,
  "for": "3d-avatar-maker",
  "body": 1,
- "maker": "0.1.04",
+ "maker": "0.1.10",
  "name": "Accessories",
  "pieces": {
   "aethelraed_unraed_cloche_hat": {
@@ -132,6 +132,36 @@
    "author": "DredNicolson",
    "source": "http://www.makehumancommunity.org/node/415",
    "credit": "\"drednicolson_pith_helmet\" by DredNicolson (http://www.makehumancommunity.org/node/415), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_basic_brave_feathers1": {
+   "label": "Feather headdress",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1312",
+   "credit": "\"elvs_basic_brave_feathers1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1312), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
   "elvs_charity_veil1": {
    "label": "Veil",
@@ -867,6 +897,36 @@
    "source": "http://www.makehumancommunity.org/node/664",
    "credit": "\"punkduck_goggles\" by punkduck (http://www.makehumancommunity.org/node/664), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "punkduck_lace_choker": {
+   "label": "Lace choker",
+   "slot": "necklace",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/792",
+   "credit": "\"punkduck_lace-choker\" by punkduck (http://www.makehumancommunity.org/node/792), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
   "punkduck_riding_helmet": {
    "label": "Riding helmet",
    "slot": "head",
@@ -1384,6 +1444,175 @@
    "author": "wolgade",
    "source": "http://www.makehumancommunity.org/node/558",
    "credit": null
+  }
+ },
+ "hair": {
+  "elvs_50s_updo": {
+   "label": "1950s updo",
+   "bodies": [
+    "female"
+   ],
+   "bundle": "hair/elvs_50s_updo.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2001",
+   "credit": "\"elvs_50s_updo\" by Elvaerwyn (http://www.makehumancommunity.org/node/2001), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_adrienne_hair": {
+   "label": "Long, side-parted",
+   "bodies": [
+    "female"
+   ],
+   "bundle": "hair/elvs_adrienne_hair.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1862",
+   "credit": "\"elvs_adrienne_hair\" by Elvaerwyn (http://www.makehumancommunity.org/node/1862), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "swing": 0.03
+  },
+  "elvs_ashley_may_hair": {
+   "label": "Feathered, to the shoulders",
+   "bodies": [
+    "female"
+   ],
+   "bundle": "hair/elvs_ashley_may_hair.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1861",
+   "credit": "\"elvs_ashley_may_hair\" by Elvaerwyn (http://www.makehumancommunity.org/node/1861), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "swing": 0.03
+  },
+  "elvs_braid_bun": {
+   "label": "Braided bun",
+   "bodies": [
+    "female"
+   ],
+   "bundle": "hair/elvs_braid_bun.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2177",
+   "credit": "\"elvs_braid_bun\" by Elvaerwyn (http://www.makehumancommunity.org/node/2177), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_daisy_hair": {
+   "label": "Long and straight",
+   "bodies": [
+    "female"
+   ],
+   "bundle": "hair/elvs_daisy_hair.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1859",
+   "credit": "\"elvs_daisy_hair\" by Elvaerwyn (http://www.makehumancommunity.org/node/1859), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "swing": 0.03
+  },
+  "elvs_hazel_hair": {
+   "label": "Long and loose",
+   "bodies": [
+    "female"
+   ],
+   "bundle": "hair/elvs_hazel_hair.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2816",
+   "credit": "\"elvs_hazel_hair\" by Elvaerwyn (http://www.makehumancommunity.org/node/2816), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "swing": 0.03
+  },
+  "elvs_island_princess_hair": {
+   "label": "Long and swept back",
+   "bodies": [
+    "female"
+   ],
+   "bundle": "hair/elvs_island_princess_hair.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1811",
+   "credit": "\"elvs_island_princess_hair\" by Elvaerwyn (http://www.makehumancommunity.org/node/1811), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "swing": 0.03
+  },
+  "elvs_katherine_hair": {
+   "label": "Layered, with a fringe",
+   "bodies": [
+    "female"
+   ],
+   "bundle": "hair/elvs_katherine_hair.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1863",
+   "credit": "\"elvs_katherine_hair\" by Elvaerwyn (http://www.makehumancommunity.org/node/1863), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "swing": 0.03
+  },
+  "elvs_keylth_hair": {
+   "label": "Long half-updo",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "bundle": "hair/elvs_keylth_hair.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2173",
+   "credit": "\"elvs_keylth_hair\" by Elvaerwyn (http://www.makehumancommunity.org/node/2173), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "swing": 0.03
+  },
+  "elvs_lady_hippy_hair": {
+   "label": "Long, half up",
+   "bodies": [
+    "female"
+   ],
+   "bundle": "hair/elvs_lady_hippy_hair.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1812",
+   "credit": "\"elvs_lady_hippy_hair\" by Elvaerwyn (http://www.makehumancommunity.org/node/1812), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "swing": 0.03
+  },
+  "elvs_maxwell_hair": {
+   "label": "Short, swept up",
+   "bodies": [
+    "male"
+   ],
+   "bundle": "hair/elvs_maxwell_hair.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1639",
+   "credit": "\"elvs_maxwell_hair\" by Elvaerwyn (http://www.makehumancommunity.org/node/1639), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_short_daisy_hair": {
+   "label": "Short and straight",
+   "bodies": [
+    "female"
+   ],
+   "bundle": "hair/elvs_short_daisy_hair.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1860",
+   "credit": "\"elvs_short_daisy_hair\" by Elvaerwyn (http://www.makehumancommunity.org/node/1860), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "swing": 0.03
+  },
+  "elvs_that_80s_babe_hair": {
+   "label": "Long and tousled",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "bundle": "hair/elvs_that_80s_babe_hair.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2174",
+   "credit": "\"elvs_that_80s_babe_hair\" by Elvaerwyn (http://www.makehumancommunity.org/node/2174), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "swing": 0.03
+  },
+  "elvs_wavy_bob": {
+   "label": "Wavy bob",
+   "bodies": [
+    "female"
+   ],
+   "bundle": "hair/elvs_wavy_bob.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1551",
+   "credit": "\"elvs_wavy_bob\" by Elvaerwyn (http://www.makehumancommunity.org/node/1551), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "swing": 0.03
   }
  }
 }

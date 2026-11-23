@@ -9,12 +9,28 @@
 // The index (format 1; each field below `pieces` checked by readPack, `hair` by readHair):
 //   { format: 1, for: "3d-avatar-maker", body: BODY_REVISION, maker, name,
 //     pieces: { piece: { label, slot, bodies, layer, hides, parts, variants, bundle, licence, author,
-//                        source, credit, bone? } },
+//                        source, credit, bone?, hang?, noUnderwear?, tint? } },
 //     hair?: { style: { label, bodies, bundle, licence, author, source, credit, swing? } } }
-// `bone` and `hair` came later and are optional, so a pack made before them reads as it did.
+// `bone`, `hang`, `hair`, `noUnderwear`, `tint` and the underwear slots came later and are optional, so a pack
+// made before them reads as it did. A piece in an underwear slot (looks.js UNDERWEAR_SLOTS: `underwear_top`,
+// `underwear_bottom`) is a choice in the Underwear lists; `tint` says its picture is grey under its parts'
+// colours, so the underwear's colour dyes it. `noUnderwear` says a piece is worn on bare skin (a swimsuit):
+// the underwear its hide words name is left off under it even when underwear shows under clothes.
 import { HIDE_WORDS } from "./avatar.js";
 import { PACKAGE_ID } from "./kitfiles.js";
-import { addHair, addPieces, CLOTH_PARTS, CLOTH_SLOTS, HAIRSTYLES, PIECE_BONES, PIECE_ID, SLOT_OF } from "./looks.js";
+import {
+  addHair,
+  addPieces,
+  CLOTH_PARTS,
+  CLOTH_SLOTS,
+  HAIRSTYLES,
+  PIECE_BONES,
+  PIECE_ID,
+  SLOT_OF,
+  UNDERWEAR_BOTTOMS,
+  UNDERWEAR_SLOTS,
+  UNDERWEAR_TOPS,
+} from "./looks.js";
 import { getJson } from "./util.js";
 
 /** The bodies' revision the packs are fitted to (the bodies made in 0.1.02); a pack made for another is skipped. */
@@ -27,6 +43,11 @@ const MOST_PIECES = 500;
 const MOST_HAIR = 100;
 /** How far below the eyes (metres) a pack's hair style may say its locks leave the head to swing (hair.js). */
 export const MOST_SWING = 0.3;
+/**
+ * Where a pack's piece may say its cloth leaves the body to hang and swing on chains (hair.js): a share of the
+ * way from the hip joints down to the knees, from a cloak's middle of the back to below the knees.
+ */
+export const HANG_RANGE = [-1, 1.5];
 
 const text = (value, most) => (typeof value === "string" && value.trim() && value.length <= most ? value.trim() : null);
 const isColour = (value) => Number.isInteger(value) && value >= 0 && value <= 0xffffff;
@@ -86,20 +107,25 @@ const freeId = (id) =>
   PIECE_ID.test(id) &&
   !(id in Object.prototype) &&
   !Object.hasOwn(SLOT_OF, id) &&
-  !HAIRSTYLES.some(([style]) => style === id);
+  ![HAIRSTYLES, UNDERWEAR_TOPS, UNDERWEAR_BOTTOMS].some((list) => list.some(([style]) => style === id));
+/** An optional yes-or-no field: missing, or true or false. */
+const flag = (value) => value === undefined || typeof value === "boolean";
 
 /**
  * The pieces a pack's index (`avatar-pack.json`, parsed) adds, checked against this maker's own lists:
- * [{ piece, label, slot, bodies, layer, hides, parts, variants, bone, url, pack, packName, licence, author,
- * credit }]. `bone` is the body bone the piece is fixed to (looks.js PIECE_BONES), or null. A piece is left
- * out when anything in it is unknown or malformed, when its bundle isn't one of the pack's declared assets,
- * or when its id is taken already (by the kit, or an earlier pack).
+ * [{ piece, label, slot, bodies, layer, hides, parts, variants, bone, hang, noUnderwear, tint, url, pack,
+ * packName, licence, author, credit }]. `bone` is the body bone the piece is fixed to (looks.js PIECE_BONES), or
+ * null; `hang` where its cloth leaves the body to swing (HANG_RANGE, hair.js), or null for one that follows the
+ * legs (a piece fixed to a bone never swings). A piece in an underwear slot (UNDERWEAR_SLOTS) is underwear, not
+ * clothing (looks.js addPieces). A piece is left out when anything in it is unknown or malformed, when its
+ * bundle isn't one of the pack's declared assets, or when its id is taken already (by the kit, or an earlier
+ * pack).
  */
 export function readPack(installed, index) {
   if (!readable(installed, index)) return [];
   const packName = text(index.name, 80) ?? text(installed.manifest.name, 80) ?? installed.id;
   const entries = index.pieces && typeof index.pieces === "object" ? Object.entries(index.pieces) : [];
-  const slots = CLOTH_SLOTS.map(([slot]) => slot);
+  const slots = [...CLOTH_SLOTS, ...UNDERWEAR_SLOTS].map(([slot]) => slot);
   const parts = CLOTH_PARTS.map(([part]) => part);
   const found = [];
   for (const [piece, entry] of entries.slice(0, MOST_PIECES)) {
@@ -115,6 +141,11 @@ export function readPack(installed, index) {
       (entry.variants === undefined ||
         (Array.isArray(entry.variants) && entry.variants.every((way) => PIECE_ID.test(way)))) &&
       (entry.bone === undefined || entry.bone === null || PIECE_BONES.includes(entry.bone)) &&
+      (entry.hang === undefined ||
+        entry.hang === null ||
+        (Number.isFinite(entry.hang) && entry.hang >= HANG_RANGE[0] && entry.hang <= HANG_RANGE[1])) &&
+      flag(entry.noUnderwear) &&
+      flag(entry.tint) &&
       entry.parts &&
       typeof entry.parts === "object" &&
       said.bodies.every(
@@ -139,6 +170,9 @@ export function readPack(installed, index) {
       // (Another way of wearing a pack's piece isn't offered yet: looks.js CLOTH_VARIANTS has no words for it.)
       variants: [],
       bone: entry.bone ?? null,
+      hang: entry.hang ?? null,
+      noUnderwear: entry.noUnderwear === true,
+      tint: entry.tint === true,
       url: said.url,
       pack: installed.id,
       packName,

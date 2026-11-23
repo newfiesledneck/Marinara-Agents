@@ -10,8 +10,8 @@
   },
   "id": "3d-avatar-maker-wardrobe-accessories",
   "name": "3D Avatar Maker: Accessories",
-  "version": "0.2.00",
-  "description": "45 more accessories for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.04 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+  "version": "0.2.02",
+  "description": "61 more accessories for 3D Avatar Maker's Clothes and Hair tabs, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.10 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
   "engine": {
     "min": "2.4.6",
     "maxExclusive": "4.0.0"
@@ -26,6 +26,20 @@
     "assets": {
       "paths": [
         "avatar-pack.json",
+        "hair/elvs_50s_updo.pack.png",
+        "hair/elvs_adrienne_hair.pack.png",
+        "hair/elvs_ashley_may_hair.pack.png",
+        "hair/elvs_braid_bun.pack.png",
+        "hair/elvs_daisy_hair.pack.png",
+        "hair/elvs_hazel_hair.pack.png",
+        "hair/elvs_island_princess_hair.pack.png",
+        "hair/elvs_katherine_hair.pack.png",
+        "hair/elvs_keylth_hair.pack.png",
+        "hair/elvs_lady_hippy_hair.pack.png",
+        "hair/elvs_maxwell_hair.pack.png",
+        "hair/elvs_short_daisy_hair.pack.png",
+        "hair/elvs_that_80s_babe_hair.pack.png",
+        "hair/elvs_wavy_bob.pack.png",
         "wardrobe/accessories.pack.png",
         "wardrobe/feet.pack.png",
         "wardrobe/hands.pack.png",
@@ -36,18 +50,88 @@
   "files": [
     {
       "path": "agents.json",
-      "sha256": "72ff6fbf721eac74c16570fe90bf1be5e037471b69fdb01792f414e48562369d",
-      "bytes": 789
+      "sha256": "9797b0951784966a1324c44d32b457aa5275b29382385329c82e8310206a6d6d",
+      "bytes": 799
     },
     {
       "path": "avatar-pack.json",
-      "sha256": "9cdc65b6aa31c95c1b215fe9a5e20b475ec219b60e02f943819a943001c89a5c",
-      "bytes": 27450
+      "sha256": "29db2f965789001f1a6062828b43ec00dcc4ac28e52ccae4c0a833c97f01e63a",
+      "bytes": 35563
+    },
+    {
+      "path": "hair/elvs_50s_updo.pack.png",
+      "sha256": "938b410a2b77dcd2e971114db7599b5f415466bdf88ff83ba9abec1a4f8a7f8e",
+      "bytes": 486777
+    },
+    {
+      "path": "hair/elvs_adrienne_hair.pack.png",
+      "sha256": "5196093ea06418a3c69fc455b7eeedb0f8e95d71791d9a37c9ceaef164ed5251",
+      "bytes": 1208476
+    },
+    {
+      "path": "hair/elvs_ashley_may_hair.pack.png",
+      "sha256": "a94069cb6bde44d80bc5a433da0af77ea3c586c34b20e74897f825ec77d01d45",
+      "bytes": 1108548
+    },
+    {
+      "path": "hair/elvs_braid_bun.pack.png",
+      "sha256": "4d9790ffe501b78cd661afd38b925f1a62b7313de7b7fff56a4b35786ff971ba",
+      "bytes": 1348843
+    },
+    {
+      "path": "hair/elvs_daisy_hair.pack.png",
+      "sha256": "0a4e91dfc141e2582b95454329877933dc33e6668bb0cc41dbe5af6b0b1c5379",
+      "bytes": 952892
+    },
+    {
+      "path": "hair/elvs_hazel_hair.pack.png",
+      "sha256": "f8211f5d2727eff15c389ba6868ff598bf7b74c579d4f93e6edc6f6d2d2e28d3",
+      "bytes": 755333
+    },
+    {
+      "path": "hair/elvs_island_princess_hair.pack.png",
+      "sha256": "c52cbedbadf6a4836ac62339a4458bbbe76121a581a9381acb6ea8121a591883",
+      "bytes": 1053304
+    },
+    {
+      "path": "hair/elvs_katherine_hair.pack.png",
+      "sha256": "0772bdf3501ff8b7a5310a6904cb47bcecffd1cd21ab01d0591b3786128b3b29",
+      "bytes": 627921
+    },
+    {
+      "path": "hair/elvs_keylth_hair.pack.png",
+      "sha256": "aa3c293a8fe9db73d9c827b94f8301d631c618dc51b5d2d30a63c5419b717919",
+      "bytes": 1177534
+    },
+    {
+      "path": "hair/elvs_lady_hippy_hair.pack.png",
+      "sha256": "fe41dff6e211533277f23737a641c1565eff7b9722478d9c25a330ccac9841d3",
+      "bytes": 900384
+    },
+    {
+      "path": "hair/elvs_maxwell_hair.pack.png",
+      "sha256": "5127bc9fd037066b9b6370322563c41e53b1cff13993b0812a92c40fc0614bda",
+      "bytes": 246900
+    },
+    {
+      "path": "hair/elvs_short_daisy_hair.pack.png",
+      "sha256": "2f6ab63ac676ac911fe90031e02621e34e7bc7a7338aafae8bca5d2f7fb845c1",
+      "bytes": 632745
+    },
+    {
+      "path": "hair/elvs_that_80s_babe_hair.pack.png",
+      "sha256": "7ec8401258e8bad06f89f4e2e3d4723c3ddc274c1d14bcb6dec7aa65869c61e9",
+      "bytes": 1696550
+    },
+    {
+      "path": "hair/elvs_wavy_bob.pack.png",
+      "sha256": "fc23f6377343bbf5013c0de740c37e42ef4d748c82a19727989e4417cf738b8b",
+      "bytes": 515089
     },
     {
       "path": "wardrobe/accessories.pack.png",
-      "sha256": "59103cc9a28356d2e2e2bf34e9185306a2cdcb4dab2f60902b5d334299e2c0b8",
-      "bytes": 3862181
+      "sha256": "4d50b4f6408001f763479557f6e60f5f0a8084336be0ad96dd6291896664f97c",
+      "bytes": 3965593
     },
     {
       "path": "wardrobe/feet.pack.png",
@@ -61,8 +145,8 @@
     },
     {
       "path": "wardrobe/head.pack.png",
-      "sha256": "53667d6f86ebc46e4c800d7d619ef78dda141d6e38375225401cca8f3f5678bd",
-      "bytes": 7269029
+      "sha256": "3632fd9360c88e424c8b2cdb8a50b5e5debf6cf050377a77fa1e59bf791cb399",
+      "bytes": 7658959
     }
   ],
   "permissions": [],

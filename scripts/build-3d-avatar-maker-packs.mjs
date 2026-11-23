@@ -14,7 +14,13 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CLOTH_SLOTS, HAIRSTYLES, PIECE_BONES, SLOT_OF } from "../packages/3d-avatar-maker/src/looks.js";
+import {
+  CLOTH_SLOTS,
+  HAIRSTYLES,
+  PIECE_BONES,
+  SLOT_OF,
+  UNDERWEAR_SLOTS,
+} from "../packages/3d-avatar-maker/src/looks.js";
 import { MESH_KINDS, writePacked } from "./3d-avatar-maker-packed.mjs";
 import { bodyReach, bundler, packHairStyles, packOutfitPieces } from "./build-3d-avatar-maker-kit.mjs";
 import { catalogArtworkUrl } from "./catalog-artwork.mjs";
@@ -32,9 +38,13 @@ const MODELS = join(makerRoot, "assets/models");
 // (Everyday Women's, Everyday Men's, Historical and Fantasy, and Modern Casual were merged into Clothes and
 // Accessories, keeping every piece id; their old artifacts stay for installs that have them.)
 const VERSIONS = {
-  "3d-avatar-maker-wardrobe-clothes": "0.1.00",
-  "3d-avatar-maker-wardrobe-accessories": "0.2.00",
+  "3d-avatar-maker-wardrobe-clothes": "0.1.02",
+  "3d-avatar-maker-wardrobe-accessories": "0.2.02",
 };
+// A piece's bundle: its slot's group (looks.js CLOTH_SLOTS), or "underwear" for an underwear slot
+// (UNDERWEAR_SLOTS: a choice in the maker's Underwear lists, always the innermost layer).
+const isUnderwear = (slot) => UNDERWEAR_SLOTS.some(([each]) => each === slot);
+const groupOf = (slot) => (isUnderwear(slot) ? "underwear" : CLOTH_SLOTS.find(([each]) => each === slot)?.[3]);
 const FAMILY = "3d-avatar-maker-wardrobe-";
 // The bodies the pieces are fitted to (src/packs.js BODY_REVISION: the bodies made in 0.1.02), and the first
 // maker that reads packs (a pack's own `maker` in packs.json when it needs a later one, for its slots).
@@ -47,6 +57,8 @@ const boundary = JSON.parse(await readFile(join(makerRoot, "engine-boundary.json
 const LICENCES = new Set(["CC0-1.0", "CC-BY-3.0", "CC-BY-4.0"]);
 // The most a hair style's `swing` may be: how far below the eyes, in metres (src/packs.js MOST_SWING).
 const MOST_SWING = 0.3;
+// Where a piece's cloth may leave the body to hang: a share of the hips-to-knees distance (src/packs.js HANG_RANGE).
+const HANG_RANGE = [-1, 1.5];
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 /** A CC-BY piece's attribution (title, author, source, licence and the change made), as a saved avatar carries it. */
@@ -106,11 +118,11 @@ for (const [id, pack] of Object.entries(packs)) {
     bundler: bundles,
     slotOf: (piece, file) => {
       const slot = pieceSpecs[piece].slot;
-      if (!CLOTH_SLOTS.some(([each]) => each === slot)) throw new Error(`${file}: "${slot}" isn't a CLOTH_SLOTS slot`);
+      if (!groupOf(slot)) throw new Error(`${file}: "${slot}" isn't a CLOTH_SLOTS or UNDERWEAR_SLOTS slot`);
       return slot;
     },
     bundleOf: (slot) => {
-      const name = `wardrobe/${CLOTH_SLOTS.find(([each]) => each === slot)[3]}.pack.png`;
+      const name = `wardrobe/${groupOf(slot)}.pack.png`;
       return [name, join(packageRoot, name)];
     },
     // (The maker caches pictures by name, so a pack's are named for it.)
@@ -156,12 +168,23 @@ for (const [id, pack] of Object.entries(packs)) {
       throw new Error(
         `${id} ${piece}: bone "${bone}" isn't one of PIECE_BONES in packages/3d-avatar-maker/src/looks.js`,
       );
+    if (
+      spec.hang !== undefined &&
+      !(Number.isFinite(spec.hang) && spec.hang >= HANG_RANGE[0] && spec.hang <= HANG_RANGE[1])
+    )
+      throw new Error(`${id} ${piece}: hang is a share of the hips-to-knees distance, ${HANG_RANGE.join(" to ")}`);
+    if (spec.noUnderwear !== undefined && typeof spec.noUnderwear !== "boolean")
+      throw new Error(`${id} ${piece}: noUnderwear is true or false`);
+    // (Underwear is the innermost layer, hides no other underwear, and says whether the underwear's colour
+    // dyes it: `tint`, a grey picture under its parts' colours. A piece fitted before its slot moved keeps
+    // the layer and hide words it was fitted with in its model; they're read the same way.)
+    const under = isUnderwear(info.slot);
     pieces[piece] = {
       label: spec.label,
       slot: info.slot,
       bodies: info.bodies,
-      layer: entry.layer,
-      hides: entry.hides,
+      layer: under ? 0 : entry.layer,
+      hides: under ? entry.hides.filter((word) => !word.startsWith("underwear")) : entry.hides,
       parts: info.parts,
       variants: [],
       bundle: info.bundle,
@@ -170,6 +193,9 @@ for (const [id, pack] of Object.entries(packs)) {
       source: spec.source,
       credit,
       ...(bone === undefined ? {} : { bone }),
+      ...(spec.hang === undefined ? {} : { hang: spec.hang }),
+      ...(spec.noUnderwear ? { noUnderwear: true } : {}),
+      ...(under && spec.tex === "tint" ? { tint: true } : {}),
     };
   }
   const hair = {};

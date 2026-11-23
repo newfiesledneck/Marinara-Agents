@@ -282,6 +282,274 @@ No item is fitted yet; the packs that fill these slots come next.
   judged; `docs/MAKEHUMAN-PACKS.md` "The merge pass" lists each one kept and each one left out, and why.
 - Later passes add hair styles, body parts and held objects to the Accessories pack.
 
+## Built: skirts and dresses that hang and swing
+
+Before this, a skirt or dress was skinned to the body, so each side followed its own leg. That left a crease
+between the legs and bent the cloth with them. Now hanging cloth swings on chains of its own, as hair does,
+worked out in the maker from each piece's mesh (`src/hair.js` `hangPlan`, shared with the hair). No model
+changed.
+
+- **Which pieces.** The kit's `HANGING_CLOTH`: the long, short and pleated skirts, the loincloth, the apron,
+  the dress, the gown, the robe, the tunic's tails, the long coat and the cloak. A pack piece hangs if its
+  index has `hang` (`packs.js` `readPack`, `-1` to `1.5`). The builder writes it from `assets/packs.json`,
+  where 22 skirts, dresses, robes and a coat have one now. Trousers, leggings, shorts, overalls, shoes, the
+  tight MakeHuman skirt and the denim skirt follow each leg as before.
+- **The hang line.** `hang` is where the cloth leaves the body, as a share of the way from the hip joints
+  down to the knees: 0 at the hips, 1 at the knees, below 0 above the hips. Skirts are at 0.1 to 0.25, a
+  shift dress at 0.4, the monk's robe at 0.45 (it lies on the legs above that), and the cloak at -0.6, the
+  middle of the back. Each value was read off how far the cloth stands from the skin at each height.
+- **Sides and chains.** Below the line, each point is followed up the mesh to the line to find how far down
+  the cloth it is. Its side is where it is round the hips, one of eight. (A skirt's rows of points are far
+  apart, and paths across them drifted round, so following the side up the mesh gave lopsided chains.)
+  Each side gets a chain of bones down its middle, about 12 cm a bone and six at most. They're named
+  `cloth_<piece>_<side>_0` to the tip.
+- **Weights.** Below the line, points ease from their two legs onto the chains over 8 cm. They blend
+  between neighbouring sides and along each chain, so the front between the legs is one piece on the front
+  chain. Cloth that moves mostly with the arms, a sleeve's cuff, stays as it was.
+- **What a chain hangs from.** The hips, or the spine bone at the line (the cloak hangs from `spine_01`).
+- **Longer legs.** Each point rests where its old weights put it, as the hair does on a bigger head.
+- **Colliders** (`springs.js` `bodyColliders`, `cloth`). Each chain meets its own copies of the hips' and
+  back's capsules and a capsule down each thigh and calf, fitted as the hair's are. A leg's capsule may
+  shrink by half where cloth rests close to it, not a quarter, so a tight robe's sides stay out of the legs.
+- **Settings** (`CLOTH_JOINT`). Stiffness 1, gravity 0.01, drag 0.35, hit radius 2 cm: stiffer than hair
+  (0.5) and slowed more (0.3). A stiffer, slower trial (2 and 0.6) sagged no less for its weight and swung
+  less as the hips turned.
+- **The Moving pose** (`figure.js movingPose`) now turns the hips with the head and lifts each knee in turn
+  in a small step, so the skirt swings. Its label says so. Reduced motion holds everything still.
+- **The files.** A VRM writes each chain as a spring with its colliders, and three-vrm holds them at rest in
+  the regression test. A GLB keeps the chains' bones and weights. The Engine's GLB path runs no springs, so
+  there the cloth follows the hips and doesn't move out of the legs' way.
+
+Measured in Node over ten seconds of the Moving pose, for every kit piece on both bodies and for each pack
+piece given a `hang`:
+
+- Rest is exact (0.002 mm), and every point's weights add up to one.
+- No collider holds a joint at rest, as built or in the T-pose.
+- Sag at rest is 0.1 to 0.7 cm.
+- The swing is under 1.5 cm on the shortest mini skirts and his tunic's tails, 4 to 17 cm on most pieces,
+  and up to 39 cm at a floor-length hem lifted by the knee.
+- Everything settles within 0.8 s.
+- No joint went deeper into a leg's capsule than at rest. The female monk's robe is the exception, at
+  1.2 mm.
+
+The regression test checks the same for every kit piece on both bodies. It also checks that trousers get
+no chains, that a long-legged skirt rests where it was fitted, and that a VRM's dress springs meet the four
+leg capsules. Renders of a skirt, the gown, the long coat, the cloak and the robe at moments of the Moving
+pose are in the hand-over note.
+
+## Built: a bust that moves
+
+At the same time, and on the same springs: each breast has a short spring bone, as VRoid models do, so the
+chest sways a little as the body turns (`src/bust.js`).
+
+- **Who gets it.** Her body always. His only when his chest stands out in front of the breastbone as far as
+  her bust does at its flattest (`BUST.least`, 1.6 cm). His chest is 0.8 cm as built and 1.3 cm at the
+  fullest Chest slider. The half-orc slider with a full chest reaches 1.8 cm and gets one; no other slider
+  mix tried did.
+- **The bones.** `breast_l` and `breast_r` under the upper chest, from 7 cm inside each breast to its front,
+  each with a tip there, placed from the body as shaped.
+- **Weights.** Round each front, a share of a point's upper-chest weight goes onto its side's bone: all of it
+  within 3 cm, none past 8.5 cm, eased between. Only the upper chest's weight moves, as it is the bones'
+  parent, so with the bust at rest the body bends exactly as before. A point with four weights already
+  gives up its smallest only if that's under 0.05; dropping more made a T-shirt sink 6 mm into the skin as
+  the arms moved.
+- **Clothes follow.** Every piece but hair and bone-fixed pieces takes the share of the skin nearest it, so
+  a top and the breast under it move together.
+- **Settings** (`BUST_JOINT`). Stiffness 1.5, no gravity (it rests as shaped), drag 0.45, and no colliders,
+  so the arms never push it. It sways about 2 mm in the Moving pose and settles within a second.
+- **Checked** in the regression test: rest exact on the skin and the top with whole weights, a few
+  millimetres of sway, settling, a T-shirt and a dress staying outside the skin as it sways (the bust adds
+  under 0.1 mm), his chest with none as built or muscular, and one at the half-orc's full chest. A GLB keeps
+  the bones and a VRM writes the springs.
+
+
+## Built: animations in the preview
+
+- **The list.** An Animation list under the picture, beside the pose and Face lists, with Pause and Stop.
+  - The 20 animations: standing at ease, looking around, talking with the hands, talking on a phone,
+    walking on the spot (plain and smart), turning round, waving, dancing, celebrating, nodding yes,
+    shaking the head no, arms folded, surprise, crying, drinking, sitting down and getting up, sitting on the
+    ground, crouching and stretching.
+  - Each option names what it does, and its tooltip says more.
+  - Picking a pose stops the animation.
+- **Recorded clips** (`src/clips/ual.json`, 486 KB, bundled into `client.js`). 24 clips from Quaternius's
+  Universal Animation Library and Universal Animation Library 2, both CC0 (each library's License.txt says
+  so).
+  - **The build.** `scripts/build-3d-avatar-maker-clips.mjs` (begun as a copy of Wanderworld's) stores each
+    humanoid bone's turn away from the library's T-pose, in model space, and the hips' movement in leg
+    lengths. Each turn is three whole numbers, and most clips keep 12 frames a second.
+  - **Our rig.** It is the same Unreal mannequin, so `recordedPose` turns each bone that far from where it
+    stands in this body's own T-pose (the arms levelled from the A-pose), parent first, and moves the hips by
+    the clip's offset times this body's leg.
+  - **The floor.** The lower foot is then put back on the floor, so any leg length stands on it.
+  - **Sequences.** A motion is a loop of clips (sit down, sit, talk, stand up, stand). A different clip eases
+    in over 0.3 s; a loop repeated goes straight on. A quick drop (into the crouch and out of it) plays at
+    0.6 speed, so long hair on its springs follows rather than flies up.
+  - **Left out.** The backflip: it read well, but long hair on its soft springs flew straight up.
+- **Hand-made where no clip fits** (waving and stretching, `POSES`), and for the turn:
+  - Each hand-made motion is a function of time that returns where the hips, spine, head, arms and feet go.
+  - `motionPose` puts it on the A-pose rig. Each arm is aimed and turned about itself so the elbow bends the
+    right way. Each leg reaches its ankle with two-bone IK. The hips come down when a foot couldn't otherwise
+    reach the floor.
+  - The library's own turns go a quarter round and back, so "Turning round" is the walk mixed half with the
+    idle, for small steps, while the whole figure turns once in 10 s on its hips. The camera stays put.
+- **Starting and stopping** (`createMotionPlayer`).
+  - Starting, changing or stopping eases over 0.45 s from the pose the figure was in. Each foot moves from
+    where it stood to where it's going, so it doesn't slide into the floor.
+  - The springs (hair, a tail, and the skirts and bust to come) run after the pose each frame, so they
+    follow without a jump.
+  - A new look while a motion plays goes on with it.
+- **The face.** The Face list keeps working. While it's on Lively:
+  - talking and the phone call move the mouth;
+  - celebrating smiles;
+  - surprise and crying show their feelings.
+  Any other Face choice wins.
+- **Views.** While an animation plays, the Face and Hand views follow the head or the left hand, easing
+  after it. Whole body and Feet stay where they are.
+- **Reduced motion.** Nothing moves on its own, as before. An animation plays only when the user picks one,
+  and then plays whole with the hair swinging, as they asked for it.
+- **Saving.**
+  - `restPose` now puts each bone back in its place as well as its turn (the motions move the hips).
+  - A file saved mid-motion is therefore the same, byte for byte, as one saved at rest.
+  - `stage.js` and `main.js` got small hooks only.
+  - `figure.js` exports `aimBone` and `turnInWorld`.
+- **Checked** in the regression test. Three bodies: a woman, a short-legged dwarf with a big head, and a tall
+  long-legged woman. Every motion runs 12 seconds on each, with the springs swinging:
+  - no NaNs, and no bone past a limit;
+  - a foot always on the floor, and none through it;
+  - the knees bending the way knees bend, and the hand-made elbows the way elbows bend;
+  - the hands never inside the hips at their widest;
+  - back exactly at rest when stopped;
+  - a GLB, and a VRM mid-crouch, the same as one saved at rest.
+  Contact sheets of posed models rendered in Blender were looked over for broken joints, hands in the body
+  and feet off the floor.
+
+## Built: makeup of your own
+
+The skin list had made-up copies of other skins: four on the female body (Light, natural make-up; Light,
+make-up; Light, violet make-up; Bronzed, make-up) and three on the male (Light, eyeliner; Light, goth make-up;
+Light, dark eye make-up), all MargaretToigo's (CC0). Their makeup couldn't be changed or worn on another skin.
+Now makeup is painted on any skin, on either body.
+
+- **Layers** (looks.js `MAKEUP_LAYERS`, the look's `makeup`): eyeshadow on the upper lids, eyeliner round both
+  lids along the lashes, blush on the cheeks, each `{ colour, amount }` with amount 0 (none) to 1. The lipstick
+  is the lip colour as before (`colours.lips`, multiplied over the lips through the 0.1.09 mask), with a
+  strength of its own, `makeup.lipstick.amount` (missing: full), which mixes it with the lips it's on.
+- **Masks** (`kit/avatar/avatar-makeup-masks.png`, one for both bodies; red eyeshadow, green eyeliner, blue
+  blush), made by `scripts/build-3d-avatar-maker-masks.mjs` from the made-up skins themselves:
+  - **Bases.** Toigo's made-up skins are MakeHuman's young light skins with their colours graded and makeup
+    painted on: the women's on `young_caucasian_female2`, the men's on `young_caucasian_male`, the ginger one
+    on Toigo's plain ginger. The script fits each grade (a 3 × 3 colour matrix and offset, by least squares,
+    leaving out the most changed texels three times over), so the made-up skin differs from its graded base
+    only where the makeup is.
+  - **Regions.** The eyeliner skin's two biggest changes are the ovals round the eyes; on the mesh an oval is
+    the rim of both lids. The women's skins add a crescent on the upper lid and one on each cheek. The
+    dark-eyed men's smudge goes all round the eye, so the eyeshadow is the women's alone.
+  - **Each mask** is the mean, over the skins that have it, of how far each texel went from its base towards
+    the makeup's colour, so it's full where they agree. Specks are dropped and the edges softened (a 1-texel
+    blur for the eyes, 5 for the blush, whose edge showed on the cheek at 2). The eyeshadow stays out of the oval's middle, the blush 6 texels or
+    more from the eyes and 12 from the lips.
+  - **Both bodies** share the skin layout, and renders of a test picture through the masks put the colours
+    in the same places on each: the eyeliner round the lash line of both lids (a little wider on his lower
+    lid, as Toigo's eyeliner skin has it), the eyeshadow on the upper lid, the blush on the cheekbones.
+- **Painting** (`src/skin.js` `makeupTexel`): blush, then eyeshadow, then eyeliner, each painted over (the
+  picture's colour moved towards the layer's by amount × mask). Fitted against the made-up skins, painting
+  over matched them better than multiplying for every layer, and it lets a pale or bright colour show on any
+  skin; the masks' soft edges and amounts below full let the skin's texture through. Only the 64-texel squares
+  a mask touches are repainted. In Node there's no canvas, so the builder colours by vertex without makeup.
+- **Presets** (`MAKEUP_PRESETS`): Natural, Classic, Violet, Bronzed, Eyeliner, Goth, Dark eyes. Each was
+  fitted to its made-up skin: the colour and amount of each layer that bring the base plus the preset
+  closest to it, the lips from the lips' core. The made-up skin's colour grade was taken out first, so a
+  preset has the makeup's contrast with the skin and not Toigo's tone (fitted with the grade in, Natural's
+  blush came out twice as strong as it looks). Bronzed was fitted as it is, as its base is a different
+  painting. A layer that made it no closer is left off: the men's blush was only Toigo's grade.
+- **The skins.** The seven made-up pictures left the kit, and MakeHuman's `young_caucasian_female2` came in
+  as "Light, smooth" (female), the plain skin the women's were painted on (CC0; every file of it checked). It
+  was made as `make_avatar.py` makes a 2048 skin, with the body's shading taken from the kit's other 2048
+  female skins and their sources, as the bodies weren't rebuilt. `make_avatar.py` now lists it and not the
+  made-up ones. The kit is 1.02 MB smaller (1.21 MB of pictures out; 141 KB of skin and 54 KB of mask in).
+- **Old looks** (`MADE_UP_SKINS`): a made-up skin id opens as its plain skin ("light" for the three light
+  women's, "bronze" for the bronzed one, "caucasian" for the men's) with its preset's makeup and lipstick,
+  unless the look has makeup or a lip colour of its own. Drafts, look files, saved avatars and the AI's design
+  (`readDesign`, colours as "#rrggbb") all carry `makeup`.
+- **The Skin and eyes tab.** A Makeup group with a preset list and No makeup, then each layer's colours and
+  strength (None to Full). Picking a colour while a layer is at none puts it on at its usual strength. The
+  nail colour has a group of its own.
+- **Checked.** Side-by-side EEVEE close-ups (eye, both eyes, cheek, mouth) of the built models with each
+  made-up picture beside its base painted in Node with its preset through the masks, by skin.js's own texel
+  code. The regression test checks the makeup fields and their bounds, the old ids, the mask's places (none on
+  the lips, no blush on the eyes) and the presets' ranges.
+
+## Underwear of its own (for 0.1.11, not released yet)
+
+The maker's code waits for its 0.1.11 release; the packs that use it are Clothes 0.1.01 and Accessories 0.2.01.
+
+- **Pack underwear.** A pack piece in the slot `underwear_top` or `underwear_bottom` (looks.js
+  `UNDERWEAR_SLOTS`) goes in the Underwear group's Top or Bottom list (`addPieces`), not on the Clothes tab,
+  and the look's `underwear.top` or `.bottom` names it. It's worn as a piece of its own, the innermost layer,
+  in place of the body's own underwear mesh. Where its index says `tint` (a grey picture under its parts'
+  colours), the Underwear colour dyes it.
+- **The contract** stays `format: 1`. New and optional: the two underwear slots, `tint`, and `noUnderwear`
+  (below). An older maker leaves the underwear pieces out and ignores the flags, so the Clothes pack says it
+  needs 0.1.11. The builder puts underwear in its own bundle (`wardrobe/underwear.pack.png`), at layer 0,
+  without underwear hide words, and writes `tint` from packs.json's `tex`.
+- **Looks.** `checkLook` keeps a pack's underwear while its pack is uninstalled, as it keeps pieces, and
+  `fromPacks` names its pack. It isn't drawn meanwhile; the preview note and the Underwear group say so, and the
+  group can take it out of the look. `wornLook` makes it none in a saved file, as it's drawn. A saved file
+  credits CC BY underwear (`packCredits`).
+- **Underwear under clothes.** `underwear.underClothes`, off unless a look says otherwise for now (avatar.js `UNDER_CLOTHES`; to be on once the refit clears underwear), the control "Show
+  underwear under clothes":
+  - On: the body's own underwear stays drawn under every region a piece hides, and the hide words
+    `underwear`, `underwear-top` and `underwear-bottom` no longer hide it; a pack's underwear is worn under
+    everything. The skin is still hidden under clothes as before.
+  - Off: as before. Clothes hide the underwear they cover by those words and by the regions they hide (a pack's
+    top under anything that hides the torso, its bottom under anything that hides the hips).
+  - Worn on bare skin: a piece that says so (`noUnderwear` in a pack; looks.js `NO_UNDERWEAR` for the kit's
+    swimsuit, bikini, swim trunks and bikini armour) leaves off the underwear its hide words name either way.
+    Chosen for swimwear, bodysuits, shapewear and the teddy: worn without underwear, and tight enough that it
+    would show through. A romper, a babydoll and dresses are worn over underwear.
+- **Clipping.** Nothing is fitted around underwear yet, so it can show through tight clothes; the fitting rework
+  (each layer clearing the ones under it, underwear as layer 0) is what fixes that. Where it clips today is in
+  `docs/MAKEHUMAN-PACKS.md`, "The underwear pass".
+- **Pieces.** The merge pass's 19 bras, bikini tops, briefs and bikini bottoms moved to the underwear slots
+  without a refit. 10 more were fitted: 8 pieces of underwear and lingerie in Clothes, a lace choker and a feather
+  headdress in Accessories (`docs/MAKEHUMAN-PACKS.md`).
+- **Checked** in the regression test: pack underwear reads into the lists and not the clothes; bad flags, slots
+  and ids are refused; a look with an uninstalled pack's underwear survives `checkLook`, says so, and saves
+  without it; the body's briefs are drawn under a skirt with the control on and hidden with it off, a swimsuit
+  leaves them off, a pack's briefs show under the skirt or not the same way, and the Underwear colour dyes a
+  tintable pack bra.
+
+## Community hair (the kit and the Accessories pack; the maker's version unchanged)
+
+- **What was tried.** The 31 community hair styles whose files don't say AGPL-3, each fitted with
+  `make_mh_hair.py` to the bodies it was made for and rendered front, side, back and close at the hairline and
+  ears. `docs/MAKEHUMAN-PACKS.md` "The hair pass" lists each one and why it's in or out.
+- **The kit (CC0): six bobs.** MargaretToigo's blunt, curled-under and inverted bobs, each with and without a
+  fringe (looks.js HAIRSTYLES `bob_blunt` to `bob_inverted_bangs`), on both bodies. They swing as the kit's bob
+  does (`SWINGING_HAIR`, 0.03). They're packed in a bundle of their own, `avatar-hair-bobs.pack.png`, so wearing
+  the long or short styles doesn't fetch them.
+- **The Accessories pack (CC BY 4.0): 14 styles by Elvaerwyn**, 0.2.01. Eleven are for the female body, two for
+  both, one for the male. The ten that hang loose have `swing: 0.03`; the two updos, the braided bun and the
+  short men's cut stay rigid.
+- **Fitting.** `make_mh_hair.py` now fits a pack's styles from `assets/packs.json` (`-- packs`) into
+  `assets/models/packs/<pack id>/`, each to its own bodies. It drops faces a vertex twice or repeated
+  (`whole_faces`, which elvs_lady_hippy_hair needed), and tucks the bobs' fringe under the main sheet at the crown
+  (`tucked_fringe`), where its back edge stood up as a ridge.
+- **Left out after rendering (7):** faydaen_hair_1 (flat strips standing off the head), elvs_grump_hair (cards
+  standing off), elvs_inverted_curly_bob (the neck shows through at the nape), elvs_micky_afro (faceted, with a
+  speckled picture), elvs_reverse_french_braid_bun (smudgy picture, covers an eye), o4saken_chinesebob01 and
+  o4saken_long01 (ragged cards at the crown). Four more were too heavy (16k to 123k vertices).
+- **Checked** in the regression test: every style the Hair tab offers on a body loads there from its bundle,
+  the kit's and the pack's; every kit style in `SWINGING_HAIR` and every pack style with a `swing` rests exactly
+  where it was made, swings as the head turns and settles, and the rest have no springs.
+- **Sizes.** The bobs' bundle is 4.6 MiB, its pictures 1,024 pixels like the kit's other hair. That puts the
+  maker's zip at about 57 MiB when it's next built, from 52.5 MiB (0.1.10). The Accessories pack's zip went from
+  13.1 MiB to 25.2 MiB.
+- **Not built yet:** the maker itself. Its manifest still lists the 0.1.10 kit, so `validate-catalog.mjs` fails
+  on `avatar-hair-index.json` until the next maker build. The pack's `maker` stays 0.1.04: an older maker
+  shows its pieces and leaves out the hair.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -292,11 +560,11 @@ No item is fitted yet; the packs that fill these slots come next.
 3. **Faces on what's worn.** Hair, hats, masks and other clothes don't follow the face's keys yet (a face
    mask doesn't open with the mouth); the maker could carry them from the skin as it does the sliders.
 4. **More expressions.** Visemes beyond VRM's five vowels, a wink and a smirk as custom expressions.
-5. **More that swings:** skirts, cloaks and coat tails on chains of their own, and colliders that allow for
-   clothing over the body.
-6. **More to change:** the community objects, jewellery, horns, wings, tails and hair styles fitted into
+5. **Colliders that allow for what's worn:** a cloak over a dress swings on its own chains through the
+   dress's, and hair passes into a thick cloak.
+6. **More to change:** the community objects, jewellery, horns, wings and tails fitted into
    packs for the new slots; a grip for a hand that holds something; skin texture layers (freckles, scars,
-   tattoos, makeup), patterns and pictures on clothing, more face sliders.
+   tattoos) painted as the makeup is, patterns and pictures on clothing, more face sliders.
 7. **Generate avatar.** A server part with one route that asks a chosen model for a look from the card's
    text, or from its portrait when the model can see pictures. Wanderworld's `designMenu`, `readDesign`
    and `/look-design` route are the starting point. Off by default; needs `routes` and a restart.
@@ -309,6 +577,10 @@ No item is fitted yet; the packs that fill these slots come next.
 - Seen close from below, the upper teeth's shading changes in steps (each face takes one of three copies of
   the picture). From a chat's distance it reads as the mouth's shadow.
 - A saved file has one picture for each piece worn. Packing them into one would make it smaller.
+- Hanging cloth is kept out of the legs at its chains' joints only. Between them, at a lifted knee, the cloth
+  can cut a little into the thigh. Two hanging pieces (a cloak over a dress) swing through each other.
+- The bust sways only a couple of millimetres in the Moving pose, as nothing in it bounces the body up and
+  down. A VRM app that walks or jumps shows more.
 - Swinging hair can dip about 2 cm into the shoulders, where a lock resting on a shoulder leaves out that
   shoulder's collider. The colliders fit the body, not what's worn, so hair can pass into a thick cloak.
 - The sides of a long style are found from the mesh, so a chain can follow an uneven path, and the two sides
@@ -317,5 +589,16 @@ No item is fitted yet; the packs that fill these slots come next.
   hand; the other hand needs a piece of its own.
 - Slots cover slots, not regions: sandals and tall boots alike leave an anklet on, and a crop top and a
   T-shirt alike leave a belly piercing on (where the shirt is drawn over it).
+- The animations know the body's bones, not what's worn: an arm can brush a bulky sleeve or armour. Long
+  hair trails out as the body turns, sits or crouches, as its springs are soft. The seat, the phone and the
+  cup the clips mime aren't shown, and the clips' fingers can close on nothing.
+- Underwear shown under clothes pokes through many clothes until the fitting allows for it, the kit's everyday
+  tee, jeans and trousers among them, so the setting starts off for now.
+  The suspender belt is a Belt piece, so a skirt doesn't hide it.
 - Drafts live in the browser only.
+- Makeup presets match their old skins' makeup but not every skin's tone: Toigo graded each made-up skin's
+  colours, the goth one much paler all over, and a preset paints only the face. An old male made-up look now
+  follows its age's light skin, where the made-up picture was a young one at any age. The lipstick multiplies
+  over the lips, so it can't be brighter than the lips it's on (the Classic red is a little duller).
+- The eyeshadow and blush go only where Toigo painted them; there's no lower-lid smudge or contour layer.
 - `avatar.js` still carries the anthro code paths and a crowd's low-detail triangle lists.

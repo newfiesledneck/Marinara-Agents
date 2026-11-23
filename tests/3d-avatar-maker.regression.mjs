@@ -91,6 +91,9 @@ for (const body of ["male", "female"]) {
       HAIRSTYLES.some(([known]) => known === style),
       `${body}: hair ${style} has a name`,
     );
+  // (Every kit style is made for both bodies; afro is the older kit's only.)
+  for (const [style] of HAIRSTYLES.filter(([style]) => style !== "afro"))
+    assert.ok(choices.hair.includes(style), `${body}: the kit has hair ${style}`);
   for (const { piece } of choices.clothes)
     assert.ok(
       CLOTHES.some(([known]) => known === piece),
@@ -125,10 +128,10 @@ for (const body of ["male", "female"]) {
 // ── Each body has its paint mask: the lips in green (scripts/build-3d-avatar-maker-masks.mjs) ──
 {
   const { inflateSync } = await import("node:zlib");
-  for (const body of ["male", "female"]) {
-    const png = await readFile(join(kitRoot, `avatar/avatar-${body}-masks.png`));
+  /** A mask PNG as written by the masks script (RGB, every row unfiltered): its width and (x, y, channel) → byte. */
+  const maskOf = async (name) => {
+    const png = await readFile(join(kitRoot, `avatar/${name}`));
     const width = png.readUInt32BE(16);
-    assert.equal(width, 2048, `${body}: masks are 2048 across, the size the skin is painted at`);
     let at = 8;
     const data = [];
     while (at < png.length) {
@@ -137,20 +140,253 @@ for (const body of ["male", "female"]) {
       at += 12 + length;
     }
     const rows = inflateSync(Buffer.concat(data));
+    return { width, at: (x, y, c) => rows[y * (width * 3 + 1) + 1 + x * 3 + c] };
+  };
+  const lipsAt = {};
+  for (const body of ["male", "female"]) {
+    const { width, at } = await maskOf(`avatar-${body}-masks.png`);
+    assert.equal(width, 2048, `${body}: masks are 2048 across, the size the skin is painted at`);
+    lipsAt[body] = at;
     let lips = 0;
-    for (let y = 0; y < width; y++)
-      for (let x = 0; x < width; x++) {
-        const i = y * (width * 3 + 1) + 1 + x * 3;
-        if (rows[i + 1] > 128) lips++;
-      }
+    for (let y = 0; y < width; y++) for (let x = 0; x < width; x++) if (at(x, y, 1) > 128) lips++;
     assert.ok(lips > 1000, `${body}: the mask has the lips (${lips} texels)`);
   }
-  const { canPaint } = await import("../packages/3d-avatar-maker/src/skin.js");
+  // The makeup mask, one for both bodies: red the eyeshadow, green the eyeliner, blue the blush, each in its
+  // place in MakeHuman's skin layout (the eyes about x 1717, y 990 and 1127; the cheeks beside them, towards
+  // the mouth), and none on another's place or the lips.
+  {
+    const { width, at } = await maskOf("avatar-makeup-masks.png");
+    assert.equal(width, 2048, "the makeup mask is 2048 across");
+    const places = {
+      eyeshadow: { channel: 0, x: [1680, 1745], y: [945, 1175], least: 1000 },
+      eyeliner: { channel: 1, x: [1695, 1740], y: [955, 1160], least: 1500 },
+      blush: { channel: 2, x: [1710, 1870], y: [840, 1280], least: 10000 },
+    };
+    for (const [
+      layer,
+      {
+        channel,
+        x: [x0, x1],
+        y: [y0, y1],
+        least,
+      },
+    ] of Object.entries(places)) {
+      let full = 0;
+      let astray = 0;
+      for (let y = 0; y < width; y++)
+        for (let x = 0; x < width; x++) {
+          const value = at(x, y, channel);
+          if (!value) continue;
+          if (value > 128) full++;
+          if (x < x0 || x > x1 || y < y0 || y > y1) astray++;
+          assert.ok(!lipsAt.female(x, y, 1) && !lipsAt.male(x, y, 1), `${layer} keeps off the lips (${x}, ${y})`);
+          if (layer === "blush") assert.ok(!at(x, y, 0) && !at(x, y, 1), `the blush keeps off the eyes (${x}, ${y})`);
+        }
+      assert.ok(full >= least, `the ${layer} has its place (${full} texels at more than half)`);
+      assert.equal(astray, 0, `the ${layer} stays in its place`);
+    }
+    // Both eyes have their eyeliner, each round its own oval.
+    for (const eye of [990, 1127]) assert.ok(at(1717, eye, 1) > 200, `eyeliner at the eye at y ${eye}`);
+  }
+  const { canPaint, makeupLayers, makeupTexel } = await import("../packages/3d-avatar-maker/src/skin.js");
   assert.equal(canPaint(), false, "in Node there's no canvas, so the builder colours by vertex");
+  // The makeup paints over: at full strength through a full mask a texel is the colour; half, half way; none, as it was.
+  const layers = makeupLayers({ eyeliner: { colour: 0x102030, amount: 1 }, blush: { colour: 0xff0000, amount: 0.5 } });
+  const texels = new Uint8ClampedArray([200, 100, 50, 255, 200, 100, 50, 255, 200, 100, 50, 255]);
+  makeupTexel(texels, 0, layers, [0, 255, 0], 0); // eyeliner
+  makeupTexel(texels, 4, layers, [0, 0, 255], 0); // blush
+  makeupTexel(texels, 8, layers, [255, 0, 0], 0); // eyeshadow, which this makeup hasn't
+  assert.deepEqual([...texels.subarray(0, 3)], [0x10, 0x20, 0x30], "full eyeliner is its colour");
+  assert.deepEqual([...texels.subarray(4, 7)], [228, 50, 25], "half blush is half way to its colour");
+  assert.deepEqual([...texels.subarray(8, 11)], [200, 100, 50], "no eyeshadow leaves the skin");
+  assert.deepEqual(makeupLayers({}), [null, null, null], "no makeup, nothing to paint");
+}
+
+// ── Makeup in a look: checked, bounded, and the made-up skins there were opening as their plain skin ──
+{
+  const { MADE_UP_SKINS, MAKEUP_LAYERS, MAKEUP_PRESETS, makeupPreset, readDesign } = looks;
+  assert.equal(checkLook({ body: "female" }).makeup, undefined, "no makeup unless chosen");
+  const checked = checkLook({
+    makeup: {
+      eyeshadow: { colour: 0x4577bc, amount: 1.7 }, // too strong: full
+      eyeliner: { colour: 0x050505, amount: 0.12345 }, // rounded
+      blush: { colour: 0xe584b2, amount: -0.3 }, // below none: none
+      lipstick: { amount: 2 },
+      glitter: { colour: 0xffffff, amount: 1 }, // not a layer
+    },
+  });
+  assert.deepEqual(checked.makeup, {
+    eyeshadow: { colour: 0x4577bc, amount: 1 },
+    eyeliner: { colour: 0x050505, amount: 0.123 },
+    lipstick: { amount: 1 },
+  });
+  for (const bad of [
+    { eyeshadow: { colour: "blue", amount: 0.5 } },
+    { eyeshadow: { colour: 0x1000000, amount: 0.5 } },
+    { eyeshadow: { colour: 0x4577bc } },
+    { eyeshadow: { colour: 0x4577bc, amount: "0.5" } },
+    { eyeshadow: { colour: 0x4577bc, amount: 0 } },
+    { eyeshadow: [0x4577bc, 0.5] },
+    { lipstick: { amount: Number.NaN } },
+  ])
+    assert.equal(checkLook({ makeup: bad }).makeup, undefined, `refused: ${JSON.stringify(bad)}`);
+  // The AI's design writes colours as "#rrggbb".
+  assert.deepEqual(readDesign({ makeup: { blush: { colour: "#e584b2", amount: 0.5 } } }).makeup, {
+    blush: { colour: 0xe584b2, amount: 0.5 },
+  });
+  // Every preset is in range, and a look keeps it as it is.
+  assert.ok(MAKEUP_PRESETS.length >= 7, "a preset for each made-up skin there was");
+  const layerNames = MAKEUP_LAYERS.map(([layer]) => layer);
+  for (const [value, label, layers] of MAKEUP_PRESETS) {
+    assert.ok(label && Object.keys(layers).length, `${value}: has a label and makeup`);
+    for (const [layer, entry] of Object.entries(layers)) {
+      if (layer === "lips") {
+        assert.ok(Number.isInteger(entry) && entry >= 0 && entry <= 0xffffff, `${value}: its lips are a colour`);
+        continue;
+      }
+      assert.ok(layerNames.includes(layer), `${value}: ${layer} is a layer`);
+      const [colour, amount] = entry;
+      assert.ok(Number.isInteger(colour) && colour >= 0 && colour <= 0xffffff, `${value}: its ${layer} is a colour`);
+      assert.ok(amount > 0 && amount <= 1, `${value}: its ${layer} strength is in range (${amount})`);
+    }
+    const { makeup, lips } = makeupPreset(value);
+    assert.deepEqual(checkLook({ makeup }).makeup, makeup, `${value}: kept as it is`);
+    assert.equal(lips, layers.lips);
+  }
+  // A made-up skin there was opens as its plain skin with its preset's makeup and lipstick.
+  for (const [old, [skin, preset]] of Object.entries(MADE_UP_SKINS)) {
+    const look = checkLook({ body: skin === "caucasian" ? "male" : "female", skin: old });
+    const { makeup, lips } = makeupPreset(preset);
+    assert.equal(look.skin, skin, `${old} opens as ${skin}`);
+    assert.deepEqual(look.makeup, makeup, `${old} brings the ${preset} makeup`);
+    assert.equal(look.colours?.lips, lips, `${old} brings its lipstick`);
+    assert.ok(
+      looks.skinsFor(look.body).some(([value]) => value === skin) &&
+        !looks.skinsFor("female").some(([value]) => value === old) &&
+        !looks.skinsFor("male").some(([value]) => value === old),
+      `${old}: its plain skin is offered, the made-up one no longer`,
+    );
+  }
+  // …unless the look has makeup or lips of its own.
+  const own = checkLook({ skin: "classic-makeup", makeup: {}, colours: { lips: 0x4a2a2a } });
+  assert.deepEqual([own.skin, own.makeup, own.colours.lips], ["light", undefined, 0x4a2a2a]);
+  // A lipstick's strength mixes its colour with the lips it's on; the built look carries the makeup.
+  const { avatarLook } = await import("../packages/3d-avatar-maker/src/avatar.js");
+  const lipstick = (amount) =>
+    avatarLook(
+      "a",
+      "auto",
+      checkLook({ body: "female", skin: "light", colours: { lips: 0x000000 }, makeup: { lipstick: { amount } } }),
+    );
+  assert.equal(lipstick(1).colours.lips, 0x000000, "full lipstick is its colour");
+  assert.equal(lipstick(0.5).colours.lips, 0x808080, "half way to the skin picture's own lips (white: as painted)");
+  assert.equal(lipstick(0).colours.lips, 0xffffff, "none: the picture's own lips");
+  assert.deepEqual(lipstick(1).makeup, { lipstick: { amount: 1 } });
 }
 
 // ── A figure stands on the floor, on a full humanoid skeleton, in each pose ──
 const startOf = (body, over = {}) => checkLook({ ...NEUTRAL_LOOK, body, ...over });
+/** Every style in `styles` is worn on `body` from its bundle: a figure wearing it has more meshes than a bald one. */
+async function offeredHairLoads(body, styles) {
+  const drawn = async (hair) => {
+    const figure = await createAvatar(startOf(body, { hair }), "Test", "auto");
+    const result = [figure.meshes.length, figure.avatar.hair];
+    figure.dispose();
+    return result;
+  };
+  const [bald] = await drawn("none");
+  for (const style of styles) {
+    const [count, worn] = await drawn(style);
+    assert.equal(worn, style, `${body}: hair ${style} is the look's`);
+    assert.ok(count > bald, `${body}: hair ${style} loads from its bundle`);
+  }
+}
+for (const body of ["male", "female"])
+  await offeredHairLoads(
+    body,
+    (await avatarChoices(body)).hair.filter((style) => style !== "none"),
+  );
+/**
+ * Hair style `hair` on `body`: if it `swings`, its locks hang on chains, rest exactly where they were made, clear of
+ * every collider, hold the style standing still, swing as the head turns and settle again; if not, no springs.
+ */
+async function hairMoves(body, hair, swings) {
+  const { Vector3 } = await import("three");
+  const { createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
+  const { movingPose } = await import("../packages/3d-avatar-maker/src/figure.js");
+  const tips = (figure) =>
+    figure.springs.flatMap((spring) => spring.bones.slice(1).map((bone) => bone.getWorldPosition(new Vector3())));
+  const furthest = (a, b) => Math.max(...a.map((point, i) => point.distanceTo(b[i])));
+  // (Nothing worn, so no skirt swings beside the hair; the bust's springs are told apart by name.)
+  const figure = await createAvatar(startOf(body, { hair, clothes: [] }), "Test", "auto");
+  const label = `${body} ${hair}`;
+  const hairSprings = figure.springs.filter((spring) => spring.name.startsWith("Hair"));
+  if (!swings) {
+    assert.equal(hairSprings.length, 0, `${label}: a short cut stays as it is`);
+    figure.dispose();
+    return;
+  }
+  assert.ok(hairSprings.length > 0, `${label}: its locks hang on chains`);
+  const mesh = figure.meshes.find((one) => one.skeleton.bones.some((bone) => bone.name.startsWith("hair_")));
+  // Bound where it rests: every point of the hair drawn where it was made, and its weights whole.
+  const { position, skinWeight } = mesh.geometry.attributes;
+  let off = 0;
+  let unweighted = 0;
+  const point = new Vector3();
+  for (let i = 0; i < position.count; i++) {
+    const listed = point.fromBufferAttribute(position, i).clone().applyMatrix4(mesh.matrixWorld);
+    mesh.applyBoneTransform(i, point.fromBufferAttribute(position, i));
+    off = Math.max(off, point.applyMatrix4(mesh.matrixWorld).distanceTo(listed));
+    const sum = [0, 1, 2, 3].reduce((total, c) => total + skinWeight.getComponent(i, c), 0);
+    if (Math.abs(sum - 1) > 1e-4) unweighted++;
+  }
+  assert.ok(off < 0.001, `${label}: the hair rests where it was made (off by ${off.toFixed(5)})`);
+  assert.equal(unweighted, 0, `${label}: every point's weights add up to one`);
+  // No collider a spring meets holds one of its joints at rest, as built or in the T-pose.
+  for (const pose of [restPose, tPose]) {
+    pose(figure);
+    for (const spring of figure.springs)
+      for (const bone of spring.bones.slice(1))
+        for (const collider of spring.colliders) {
+          const at = bone.getWorldPosition(new Vector3());
+          const start = collider.offset.clone().applyMatrix4(collider.bone.matrixWorld);
+          const end = (collider.tail ?? collider.offset).clone().applyMatrix4(collider.bone.matrixWorld);
+          const line = end.clone().sub(start);
+          const t = line.lengthSq() ? Math.max(0, Math.min(1, at.clone().sub(start).dot(line) / line.lengthSq())) : 0;
+          const gap = at.distanceTo(start.addScaledVector(line, t)) - collider.radius - spring.joint.hitRadius;
+          assert.ok(gap > 0, `${label}: ${bone.name} rests clear of ${collider.bone.name}'s collider`);
+        }
+  }
+  // Swinging: still at rest, it holds its style; looking about, it swings; standing still again, it settles.
+  relaxedPose(figure, 0);
+  const springs = createSprings(figure);
+  const rest = tips(figure);
+  for (let f = 0; f < 120; f++) {
+    relaxedPose(figure, 0);
+    springs.step(1 / 60);
+  }
+  assert.ok(furthest(tips(figure), rest) < 0.025, `${label}: holds its style at rest`);
+  let swung = 0;
+  for (let f = 0; f < 240; f++) {
+    movingPose(figure, f / 60);
+    springs.step(1 / 60);
+    const now = tips(figure);
+    const held = figure.springs.map((spring) => spring.bones.map((bone) => bone.quaternion.clone()));
+    for (const spring of figure.springs)
+      for (const bone of spring.bones) bone.quaternion.copy(figure.rest.get(bone.name));
+    figure.root.updateMatrixWorld(true);
+    swung = Math.max(swung, furthest(now, tips(figure)));
+    figure.springs.forEach((spring, s) => spring.bones.forEach((bone, b) => bone.quaternion.copy(held[s][b])));
+    figure.root.updateMatrixWorld(true);
+  }
+  assert.ok(swung > 0.003, `${label}: swings as the head turns (${(swung * 100).toFixed(1)} cm)`);
+  for (let f = 0; f < 120; f++) {
+    relaxedPose(figure, 0);
+    springs.step(1 / 60);
+  }
+  assert.ok(furthest(tips(figure), rest) < 0.025, `${label}: and settles`);
+  figure.dispose();
+}
 const knight = outfitLook(
   OUTFIT_PRESETS.find((preset) => preset.name === "Knight"),
   "male",
@@ -288,9 +524,10 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
   const { FACE_MOVES } = await import("../packages/3d-avatar-maker/src/face.js");
   const tiefling = await createAvatar(startOf("female", racePreset("tiefling", "female")), "Test", "auto");
   const longHair = await createAvatar(startOf("female", { hair: "long" }), "Test", "auto");
-  for (const one of [tiefling, longHair])
+  const dress = await createAvatar(startOf("female", { hair: "none", clothes: ["dress"] }), "Test", "auto");
+  for (const one of [tiefling, longHair, dress])
     for (const mesh of one.meshes) for (const material of [mesh.material].flat()) material.map = null;
-  for (const [name, figure] of Object.entries({ plain: made.plain, dwarf: made.dwarf, tiefling, longHair })) {
+  for (const [name, figure] of Object.entries({ plain: made.plain, dwarf: made.dwarf, tiefling, longHair, dress })) {
     const look = startOf("female", { hair: "bob" });
     const geometries = figure.meshes.map((mesh) => mesh.geometry);
     const inverses = figure.meshes.map((mesh) => mesh.skeleton.boneInverses.map((inverse) => inverse.clone()));
@@ -336,6 +573,20 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
         figure.springs.some((spring) => spring.name.startsWith("Hair")),
         `${name}: long hair swings (a helm hides the dwarf's)`,
       );
+    if (name === "dress") {
+      // (The dress's chains, with capsules on the thighs and calves among the colliders they meet.)
+      const { springs, colliders } = json.extensions.VRMC_springBone;
+      assert.ok(
+        springs.filter((spring) => spring.name.startsWith("Dress (")).length >= 3,
+        "the dress hangs on springs",
+      );
+      const legs = colliders.filter((collider) => /^(?:thigh|calf)_[lr]$/u.test(json.nodes[collider.node].name));
+      assert.ok(legs.length === 4 && legs.every((collider) => collider.shape.capsule), "with capsules on the legs");
+      assert.ok(
+        ["Bust (left)", "Bust (right)"].every((bust) => springs.some((spring) => spring.name === bust)),
+        "and her bust on springs too",
+      );
+    }
     assert.deepEqual(lookInGlb(saved.bytes), { name: `Saved ${name}`, look }, `${name}: the look comes back out`);
 
     // Loaded with three-vrm as the Engine loads a VRM model.
@@ -404,6 +655,7 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
   }
   tiefling.dispose();
   longHair.dispose();
+  dress.dispose();
 
   // ── Face movement in the maker: the keys live on the body, the eyes on bones of their own (face.js) ──
   {
@@ -487,90 +739,56 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
     );
     const big = await eyeOf({ limbs: { head: 1.2 } });
     assert.ok(Math.abs(big.length() / usual.length() - 1.2) < 0.02, "a bigger head takes its eyes out with it");
+    // Each eye turns about the middle of its eyeball, whatever the sliders (a female look turned male once put
+    // it 7 to 11 mm off, and a glance swung the iris up under the lid), and the eyeball rests where it was made.
+    {
+      const { sphereThrough } = await import("../packages/3d-avatar-maker/src/avatar.js");
+      const sliders = [...looks.SHAPES, ...looks.FACE, ...looks.FACE_DETAIL].map(([key]) => key);
+      const shape = Object.fromEntries(sliders.map((key, i) => [key, ((i * 37) % 21) / 10 - 1]));
+      // (The head as built: a bigger one moves the eyeballs out with it, by design.)
+      const female = startOf("female", { shape });
+      for (const look of [female, checkLook({ ...female, body: "male" })]) {
+        const one = await createAvatar(look, "Test", "auto");
+        one.root.updateMatrixWorld(true);
+        const body = one.meshes.find((mesh) => mesh.name === "body");
+        const { position } = body.geometry.attributes;
+        for (const side of ["l", "r"]) {
+          const bone = one.bones.get(`eye_${side}`);
+          const left = bone.getWorldPosition(new Vector3()).x > 0;
+          const points = [];
+          let off = 0;
+          for (const mesh of one.kit.meshes.filter((each) => each.part === "eye_white"))
+            for (let v = mesh.start; v < mesh.start + mesh.count; v++) {
+              const listed = new Vector3().fromBufferAttribute(position, v).applyMatrix4(body.matrixWorld);
+              const p = body
+                .applyBoneTransform(v, new Vector3().fromBufferAttribute(position, v))
+                .applyMatrix4(body.matrixWorld);
+              off = Math.max(off, p.distanceTo(listed));
+              if (p.x > 0 === left) points.push(p);
+            }
+          const gap = sphereThrough(points).centre.distanceTo(bone.getWorldPosition(new Vector3()));
+          assert.ok(
+            gap < 0.0005,
+            `${look.body}: eye_${side} turns about its eyeball's middle (off by ${(gap * 1000).toFixed(1)} mm)`,
+          );
+          assert.ok(
+            off < 0.0005,
+            `${look.body}: the eyeballs rest where they were made (off by ${(off * 1000).toFixed(2)} mm)`,
+          );
+        }
+        one.dispose();
+      }
+    }
     figure.dispose();
   }
 
   // ── Hair movement: chains through the hanging locks, springs, colliders (hair.js, springs.js) ──
   {
     const { SWINGING_HAIR } = await import("../packages/3d-avatar-maker/src/hair.js");
-    const { createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
-    const { movingPose } = await import("../packages/3d-avatar-maker/src/figure.js");
-    const tips = (figure) =>
-      figure.springs.flatMap((spring) => spring.bones.slice(1).map((bone) => bone.getWorldPosition(new Vector3())));
-    const furthest = (a, b) => Math.max(...a.map((point, i) => point.distanceTo(b[i])));
-    for (const body of ["female", "male"]) {
-      for (const hair of [...SWINGING_HAIR.keys(), "short"]) {
-        const figure = await createAvatar(startOf(body, { hair }), "Test", "auto");
-        const label = `${body} ${hair}`;
-        if (!SWINGING_HAIR.has(hair)) {
-          assert.equal(figure.springs.length, 0, `${label}: a short cut stays as it is`);
-          figure.dispose();
-          continue;
-        }
-        assert.ok(figure.springs.length > 0, `${label}: its locks hang on chains`);
-        const mesh = figure.meshes.find((one) => one.skeleton.bones.some((bone) => bone.name.startsWith("hair_")));
-        // Bound where it rests: every point of the hair drawn where it was made, and its weights whole.
-        const { position, skinWeight } = mesh.geometry.attributes;
-        let off = 0;
-        let unweighted = 0;
-        const point = new Vector3();
-        for (let i = 0; i < position.count; i++) {
-          const listed = point.fromBufferAttribute(position, i).clone().applyMatrix4(mesh.matrixWorld);
-          mesh.applyBoneTransform(i, point.fromBufferAttribute(position, i));
-          off = Math.max(off, point.applyMatrix4(mesh.matrixWorld).distanceTo(listed));
-          const sum = [0, 1, 2, 3].reduce((total, c) => total + skinWeight.getComponent(i, c), 0);
-          if (Math.abs(sum - 1) > 1e-4) unweighted++;
-        }
-        assert.ok(off < 0.001, `${label}: the hair rests where it was made (off by ${off.toFixed(5)})`);
-        assert.equal(unweighted, 0, `${label}: every point's weights add up to one`);
-        // No collider a spring meets holds one of its joints at rest, as built or in the T-pose.
-        for (const pose of [restPose, tPose]) {
-          pose(figure);
-          for (const spring of figure.springs)
-            for (const bone of spring.bones.slice(1))
-              for (const collider of spring.colliders) {
-                const at = bone.getWorldPosition(new Vector3());
-                const start = collider.offset.clone().applyMatrix4(collider.bone.matrixWorld);
-                const end = (collider.tail ?? collider.offset).clone().applyMatrix4(collider.bone.matrixWorld);
-                const line = end.clone().sub(start);
-                const t = line.lengthSq()
-                  ? Math.max(0, Math.min(1, at.clone().sub(start).dot(line) / line.lengthSq()))
-                  : 0;
-                const gap = at.distanceTo(start.addScaledVector(line, t)) - collider.radius - spring.joint.hitRadius;
-                assert.ok(gap > 0, `${label}: ${bone.name} rests clear of ${collider.bone.name}'s collider`);
-              }
-        }
-        // Swinging: still at rest, it holds its style; looking about, it swings; standing still again, it settles.
-        relaxedPose(figure, 0);
-        const springs = createSprings(figure);
-        const rest = tips(figure);
-        for (let f = 0; f < 120; f++) {
-          relaxedPose(figure, 0);
-          springs.step(1 / 60);
-        }
-        assert.ok(furthest(tips(figure), rest) < 0.025, `${label}: holds its style at rest`);
-        let swung = 0;
-        for (let f = 0; f < 240; f++) {
-          movingPose(figure, f / 60);
-          springs.step(1 / 60);
-          const now = tips(figure);
-          const held = figure.springs.map((spring) => spring.bones.map((bone) => bone.quaternion.clone()));
-          for (const spring of figure.springs)
-            for (const bone of spring.bones) bone.quaternion.copy(figure.rest.get(bone.name));
-          figure.root.updateMatrixWorld(true);
-          swung = Math.max(swung, furthest(now, tips(figure)));
-          figure.springs.forEach((spring, s) => spring.bones.forEach((bone, b) => bone.quaternion.copy(held[s][b])));
-          figure.root.updateMatrixWorld(true);
-        }
-        assert.ok(swung > 0.003, `${label}: swings as the head turns (${(swung * 100).toFixed(1)} cm)`);
-        for (let f = 0; f < 120; f++) {
-          relaxedPose(figure, 0);
-          springs.step(1 / 60);
-        }
-        assert.ok(furthest(tips(figure), rest) < 0.025, `${label}: and settles`);
-        figure.dispose();
-      }
-    }
+    // (Every kit style each body is offered: the ones in SWINGING_HAIR swing, the rest stay as they are.)
+    for (const body of ["female", "male"])
+      for (const hair of (await avatarChoices(body)).hair.filter((style) => style !== "none"))
+        await hairMoves(body, hair, SWINGING_HAIR.has(hair));
     // On a bigger head, the swinging hair rests where its own weights put it, so nothing tears where hair that
     // grew with the head meets hair that didn't.
     {
@@ -609,6 +827,286 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
         off = Math.max(off, point.distanceTo(was));
       }
       assert.ok(off < 0.0005, `a bigger head's ponytail rests where it did (off by ${off.toFixed(5)})`);
+      figure.dispose();
+    }
+  }
+
+  // ── Clothes that hang: skirts, dresses, robes, coats and cloaks on chains (hair.js, springs.js) ──
+  {
+    const { HANGING_CLOTH } = await import("../packages/3d-avatar-maker/src/hair.js");
+    const { CLOTH_JOINT, createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
+    const { movingPose } = await import("../packages/3d-avatar-maker/src/figure.js");
+    const { geometryOf, load } = await import("../packages/3d-avatar-maker/src/kitfiles.js");
+    const index = JSON.parse(await readFile(join(kitRoot, "wardrobe/avatar-outfits-index.json"), "utf8"));
+    const clothOf = (figure) => figure.springs.filter((spring) => spring.joint === CLOTH_JOINT);
+    const hanging = (one) =>
+      one.meshes.find((mesh) => mesh.skeleton.bones.some((bone) => bone.name.startsWith("cloth_")));
+    /** How far a point at `at` is inside a capsule or ball (its middle's distance short of its radius). */
+    const into = (collider, at, pad = 0) => {
+      const start = collider.offset.clone().applyMatrix4(collider.bone.matrixWorld);
+      const end = (collider.tail ?? collider.offset).clone().applyMatrix4(collider.bone.matrixWorld);
+      const line = end.clone().sub(start);
+      const t = line.lengthSq() ? Math.max(0, Math.min(1, at.clone().sub(start).dot(line) / line.lengthSq())) : 0;
+      return collider.radius + pad - at.distanceTo(start.addScaledVector(line, t));
+    };
+    // Trousers, leggings and shorts follow each leg as they were fitted: no chains.
+    for (const piece of ["trousers", "leggings", "shorts", "mh_jeans", "mh_female_jeans"]) {
+      const body = index[piece].bodies[0];
+      const figure = await createAvatar(startOf(body, { clothes: [piece], hair: "none" }), "Test", "auto");
+      assert.equal(clothOf(figure).length, 0, `${piece}: follows the legs, with no chains`);
+      figure.dispose();
+    }
+    for (const body of ["female", "male"])
+      for (const piece of HANGING_CLOTH.keys()) {
+        if (!index[piece]?.bodies.includes(body)) continue;
+        const label = `${body} ${piece}`;
+        const figure = await createAvatar(startOf(body, { clothes: [piece], hair: "none" }), "Test", "auto");
+        const springs = clothOf(figure);
+        assert.ok(springs.length >= 3, `${label}: its cloth hangs on chains (${springs.length})`);
+        // Bound where it was fitted: every point drawn where it was made, and its weights whole.
+        const mesh = hanging(figure);
+        const { position, skinWeight } = mesh.geometry.attributes;
+        let off = 0;
+        let unweighted = 0;
+        const point = new Vector3();
+        for (let i = 0; i < position.count; i++) {
+          const listed = point.fromBufferAttribute(position, i).clone().applyMatrix4(mesh.matrixWorld);
+          mesh.applyBoneTransform(i, point.fromBufferAttribute(position, i));
+          off = Math.max(off, point.applyMatrix4(mesh.matrixWorld).distanceTo(listed));
+          const sum = [0, 1, 2, 3].reduce((total, c) => total + skinWeight.getComponent(i, c), 0);
+          if (Math.abs(sum - 1) > 1e-4) unweighted++;
+        }
+        assert.ok(off < 0.001, `${label}: rests where it was fitted (off by ${off.toFixed(5)})`);
+        assert.equal(unweighted, 0, `${label}: every point's weights add up to one`);
+        // No collider a chain meets holds one of its joints at rest, as built or in the T-pose, and each meets
+        // both legs.
+        for (const spring of springs)
+          assert.ok(
+            ["thigh_l", "thigh_r", "calf_l", "calf_r"].every((bone) =>
+              spring.colliders.some((collider) => collider.bone.name === bone),
+            ),
+            `${label}: ${spring.name} meets the thighs and calves`,
+          );
+        for (const pose of [restPose, tPose]) {
+          pose(figure);
+          for (const spring of springs)
+            for (const bone of spring.bones.slice(1))
+              for (const collider of spring.colliders)
+                assert.ok(
+                  into(collider, bone.getWorldPosition(new Vector3()), spring.joint.hitRadius) < 0,
+                  `${label}: ${bone.name} rests clear of ${collider.bone.name}'s collider`,
+                );
+        }
+        // Swinging: still, it keeps its drape; as the hips turn and a knee lifts, it swings, its joints no deeper
+        // in the legs than they rest; standing still again, it settles within two seconds.
+        const legs = [...new Set(springs.flatMap((spring) => spring.colliders))].filter((collider) =>
+          /^(?:thigh|calf)_/u.test(collider.bone.name),
+        );
+        const joints = springs.flatMap((spring) => spring.bones.slice(1));
+        const tips = () => joints.map((bone) => bone.getWorldPosition(new Vector3()));
+        const depth = (at) => Math.max(0, ...legs.map((collider) => into(collider, at)));
+        const furthest = (a, b) => Math.max(...a.map((at, i) => at.distanceTo(b[i])));
+        relaxedPose(figure, 0);
+        const moving = createSprings(figure);
+        const rest = tips();
+        const resting = rest.map(depth);
+        for (let f = 0; f < 120; f++) {
+          relaxedPose(figure, 0);
+          moving.step(1 / 60);
+        }
+        const hung = tips();
+        assert.ok(
+          furthest(hung, rest) < 0.015,
+          `${label}: keeps its drape at rest (${furthest(hung, rest).toFixed(3)} m)`,
+        );
+        // (How each of its bones hangs, to measure the swing from.)
+        const turning = springs.flatMap((spring) => spring.bones);
+        const still = turning.map((bone) => bone.quaternion.clone());
+        let swung = 0;
+        let deeper = 0;
+        for (let f = 0; f < 600; f++) {
+          movingPose(figure, f / 60);
+          moving.step(1 / 60);
+          const now = tips();
+          now.forEach((at, i) => (deeper = Math.max(deeper, depth(at) - resting[i])));
+          const held = turning.map((bone) => bone.quaternion.clone());
+          turning.forEach((bone, i) => bone.quaternion.copy(still[i]));
+          figure.root.updateMatrixWorld(true);
+          swung = Math.max(swung, furthest(now, tips()));
+          turning.forEach((bone, i) => bone.quaternion.copy(held[i]));
+          figure.root.updateMatrixWorld(true);
+        }
+        // (A tunic's short tails swing least: about 1.5 cm on him, 4.5 on her; a long skirt's hem up to 40.)
+        assert.ok(swung > 0.01, `${label}: swings as the hips turn and a knee lifts (${(swung * 100).toFixed(1)} cm)`);
+        assert.ok(deeper < 0.001, `${label}: its joints go no deeper into the legs (${(deeper * 100).toFixed(2)} cm)`);
+        for (let f = 0; f < 120; f++) {
+          relaxedPose(figure, 0);
+          moving.step(1 / 60);
+        }
+        assert.ok(furthest(tips(), hung) < 0.005, `${label}: and settles within two seconds`);
+        figure.dispose();
+      }
+    // On longer legs, the skirt rests where its own weights put it, so nothing tears where cloth that grew with
+    // the legs meets cloth that didn't.
+    {
+      const plain = await createAvatar(startOf("female", { clothes: ["skirt"], hair: "none" }), "Test", "auto");
+      const position = hanging(plain).geometry.attributes.position.clone();
+      plain.dispose();
+      const look = startOf("female", { clothes: ["skirt"], hair: "none", limbs: { legs: 1.15 } });
+      const figure = await createAvatar(look, "Test", "auto");
+      const mesh = hanging(figure);
+      const made = geometryOf((await load("avatar-outfits-legs.pack.png")).pieces.skirt.female.meshes[0]);
+      const { bones, boneInverses } = mesh.skeleton;
+      const { skinIndex, skinWeight } = made.attributes;
+      let off = 0;
+      const point = new Vector3();
+      for (let i = 0; i < position.count; i++) {
+        const was = new Vector3();
+        for (let c = 0; c < 4; c++) {
+          const w = skinWeight.getComponent(i, c);
+          const b = skinIndex.getComponent(i, c);
+          if (w)
+            was.addScaledVector(
+              point
+                .fromBufferAttribute(position, i)
+                .applyMatrix4(mesh.bindMatrix)
+                .applyMatrix4(boneInverses[b])
+                .applyMatrix4(bones[b].matrixWorld),
+              w,
+            );
+        }
+        was.applyMatrix4(mesh.bindMatrixInverse);
+        mesh.applyBoneTransform(i, point.fromBufferAttribute(mesh.geometry.attributes.position, i));
+        off = Math.max(off, point.distanceTo(was));
+      }
+      assert.ok(off < 0.0005, `a long-legged skirt rests where it did (off by ${off.toFixed(5)})`);
+      figure.dispose();
+    }
+  }
+
+  // ── A bust that moves: a spring bone in each breast, and what's worn over it moving with it (bust.js) ──
+  {
+    const { BUST_JOINT, createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
+    const { movingPose } = await import("../packages/3d-avatar-maker/src/figure.js");
+    const bustOf = (figure) => figure.springs.filter((spring) => spring.joint === BUST_JOINT);
+    const build = (body, shape = {}, clothes = []) =>
+      createAvatar(
+        startOf(body, { shape: { ...startOf(body).shape, ...shape }, clothes, hair: "none" }),
+        "Test",
+        "auto",
+      );
+    // His chest only when it stands out as far as a small bust does: none as built, one with the fullest chest.
+    for (const [shape, has] of [
+      [{}, false],
+      [{ muscle: 1, chest: 1 }, false],
+      [{ chest: 1, race_halforc: 1 }, true],
+    ]) {
+      const figure = await build("male", shape);
+      assert.equal(bustOf(figure).length, has ? 2 : 0, `his chest ${JSON.stringify(shape)}: ${has ? "a" : "no"} bust`);
+      figure.dispose();
+    }
+    for (const [shape, clothes] of [
+      [{}, ["t_shirt"]],
+      [{ chest: 1, bust_height: 1, bust_shape: 1 }, ["dress"]],
+    ]) {
+      const label = `her bust ${JSON.stringify(shape)} under ${clothes}`;
+      const figure = await build("female", shape, clothes);
+      const springs = bustOf(figure);
+      assert.equal(springs.length, 2, `${label}: a spring each side`);
+      const skin = figure.meshes.find((mesh) => mesh.name === "body");
+      const top = figure.meshes.find(
+        (mesh) => mesh !== skin && mesh.skeleton.bones.some((bone) => bone.name === "breast_l"),
+      );
+      assert.ok(top, `${label}: the top over it moves with it`);
+      // Bound where it rests, skin and top, with whole weights.
+      const point = new Vector3();
+      for (const mesh of [skin, top]) {
+        const { position, skinWeight } = mesh.geometry.attributes;
+        let off = 0;
+        let unweighted = 0;
+        for (let i = 0; i < position.count; i++) {
+          const listed = point.fromBufferAttribute(position, i).clone().applyMatrix4(mesh.matrixWorld);
+          mesh.applyBoneTransform(i, point.fromBufferAttribute(position, i));
+          off = Math.max(off, point.applyMatrix4(mesh.matrixWorld).distanceTo(listed));
+          const sum = [0, 1, 2, 3].reduce((total, c) => total + skinWeight.getComponent(i, c), 0);
+          if (Math.abs(sum - 1) > 1e-4) unweighted++;
+        }
+        assert.ok(off < 0.001, `${label}: the ${mesh.name} rests where it was (off by ${off.toFixed(5)})`);
+        assert.equal(unweighted, 0, `${label}: every point's weights add up to one`);
+      }
+      // The top's points over the bust, each with the skin point nearest it, to see that it stays outside.
+      const fronts = springs.map((spring) => spring.bones[1].getWorldPosition(new Vector3()));
+      const near = (at, most) => fronts.some((front) => front.distanceTo(at) < most);
+      const skinAt = (i) => new Vector3().fromBufferAttribute(skin.geometry.attributes.position, i);
+      const skinNear = [];
+      for (let j = 0; j < skin.geometry.attributes.position.count; j++) if (near(skinAt(j), 0.1)) skinNear.push(j);
+      const pairs = [];
+      for (let i = 0; i < top.geometry.attributes.position.count; i++) {
+        const at = new Vector3().fromBufferAttribute(top.geometry.attributes.position, i);
+        if (!near(at, 0.08)) continue;
+        let [best, gap] = [-1, Infinity];
+        for (const j of skinNear) {
+          const d = skinAt(j).distanceTo(at);
+          if (d < gap) [best, gap] = [j, d];
+        }
+        const normal = new Vector3().fromBufferAttribute(skin.geometry.attributes.normal, best);
+        if (at.clone().sub(skinAt(best)).dot(normal) > 0) pairs.push([i, best, normal]);
+      }
+      /** How far the top is behind the skin under it at its deepest, as it stands now (0 if outside). */
+      const through = () => {
+        let most = 0;
+        const [a, b, n] = [new Vector3(), new Vector3(), new Vector3()];
+        for (const [i, j, normal] of pairs) {
+          skin.applyBoneTransform(j, a.copy(skinAt(j)));
+          skin.applyBoneTransform(j, n.copy(skinAt(j)).addScaledVector(normal, 0.01));
+          n.sub(a).normalize();
+          top.applyBoneTransform(i, b.fromBufferAttribute(top.geometry.attributes.position, i));
+          most = Math.max(most, -b.sub(a).dot(n));
+        }
+        return most;
+      };
+      const bones = springs.flatMap((spring) => spring.bones);
+      const tips = () => springs.map((spring) => spring.bones[1].getWorldPosition(new Vector3()));
+      const furthest = (a, b) => Math.max(...a.map((at, i) => at.distanceTo(b[i])));
+      // Still, it rests as shaped; as the body turns it sways a little, the top with it; still again, it settles.
+      relaxedPose(figure, 0);
+      const moving = createSprings(figure);
+      const rest = tips();
+      for (let f = 0; f < 60; f++) {
+        relaxedPose(figure, 0);
+        moving.step(1 / 60);
+      }
+      assert.ok(furthest(tips(), rest) < 0.0005, `${label}: rests as shaped`);
+      let swayed = 0;
+      let deeper = 0;
+      for (let f = 0; f < 600; f++) {
+        movingPose(figure, f / 60);
+        moving.step(1 / 60);
+        const now = tips();
+        const sunk = through();
+        const held = bones.map((bone) => bone.quaternion.clone());
+        for (const bone of bones) bone.quaternion.copy(figure.rest.get(bone.name));
+        figure.root.updateMatrixWorld(true);
+        swayed = Math.max(swayed, furthest(now, tips()));
+        deeper = Math.max(deeper, sunk - through());
+        bones.forEach((bone, i) => bone.quaternion.copy(held[i]));
+        figure.root.updateMatrixWorld(true);
+      }
+      assert.ok(swayed > 0.001 && swayed < 0.01, `${label}: sways a little (${(swayed * 1000).toFixed(1)} mm)`);
+      assert.ok(deeper < 0.0005, `${label}: the top stays outside it as it sways (${(deeper * 1000).toFixed(2)} mm)`);
+      for (let f = 0; f < 60; f++) {
+        relaxedPose(figure, 0);
+        moving.step(1 / 60);
+      }
+      assert.ok(furthest(tips(), rest) < 0.0005, `${label}: and settles within a second`);
+      // A GLB keeps the bones and their weights.
+      for (const mesh of figure.meshes) for (const material of [mesh.material].flat()) material.map = null;
+      const { json } = readGlb((await exportGlb(figure, { look: {} })).bytes);
+      const named = new Set(json.skins.flatMap((one) => one.joints.map((at) => json.nodes[at].name)));
+      assert.ok(
+        ["breast_l", "breast_r"].every((name) => named.has(name)),
+        `${label}: a GLB keeps the bust's bones`,
+      );
       figure.dispose();
     }
   }
@@ -739,6 +1237,28 @@ for (const figure of Object.values(made)) figure.dispose();
   for (const each of read)
     assert.equal(Boolean(each.credit), each.licence !== "CC0-1.0", `${each.piece}: a credit exactly when CC BY`);
   looks.addPieces(read);
+  // Its hair styles: every one accepted and credited, offered and worn on each body it's for, and the ones
+  // that hang swing on chains (hairMoves), the rest staying as they are.
+  const { readHair } = await import("../packages/3d-avatar-maker/src/packs.js");
+  const styles = readHair({ id, version: manifest.version, status: "active", manifest }, index);
+  assert.equal(
+    styles.length,
+    Object.keys(index.hair ?? {}).length,
+    "every hair style of the Accessories pack is accepted",
+  );
+  for (const each of styles)
+    assert.ok(each.credit?.includes(`by ${each.author} (`), `${each.style}: CC BY, with its author credited`);
+  looks.addHair(styles);
+  for (const body of ["male", "female"]) {
+    const mine = styles.filter((each) => each.bodies.includes(body));
+    const offered = (await avatarChoices(body)).hair;
+    for (const { style } of mine) assert.ok(offered.includes(style), `${body}: the Hair tab offers ${style}`);
+    await offeredHairLoads(
+      body,
+      mine.map(({ style }) => style),
+    );
+    for (const { style, swing } of mine) await hairMoves(body, style, swing !== null);
+  }
   const slots = new Set(read.map(({ slot }) => slot));
   for (const slot of ["face", "mouth", "ears", "fingers", "socks", "hands", "head"])
     assert.ok(slots.has(slot), `the pack has something to wear in "${slot}"`);
@@ -796,6 +1316,167 @@ for (const figure of Object.values(made)) figure.dispose();
     else assert.ok(note.includes(`by ${author} (${source}), CC BY`), `a saved ${piece} credits its maker`);
     assert.ok((await count([piece])) > (await count([])), `${piece} is worn`);
   }
+  // Its underwear is in the Underwear lists, not among the clothes, and a swimsuit is worn on bare skin.
+  const underwear = read.filter(({ slot }) => slot.startsWith("underwear_"));
+  assert.ok(
+    underwear.some(({ piece }) => piece === "joepal_plain_bra") &&
+      underwear.some(({ piece }) => piece === "elvs_lace_panty"),
+    "the pack's bras and briefs are underwear",
+  );
+  for (const { piece, slot } of underwear) {
+    assert.ok(!looks.SLOT_OF[piece], `${piece} isn't offered as clothing`);
+    const list = slot === "underwear_top" ? looks.UNDERWEAR_TOPS : looks.UNDERWEAR_BOTTOMS;
+    assert.ok(
+      list.some(([style]) => style === piece),
+      `${piece} is in the ${slot} list`,
+    );
+  }
+  assert.ok(index.pieces.mindfront_f_one_piece_swimsuit_01.noUnderwear, "a swimsuit leaves the underwear off");
+}
+
+// ── Underwear from a pack, and underwear under clothes ──
+{
+  const { BODY_REVISION, readPack } = await import("../packages/3d-avatar-maker/src/packs.js");
+  const { licenceNote } = await import("../packages/3d-avatar-maker/src/exporter.js");
+  const { Color } = await import("three");
+  const { missingNotes, wornLook } = looks;
+  // A test pack whose underwear is the kit's own bikini, served as an installed pack's assets are.
+  const id = "3d-avatar-maker-test-underwear";
+  const tops = await (await import("../packages/3d-avatar-maker/src/kitfiles.js")).load("avatar-outfits-tops.pack.png");
+  const legs = await (await import("../packages/3d-avatar-maker/src/kitfiles.js")).load("avatar-outfits-legs.pack.png");
+  served.set(
+    `${id}/wardrobe/underwear.pack.png`,
+    Buffer.from(
+      JSON.stringify(
+        { pieces: { test_bra: tops.pieces.bikini_top, test_briefs: legs.pieces.bikini_bottom }, pictures: [] },
+        (key, value) => (value instanceof Uint8Array ? Buffer.from(value).toString("base64") : value),
+      ),
+    ),
+  );
+  const installed = {
+    id,
+    version: "0.1.00",
+    status: "active",
+    manifest: { contributions: { assets: { paths: ["avatar-pack.json", "wardrobe/underwear.pack.png"] } } },
+  };
+  const entry = (label, slot, over = {}) => ({
+    label,
+    slot,
+    bodies: ["female"],
+    layer: 0,
+    hides: [],
+    parts: { female: [["cloth", 0xffffff]] },
+    variants: [],
+    bundle: "wardrobe/underwear.pack.png",
+    licence: "CC0-1.0",
+    author: "Tester",
+    source: "http://example.test/",
+    credit: null,
+    ...over,
+  });
+  const index = {
+    format: 1,
+    for: "3d-avatar-maker",
+    body: BODY_REVISION,
+    maker: "0.1.11",
+    name: "Test Underwear",
+    pieces: {
+      test_bra: entry("Test bra", "underwear_top", {
+        tint: true,
+        licence: "CC-BY-4.0",
+        credit: "Test bra by Tester, CC BY 4.0",
+      }),
+      test_briefs: entry("Test briefs", "underwear_bottom"),
+      thong: entry("Not the kit's", "underwear_bottom"), // (a kit underwear style's id)
+      test_flag: entry("Bad", "underwear_top", { noUnderwear: "yes" }),
+      test_tint: entry("Bad", "underwear_top", { tint: 1 }),
+      test_slot: entry("Bad", "underwear"),
+    },
+  };
+  const pieces = readPack(installed, index);
+  assert.deepEqual(
+    pieces.map(({ piece, slot, tint }) => [piece, slot, tint]),
+    [
+      ["test_bra", "underwear_top", true],
+      ["test_briefs", "underwear_bottom", false],
+    ],
+    "pack underwear is read into the underwear slots; a kit style's id, a bad flag or slot is left out",
+  );
+
+  // Before the pack is installed: a look with its underwear keeps it, says so, and saves without it.
+  const record = { pack: id, name: "Test Underwear", label: "Test bra" };
+  const saved = startOf("female", {
+    underwear: { top: "test_bra", bottom: "briefs", underClothes: false },
+    fromPacks: { test_bra: record },
+  });
+  assert.deepEqual(saved.underwear, { top: "test_bra", bottom: "briefs", underClothes: false }, "kept");
+  assert.deepEqual(saved.fromPacks, { test_bra: record });
+  assert.deepEqual(checkLook(saved), saved, "through every later check, as a draft is");
+  assert.match(missingNotes(saved).join(" "), /underwear "Test bra" isn't shown because its pack, Test Underwear/u);
+  assert.equal(wornLook(saved).underwear.top, looks.BARE, "a saved avatar has no underwear top, as it's drawn");
+  assert.equal(checkLook({ underwear: { top: "Bad-Id", bottom: "toString" } }).underwear, undefined, "ids checked");
+
+  looks.addPieces(pieces);
+  assert.ok(
+    looks.UNDERWEAR_TOPS.some(([style]) => style === "test_bra"),
+    "the Top list offers the pack's bra",
+  );
+  assert.ok(!looks.SLOT_OF.test_bra && !looks.CLOTHES.some(([piece]) => piece === "test_bra"), "not as clothing");
+  const choices = await avatarChoices("female");
+  assert.ok(choices.tops.includes("test_bra") && choices.bottoms.includes("test_briefs"), "offered on its body");
+  assert.ok(!(await avatarChoices("male")).tops.includes("test_bra"), "and not on the other");
+  assert.ok(!choices.clothes.some(({ piece }) => piece === "test_bra"));
+  const back = checkLook(saved);
+  assert.equal(back.underwear.top, "test_bra", "the look wears it again");
+  assert.deepEqual(missingNotes(back), []);
+  assert.equal(checkLook({ underwear: { bottom: "test_bra" } }).underwear, undefined, "a top isn't a bottom");
+  assert.match(licenceNote({ underwear: { top: "test_bra" } }), /Test bra by Tester, CC BY 4\.0/u, "credited");
+
+  // Drawn: the body's own briefs as triangles of the body, a pack's as a piece of its own.
+  const made = async (look) => {
+    const figure = await createAvatar(startOf("female", { hair: "none", ...look }), "Test", "auto");
+    const body = figure.meshes.find((mesh) => mesh.name === "body");
+    const briefs = figure.kit.meshes.find((mesh) => mesh.piece === "underwear-bottom-briefs");
+    let shown = 0;
+    for (const vertex of body.geometry.index.array)
+      if (vertex >= briefs.start && vertex < briefs.start + briefs.count) shown++;
+    // (Each piece's first colour, red, as a fraction: what it's dyed.)
+    const reds = figure.meshes
+      .filter((mesh) => mesh.name === "piece" && mesh.geometry.attributes.color)
+      .map((mesh) => mesh.geometry.attributes.color.array[0] / 65535);
+    const result = { meshes: figure.meshes.length, briefs: shown, reds };
+    figure.dispose();
+    return result;
+  };
+  const skirt = { clothes: ["short_skirt"] };
+  const on = await made({ ...skirt, underwear: { bottom: "briefs", underClothes: true } });
+  const off = await made({ ...skirt, underwear: { bottom: "briefs", underClothes: false } });
+  assert.ok(on.briefs > 0, "the body's briefs show under a skirt with underwear shown under clothes");
+  assert.equal(off.briefs, 0, "and are hidden under it with that off");
+  // (Off until the clothes are fitted around underwear: avatar.js UNDER_CLOTHES.)
+  assert.equal(
+    (await made({ ...skirt, underwear: { bottom: "briefs" } })).briefs,
+    0,
+    "hidden where a look doesn't say",
+  );
+  assert.equal(
+    (await made({ clothes: ["one_piece_swimsuit"], underwear: { bottom: "briefs", underClothes: true } })).briefs,
+    0,
+    "a swimsuit is worn without them",
+  );
+  const packOn = await made({ ...skirt, underwear: { bottom: "test_briefs", underClothes: true } });
+  const packOff = await made({ ...skirt, underwear: { bottom: "test_briefs", underClothes: false } });
+  assert.equal(packOn.briefs, 0, "the pack's briefs replace the body's own");
+  assert.ok(packOn.meshes > packOff.meshes, "the pack's briefs show under the skirt with that on, and not with it off");
+  // The underwear's colour dyes a pack's piece made to be dyed.
+  const colour = 0x8a2a2a;
+  // (Nothing worn over it: a look that names no clothes wears its everyday ones, which would hide it.)
+  const { reds } = await made({ clothes: [], underwear: { top: "test_bra" }, colours: { underwear: colour } });
+  const red = new Color().setHex(colour).r;
+  assert.ok(
+    reds.some((value) => Math.abs(value - red) < 1e-4),
+    `the pack's bra takes the underwear's colour (${reds.join(", ")} for ${red})`,
+  );
 }
 
 // ── Bone-fixed pieces, a pack's hair styles, and looks that outlast an uninstalled pack ──
@@ -924,6 +1605,29 @@ for (const figure of Object.values(made)) figure.dispose();
       ["test_bent", "wrists", null],
     ],
     "the new slots and a known bone are read; a finger's, an eye's or a malformed bone is left out",
+  );
+  // A piece's `hang` (where its cloth leaves the body to swing) is a number in HANG_RANGE, or nothing.
+  const { HANG_RANGE } = await import("../packages/3d-avatar-maker/src/packs.js");
+  const hangs = readPack(installed, {
+    ...index,
+    pieces: {
+      test_skirt: piece("Skirt", "legs", { hang: 0.2 }),
+      test_cape: piece("Cape", "back", { hang: HANG_RANGE[0] }),
+      test_trousers: piece("Trousers", "legs"),
+      test_still_skirt: piece("Skirt", "legs", { hang: null }),
+      test_far_hang: piece("Bad", "legs", { hang: HANG_RANGE[1] + 0.1 }),
+      test_text_hang: piece("Bad", "legs", { hang: "0.2" }),
+    },
+  });
+  assert.deepEqual(
+    hangs.map((entry) => [entry.piece, entry.hang]),
+    [
+      ["test_skirt", 0.2],
+      ["test_cape", HANG_RANGE[0]],
+      ["test_trousers", null],
+      ["test_still_skirt", null],
+    ],
+    "a piece's hang line is read when it's a number in range; a piece without one follows the legs",
   );
   const styles = readHair(installed, index);
   assert.deepEqual(
@@ -1151,5 +1855,219 @@ for (const figure of Object.values(made)) figure.dispose();
   assert.ok(furthest < 0.001, `the VRM's bind pose is its rest pose (off by ${furthest.toFixed(5)})`);
   assert.match(vrm.meta.thirdPartyLicenses ?? "", /Test waves by Hairdresser/u, "and credits the pack's hair");
   figure.dispose();
+}
+
+// ── Animations in the preview (motions.js): every motion on short and tall bodies, the feet on the floor,
+// no joint past what a body does, back to rest when stopped, and nothing of it in a saved file ──
+{
+  const { Quaternion, Vector3 } = await import("three");
+  const { MOTIONS, createMotionPlayer, motionPose } = await import("../packages/3d-avatar-maker/src/motions.js");
+  const { createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
+  const { exportVrm } = await import("../packages/3d-avatar-maker/src/exporter.js");
+  assert.ok(MOTIONS.length >= 10, "walking, dancing, talking, waving and more");
+  for (const [, label, about] of MOTIONS) assert.ok(label && about, `${label}: says what it does`);
+  const bodies = {
+    woman: await createAvatar(startOf("female", { hair: "long" }), "Test", "auto"),
+    dwarf: await createAvatar(
+      startOf("male", { ...racePreset("dwarf", "male"), hair: "ponytail", limbs: { legs: 0.7, head: 1.2 } }),
+      "Test",
+      "auto",
+    ),
+    tall: await createAvatar(
+      startOf("female", { height: 1.12, limbs: { legs: 1.15, arms: 1.1, head: 0.9 } }),
+      "Test",
+      "auto",
+    ),
+  };
+  // How far each bone may turn from rest (radians): past these a body looks broken.
+  const LIMITS = [
+    [/^(lowerarm|calf)_/u, 2.8],
+    [/^upperarm_/u, 2.8],
+    [/^thigh_/u, 2.7],
+    [/^(foot|ball)_/u, 1.6],
+    [/^hand_/u, 2.0],
+    [/^clavicle_/u, 0.8],
+    [/^(spine_0|neck_01$|Head$)/u, 1.1],
+  ];
+  const at = (bone) => bone.getWorldPosition(new Vector3());
+  const up = new Vector3(0, 1, 0);
+  for (const [name, figure] of Object.entries(bodies)) {
+    for (const mesh of figure.meshes) for (const material of [mesh.material].flat()) material.map = null;
+    const n = figure.humanoid;
+    restPose(figure);
+    const feet = ["left", "right"].map((side) =>
+      [n[`${side}Foot`], n[`${side}Toes`]].map((bone) => [bone, at(bone).y]),
+    );
+    const hipsUp = up.clone().applyQuaternion(n.hips.getWorldQuaternion(new Quaternion()));
+    const hipsRest = n.hips.getWorldQuaternion(new Quaternion()).invert();
+    const shins = ["left", "right"].map((side) => {
+      const thigh = n[`${side}UpperLeg`];
+      return [thigh, new Vector3(0, 0, 1).applyQuaternion(thigh.getWorldQuaternion(new Quaternion()).invert())];
+    });
+    const fronts = ["left", "right"].map((side) => {
+      const upper = n[`${side}UpperArm`];
+      return [upper, new Vector3(0, 0, 1).applyQuaternion(upper.getWorldQuaternion(new Quaternion()).invert())];
+    });
+    const restGlb = (await exportGlb(figure, { look: {} })).bytes;
+    // The hips at rest, at their widest (round the hip joints): how far out and how deep the skin goes. A hand
+    // whose joints come inside that, at that height, has gone into the hips.
+    const hipY = at(n.leftUpperLeg).y;
+    const band = { wide: 0, front: -Infinity, back: Infinity };
+    {
+      const body = figure.meshes[0];
+      const { position, skinIndex, skinWeight } = body.geometry.attributes;
+      const point = new Vector3();
+      for (let i = 0; i < position.count; i++) {
+        // (The skin the hips and thighs move most: not the hands, which hang at that height at rest.)
+        let most = 0;
+        for (let c = 1; c < 4; c++) if (skinWeight.getComponent(i, c) > skinWeight.getComponent(i, most)) most = c;
+        if (!/^(pelvis|thigh_|spine_01)/u.test(body.skeleton.bones[skinIndex.getComponent(i, most)].name)) continue;
+        point.fromBufferAttribute(position, i).applyMatrix4(body.matrixWorld);
+        if (Math.abs(point.y - hipY) > 0.05) continue;
+        band.wide = Math.max(band.wide, Math.abs(point.x));
+        band.front = Math.max(band.front, point.z);
+        band.back = Math.min(band.back, point.z);
+      }
+    }
+    const hipsAtRest = n.hips.matrixWorld.clone();
+    const handJoints = ["leftHand", "rightHand", "leftMiddleProximal", "rightMiddleProximal"].map((key) => n[key]);
+    for (const [id] of MOTIONS) {
+      const label = `${name} ${id}`;
+      relaxedPose(figure, 0);
+      const springs = createSprings(figure);
+      const player = createMotionPlayer();
+      player.play(figure, id);
+      let worstFloor = 0;
+      let lowest = 0;
+      let bent = 0;
+      const handMade = id === "wave" || id === "stretch";
+      let inHips = 0;
+      for (let f = 1; f <= 12 * 20; f++) {
+        assert.ok(
+          player.step(figure, 1 / 20, () => relaxedPose(figure, 0)),
+          `${label}: plays`,
+        );
+        springs.step(1 / 20);
+        // The hands stay out of the hips (measured as the hips stand now, back where they rest).
+        const back = hipsAtRest.clone().multiply(n.hips.matrixWorld.clone().invert());
+        for (const joint of handJoints) {
+          const p = at(joint).applyMatrix4(back);
+          if (p.y < hipY - 0.15 || p.y > hipY + 0.08) continue;
+          const middle = (band.front + band.back) / 2;
+          const inside = (p.x / band.wide) ** 2 + ((p.z - middle) / ((band.front - band.back) / 2)) ** 2;
+          if (inside < 1) inHips = Math.max(inHips, 1 - inside);
+        }
+        for (const bone of figure.bones.values())
+          assert.ok(bone.matrixWorld.elements.every(Number.isFinite), `${label}: ${bone.name} has no NaN`);
+        // A foot on the floor: the lower of the two stands where a foot rests, and neither goes through it.
+        const heights = feet.map((joints) => Math.min(...joints.map(([bone, rest]) => at(bone).y - rest)));
+        lowest = Math.min(lowest, ...heights);
+        if (f > 10) worstFloor = Math.max(worstFloor, Math.abs(Math.min(...heights)));
+        for (const [bone, rest] of [...figure.bones].map(([key, bone]) => [bone, figure.rest.get(key)])) {
+          const limit = LIMITS.find(([pattern]) => pattern.test(bone.name))?.[1];
+          if (!limit) continue;
+          const turned = 2 * Math.acos(Math.min(1, Math.abs(bone.quaternion.dot(rest))));
+          assert.ok(turned <= limit, `${label}: ${bone.name} turns ${turned.toFixed(2)} at most ${limit}`);
+        }
+        const tipped = up.clone().applyQuaternion(n.hips.getWorldQuaternion(new Quaternion())).angleTo(hipsUp);
+        assert.ok(tipped < 1.3, `${label}: the hips tip ${tipped.toFixed(2)}`);
+        // Knees bend forward and elbows the way an elbow bends.
+        const forward = new Vector3(0, 0, 1).applyQuaternion(
+          n.hips.getWorldQuaternion(new Quaternion()).multiply(hipsRest),
+        );
+        for (const [thigh, front] of shins) {
+          const calf = thigh.children.find((child) => /^calf_/u.test(child.name));
+          const foot = calf.children.find((child) => /^foot_/u.test(child.name));
+          const leg = at(calf).sub(at(thigh)).normalize();
+          const shin = at(foot).sub(at(calf)).normalize();
+          if (leg.angleTo(shin) < 0.3) continue;
+          const ahead = front.clone().applyQuaternion(thigh.getWorldQuaternion(new Quaternion()));
+          assert.ok(
+            ahead.dot(shin.projectOnPlane(leg).normalize()) < 0.3,
+            `${label}: ${thigh.name}'s knee bends the way a knee bends`,
+          );
+        }
+        for (const [upper, front] of fronts) {
+          const lower = upper.children.find((child) => child.isBone);
+          const hand = lower.children.find((child) => /^hand_/u.test(child.name));
+          const arm = at(lower).sub(at(upper)).normalize();
+          const fore = at(hand).sub(at(lower)).normalize();
+          // (The hand-made motions' elbows; a recorded clip's are as its animator made them.)
+          if (arm.angleTo(fore) < 0.4 || !handMade) continue;
+          bent++;
+          const facing = front.clone().applyQuaternion(upper.getWorldQuaternion(new Quaternion()));
+          assert.ok(
+            facing.dot(fore.projectOnPlane(arm).normalize()) > 0.2,
+            `${label}: ${upper.name}'s elbow bends the way an elbow bends`,
+          );
+        }
+      }
+      assert.ok(lowest > -0.01, `${label}: no foot goes through the floor (${(lowest * 100).toFixed(1)} cm)`);
+      assert.ok(worstFloor < 0.01, `${label}: a foot stays on the floor (${(worstFloor * 100).toFixed(1)} cm off)`);
+      if (id === "wave") assert.ok(bent > 0, `${label}: the elbow bends`);
+      assert.equal(inHips, 0, `${label}: the hands stay out of the hips (${inHips.toFixed(2)} in)`);
+      // Saved mid-motion, the file is the same as one saved at rest.
+      const saved = (await exportGlb(figure, { look: {} })).bytes;
+      assert.deepEqual(saved, restGlb, `${label}: a file saved mid-motion rests as one saved at rest`);
+      // Stopped, it eases back to the pose it was in: here the rest pose, every bone as built.
+      motionPose(figure, id, 2.3);
+      player.stop(figure);
+      for (let f = 0; f < 30; f++) player.step(figure, 1 / 30, () => restPose(figure));
+      assert.equal(player.active, false, `${label}: has stopped`);
+      assert.equal(
+        player.step(figure, 1 / 30, () => {}),
+        false,
+        `${label}: and leaves the figure to the stage`,
+      );
+      for (const [key, bone] of figure.bones) {
+        const off = bone.quaternion.toArray().map((value, i) => Math.abs(value - figure.rest.get(key).toArray()[i]));
+        assert.ok(Math.max(...off) < 1e-9, `${label}: ${key} back at rest`);
+        assert.ok(bone.position.distanceTo(figure.restAt.get(key)) < 1e-9, `${label}: ${key} back in place`);
+      }
+    }
+    // Walking keeps the hips near their height standing, and lifts each foot in turn.
+    {
+      restPose(figure);
+      const standing = at(n.hips).y;
+      let lifted = [0, 0];
+      for (let f = 0; f < 60; f++) {
+        motionPose(figure, "walk", f / 30);
+        assert.ok(Math.abs(at(n.hips).y - standing) < 0.1, `${name}: walking, the hips near their height standing`);
+        lifted = lifted.map((most, i) => Math.max(most, at(feet[i][0][0]).y - feet[i][0][1]));
+      }
+      assert.ok(Math.min(...lifted) > 0.03, `${name}: walking lifts each foot (${lifted.map((y) => y.toFixed(2))})`);
+      // A turn turns the figure, not the camera: by a quarter after a quarter of the turn.
+      motionPose(figure, "turn", 2.5);
+      const facing = new Vector3(0, 0, 1).applyQuaternion(
+        n.hips.getWorldQuaternion(new Quaternion()).multiply(hipsRest),
+      );
+      assert.ok(facing.x > 0.9, `${name}: turned to its left (${facing.toArray().map((v) => v.toFixed(2))})`);
+    }
+  }
+  // A saved VRM mid-motion is the same as one saved at rest.
+  {
+    const figure = bodies.woman;
+    restPose(figure);
+    const rest = (await exportVrm(figure, { look: {}, terms: { author: "Tester" } })).bytes;
+    motionPose(figure, "crouch", 2.5);
+    const crouched = (await exportVrm(figure, { look: {}, terms: { author: "Tester" } })).bytes;
+    assert.deepEqual(crouched, rest, "a VRM saved mid-crouch rests in its T-pose as one saved at rest");
+  }
+  // The face: a motion's own face only while the Face list is on Lively; the user's other choices win.
+  {
+    const player = createMotionPlayer();
+    player.play(bodies.woman, "talk");
+    player.step(bodies.woman, 0.1, () => {});
+    assert.deepEqual(player.face("lively", 9), ["talking", 0.1], "talking talks while the face is lively");
+    assert.deepEqual(player.face("angry", 9), ["angry", 9], "and keeps an expression the user chose");
+    player.pause(true);
+    assert.deepEqual(player.face("lively", 9), ["lively", 9], "paused, the face is the user's again");
+    // A new look while it plays goes on with the motion at once, with nothing to ease from.
+    assert.equal(player.adopt(bodies.tall), true, "a new figure is posed in the motion playing");
+    assert.equal(player.active, true);
+    player.stop(bodies.tall);
+    assert.equal(createMotionPlayer().adopt(bodies.tall), false, "with nothing playing, the stage poses it");
+  }
+  for (const figure of Object.values(bodies)) figure.dispose();
 }
 console.log("3d-avatar-maker.regression: ok");

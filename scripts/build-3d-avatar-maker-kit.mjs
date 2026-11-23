@@ -1503,7 +1503,7 @@ function avatar(only = "", to = "") {
     Object.assign(bundle, bodyOf(gltf, texture).document);
   }
 
-  // Hair: in two bundles, the short styles and the long. Each keeps only the keys that move the head.
+  // Hair: in bundles of the short styles, the long and the community bobs. Each keeps only the keys that move the head.
   const hairIndex = packHairStyles({
     dir,
     files: glbs.filter((name) => /^avatar-hair-[a-z0-9_]+\.glb$/u.test(name)).sort(),
@@ -1513,7 +1513,7 @@ function avatar(only = "", to = "") {
     bundleOf: (style, file) => {
       if (!HAIRSTYLES.some(([name]) => name === style))
         throw new Error(`${file}: add "${style}" to HAIRSTYLES in packages/3d-avatar-maker/src/looks.js`);
-      const name = `avatar-hair-${LONG_HAIR.has(style) ? "long" : "short"}`;
+      const name = `avatar-hair-${BOBS.includes(style) ? "bobs" : LONG_HAIR.has(style) ? "long" : "short"}`;
       return [name, join(out, `${name}.pack.png`)];
     },
     pictureName: (style, image) => `avatar-hair-${style}-${image}`,
@@ -1550,6 +1550,8 @@ function avatar(only = "", to = "") {
 }
 /** The hair styles packed with the long ones (avatar-hair-long.pack.png); the rest are the short ones'. */
 const LONG_HAIR = new Set(["long", "ponytail", "braid", "bob", "bob_angled", "curly", "buns"]);
+/** MargaretToigo's six bobs (make_mh_hair.py), packed in a bundle of their own (avatar-hair-bobs.pack.png). */
+const BOBS = ["bob_blunt", "bob_curled", "bob_inverted"].flatMap((bob) => [bob, `${bob}_bangs`]);
 
 function main() {
   // (This copy packs the avatar only. The other modes below are Wanderworld's and are never reached here.)

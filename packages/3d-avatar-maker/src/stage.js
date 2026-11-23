@@ -15,19 +15,22 @@ import {
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { animateFace } from "./face.js";
 import { movingPose, relaxedPose, restPose, tPose } from "./figure.js";
+import { createMotionPlayer } from "./motions.js";
 import { createSprings } from "./springs.js";
 
 export const POSES = [
   ["relaxed", "Relaxed"],
-  ["moving", "Moving: looks about, to show the hair swing"],
+  ["moving", "Moving: looks about and steps, to show the hair and clothes swing"],
   ["a", "A-pose"],
   ["t", "T-pose"],
 ];
 
 /**
- * A stage in `canvas`: { show(figure), setPose(pose), setFace(mode), view("body" | "face"), resize(), dispose(),
- * failed }. The face plays `mode` (face.js FACE_MODES) in every pose, and the hair and a tail swing on their
- * springs (springs.js) as the body moves; with reduced motion they rest.
+ * A stage in `canvas`: { show(figure), setPose(pose), setFace(mode), setMotion(id), pauseMotion(paused),
+ * view("body" | "face"), resize(), dispose(), failed }. The face plays `mode` (face.js FACE_MODES) in every
+ * pose, and the hair, hanging clothes, the bust and a tail swing on their springs (springs.js) as the body
+ * moves; with reduced motion they rest. An animation (motions.js MOTIONS) plays over the pose only when the user
+ * picks one, reduced motion or not, and the Face and Hand views follow the part they show while it plays.
  * `failed` is true when the browser gave no WebGL; the maker then says so in words.
  */
 export function createStage(canvas) {
@@ -35,7 +38,18 @@ export function createStage(canvas) {
   try {
     renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: false });
   } catch {
-    return { failed: true, show() {}, setPose() {}, setFace() {}, view() {}, resize() {}, dispose() {} };
+    const none = () => {};
+    return {
+      failed: true,
+      show: none,
+      setPose: none,
+      setFace: none,
+      setMotion: none,
+      pauseMotion: none,
+      view: none,
+      resize: none,
+      dispose: none,
+    };
   }
   renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio || 1));
   renderer.outputColorSpace = SRGBColorSpace;
@@ -75,6 +89,17 @@ export function createStage(canvas) {
   const started = performance.now();
   const reduced = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const head = new Vector3();
+  const motion = createMotionPlayer(); // (the animation the user picked, if any)
+  let wasAnimated = false;
+  let viewing = "body";
+  const followed = new Vector3(); // (where the part the view shows was, so the camera can follow it)
+  /** The part the Face or Hand view looks at, which the camera follows while an animation plays. */
+  const viewedPart = () =>
+    viewing === "face"
+      ? figure?.humanoid.head
+      : viewing === "hand"
+        ? (figure?.humanoid.leftMiddleProximal ?? figure?.humanoid.leftHand)
+        : null;
 
   function applyPose() {
     if (!figure) return;
@@ -85,6 +110,8 @@ export function createStage(canvas) {
   }
 
   function view(which = "body") {
+    viewing = which;
+    viewedPart()?.getWorldPosition(followed);
     const tall = figure ? figure.humanoid.head.getWorldPosition(head).y + 0.12 : 1.75;
     if (which === "face") {
       const at = figure ? figure.humanoid.head.getWorldPosition(head).y + 0.06 : 1.62;
@@ -124,10 +151,26 @@ export function createStage(canvas) {
     if (disposed) return;
     if (visible && document.visibilityState !== "hidden") {
       const now = performance.now();
-      if ((pose === "relaxed" || pose === "moving") && !reduced) applyPose();
+      const dt = last ? (now - last) / 1000 : 0;
+      const animated = motion.step(figure, dt, applyPose);
+      if (!animated && (pose === "relaxed" || pose === "moving") && !reduced) applyPose();
+      const part = viewedPart();
+      if (part && animated) {
+        // (The Face and Hand views keep the part in sight, easing after it as it moves.)
+        const by = part
+          .getWorldPosition(head)
+          .sub(followed)
+          .multiplyScalar(Math.min(1, dt * 6));
+        controls.target.add(by);
+        camera.position.add(by);
+        followed.add(by);
+      } else part?.getWorldPosition(followed);
       controls.update();
-      if (figure) animateFace(figure, face, (now - started) / 1000, camera.position, reduced);
-      if (springs && !reduced) springs.step(last ? (now - last) / 1000 : 0);
+      const [faceMode, faceAt] = motion.face(face, (now - started) / 1000);
+      if (figure) animateFace(figure, faceMode, faceAt, camera.position, reduced && !animated);
+      if (springs && (!reduced || animated)) springs.step(dt);
+      else if (springs && wasAnimated) springs.reset(); // (with reduced motion, the hair at rest again)
+      wasAnimated = animated;
       last = now;
       renderer.render(scene, camera);
     }
@@ -154,17 +197,26 @@ export function createStage(canvas) {
       springs = null;
       if (figure) {
         scene.add(figure.object);
-        applyPose();
+        if (!motion.adopt(figure)) applyPose(); // (an animation playing goes on with the new look)
         springs = createSprings(figure);
       }
     },
     setPose(next) {
       pose = next;
+      if (motion.active) return; // (the pose an animation eases back to when it stops)
       applyPose();
       springs?.reset(); // (from rest in the new pose, rather than whipped there)
     },
     setFace(next) {
       face = next;
+    },
+    /** Plays animation `id` (motions.js MOTIONS), easing in from the pose shown; null eases back to the pose. */
+    setMotion(id) {
+      if (id) motion.play(figure, id);
+      else motion.stop(figure);
+    },
+    pauseMotion(paused) {
+      motion.pause(paused);
     },
     view,
     resize,

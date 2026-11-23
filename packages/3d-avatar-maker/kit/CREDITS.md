@@ -17,6 +17,7 @@ data by this repository's own scripts; MakeHuman itself is neither run nor copie
   `avatar-<sex>-<n>.webp`): the bodies' base mesh and shapes, adapted with `assets/scripts/make_avatar.py`.
 - `avatar/avatar-<sex>-skin-<age>-<ethnicity>.webp`, `avatar/avatar-eyes.webp`, and the brow and lash
   styles in the bodies: MakeHuman's skins, eyes, eyebrows and eyelashes.
+- `avatar/avatar-female-skin-light.webp`: MakeHuman's second young light skin (young_caucasian_female2).
 - In the bodies: the face's moves (blinks, mouth shapes and feelings), each a mix of MakeHuman's
   expression unit targets chosen by ThatOneCan; MakeHuman's teeth (teeth_base) and tongue (tongue01), and
   their pictures, shaded darker towards the back of the mouth, in the bodies' mouth picture.
@@ -43,6 +44,10 @@ Items from the MakeHuman community asset packs, each CC0 by its pack catalogue a
   eyelashes01_cc0) baked in Blender by ThatOneCan onto MakeHuman's eyebrow009 and eyelashes02 cards (`bake_brows.py`).
 - In `avatar/avatar-eyes.webp`, after MakeHuman's nine: eye pictures by bobby_03, Mindfront, Nyloseth, Hatshj and
   spamrakuen (`make_avatar.py` COMMUNITY_EYES).
+- In `avatar/avatar-hair-bobs.pack.png`: the blunt, curled-under and inverted bobs, each with and without a
+  fringe, MargaretToigo's (hair01_cc0: toigo_blunt_bob, toigo_curled_under_bob, toigo_inverted_bob and their
+  `_with_bangs`), fitted to the bodies in Blender by ThatOneCan (`make_mh_hair.py`), the fringes tucked under at
+  the crown.
 
 ## Made in Blender by ThatOneCan (CC0)
 
@@ -54,6 +59,8 @@ Released as CC0 1.0 by their maker.
   and body sliders' shapes are MakeHuman's targets (CC0), chosen and paired by ThatOneCan.
 - `avatar/avatar-<sex>-masks.png`: where the lips are in the skin picture, made from the bodies by
   `scripts/build-3d-avatar-maker-masks.mjs`.
+- `avatar/avatar-makeup-masks.png`: where the eyeshadow, eyeliner and blush go in the skin picture, made by
+  the same script from where toigo's made-up skins (CC0) differ from the plain skins they were painted on.
 - In the hair files (`make_hair.py`): the parted, buns, shaved and mohawk hair styles.
 - In the wardrobe files (`make_outfit.py`, `make_outfit2.py`): the shirt, t shirt, tank top, crop top,
   blouse, bikini top, tunic, vest, corset, gambeson, dress, gown, robe, one piece swimsuit, cloak, long
@@ -63,3 +70,10 @@ Released as CC0 1.0 by their maker.
   bracers, gauntlets, tassets, greaves, sabatons, helm and full helm.
 
 The models these are packed from are in `packages/3d-avatar-maker/assets/models/`.
+
+## Animations from Quaternius (CC0)
+
+The preview's recorded animations (`src/clips/ual.json`, made by `scripts/build-3d-avatar-maker-clips.mjs`) are
+clips from Quaternius's Universal Animation Library and Universal Animation Library 2 (quaternius.com), each
+CC0 1.0 by its library's own licence file. They're in the maker's code rather than the kit, and play in the
+preview only: no saved file carries them. No credit is required; Quaternius is named as thanks.

@@ -1,7 +1,7 @@
-// Spring bones: the hair's chains (hair.js) and a tail, swinging as the body moves, kept out of the body by
-// colliders. The settings and colliders are VRM 1.0's (`VRMC_springBone`): the saved VRM carries them
-// (exporter.js), and the preview swings them here the way three-vrm (the Engine's VRM model) does, so what
-// the maker shows is what a VRM app shows.
+// Spring bones: the hair's and clothes' chains (hair.js), the bust (bust.js) and a tail, swinging as the body
+// moves, kept out of the body by colliders. The settings and colliders are VRM 1.0's (`VRMC_springBone`): the
+// saved VRM carries them (exporter.js), and the preview swings them here the way three-vrm (the Engine's VRM
+// model) does, so what the maker shows is what a VRM app shows.
 import { Matrix4, Quaternion, Vector3 } from "three";
 import { tPose, restPose } from "./figure.js";
 
@@ -23,17 +23,42 @@ export const HAIR_JOINT = {
   gravityDir: [0, -1, 0],
   dragForce: 0.3,
 };
+/**
+ * Cloth (a skirt, a dress, a coat's skirts): stiffer and slowed more than hair, so it keeps its drape at rest
+ * and swings out of the legs' way as they move, then settles.
+ */
+export const CLOTH_JOINT = {
+  hitRadius: 0.02,
+  stiffness: 1,
+  gravityPower: 0.01,
+  gravityDir: [0, -1, 0],
+  dragForce: 0.35,
+};
+/**
+ * The bust (bust.js): stiffer and slowed more than cloth, with no weight of its own (it rests shaped as it is),
+ * so it sways a few millimetres as the body turns and settles within a second, never wobbling.
+ */
+export const BUST_JOINT = {
+  hitRadius: 0.01,
+  stiffness: 1.5,
+  gravityPower: 0,
+  gravityDir: [0, -1, 0],
+  dragForce: 0.45,
+};
 export const TAIL_BONES = ["tail_01", "tail_02", "tail_03", "tail_04", "tail_05"];
 const LEG_RADIUS = 0.07; // metres: the legs' colliders, so a swinging tail stays outside the thighs
 const CLEAR = 0.005; // metres a collider stays clear of a joint at rest, so nothing is pushed while still
 
 /**
- * The colliders a body's springs meet: { body: [...] (the hair's), legs: [...] (a tail's) }. Each is
- * { bone, radius, offset (a point in the bone's own space), tail (one too, for a capsule) }. They're fitted to
- * the body as shaped (`position`, the body's points; `kit`, its file, avatar.js bodyKit), in the bind pose:
+ * The colliders a body's springs meet: { body: [...] (the hair's), legs: [...] (a tail's), cloth: [...] (the
+ * clothes') }. Each is { bone, radius, offset (a point in the bone's own space), tail (one too, for a capsule) }.
+ * They're fitted to the body as shaped (`position`, the body's points; `kit`, its file, avatar.js bodyKit), in
+ * the bind pose:
  * - the head a ball, and the neck, collarbones and upper arms capsules along them;
- * - the hips, waist, chest and back a capsule across the body at each spine bone, as deep as it is there.
- * Each sits inside the body, so hair resting on it isn't pushed.
+ * - the hips, waist, chest and back a capsule across the body at each spine bone, as deep as it is there;
+ * - for cloth, those of the hips and back again (their own, fitted to the cloth), and the thighs and calves
+ *   capsules along them, as thick as the leg is there.
+ * Each sits inside the body, so what rests on it isn't pushed.
  */
 export function bodyColliders(kit, position, bones) {
   const { joints } = kit.file;
@@ -65,11 +90,11 @@ export function bodyColliders(kit, position, bones) {
     return gaps[Math.floor(gaps.length * share)] ?? 0;
   };
   const body = [];
-  /** A capsule along a bone, from its joint to the next one's. */
-  const along = (name, next, scale = 0.85) => {
+  /** A capsule along a bone, from its joint to the next one's, in a list `into`. */
+  const along = (into, name, next, scale = 0.85) => {
     const [bone, a, b, points] = [bones.get(name), at(name), at(next), by.get(name)];
     if (!bone || !a || !b || !points?.length) return;
-    body.push({ bone, radius: reach(points, a, b) * scale, offset: local(bone, a), tail: local(bone, b) });
+    into.push({ bone, radius: reach(points, a, b) * scale, offset: local(bone, a), tail: local(bone, b) });
   };
   // The head: a ball at the middle of the skull, from ear to ear (the face's height round the eyes).
   const head = bones.get("Head");
@@ -84,10 +109,10 @@ export function bodyColliders(kit, position, bones) {
     const middle = new Vector3(0, eyes, (low.z + high.z) / 2);
     body.push({ bone: head, radius: Math.min(high.x - low.x, high.z - low.z) * 0.46, offset: local(head, middle) });
   }
-  along("neck_01", "Head");
+  along(body, "neck_01", "Head");
   for (const side of ["l", "r"]) {
-    along(`clavicle_${side}`, `upperarm_${side}`, 0.8);
-    along(`upperarm_${side}`, `lowerarm_${side}`);
+    along(body, `clavicle_${side}`, `upperarm_${side}`, 0.8);
+    along(body, `upperarm_${side}`, `lowerarm_${side}`);
   }
   // The hips, waist, chest and back: across the body, as deep as it is there, its ends rounded at the sides.
   for (const name of ["pelvis", "spine_01", "spine_02", "spine_03"]) {
@@ -118,7 +143,18 @@ export function bodyColliders(kit, position, bones) {
       ? [{ bone: thigh, radius: LEG_RADIUS, offset: new Vector3(), tail: calf.position.clone() }]
       : [];
   });
-  return { body, legs };
+  // The cloth's: the hips and back, and each thigh and calf.
+  const cloth = body
+    .filter((collider) => collider.tail && /^(?:pelvis|spine_0[123])$/u.test(collider.bone.name))
+    .map((collider) => ({ ...collider, offset: collider.offset.clone(), tail: collider.tail.clone() }));
+  // (A leg's may shrink by half to fit, not a quarter: cloth that lies on the thigh, a tight robe's sides,
+  // should still be kept out of it.)
+  for (const side of ["l", "r"]) {
+    along(cloth, `thigh_${side}`, `calf_${side}`);
+    along(cloth, `calf_${side}`, `foot_${side}`);
+  }
+  for (const collider of cloth) if (/^(?:thigh|calf)_/u.test(collider.bone.name)) collider.least = 0.5;
+  return { body, legs, cloth };
 }
 
 const a = new Vector3();
@@ -140,10 +176,10 @@ function nearestOn(collider, point, out) {
 }
 
 /**
- * The colliders fitted so that none pushes the hair or tail while nothing moves, in the poses the figure
- * rests in (as built, and the T-pose a VRM rests in): each made a little smaller where a joint rests close
- * to it (by a quarter at most), and where a joint rests on one even so (a lock lying on the shoulder), that
- * spring meets it no more. Each spring's `colliders` are what it meets.
+ * The colliders fitted so that none pushes the hair, clothes or tail while nothing moves, in the poses the
+ * figure rests in (as built, and the T-pose a VRM rests in): each made a little smaller where a joint rests
+ * close to it (by a quarter at most, or its own `least` share), and where a joint rests on one even so (a lock
+ * lying on the shoulder), that spring meets it no more. Each spring's `colliders` are what it meets.
  */
 export function fitColliders(figure) {
   const poses = [restPose, tPose];
@@ -166,7 +202,7 @@ export function fitColliders(figure) {
   restPose(figure);
   for (const [collider, bySpring] of gaps) {
     const least = Math.min(...bySpring.values());
-    collider.radius = Math.max(collider.radius * 0.75, Math.min(collider.radius, least));
+    collider.radius = Math.max(collider.radius * (collider.least ?? 0.75), Math.min(collider.radius, least));
     for (const [spring, gap] of bySpring)
       if (gap < collider.radius) spring.colliders = spring.colliders.filter((other) => other !== collider);
   }

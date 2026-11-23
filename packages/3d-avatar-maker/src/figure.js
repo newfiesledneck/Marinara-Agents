@@ -13,7 +13,7 @@ const turn = new Quaternion();
 const parentTurn = new Quaternion();
 
 /** Turns `bone` in world space so the direction from it to `child` becomes `goal`. */
-function aimBone(bone, child, goal) {
+export function aimBone(bone, child, goal) {
   if (!bone || !child) return;
   const from = child.getWorldPosition(worldA).sub(bone.getWorldPosition(worldB));
   if (from.lengthSq() === 0) return;
@@ -28,7 +28,7 @@ function aimBone(bone, child, goal) {
 /**
  * The skeleton's root with its skinned meshes on it, scaled to `height` (a share of the body's own) and
  * stood on the floor: { object (add this to a scene), root, bones (name → Bone), meshes, humanoid (VRM
- * bone name → Bone), rest (each bone's turn as built), headRest (the head's turn in the world as built) }.
+ * bone name → Bone), rest (each bone's turn as built), restAt (its place), headRest (the head's turn in the world as built) }.
  */
 export function standFigure(root, bones, height = 1) {
   const object = new Group();
@@ -44,9 +44,11 @@ export function standFigure(root, bones, height = 1) {
   const humanoid = {};
   for (const [name, joint] of Object.entries(HUMANOID_BONES)) if (bones.has(joint)) humanoid[name] = bones.get(joint);
   const rest = new Map([...bones].map(([name, bone]) => [name, bone.quaternion.clone()]));
+  // (Where each bone sits on its parent as built: the preview's motions move the hips.)
+  const restAt = new Map([...bones].map(([name, bone]) => [name, bone.position.clone()]));
   // (How the head is turned as built, facing +Z: the face's eyes measure "straight ahead" from it.)
   const headRest = humanoid.head?.getWorldQuaternion(new Quaternion()) ?? new Quaternion();
-  return { object, root, bones, meshes, humanoid, rest, headRest };
+  return { object, root, bones, meshes, humanoid, rest, restAt, headRest };
 }
 
 /** Arms level and fingers straight along them: the rest pose a VRM asks for. */
@@ -70,7 +72,11 @@ export function tPose(figure) {
 
 /** Every bone back as the body was built: the A-pose. */
 export function restPose(figure) {
-  for (const [name, bone] of figure.bones) bone.quaternion.copy(figure.rest.get(name));
+  for (const [name, bone] of figure.bones) {
+    bone.quaternion.copy(figure.rest.get(name));
+    const at = figure.restAt?.get(name);
+    if (at) bone.position.copy(at);
+  }
   figure.root.updateMatrixWorld(true);
 }
 
@@ -103,7 +109,7 @@ export function relaxedPose(figure, seconds = 0) {
 const UP = new Vector3(0, 1, 0);
 const SIDEWAYS = new Vector3(1, 0, 0);
 /** Turns `bone` by `angle` about `axis` in the world, as the figure stands now. */
-function turnInWorld(bone, axis, angle) {
+export function turnInWorld(bone, axis, angle) {
   if (!bone || !angle) return;
   parentTurn.identity();
   bone.parent?.getWorldQuaternion(parentTurn);
@@ -114,15 +120,26 @@ function turnInWorld(bone, axis, angle) {
 
 /**
  * The relaxed stand, looking about: every few seconds the head turns quickly to one side, holds, and turns
- * to the other, the body following a little, with a nod now and then. It shows how the hair (and a tail)
- * swing.
+ * to the other, the hips and body following a little, with a nod now and then; and now and then one knee
+ * lifts in a small step. It shows how the hair, a skirt or coat (and a tail) swing.
  */
 export function movingPose(figure, seconds = 0) {
   relaxedPose(figure, seconds);
   const nodes = figure.humanoid;
   // (A quick turn, then a hold: the sine pushed towards a square wave.)
   const look = Math.tanh(Math.sin(seconds * 0.9) * 3) / Math.tanh(3);
-  turnInWorld(nodes.spine, UP, look * 0.15);
+  // (A step: each knee in turn lifts forward and back down, then both stand a while.)
+  const beat = Math.sin(seconds * 1.3);
+  for (const [side, lift] of [
+    ["left", Math.max(0, beat)],
+    ["right", Math.max(0, -beat)],
+  ]) {
+    const up = Math.max(0, (lift - 0.3) / 0.7) ** 2;
+    turnInWorld(nodes[`${side}UpperLeg`], SIDEWAYS, -up * 0.45);
+    turnInWorld(nodes[`${side}LowerLeg`], SIDEWAYS, up * 0.7);
+  }
+  turnInWorld(nodes.hips, UP, look * 0.12);
+  turnInWorld(nodes.spine, UP, look * 0.1);
   turnInWorld(nodes.head, UP, look * 0.4);
   turnInWorld(nodes.head, SIDEWAYS, Math.max(0, Math.sin(seconds * 1.7)) * 0.12);
   figure.root.updateMatrixWorld(true);

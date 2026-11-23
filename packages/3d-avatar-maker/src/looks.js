@@ -76,6 +76,12 @@ export const HAIRSTYLES = [
   ["afro", "Afro"],
   ["bob", "Bob"],
   ["bob_angled", "Angled bob"],
+  ["bob_blunt", "Blunt bob"],
+  ["bob_blunt_bangs", "Blunt bob with a fringe"],
+  ["bob_curled", "Curled-under bob"],
+  ["bob_curled_bangs", "Curled-under bob with a fringe"],
+  ["bob_inverted", "Inverted bob"],
+  ["bob_inverted_bangs", "Inverted bob with a fringe"],
   ["buns", "Two buns"],
   ["long", "Long"],
   ["ponytail", "Ponytail"],
@@ -87,6 +93,12 @@ export const HAIRSTYLES = [
 const OLDER_KIT_HAIR = {
   bob: "parted",
   bob_angled: "parted",
+  bob_blunt: "parted",
+  bob_blunt_bangs: "parted",
+  bob_curled: "parted",
+  bob_curled_bangs: "parted",
+  bob_inverted: "parted",
+  bob_inverted_bangs: "parted",
   fringe: "parted",
   braid: "long",
   curly: "short",
@@ -162,6 +174,12 @@ export const PIECE_ID = /^[a-z0-9_]{1,64}$/u;
 const PACK_ID = /^3d-avatar-maker-[a-z0-9-]{1,80}$/u;
 /** An id a look may keep while no installed pack has it: well-formed, and not one of every object's own names. */
 const keepable = (id) => typeof id === "string" && PIECE_ID.test(id) && !(id in Object.prototype);
+/** Whether an id is a piece, hair style or underwear style the kit or an installed pack has. */
+const known = (id) =>
+  Object.hasOwn(SLOT_OF, id) ||
+  [HAIRSTYLES, UNDERWEAR_TOPS, UNDERWEAR_BOTTOMS].some((list) => list.some(([style]) => style === id));
+/** An id kept for a pack that isn't installed: well-formed, and nothing the kit or an installed pack has. */
+const waitingId = (id) => id !== BARE && keepable(id) && !known(id);
 const shortText = (value, most) =>
   typeof value === "string" && value.trim() && value.length <= most ? value.trim() : null;
 
@@ -194,8 +212,7 @@ export function checkLook(raw) {
   if (Object.keys(tints).length) look.tints = tints;
   const hair = Object.hasOwn(OLDER_HAIR, raw.hair) ? OLDER_HAIR[raw.hair] : raw.hair;
   // (A style no installed pack has is kept, not worn: it comes back when its pack is installed again.)
-  if (HAIRSTYLES.some(([style]) => style === hair) || (keepable(hair) && !Object.hasOwn(SLOT_OF, hair)))
-    look.hair = hair;
+  if (HAIRSTYLES.some(([style]) => style === hair) || waitingId(hair)) look.hair = hair;
   const within = (value, count) => Number.isInteger(value) && value >= 0 && value < count;
   if (within(raw.hairColour, HAIR_COLOURS.length)) look.hairColour = raw.hairColour;
   if (isColour(raw.hairTint)) look.hairTint = raw.hairTint;
@@ -203,7 +220,11 @@ export function checkLook(raw) {
   const skin = raw.skinSet === 2 ? raw.skin : OLDER_SKIN[raw.skin];
   if (within(skin, SKIN_TONES.length)) Object.assign(look, { skin, skinSet: 2 });
   if (isColour(raw.skinTint)) look.skinTint = raw.skinTint;
-  // The base avatar's age, skin picture, brow and lash styles and eye picture (avatar.js).
+  // The base avatar's age, skin picture, brow and lash styles and eye picture (avatar.js). (A made-up skin
+  // there was is its plain skin, with its makeup below.)
+  const madeUp =
+    typeof raw.skin === "string" && Object.hasOwn(MADE_UP_SKINS, raw.skin) ? MADE_UP_SKINS[raw.skin] : null;
+  if (madeUp) look.skin = madeUp[0];
   if ([...SKINS, ...COMMUNITY_SKINS].some(([kind]) => kind === raw.skin)) look.skin = raw.skin;
   if (AGES.some(([age]) => age === raw.age)) look.age = raw.age;
   for (const [field, count] of [
@@ -246,15 +267,32 @@ export function checkLook(raw) {
   const colours = {};
   for (const [part] of [...AVATAR_COLOURS, ...RACE_COLOURS, ...Object.values(ANTHRO_COLOURS).flat()])
     if (isRecord(raw.colours) && isColour(raw.colours[part])) colours[part] = raw.colours[part];
-  if (Object.keys(colours).length) look.colours = colours;
-  const underwear = {};
-  for (const [field, styles] of [
-    ["top", UNDERWEAR_TOPS],
-    ["bottom", UNDERWEAR_BOTTOMS],
-  ]) {
-    const value = isRecord(raw.underwear) ? raw.underwear[field] : undefined;
-    if (value === BARE || styles.some(([style]) => style === value)) underwear[field] = value;
+  // Makeup: each layer's colour and amount (0 to 1; none at 0), the lipstick's amount alone (its colour is
+  // colours.lips). A made-up skin there was brings its preset's, unless the look has makeup of its own.
+  const makeup = {};
+  for (const [layer] of MAKEUP_LAYERS) {
+    const entry = isRecord(raw.makeup) && isRecord(raw.makeup[layer]) ? raw.makeup[layer] : {};
+    if (!Number.isFinite(entry.amount)) continue;
+    const amount = Math.round(Math.max(0, Math.min(1, entry.amount)) * 1000) / 1000;
+    if (layer === "lipstick") makeup.lipstick = { amount };
+    else if (amount > 0 && isColour(entry.colour)) makeup[layer] = { colour: entry.colour, amount };
   }
+  if (madeUp && !isRecord(raw.makeup)) {
+    const preset = makeupPreset(madeUp[1]);
+    Object.assign(makeup, preset.makeup);
+    if (preset.lips !== undefined && colours.lips === undefined) colours.lips = preset.lips;
+  }
+  if (Object.keys(colours).length) look.colours = colours;
+  if (Object.keys(makeup).length) look.makeup = makeup;
+  // Underwear: a style of each, the kit's or an installed pack's (UNDERWEAR_SLOTS), or a pack's that isn't
+  // installed (kept, not worn, as a piece is); and whether it shows under clothes (missing: it does).
+  const underwear = {};
+  for (const [, field, styles] of UNDERWEAR_SLOTS) {
+    const value = isRecord(raw.underwear) ? raw.underwear[field] : undefined;
+    if (value === BARE || styles.some(([style]) => style === value) || waitingId(value)) underwear[field] = value;
+  }
+  if (isRecord(raw.underwear) && typeof raw.underwear.underClothes === "boolean")
+    underwear.underClothes = raw.underwear.underClothes;
   if (Object.keys(underwear).length) look.underwear = underwear;
   // Clothing: known pieces (CLOTHES), the first one a slot; an empty list is nothing on (not the name's
   // everyday clothes). Each piece's part colours, and the way it's worn (a cloak's hood up), when known.
@@ -266,28 +304,20 @@ export function checkLook(raw) {
     for (const piece of raw.clothes) {
       if (Object.hasOwn(SLOT_OF, piece)) {
         if (!bySlot.has(SLOT_OF[piece])) bySlot.set(SLOT_OF[piece], piece);
-      } else if (
-        keepable(piece) &&
-        !HAIRSTYLES.some(([style]) => style === piece) &&
-        !waiting.includes(piece) &&
-        waiting.length < CLOTH_SLOTS.length
-      )
+      } else if (waitingId(piece) && !waiting.includes(piece) && waiting.length < CLOTH_SLOTS.length)
         waiting.push(piece);
     }
     look.clothes = [...bySlot.values(), ...waiting];
   }
-  // Which pack each pack piece and hair style worn came from, so the maker can name it while it's missing:
-  // { id: { pack, name, label } }, from the installed pack, else as the look recorded it.
+  // Which pack each pack piece, hair style and underwear worn came from, so the maker can name it while it's
+  // missing: { id: { pack, name, label } }, from the installed pack, else as the look recorded it.
   const fromPacks = {};
-  for (const id of [...(look.clothes ?? []), ...(look.hair ? [look.hair] : [])]) {
+  for (const id of [...(look.clothes ?? []), look.hair, look.underwear?.top, look.underwear?.bottom]) {
+    if (!id) continue;
     const own = packEntry(id);
     const said = isRecord(raw.fromPacks) && Object.hasOwn(raw.fromPacks, id) ? raw.fromPacks[id] : null;
     if (own) fromPacks[id] = { pack: own.pack, name: own.packName, label: own.label };
-    else if (
-      (waiting.includes(id) || (id === look.hair && !HAIRSTYLES.some(([style]) => style === id))) &&
-      isRecord(said) &&
-      PACK_ID.test(said.pack ?? "")
-    )
+    else if (waitingId(id) && isRecord(said) && PACK_ID.test(said.pack ?? ""))
       fromPacks[id] = {
         pack: said.pack,
         name: shortText(said.name, 80) ?? said.pack,
@@ -324,7 +354,10 @@ export function checkLook(raw) {
 //     shape: { weight, muscle, … },  the build and face sliders (SHAPES, FACE, ANTHRO_SHAPES), each within its range
 //     limbs: { arms, legs, head },   arm and leg length and head size, as a share of the usual
 //     colours: { skin, eyes, … },    each part's colour (0xRRGGBB): AVATAR_COLOURS
-//     underwear: { top, bottom },    a style of each (UNDERWEAR_TOPS, UNDERWEAR_BOTTOMS), or "none"
+//     makeup: { eyeshadow: { colour, amount }, eyeliner, blush, lipstick: { amount } },  MAKEUP_LAYERS, each
+//                                    optional (missing: none; a lipstick's colour is colours.lips)
+//     underwear: { top, bottom,      a style of each (UNDERWEAR_TOPS, UNDERWEAR_BOTTOMS: the kit's and the
+//                  underClothes },   packs'), or "none"; and whether it shows under clothes (missing: yes)
 //     clothes: [piece, …],           outfit pieces worn (CLOTHES), one a slot; missing: their work's (avatar.js).
 //                                    A pack's piece whose pack isn't installed stays here, not worn
 //     clothColours: { piece: { part: 0xRRGGBB } },  a colour of one's own for a piece's part (CLOTH_PARTS)
@@ -908,15 +941,23 @@ export const COMMUNITY_SKINS = [
   ["eurasian-middle", "Eurasian, middle-aged", ["female"]],
   ["eurasian-old", "Eurasian, old", ["female", "male"]],
   ["aksel", "Fair, weathered", ["male"]],
-  ["natural-makeup", "Light, natural make-up", ["female"]],
-  ["classic-makeup", "Light, make-up", ["female"]],
-  ["violet-makeup", "Light, violet make-up", ["female"]],
-  ["bronze-makeup", "Bronzed, make-up", ["female"]],
-  ["eyeliner", "Light, eyeliner", ["male"]],
-  ["goth-makeup", "Light, goth make-up", ["male"]],
-  ["emo-eyes", "Light, dark eye make-up", ["male"]],
+  ["light", "Light, smooth", ["female"]], // (MakeHuman's own second young light skin, which Toigo's made-up ones were painted on)
   ["tattooed", "Tattooed", ["male"]],
 ];
+/**
+ * The made-up skins there were, each now its plain skin with a makeup preset (MAKEUP_PRESETS): an old look
+ * naming one opens as that (checkLook). Toigo painted them on MakeHuman's young light skins, the women's on
+ * "light", the men's on "caucasian".
+ */
+export const MADE_UP_SKINS = {
+  "natural-makeup": ["light", "natural"],
+  "classic-makeup": ["light", "classic"],
+  "violet-makeup": ["light", "violet"],
+  "bronze-makeup": ["bronze", "bronzed"],
+  eyeliner: ["caucasian", "eyeliner"],
+  "goth-makeup": ["caucasian", "goth"],
+  "emo-eyes": ["caucasian", "dark-eyes"],
+};
 /** The skins `sex`'s body has: MakeHuman's three, its community ones, then a colour of one's own. */
 export const skinsFor = (sex) => [
   ...SKINS.slice(0, -1),
@@ -996,6 +1037,86 @@ export const LIP_COLOURS = [
   [0x7a4a3a, "Brown"],
   [0x4a2a2a, "Dark"],
 ];
+
+// ── Makeup, painted on any skin (src/skin.js, through kit/avatar/avatar-makeup-masks.png) ──
+/** Eyeshadow, eyeliner and blush colours: [hex, label]. */
+export const EYESHADOW_COLOURS = [
+  [0x705432, "Brown"],
+  [0x8a6a5a, "Taupe"],
+  [0xd8b8a0, "Champagne"],
+  [0xc09040, "Gold"],
+  [0xb06070, "Rose"],
+  [0x4285ae, "Blue"],
+  [0x512767, "Violet"],
+  [0x08350d, "Green"],
+  [0x1a1a1a, "Black"],
+];
+export const EYELINER_COLOURS = [
+  [0x050505, "Black"],
+  [0x3a2416, "Brown"],
+  [0x082631, "Navy"],
+  [0x2a1040, "Plum"],
+  [0x0e3020, "Forest"],
+  [0xf0f0f0, "White"],
+];
+export const BLUSH_COLOURS = [
+  [0xe5907b, "Peach"],
+  [0xe8a090, "Coral"],
+  [0xef909f, "Pink"],
+  [0xdda0b1, "Mauve"],
+  [0xb05a50, "Rose"],
+  [0x542117, "Bronze"],
+];
+/**
+ * The makeup layers: [look field, label, what it changes, its colours, the strength a colour picked first
+ * gets]. Each is { colour, amount } in the look's `makeup`, amount 0 (none) to 1; the lipstick's colour is
+ * colours.lips (as before makeup), so its `makeup.lipstick` is { amount } alone (missing: full).
+ */
+export const MAKEUP_LAYERS = [
+  ["eyeshadow", "Eyeshadow", "Colour on the upper lids, from the lashes up towards the brows.", EYESHADOW_COLOURS, 0.7],
+  ["eyeliner", "Eyeliner", "A line along the lashes, round both lids.", EYELINER_COLOURS, 0.85],
+  ["blush", "Blush", "A soft colour on the cheeks.", BLUSH_COLOURS, 0.5],
+  ["lipstick", "Lipstick", "The lips' colour (a paler colour is a lighter lipstick).", LIP_COLOURS, 1],
+];
+/**
+ * Ready-made makeup for any skin: [value, label, { eyeshadow, eyeliner, blush: [colour, amount], lips }].
+ * Each is one of the made-up skins there were (MADE_UP_SKINS), fitted to it: its makeup painted on its plain
+ * skin comes out as close to it as these layers can (docs/PLAN.md, "makeup of your own").
+ */
+export const MAKEUP_PRESETS = [
+  [
+    "natural",
+    "Natural",
+    { eyeshadow: [0x705432, 0.6], eyeliner: [0x5a2e12, 0.75], blush: [0xe5907b, 0.5], lips: 0xe5bc97 },
+  ],
+  [
+    "classic",
+    "Classic, blue and pink",
+    { eyeshadow: [0x4285ae, 0.6], eyeliner: [0x082631, 0.8], blush: [0xef909f, 0.45], lips: 0xffa597 },
+  ],
+  [
+    "violet",
+    "Violet",
+    { eyeshadow: [0x512767, 0.6], eyeliner: [0x0d0117, 0.8], blush: [0xdda0b1, 0.4], lips: 0xbea2e4 },
+  ],
+  [
+    "bronzed",
+    "Bronzed, green eyes",
+    { eyeshadow: [0x08350d, 0.6], eyeliner: [0x000e02, 0.85], blush: [0x542117, 0.25], lips: 0xb39a83 },
+  ],
+  ["eyeliner", "Eyeliner", { eyeliner: [0x030100, 0.6] }],
+  ["goth", "Goth", { eyeshadow: [0x200a00, 0.9], eyeliner: [0x040000, 1], lips: 0x795847 }],
+  ["dark-eyes", "Dark eyes", { eyeshadow: [0x000000, 0.8], eyeliner: [0x000000, 1] }],
+];
+/** What a makeup preset (by value) sets in a look: { makeup, lips } (lips undefined: the skin's own). */
+export function makeupPreset(value) {
+  const [, , layers = {}] = MAKEUP_PRESETS.find(([preset]) => preset === value) ?? [];
+  const makeup = {};
+  for (const [layer] of MAKEUP_LAYERS)
+    if (layers[layer]) makeup[layer] = { colour: layers[layer][0], amount: layers[layer][1] };
+  return { makeup, lips: layers.lips };
+}
+
 /** Nail colours: [hex, label]. */
 export const NAIL_COLOURS = [
   [0xf0c8bc, "Natural"],
@@ -1163,6 +1284,27 @@ export const UNDERWEAR_BOTTOMS = [
   ["bikini", "Bikini"],
   ["thong", "Thong"],
 ];
+/**
+ * The underwear slots a wardrobe pack's piece may name (packs.js): such a piece is a choice in the look's
+ * `underwear` (the Underwear top or bottom list, where addPieces puts it), not a slot on the Clothes tab, and is
+ * always worn as the innermost layer: [slot, the underwear field, its list].
+ */
+export const UNDERWEAR_SLOTS = [
+  ["underwear_top", "top", UNDERWEAR_TOPS],
+  ["underwear_bottom", "bottom", UNDERWEAR_BOTTOMS],
+];
+/**
+ * The kit's pieces worn on bare skin, in place of underwear: the underwear they cover (by their hide words) is
+ * left off under them even when the look shows underwear under clothes. A pack's piece says so itself
+ * (packs.js `noUnderwear`).
+ */
+export const NO_UNDERWEAR = new Set([
+  "one_piece_swimsuit",
+  "bikini_top",
+  "bikini_bottom",
+  "swim_trunks",
+  "bikini_armour",
+]);
 
 // ── The base avatar's clothing (avatar.js; kit/fantasy/avatar) ──
 //
@@ -1396,18 +1538,26 @@ export const PACK_PIECES = {};
 // builder and the panel is the upgrade if packs are ever added or removed while the page is open.
 export function addPieces(pieces) {
   for (const entry of pieces) {
-    if (Object.hasOwn(SLOT_OF, entry.piece)) continue;
-    CLOTHES.push([entry.piece, entry.label, entry.slot]);
-    SLOT_OF[entry.piece] = entry.slot;
+    if (known(entry.piece)) continue;
+    // (Underwear goes in its list, UNDERWEAR_SLOTS, and is chosen as the look's `underwear`.)
+    const underwear = UNDERWEAR_SLOTS.find(([slot]) => slot === entry.slot);
+    if (underwear) underwear[2].push([entry.piece, entry.label]);
+    else {
+      CLOTHES.push([entry.piece, entry.label, entry.slot]);
+      SLOT_OF[entry.piece] = entry.slot;
+    }
     PACK_PIECES[entry.piece] = entry;
   }
 }
+/** Whether `id` is an installed pack's underwear (UNDERWEAR_SLOTS), worn as a piece of its own. */
+export const isPackUnderwear = (id) =>
+  Object.hasOwn(PACK_PIECES, id) && UNDERWEAR_SLOTS.some(([slot]) => slot === PACK_PIECES[id].slot);
 /** The hair styles installed wardrobe packs add (packs.js readHair), each its checked index entry: { style: entry }. */
 export const PACK_HAIR = {};
 /** Adds packs' hair styles ([{ style, label, … }]) to HAIRSTYLES, before "None", so the Hair tab offers them. */
 export function addHair(styles) {
   for (const entry of styles) {
-    if (HAIRSTYLES.some(([style]) => style === entry.style) || Object.hasOwn(SLOT_OF, entry.style)) continue;
+    if (known(entry.style)) continue;
     HAIRSTYLES.splice(HAIRSTYLES.length - 1, 0, [entry.style, entry.label]);
     PACK_HAIR[entry.style] = entry;
   }
@@ -1417,32 +1567,45 @@ export const packEntry = (id) =>
   Object.hasOwn(PACK_PIECES, id) ? PACK_PIECES[id] : Object.hasOwn(PACK_HAIR, id) ? PACK_HAIR[id] : null;
 
 /**
- * The CC BY credits of the pack pieces and hair a look wears, each once, for a saved file (exporter.js).
- * A piece or style whose pack isn't installed isn't worn, so it has none.
+ * The CC BY credits of the pack pieces, hair and underwear a look wears, each once, for a saved file
+ * (exporter.js). A piece or style whose pack isn't installed isn't worn, so it has none.
  */
 export const packCredits = (look) => [
   ...new Set(
-    [...(look?.clothes ?? []), ...(look?.hair ? [look.hair] : [])].map((id) => packEntry(id)?.credit).filter(Boolean),
+    [...(look?.clothes ?? []), look?.hair, look?.underwear?.top, look?.underwear?.bottom]
+      .map((id) => (id ? packEntry(id)?.credit : null))
+      .filter(Boolean),
   ),
 ];
 
-/** What a look has that no installed pack has (checkLook keeps it): { clothes: [piece], hair: style or null }. */
+/**
+ * What a look has that no installed pack has (checkLook keeps it): { clothes: [piece], hair: style or null,
+ * underwear: [style] }.
+ */
 export function missingFromLook(look) {
   const clothes = (look?.clothes ?? []).filter((piece) => !Object.hasOwn(SLOT_OF, piece));
   const hair = look?.hair && !HAIRSTYLES.some(([style]) => style === look.hair) ? look.hair : null;
-  return { clothes, hair };
+  const underwear = UNDERWEAR_SLOTS.map(([, field, styles]) => look?.underwear?.[field]).filter(
+    (style, at) => style !== undefined && style !== BARE && !UNDERWEAR_SLOTS[at][2].some(([known]) => known === style),
+  );
+  return { clothes, hair, underwear };
 }
 /**
- * The look as it's worn, for a saved avatar file: without the pieces and hair style whose packs aren't
- * installed (and their colours and pack notes). A look file and the draft keep them.
+ * The look as it's worn, for a saved avatar file: without the pieces, hair style and underwear whose packs
+ * aren't installed (and their colours and pack notes); missing underwear is none, as it's drawn. A look file
+ * and the draft keep them.
  */
 export function wornLook(look) {
-  const { clothes, hair } = missingFromLook(look);
-  if (!clothes.length && !hair) return look;
-  const gone = new Set([...clothes, hair]);
+  const { clothes, hair, underwear } = missingFromLook(look);
+  if (!clothes.length && !hair && !underwear.length) return look;
+  const gone = new Set([...clothes, hair, ...underwear]);
   const out = { ...look };
   if (out.clothes) out.clothes = out.clothes.filter((piece) => !gone.has(piece));
   if (hair) delete out.hair;
+  if (underwear.length)
+    out.underwear = Object.fromEntries(
+      Object.entries(out.underwear).map(([field, value]) => [field, gone.has(value) ? BARE : value]),
+    );
   for (const field of ["clothColours", "fromPacks"]) {
     if (!out[field]) continue;
     out[field] = Object.fromEntries(Object.entries(out[field]).filter(([id]) => !gone.has(id)));
@@ -1455,7 +1618,7 @@ export function wornLook(look) {
  * naming the pack where the look recorded it: [] when everything is there.
  */
 export function missingNotes(look) {
-  const { clothes, hair } = missingFromLook(look);
+  const { clothes, hair, underwear } = missingFromLook(look);
   const said = (id, kind) => {
     const from = look.fromPacks?.[id];
     return from
@@ -1465,6 +1628,7 @@ export function missingNotes(look) {
   return [
     ...clothes.map((piece) => said(piece, "The piece")),
     ...(hair ? [`${said(hair, "The hair style")} Another style shows until then.`] : []),
+    ...underwear.map((style) => said(style, "The underwear")),
   ];
 }
 /** The other ways a piece can be worn: { piece: { label, says, ways: [[variant ("" is the usual), label]] } }.
@@ -1569,6 +1733,14 @@ export function readDesign(raw) {
   } = checkLook({
     ...raw,
     colours: colours(raw.colours),
+    makeup: isRecord(raw.makeup)
+      ? Object.fromEntries(
+          Object.entries(raw.makeup).map(([layer, entry]) => [
+            layer,
+            isRecord(entry) ? { ...entry, colour: colour(entry.colour) } : entry,
+          ]),
+        )
+      : undefined,
     hairTint: colour(raw.hairTint),
     clothColours: isRecord(raw.clothColours)
       ? Object.fromEntries(Object.entries(raw.clothColours).map(([piece, parts]) => [piece, colours(parts)]))
@@ -1583,7 +1755,17 @@ export function readDesign(raw) {
  *  sliders and colours, so a look's own choices sit on what lore says. */
 export function mergeLooks(base, over) {
   const out = { ...base, ...over };
-  for (const field of ["shape", "limbs", "colours", "underwear", "tints", "clothColours", "variants", "fromPacks"])
+  for (const field of [
+    "shape",
+    "limbs",
+    "colours",
+    "makeup",
+    "underwear",
+    "tints",
+    "clothColours",
+    "variants",
+    "fromPacks",
+  ])
     if (base?.[field] || over?.[field]) out[field] = { ...base?.[field], ...over?.[field] };
   return out;
 }
@@ -1605,6 +1787,7 @@ export const PRESET_FIELDS = [
   "shape",
   "limbs",
   "colours",
+  "makeup",
   "underwear",
   "clothes",
   "clothColours",

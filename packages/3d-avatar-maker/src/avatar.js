@@ -22,9 +22,10 @@ import {
   Uint16BufferAttribute,
   Vector3,
 } from "three";
+import { byNearest, byPlace, bustWeights, findBust, rigBust } from "./bust.js";
 import { FACE_MOVES } from "./face.js";
 import { standFigure } from "./figure.js";
-import { hairPlan, rigHair, swingOf } from "./hair.js";
+import { CLOTH, HAIR, hangOf, hangPlan, rigChains, swingOf } from "./hair.js";
 import {
   ANTHRO_BARE_SLOTS,
   ANTHRO_SHAPES,
@@ -40,7 +41,9 @@ import {
   SLOT_OF,
   NAIL_SLOTS,
   isCovered,
+  isPackUnderwear,
   NAILS,
+  NO_UNDERWEAR,
   boneOf,
   PACK_HAIR,
   PACK_PIECES,
@@ -59,6 +62,7 @@ import {
   raceOf,
   SKINS,
   COMMUNITY_SKINS,
+  MAKEUP_LAYERS,
   skinsFor,
   skinPicture as skinPictureOf,
   TIEFLING_SKINS,
@@ -77,13 +81,14 @@ import {
   sliderKeys,
   sliderRange,
   UNDERWEAR_BOTTOMS,
+  UNDERWEAR_SLOTS,
   UNDERWEAR_TOPS,
   USUAL_HAIR,
   USUAL_HAIR_COLOURS,
 } from "./looks.js";
 import { geometryOf, load, loadUrl, rigOf, sexFor, skeletonFor, texture, view } from "./kitfiles.js";
 import { paintedSkin } from "./skin.js";
-import { bodyColliders, fitColliders, HAIR_JOINT, TAIL_BONES, TAIL_JOINT } from "./springs.js";
+import { bodyColliders, BUST_JOINT, CLOTH_JOINT, fitColliders, HAIR_JOINT, TAIL_BONES, TAIL_JOINT } from "./springs.js";
 import { hashString, rng } from "./util.js";
 
 /** The region of the body each bone's vertices are, for what an outfit piece `hides`. */
@@ -126,8 +131,9 @@ export function setUnderwearByDefault(on) {
   underwearByDefault = on !== false;
 }
 
-/** What an outfit piece can hide: these regions of skin (and underwear on them), the underwear itself, or the
- *  hair (a hat or a hood). */
+/** What an outfit piece can hide: these regions of skin (and, when the look hides underwear under clothes,
+ *  underwear on them), the underwear itself (left on under clothes unless the look says otherwise or the piece
+ *  is worn on bare skin, createAvatar), or the hair (a hat or a hood). */
 export const HIDE_WORDS = [
   ...new Set(Object.values(REGION_OF)),
   "underwear",
@@ -144,6 +150,13 @@ const COVERED = new Set([
   "underwear_trim",
   ...["fur", "fur2", "fur_tufts", "fur2_tufts", "nose", "claws", "scales", "scales2", "horns"],
 ]);
+/** Whether underwear shows under clothes where a look doesn't say (the Clothes tab's "Show underwear under clothes"). */
+// ponytail: off until the clothes fitting clears underwear (most tops and trousers let it poke through
+// today); turn it on once the refit lands, which the user wants as the default.
+const UNDER_CLOTHES = false;
+/** The look's underwear fields ("top", "bottom"), and the field a pack's underwear slot fills. */
+const UNDERWEAR_FIELDS = UNDERWEAR_SLOTS.map(([, field]) => field);
+const UNDERWEAR_FIELD_OF = Object.fromEntries(UNDERWEAR_SLOTS.map(([slot, field]) => [slot, field]));
 /** A piece in one of these slots lies over a wolf's neck ruff, whatever it hides. */
 const RUFF_SLOTS = new Set(["neck", "back", "armour", "plate"]);
 /** A body's kit file: the human's, or an anthro kind's. */
@@ -264,7 +277,7 @@ const mixHex = (a, b, t) => {
  * menu's ("male", "female", "custom" or "auto"). Plain data: { body, species, wings, race, facialHair, tusks,
  * horns, tail, gender, shape, limbs,
  * height, colours, hair, hairColour (0xRRGGBB), underwear, clothes, age, skin, brows, lashes, eyePicture,
- * seed }. The Look card shows these. An anthro body has no hair, no eye or skin picture, and nothing worn
+ * makeup, seed }. The Look card shows these. An anthro body has no hair, no eye or skin picture, and nothing worn
  * that's made for a human head or foot.
  */
 export function avatarLook(name, gender = "auto", chosen = {}) {
@@ -356,6 +369,11 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
   const usualScales = SCALE_COLOURS[Math.floor(beast() * SCALE_COLOURS.length)][0];
   const beastEyes = BEAST_EYES[Math.floor(beast() * 5)][0];
   const [fur, scales] = [said.fur ?? usualFur, said.scales ?? usualScales];
+  const usualLips = picture
+    ? WHITE
+    : skin === usualRaceSkin
+      ? mixHex(skin, 0x000000, 0.3)
+      : mixHex(mixHex(skin, 0xa04040, 0.35), 0x000000, 0.12);
   const hairColour = chosen.hairTint ?? HAIR_COLOURS[chosen.hairColour ?? usualHairColour][0];
   // Clothes: the look's (an empty list is nothing on), else the everyday clothes of the name's work.
   const everyday = everydayClothes(name, sex);
@@ -387,14 +405,13 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
         }
       : {}),
     // (Lips a little redder and darker than the skin, nails a little paler, brows a little darker than the hair.)
-    // (On a race's own skin colour the lips are the skin, darker.)
-    lips:
-      chosen.colours?.lips ??
-      (picture
-        ? WHITE
-        : skin === usualRaceSkin
-          ? mixHex(skin, 0x000000, 0.3)
-          : mixHex(mixHex(skin, 0xa04040, 0.35), 0x000000, 0.12)),
+    // (On a race's own skin colour the lips are the skin, darker.) A lip colour chosen is a lipstick, over
+    // those as far as its strength says (makeup.lipstick, missing: full).
+    lips: mixHex(
+      usualLips,
+      chosen.colours?.lips ?? usualLips,
+      chosen.colours?.lips === undefined ? 0 : (chosen.makeup?.lipstick?.amount ?? 1),
+    ),
     nails: chosen.colours?.nails ?? (picture ? WHITE : mixHex(skin, 0xf6e6e0, 0.4)),
     brows: chosen.colours?.brows ?? mixHex(hairColour, 0x000000, 0.25),
     underwear:
@@ -421,6 +438,7 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
     underwear: {
       top: chosen.underwear?.top ?? (underwearByDefault && sex === "female" ? "bra" : BARE),
       bottom: chosen.underwear?.bottom ?? (underwearByDefault ? "briefs" : BARE),
+      underClothes: chosen.underwear?.underClothes ?? UNDER_CLOTHES,
     },
     clothes,
     clothColours,
@@ -431,6 +449,7 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
     brows: chosen.brows ?? usualBrows,
     lashes: chosen.lashes ?? usualLashes,
     eyePicture: anthro ? TINT : (chosen.eyePicture ?? TINT),
+    makeup: anthro ? {} : (chosen.makeup ?? {}), // (none unless chosen)
     // (Nails are on unless chosen off: the body always had them.)
     nails: anthro ? "none" : (chosen.nails ?? "short"),
     toenails: !anthro && chosen.toenails !== false,
@@ -664,6 +683,10 @@ function bodyKit(sex, species = "human") {
         // (Where hair starts to hang, hair.js: the eyes' height, about the head's middle.)
         eyes: file.joints.includes("eye_l") ? jointAt("eye_l").y : jointAt("Head").y + 0.05,
         headAt: jointAt("Head"),
+        // (Where cloth starts to hang, hair.js: the hips' and knees' heights, and the hips and spine bones.)
+        hips: jointAt("pelvis"),
+        legs: { hip: jointAt("thigh_l").y, knee: jointAt("calf_l").y },
+        spine: ["pelvis", "spine_01", "spine_02", "spine_03"].map((bone) => [bone, jointAt(bone).y]),
       };
     });
     made.catch(() => bodies.delete(name)); // (tried again next time)
@@ -689,17 +712,20 @@ function isWorn(mesh, look, sex) {
   return !!style && underwear[style[1]] === style[2];
 }
 
-/** The body's triangles that show (shared by everyone wearing the same and hiding the same), in groups. */
-function trianglesOf(kit, look, hides) {
+/**
+ * The body's triangles that show (shared by everyone wearing the same and hiding the same), in groups. The
+ * underwear is hidden whole by its hide words ("underwear", "underwear-top", "underwear-bottom"); `shows`
+ * keeps it under the regions hidden, where the skin goes.
+ */
+function trianglesOf(kit, look, hides, shows = false) {
   const { underwear } = look;
-  const key = `${underwear.top}|${underwear.bottom}|${look.brows}|${look.lashes}|${look.wings}|${look.facialHair}|${look.tusks}|${look.horns}|${look.tail}|${[...hides].sort().join(",")}`;
+  const key = `${underwear.top}|${underwear.bottom}|${look.brows}|${look.lashes}|${look.wings}|${look.facialHair}|${look.tusks}|${look.horns}|${look.tail}|${shows}|${[...hides].sort().join(",")}`;
   if (!kit.indices.has(key)) {
     const hidden = (mesh) => {
-      if (
-        /^underwear/u.test(mesh.part) &&
-        (hides.has("underwear") || (mesh.piece && hides.has(mesh.piece.replace(/-[^-]+$/u, ""))))
-      )
-        return () => true;
+      if (/^underwear/u.test(mesh.part)) {
+        if (hides.has("underwear") || (mesh.piece && hides.has(mesh.piece.replace(/-[^-]+$/u, "")))) return () => true;
+        if (shows) return () => false;
+      }
       if (!COVERED.has(mesh.part)) return () => false;
       return (a, b, c) => hides.has(kit.regions[a]) && hides.has(kit.regions[b]) && hides.has(kit.regions[c]);
     };
@@ -786,8 +812,9 @@ const packPictures = (bundle, pack) =>
 
 /**
  * Outfit piece `piece` for `sex` from its bundle, worn the usual way or as `variant` (a cloak's hood up),
- * never both: { key, piece, slot, layer, hides, bone, part, pictures }, or null if the kit hasn't got it.
- * `bone` is the body bone it's fixed to (looks.js boneOf: its own, or its slot's), or null.
+ * never both: { key, piece, slot, layer, hides, bone, hang, part, pictures }, or null if the kit hasn't got
+ * it. `bone` is the body bone it's fixed to (looks.js boneOf: its own, or its slot's), or null; `hang` where
+ * its cloth leaves the body to swing (hair.js hangOf), or undefined.
  */
 async function pieceOf(piece, sex, variant = "") {
   // (A wardrobe pack's piece, packs.js: from its pack's bundle, worn as its checked index entry says, with
@@ -808,7 +835,10 @@ async function pieceOf(piece, sex, variant = "") {
     slot,
     layer: pack ? pack.layer : (data.layer ?? 0),
     hides: pack ? pack.hides : (way.hides ?? []),
+    // (Worn on bare skin, in place of underwear: a swimsuit. looks.js NO_UNDERWEAR, packs.js `noUnderwear`.)
+    noUnderwear: pack ? pack.noUnderwear : NO_UNDERWEAR.has(piece),
     bone,
+    hang: hangOf(piece),
     part: way[sex],
     pictures: pack ? packPictures(bundle, pack.pack) : bundle.pictures,
   };
@@ -837,8 +867,8 @@ function fixedPart(part, bone, body) {
 const parts = new Map(); // a hair style's or outfit piece's meshes, made once: "hair:long:male" → [{ mesh, geometry, morphs, colours }]
 /**
  * A hair style's or outfit piece's meshes, decoded once and shared; `small` ones aren't drawn far off. A hair
- * style that swings (`hangs`: { line, centre }, hair.js hairPlan) is weighted to the bone chains its hanging
- * locks swing on, kept as `plan`. A `fixed` part (fixedPart) has every point weighted wholly to its one joint.
+ * style or piece that swings (`hangs`, hair.js hangPlan) is weighted to the bone chains its hanging locks or
+ * cloth swing on, kept as `plan`. A `fixed` part (fixedPart) has every point weighted wholly to its one joint.
  */
 function partMeshes(key, part, small = false, hangs = null, fixed = false) {
   if (!parts.has(key))
@@ -847,7 +877,7 @@ function partMeshes(key, part, small = false, hangs = null, fixed = false) {
       part.meshes.map((mesh) => {
         const geometry = geometryOf(mesh);
         geometry.userData.shared = true;
-        const plan = hangs ? hairPlan(geometry, part.joints, hangs.line, hangs.centre) : null;
+        const plan = hangs ? hangPlan(geometry, part.joints, hangs) : null;
         if (plan) {
           geometry.setAttribute("skinIndex", plan.skinIndex);
           geometry.setAttribute("skinWeight", plan.skinWeight);
@@ -875,6 +905,12 @@ function partMeshes(key, part, small = false, hangs = null, fixed = false) {
   return parts.get(key);
 }
 
+/** The installed packs' underwear in `slot` (looks.js UNDERWEAR_SLOTS) made for `sex`'s body. */
+const packUnderwear = (slot, sex) =>
+  Object.values(PACK_PIECES)
+    .filter((entry) => entry.slot === slot && entry.bodies.includes(sex))
+    .map((entry) => entry.piece);
+
 /**
  * Which shape keys, hair styles, underwear and outfit pieces the kit has for `sex`'s body of `species`:
  * what the Look card offers. Each piece as { piece, slot, parts: [[part, its colour as made (0xRRGGBB)]],
@@ -898,8 +934,9 @@ export async function avatarChoices(sex, species = "human") {
     ),
     tail: kit.meshes.some((mesh) => mesh.piece === "tail-tiefling"),
     races: RACES.map(([race]) => race).filter((race) => !raceOf(race).key || kit.file.keys.includes(raceOf(race).key)),
-    tops: kit.tops,
-    bottoms: kit.bottoms,
+    // (The underwear styles the body's model has, then the installed packs' for this body.)
+    tops: [...kit.tops, ...packUnderwear("underwear_top", sex)],
+    bottoms: [...kit.bottoms, ...packUnderwear("underwear_bottom", sex)],
     brows: kit.brows,
     lashes: kit.lashes,
     hair: anthro
@@ -958,6 +995,9 @@ export function designMenu() {
       ...LIMBS.map(([key, label, least, most]) => `  ${key}: ${least} to ${most} (1 is usual): ${label}`),
       `skin: "custom" (then colours.skin is their skin's colour), or a skin picture: ${listOf(SKINS.filter(([value]) => value !== "custom"))}, or one of these (the body named after each): ${COMMUNITY_SKINS.map(([value, , bodies]) => `${value} (${bodies.join("/")})`).join(", ")}`,
       "colours: { skin, eyes, lips, nails, brows, underwear, horns, and for an anthro body its own: fur, fur2 (lighter fur), nose, claws (a wolf), scales, scales2 (underside) (a dragon) }",
+      `makeup (only for someone who wears it): { ${MAKEUP_LAYERS.filter(([layer]) => layer !== "lipstick")
+        .map(([layer]) => layer)
+        .join(", ")}: { colour, amount (0 to 1) } each, lipstick: { amount } (its colour is colours.lips) }`,
       `eyePicture: tint (then colours.eyes is their eye colour), or a real eye: ${listOf(EYE_PICTURES)}`,
       `nails: ${listOf(NAILS)}; toenails: true or false (colours.nails is their colour)`,
       `hair: ${listOf(HAIRSTYLES)}; hairTint: their hair's colour`,
@@ -1123,6 +1163,67 @@ function moveJoints(root, bones, moves, weights) {
   return new Map([...by].map(([name, move]) => [name, new Matrix4().makeTranslation(-move.x, -move.y, -move.z)]));
 }
 
+/** The centre and radius of the sphere nearest `points` (least squares; null for too few points or no sphere). */
+export function sphereThrough(points) {
+  if (points.length < 8) return null;
+  // x²+y²+z² = 2ax + 2by + 2cz + d, solved through its normal equations.
+  const sums = new Array(16).fill(0);
+  const right = [0, 0, 0, 0];
+  for (const p of points) {
+    const row = [2 * p.x, 2 * p.y, 2 * p.z, 1];
+    const square = p.lengthSq();
+    for (let i = 0; i < 4; i++) {
+      right[i] += row[i] * square;
+      for (let j = 0; j < 4; j++) sums[i * 4 + j] += row[i] * row[j];
+    }
+  }
+  const matrix = new Matrix4().set(...sums);
+  if (Math.abs(matrix.determinant()) < 1e-30) return null;
+  const e = matrix.invert().elements; // (column-major)
+  const [a, b, c, d] = [0, 1, 2, 3].map((i) => [0, 1, 2, 3].reduce((sum, j) => sum + e[j * 4 + i] * right[j], 0));
+  const centre = new Vector3(a, b, c);
+  const square = d + centre.lengthSq();
+  return square > 0 ? { centre, radius: Math.sqrt(square) } : null;
+}
+
+/**
+ * Each eye bone moved to the middle of its eyeball as this body is shaped, the eyeball left where it is: the
+ * face sliders and a head made bigger move the eyeball and the bone by different amounts, and an eye turned
+ * about a point beside its centre swings out of its socket, its iris under the lid (a female look turned male
+ * put it 7 to 11 mm off). `body` is the body's mesh, bound, at the bind pose.
+ */
+function centreEyes(body, kit, bones) {
+  const position = body.geometry.attributes.position;
+  const at = new Vector3();
+  for (const side of ["l", "r"]) {
+    const bone = bones.get(`eye_${side}`);
+    if (!bone) continue;
+    bone.updateMatrixWorld(true);
+    const left = bone.getWorldPosition(at).x > 0;
+    const points = [];
+    for (const mesh of kit.meshes.filter((each) => each.part === "eye_white"))
+      for (let v = mesh.start; v < mesh.start + mesh.count; v++) {
+        const p = new Vector3().fromBufferAttribute(position, v);
+        body.applyBoneTransform(v, p);
+        if (p.x > 0 === left) points.push(p);
+      }
+    const sphere = sphereThrough(points);
+    // (Only a believable eyeball: a few millimetres to a few centimetres across, near where the bone is.)
+    if (!sphere || sphere.radius < 0.005 || sphere.radius > 0.04) continue;
+    const was = bone.matrixWorld.clone();
+    if (sphere.centre.distanceTo(bone.getWorldPosition(at)) < 0.0002) continue;
+    bone.position.copy(bone.parent.worldToLocal(sphere.centre.clone()));
+    bone.updateMatrixWorld(true);
+    // (Bound where it was: each inverse made so the bone's skin matrix is what it was.)
+    const back = bone.matrixWorld.clone().invert().multiply(was);
+    for (const mesh of body.parent.children) {
+      if (!mesh.isSkinnedMesh) continue;
+      const i = mesh.skeleton.bones.indexOf(bone);
+      if (i >= 0) mesh.skeleton.boneInverses[i].premultiply(back);
+    }
+  }
+}
+
 // ── Making one ───────────────────────────────────────────────────────────────
 
 /**
@@ -1145,10 +1246,19 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   ];
   const dyes = { ...filled.clothColours };
   if (filled.colours.nails !== WHITE) for (const piece of nails) dyes[piece] = { nail: filled.colours.nails };
-  const [kit, hair, worn] = await Promise.all([
+  // Underwear from a pack (looks.js UNDERWEAR_SLOTS): a piece of its own, the innermost layer, dyed the
+  // underwear's colour where it's made to be dyed (a pattern keeps its own). The body's own is a mesh of it.
+  const packUnderwear = UNDERWEAR_FIELDS.map((field) => filled.underwear[field]).filter(isPackUnderwear);
+  for (const piece of packUnderwear)
+    if (PACK_PIECES[piece].tint)
+      dyes[piece] = Object.fromEntries(
+        (PACK_PIECES[piece].parts[sex] ?? []).map(([part]) => [part, filled.colours.underwear]),
+      );
+  const [kit, hair, worn, underwearWorn] = await Promise.all([
     bodyKit(sex, filled.species),
     filled.hair === BARE ? null : hairOf(filled.hair, sex),
     Promise.all([...clothes, ...nails].map((piece) => pieceOf(piece, sex, filled.variants[piece]))),
+    Promise.all(packUnderwear.map((piece) => pieceOf(piece, sex))),
   ]);
   const { root, bones } = rigOf(kit.file);
   let moved = null; // joints moved with the body's shape (below), for binding
@@ -1157,6 +1267,26 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   const hides = new Set();
   const pieces = worn.filter(Boolean).sort((a, b) => a.layer - b.layer);
   for (const piece of pieces) for (const word of piece.hides) hides.add(word);
+  // The underwear under them (`off`: the fields left off). A piece worn on bare skin (a swimsuit) leaves off
+  // the underwear its hide words name. Shown under clothes, the rest stays on, under everything; else what a
+  // piece covers is hidden as the skin is, by its hide words or the torso or hips it hides.
+  const off = new Set();
+  for (const piece of pieces)
+    for (const field of UNDERWEAR_FIELDS) {
+      const named = piece.hides.includes("underwear") || piece.hides.includes(`underwear-${field}`);
+      const over = piece.hides.includes(field === "top" ? "torso" : "hips");
+      if (named && piece.noUnderwear) off.add(field);
+      else if ((named || over) && !filled.underwear.underClothes) off.add(field);
+    }
+  const underwear = underwearWorn.filter((piece) => piece && !off.has(UNDERWEAR_FIELD_OF[piece.slot]));
+  for (const piece of underwear) for (const word of piece.hides) if (!word.startsWith("underwear")) hides.add(word);
+  // (The body's own underwear: shown under clothes, only the words of what's worn on bare skin hide it.)
+  const bodyHides = filled.underwear.underClothes
+    ? new Set([
+        ...[...hides].filter((word) => !word.startsWith("underwear")),
+        ...[...off].map((field) => `underwear-${field}`),
+      ])
+    : hides;
   const flat = hides.has("neck") || hides.has("torso") || pieces.some((piece) => RUFF_SLOTS.has(piece.slot));
   const weights = keyWeights(filled, sex, kit.file.keys, flat);
   // The finger joints go where the look's keys put the knuckles (the kit's jointMoves: a dwarf's bigger
@@ -1258,10 +1388,10 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   if (skinPicture) swapped.set(textureOfPart("skin"), texture(skinPicture));
   if (filled.eyePicture !== TINT) swapped.set(textureOfPart("iris"), texture("avatar-eyes"));
   const anthro = filled.species !== "human";
-  // The skin and lips share one picture: painted for this avatar (skin.js) with its skin colour and its
-  // lips coloured through the body's mask, so their edge is clean. Where it can't be painted (no canvas,
-  // as in Node, or no mask for the body), they're coloured by vertex as before. (The nails are pieces of
-  // their own, worn with the clothes.)
+  // The skin and lips share one picture: painted for this avatar (skin.js) with its skin colour, its lips
+  // coloured through the body's mask, so their edge is clean, and its makeup. Where it can't be painted (no
+  // canvas, as in Node, or no mask for the body), they're coloured by vertex as before, without makeup.
+  // (The nails are pieces of their own, worn with the clothes.)
   const painted =
     anthro || !kit.file.keys
       ? null
@@ -1270,6 +1400,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
           base: skinPicture ?? textureOfPart("skin"),
           skin: filled.skin === "custom" ? filled.colours.skin : WHITE,
           lips: filled.colours.lips,
+          makeup: filled.makeup,
         }).catch(() => null);
   if (painted) swapped.set(textureOfPart("skin"), painted);
   const paintedParts = new Set(painted ? ["skin", "lips"] : []);
@@ -1316,7 +1447,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   geometry.setAttribute("color", new BufferAttribute(colour, 3, true));
   for (const [attribute, shared] of Object.entries(kit.shared)) geometry.setAttribute(attribute, shared);
   if (filled.eyePicture !== TINT) geometry.setAttribute("uv", eyeUvsOf(kit, filled.eyePicture));
-  const { index, groups } = trianglesOf(kit, filled, hides);
+  const { index, groups } = trianglesOf(kit, filled, bodyHides, filled.underwear.underClothes);
   geometry.setIndex(index);
   geometry.userData.distant = { groups: true }; // (each group has its own: kit.js drawDistant)
   const materials = groups.map((group, i) => {
@@ -1350,7 +1481,30 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     geometry.morphAttributes.position = faceMoves;
     geometry.morphTargetsRelative = true;
   }
-  bind(geometry, materials, kit.file);
+  const body = bind(geometry, materials, kit.file);
+  centreEyes(body, kit, bones);
+  // A bust that moves (bust.js): her body always, his when his chest stands out as far. Its bones under the
+  // upper chest, and the skin and underwear over it weighted to them; what's worn over it is weighted the same
+  // way below. (Not where a stretch or a moved joint would shift a point whose weights are full: bustWeights.)
+  const bust = anthro ? null : findBust(kit, position, sex);
+  const still = new Set([...stretch.keys(), ...(moved?.keys() ?? [])]);
+  const bustAt =
+    bust &&
+    bustWeights(
+      kit.shared.skinIndex.array,
+      kit.shared.skinWeight.array,
+      kit.file.joints,
+      kit.file.joints.length,
+      byPlace(bust, position),
+      still,
+    );
+  const bustRig = bustAt ? rigBust(bust, bones) : null;
+  if (bustRig) {
+    geometry.setAttribute("skinIndex", new Uint16BufferAttribute(bustAt.skinIndex, 4));
+    geometry.setAttribute("skinWeight", new BufferAttribute(bustAt.skinWeight, 4));
+    const { bones: own, boneInverses } = body.skeleton;
+    body.bind(new Skeleton([...own, ...bustRig.bones], [...boneInverses, ...bustRig.inverses]), body.bindMatrix);
+  }
   owned.push(() => {
     // (Only what's this person's: the shared texture places, weights, face moves and triangles stay for the rest.)
     geometry.morphAttributes = {};
@@ -1363,12 +1517,29 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   // Hair and outfit pieces: shared meshes, or each person's own when they have shape keys to follow. An
   // outfit piece is one mesh coloured by vertex, each of its parts (cloth, trim, metal…) the look's colour
   // or as made, those colours shared by everyone wearing the same.
-  const springs = []; // (the hair's chains and a tail: springs.js)
-  const wearPart = ({ key, part: asMade, pictures, slot, piece, bone }, colourFor, hangs = null) => {
+  const springs = []; // (the hair's and clothes' chains, the bust and a tail: springs.js)
+  for (const spring of bustRig?.springs ?? []) springs.push({ ...spring, joint: BUST_JOINT, meets: "none" });
+  const wearPart = ({ key, part: asMade, pictures, slot, piece, bone, hang }, colourFor, hair = null) => {
     // (A piece fixed to a bone, fixedPart: it moves with that bone alone. It grows with the head as the hair
     // and eyes do, through the bone's stretch, and the look's shape keys move it as one: see `rigid` below.)
     const fixed = bone ? fixedPart(asMade, bone, kit.file) : null;
     const part = fixed ?? asMade;
+    // (Cloth that hangs, from its line between the hips and knees: hair.js. Its chains hang from the hips, or
+    // from the spine bone at its line.)
+    let hangs = hair;
+    if (!fixed && hang !== undefined && hang !== null) {
+      const line = kit.legs.hip - hang * (kit.legs.hip - kit.legs.knee);
+      hangs = {
+        ...CLOTH,
+        line,
+        centre: kit.hips,
+        from: kit.spine.filter(([, y]) => y <= line).at(-1)?.[0] ?? "pelvis",
+        name: `cloth_${piece}`,
+        title: CLOTHES.find(([id]) => id === piece)?.[1] ?? piece,
+        joint: CLOTH_JOINT,
+        meets: "cloth",
+      };
+    }
     partMeshes(key, part, SMALL_SLOTS.has(slot), hangs, !!fixed).forEach((made, m) => {
       const { mesh, geometry: shared, morphs, colours, plan } = made;
       // (A race's build, carried onto the piece from the skin the first time one of that race wears it.)
@@ -1400,18 +1571,32 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
         colour = colours.get(said);
       }
       const keyed = Object.keys(morphs).length > 0;
-      // (Swinging hair on a head made bigger or smaller has its points placed for its new weights: hair.js rigHair.)
+      // (Swinging hair on a head made bigger or smaller, or cloth on longer legs, has its points placed for its
+      // new weights: hair.js rigChains.)
       const placed = !!plan && part.joints.some((name) => stretch.has(name));
-      if (keyed || colour || placed) {
-        // (Its own geometry over the shared data: its positions and normals shaped, its colours.)
-        const moved = keyed
-          ? shaped(shared.attributes.position.array, shared.attributes.normal.array, morphs, weights)
+      const moved = keyed
+        ? shaped(shared.attributes.position.array, shared.attributes.normal.array, morphs, weights)
+        : null;
+      if (moved && fixed) rigid(moved, shared.attributes.position.array, shared.attributes.normal.array);
+      // (Clothes over the bust move with it, weighted as the skin under them is: bust.js. Not hair, nor a piece
+      // fixed to a bone. Its bones are numbered after the chains'.)
+      const chained = plan ? plan.chains.reduce((total, chain) => total + chain.bones + 1, 0) : 0;
+      const busty =
+        bustRig && slot && !fixed
+          ? bustWeights(
+              shared.attributes.skinIndex.array,
+              shared.attributes.skinWeight.array,
+              part.joints,
+              part.joints.length + chained,
+              byNearest(bustAt.shares, (made.near ??= nearestSkin(kit, shared.attributes.position.array))),
+              still,
+            )
           : null;
-        if (moved && fixed) rigid(moved, shared.attributes.position.array, shared.attributes.normal.array);
+      if (keyed || colour || placed || busty) {
+        // (Its own geometry over the shared data: its positions and normals shaped, its colours, its weights.)
         const borrowed = [
           "uv",
-          "skinIndex",
-          "skinWeight",
+          ...(busty ? [] : ["skinIndex", "skinWeight"]),
           ...(keyed ? [] : ["normal"]),
           ...(keyed || placed ? [] : ["position"]),
         ];
@@ -1421,6 +1606,10 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
           geometry.setAttribute("normal", new BufferAttribute(moved.normal, 3));
         } else if (placed)
           geometry.setAttribute("position", new BufferAttribute(shared.attributes.position.array.slice(), 3));
+        if (busty) {
+          geometry.setAttribute("skinIndex", new Uint16BufferAttribute(busty.skinIndex, 4));
+          geometry.setAttribute("skinWeight", new BufferAttribute(busty.skinWeight, 4));
+        }
         for (const attribute of borrowed)
           if (shared.attributes[attribute]) geometry.setAttribute(attribute, shared.attributes[attribute]);
         if (colour) {
@@ -1446,33 +1635,49 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
       });
       owned.push(() => material.dispose());
       const worn = bind(geometry, material, part, kit.file);
-      // The hair's chains, where this avatar's shape put its locks, added to the bones its points are bound to.
+      // The chains, where this avatar's shape put its locks or cloth, and the bust's bones, added to the bones
+      // its points are bound to.
+      const added = { bones: [], inverses: [] };
       if (plan) {
-        const rig = rigHair(plan, part, geometry.attributes.position.array, bones, stretch, m ? `${m}_` : "");
+        const rig = rigChains(plan, part, geometry.attributes.position.array, bones, stretch, m ? `${m}_` : "");
+        added.bones.push(...rig.bones);
+        added.inverses.push(...rig.inverses);
+        for (const spring of rig.springs) springs.push({ ...spring, joint: hangs.joint, meets: hangs.meets });
+      }
+      if (busty) {
+        added.bones.push(...bustRig.bones);
+        added.inverses.push(...bustRig.inverses.map((inverse) => inverse.clone())); // (each skeleton its own)
+      }
+      if (added.bones.length) {
         const { bones: own, boneInverses } = worn.skeleton;
-        worn.bind(new Skeleton([...own, ...rig.bones], [...boneInverses, ...rig.inverses]), worn.bindMatrix);
-        for (const spring of rig.springs) springs.push({ ...spring, joint: HAIR_JOINT, meets: "body" });
+        worn.bind(new Skeleton([...own, ...added.bones], [...boneInverses, ...added.inverses]), worn.bindMatrix);
       }
     });
   };
   // (A hood or helm that hides the hair leaves it off.)
   // (A style that swings, from where its hair leaves the head: hair.js.)
   const below = swingOf(filled.hair);
-  const hangs = below === undefined ? null : { line: kit.eyes - below, centre: kit.headAt };
+  const hangs =
+    below === undefined
+      ? null
+      : { ...HAIR, line: kit.eyes - below, centre: kit.headAt, joint: HAIR_JOINT, meets: "body" };
   if (hair && !hides.has("hair")) wearPart(hair, () => new Color(filled.hairColour), hangs);
-  for (const piece of pieces) wearPart(piece, (mesh) => (mesh.partOf ? 0xffffff : new Color().setRGB(...mesh.colour)));
+  for (const piece of [...underwear, ...pieces])
+    wearPart(piece, (mesh) => (mesh.partOf ? 0xffffff : new Color().setRGB(...mesh.colour)));
 
   // A tail worn swings too, kept out of the legs.
   const tail = TAIL_BONES.map((name) => bones.get(name)).filter(Boolean);
   const tailWorn = kit.meshes.some((mesh) => mesh.piece?.startsWith("tail-") && isWorn(mesh, filled, sex));
   if (tailWorn && tail.length > 1) springs.push({ name: "Tail", bones: tail, joint: TAIL_JOINT, meets: "legs" });
   // (Each spring meets its own colliders: springs.js fitColliders may leave one out where a lock rests on it.)
-  const colliders = springs.length ? bodyColliders(kit, position, bones) : { body: [], legs: [] };
+  const colliders = springs.length
+    ? { ...bodyColliders(kit, position, bones), none: [] }
+    : { body: [], legs: [], cloth: [], none: [] };
   for (const spring of springs) spring.colliders = [...colliders[spring.meets]];
 
   const figure = standFigure(root, bones, filled.height * race.height);
   figure.springs = springs;
-  figure.colliders = [...colliders.body, ...colliders.legs];
+  figure.colliders = [...colliders.body, ...colliders.legs, ...colliders.cloth];
   if (springs.length) fitColliders(figure);
   figure.dispose = () => {
     for (const letGo of owned) letGo();

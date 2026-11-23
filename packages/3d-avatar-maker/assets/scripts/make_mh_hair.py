@@ -25,9 +25,15 @@ hair stands a little further off the back, room for the back to bend and twist u
 
 `finish()` does the fitting's second half for make_hair.py's styles too.
 
-Hair from MakeHuman (makehumancommunity.org, CC0), fitted and adapted in Blender by ThatOneCan.
+Community styles are fitted the same way: the kit's CC0 ones (STYLES' `pack:` entries, from the community packs
+`wwavatar.extracted_dir` finds), and the wardrobe packs' (assets/packs.json `hair`, `-- packs` for all of them)
+into assets/models/packs/<pack id>/, each only to the bodies its entry lists.
+
+Hair from MakeHuman (makehumancommunity.org, CC0) and its community (CC0, or CC BY as assets/packs.json says),
+fitted and adapted in Blender by ThatOneCan.
 """
 
+import json
 import math
 import os
 import sys
@@ -54,6 +60,25 @@ STYLES = {
     "bob": "bob02",  # chin length, a side-swept fringe
     "bob_angled": "bob01",  # longer at the front than the back, swept to one side
     "curly": "afro01",  # short curls in clumps, ringlets over a curly base
+}
+# Community styles in the kit (CC0 by their catalogue and every one of their files; docs/MAKEHUMAN-PACKS.md),
+# from the pack folders `wwavatar.extracted_dir` finds.
+STYLES.update({
+    "bob_blunt": "pack:hair01_cc0/hair/toigo_blunt_bob",
+    "bob_blunt_bangs": "pack:hair01_cc0/hair/toigo_blunt_bob_with_bangs",
+    "bob_curled": "pack:hair01_cc0/hair/toigo_curled_under_bob",
+    "bob_curled_bangs": "pack:hair01_cc0/hair/toigo_curled_under_bob_with_bangs",
+    "bob_inverted": "pack:hair01_cc0/hair/toigo_inverted_bob",
+    "bob_inverted_bangs": "pack:hair01_cc0/hair/toigo_inverted_bob_with_bangs",
+})
+# (Left out after rendering: faydaen_hair_1, an updo of 541 vertices whose loose locks are flat strips standing
+# off the head and whose bun is faceted.)
+# The wardrobe packs' styles (assets/packs.json `hair`), each fitted to the bodies it lists, into
+# assets/models/packs/<pack id>/: style → (pack id, its entry).
+PACK_STYLES = {
+    style: (pack, spec)
+    for pack, p in json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "packs.json"), encoding="utf-8"))["packs"].items()
+    for style, spec in p.get("hair", {}).items()
 }
 CUTOFF = 0.5
 SIZE = 1024
@@ -277,13 +302,14 @@ def face_out(fitted, centre, low):
     return normals, flipped
 
 
-def finish(style, fit, image, long_hair=None):
-    """Fits a style to both bodies and writes assets/models/avatar-hair-<style>.glb: `fit(body, sex)` gives
-    the hair on that body (a wwmhclo Fitted with every key), `image` its texture. Lifts it off the skin at
-    rest and with each key, weights it, turns its cards out. Returns what it found, per body."""
+def finish(style, fit, image, long_hair=None, sexes=("male", "female"), models=None):
+    """Fits a style to the bodies (`sexes`) and writes avatar-hair-<style>.glb into `models` (else
+    assets/models): `fit(body, sex)` gives the hair on that body (a wwmhclo Fitted with every key), `image` its
+    texture. Lifts it off the skin at rest and with each key, weights it, turns its cards out. Returns what it
+    found, per body."""
     mat = mc.material("hair", image, colour=[float(c) for c in mc.srgb_to_linear(np.array(mc.ww.hex_rgb(BROWN)))], roughness=0.75, alpha_cutoff=CUTOFF)
     objects, rigs, stats = [], [], {}
-    for sex in ("male", "female"):
+    for sex in sexes:
         body = mc.Body(sex)
         fitted = fit(body, sex)
         chin, shoulder, centre, _ = landmarks(body)
@@ -313,7 +339,7 @@ def finish(style, fit, image, long_hair=None):
         objects.append(obj)
         rigs.append(rig)
         mc.log(f"{style} {sex}: {stats[sex]}")
-    path = os.path.join(mc.MODELS, f"avatar-hair-{style}.glb")
+    path = os.path.join(models or mc.MODELS, f"avatar-hair-{style}.glb")
     size = mc.export(path, objects, rigs)
     mc.log(f"wrote {path} ({size / 1e6:.2f} MB)")
     return stats
@@ -562,19 +588,57 @@ def curly_fit(proxy, body, sex):
 RESTYLE["curly"] = (curly_fit, curly_texture)
 
 
+def whole_faces(f):
+    """Without the faces Blender's mesh check would drop (a vertex twice, or the same vertices as a face before),
+    which some community styles have (elvs_lady_hippy_hair: 8)."""
+    seen, keep = set(), []
+    for i, face in enumerate(f.faces):
+        key = frozenset(face)
+        if len(key) == len(face) >= 3 and key not in seen:
+            seen.add(key)
+            keep.append(i)
+    return f if len(keep) == len(f.faces) else f.subset(keep)
+
+
+def tucked_fringe(proxy, body, sex):
+    """MargaretToigo's bobs with bangs: the fringe is a sheet of its own (on the picture's right) laid over the
+    crown, and its back edge stood above the main sheet as a ridge. Its back is tucked under it, as long's
+    layers are: 8 mm in at its edge, nothing 5 cm forward of it."""
+    f = mc.Fitted(proxy, body)
+    chin, shoulder, centre, _ = landmarks(body)
+    centres = f.face_uv_centres()
+    for k in f.islands():
+        if centres[k, 0].mean() < 0.65:
+            continue
+        vs = np.array(sorted({v for i in k for v in f.faces[i]}))
+        back = f.co[vs, 1].max()  # (Blender's +Y is the back of the head)
+        tuck = mc.smoothstep(back - 0.05, back, f.co[vs, 1])
+        f.co[vs] -= outward(f.co[vs], centre, shoulder) * (0.008 * tuck)[:, None]
+    return f
+
+
+for _style in ("bob_blunt_bangs", "bob_curled_bangs", "bob_inverted_bangs"):
+    RESTYLE[_style] = (tucked_fringe, None)
+
+
 def make(style, keys=None):
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    proxy = mc.Proxy("hair", STYLES[style])
+    pack, spec = PACK_STYLES.get(style, (None, None))
+    proxy = mc.Proxy("hair", f"pack:{spec['src']}" if spec else STYLES[style])
     fit, texture = RESTYLE.get(style, (None, None))
     image = texture(proxy) if texture else save_texture(style, grey(mc.load_rgba(proxy.texture(), SIZE)))
 
     def fitted(body, sex):
-        return fit(proxy, body, sex) if fit else mc.Fitted(proxy, body, keys)
+        return whole_faces(fit(proxy, body, sex) if fit else mc.Fitted(proxy, body, keys))
 
+    if spec:
+        return finish(style, fitted, image, sexes=tuple(spec["bodies"]), models=os.path.join(mc.MODELS, "packs", pack))
     return finish(style, fitted, image)
 
 
 if __name__ == "__main__":
+    # (`-- <style> …` for some, kit or pack styles; `-- packs` for every pack style.)
     which = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else list(STYLES)
+    which = [s for w in which for s in (PACK_STYLES if w == "packs" else [w])]
     for s in which:
         make(s)
