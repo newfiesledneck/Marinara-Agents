@@ -36,6 +36,7 @@ import {
   SLOT_OF,
   NAIL_COVERS,
   NAILS,
+  PACK_PIECES,
   EYE_COLOURS,
   EYE_PICTURES,
   EYE_GRID,
@@ -73,7 +74,7 @@ import {
   USUAL_HAIR,
   USUAL_HAIR_COLOURS,
 } from "./looks.js";
-import { geometryOf, load, rigOf, sexFor, skeletonFor, texture, view } from "./kitfiles.js";
+import { geometryOf, load, loadUrl, rigOf, sexFor, skeletonFor, texture, view } from "./kitfiles.js";
 import { paintedSkin } from "./skin.js";
 import { hashString, rng } from "./util.js";
 
@@ -733,21 +734,26 @@ async function hairOf(style, sex) {
  * never both: { key, piece, slot, layer, hides, part, pictures }, or null if the kit hasn't got it.
  */
 async function pieceOf(piece, sex, variant = "") {
-  const entry = (await indexOf(OUTFIT_INDEX))[piece];
+  // (A wardrobe pack's piece, packs.js: from its pack's bundle, worn as its checked index entry says, with
+  // only the pictures named for its pack, so none can stand in for the kit's own in the texture cache.)
+  const pack = PACK_PIECES[piece];
+  const entry = pack ?? (await indexOf(OUTFIT_INDEX))[piece];
   if (!entry?.bodies.includes(sex)) return null;
-  const bundle = await load(`${entry.bundle}.pack.png`).catch(() => null);
+  const bundle = await (pack ? loadUrl(pack.url) : load(`${entry.bundle}.pack.png`)).catch(() => null);
   const data = bundle?.pieces?.[piece];
-  const way = data?.variants?.[variant]?.[sex] ? data.variants[variant] : data;
+  const way = !pack && data?.variants?.[variant]?.[sex] ? data.variants[variant] : data;
   if (!way?.[sex]) return null;
   const shown = way === data ? "" : variant;
   return {
     key: `outfit:${piece}:${sex}:${shown}`,
     piece,
-    slot: data.slot,
-    layer: data.layer ?? 0,
-    hides: way.hides ?? [],
+    slot: pack ? pack.slot : data.slot,
+    layer: pack ? pack.layer : (data.layer ?? 0),
+    hides: pack ? pack.hides : (way.hides ?? []),
     part: way[sex],
-    pictures: bundle.pictures,
+    pictures: pack
+      ? [bundle.pictures ?? []].flat().filter((picture) => String(picture?.name).startsWith(`${pack.pack}-`))
+      : bundle.pictures,
   };
 }
 
@@ -808,7 +814,7 @@ export async function avatarChoices(sex, species = "human") {
     hair: anthro
       ? []
       : HAIRSTYLES.map(([style]) => style).filter((style) => style === BARE || hair[style]?.bodies.includes(sex)),
-    clothes: Object.entries(outfits)
+    clothes: Object.entries({ ...outfits, ...PACK_PIECES })
       .filter(([piece, entry]) => entry.bodies.includes(sex) && SLOT_OF[piece] && !NAIL_COVERS[SLOT_OF[piece]])
       .filter(([piece]) => !anthro || !ANTHRO_BARE_SLOTS.has(SLOT_OF[piece]))
       .map(([piece, entry]) => ({

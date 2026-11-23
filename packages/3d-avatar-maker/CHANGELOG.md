@@ -1,5 +1,10 @@
 # 3D Avatar Maker release notes
 
+## 0.1.03 — 2026-11-23
+
+- Wardrobe packs: install a 3D Avatar Maker wardrobe pack and its clothes appear in the Clothes tab, each with a line saying which pack it's from and who made it. The first two are Everyday Women's Clothes and Everyday Men's Clothes and Suits.
+- A saved avatar names the makers of any credited pack clothes it wears.
+
 ## 0.1.02 — 2026-11-23
 
 - Real nails on every finger and toe: short, medium, long or none, and toenails on or off, in any colour. Gloves and shoes hide them.

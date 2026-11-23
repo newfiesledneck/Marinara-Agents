@@ -26,3 +26,13 @@ export const clamp = (value, least, most) => Math.max(least, Math.min(most, valu
 /** 0xRRGGBB as "#rrggbb", and back (null when it isn't one). */
 export const hexText = (hex) => `#${(hex >>> 0).toString(16).padStart(6, "0").slice(-6)}`;
 export const hexNumber = (text) => (/^#?[0-9a-f]{6}$/iu.test(text ?? "") ? parseInt(text.replace("#", ""), 16) : null);
+
+/** Same-origin JSON GET (the Engine's session rides along); null on any failure, or after `wait` ms. */
+export async function getJson(path, wait = 20_000) {
+  try {
+    const response = await fetch(path, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(wait) });
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  }
+}

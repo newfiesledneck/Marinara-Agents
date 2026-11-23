@@ -1120,6 +1120,164 @@ const sexOfName = (name) =>
       ? "male"
       : null;
 
+/** A body file's meshes as they're packed: the underwear without the races' keys, every key's normals put right. */
+function bodyPrimitives(gltf) {
+  // (A halfling's foot hair is left out until it's remade: it reads as flecks.)
+  const primitives = skinnedPrimitives(gltf).filter((primitive) => !/^foothair-/u.test(primitive.nodeName ?? ""));
+  // (The underwear is packed without the races' keys, megabytes of them: the game carries a race's build
+  // onto it from the skin, as it does onto hair and clothes, src/avatar.js `carried`.)
+  for (const primitive of primitives) {
+    if (!/^underwear-/u.test(primitive.nodeName ?? "") || !primitive.targets) continue;
+    const kept = primitive.keyNames.filter((key) => !key.startsWith("race_"));
+    primitive.targets = kept.map((key) => primitive.targets[primitive.keyNames.indexOf(key)]);
+    primitive.keyNames = kept;
+  }
+  primitives.forEach(keyNormals);
+  return primitives;
+}
+
+/** A part: packPart, each mesh saying its material (`part`), colour (linear) and how its alpha is used. */
+function part(primitives, texture, extra = {}) {
+  const packed = packPart(primitives, { texture, ...extra });
+  packed.meshes.forEach((mesh, i) => {
+    const material = primitives[i].material;
+    mesh.part = material?.name ?? "part";
+    mesh.colour = (material?.pbrMetallicRoughness?.baseColorFactor ?? [1, 1, 1])
+      .slice(0, 3)
+      .map((value) => Math.round(value * 1e4) / 1e4);
+    if (material?.alphaMode && material.alphaMode !== "OPAQUE") mesh.alpha = material.alphaMode;
+  });
+  return packed;
+}
+
+/**
+ * Bundles with their pictures inside: `bundleAt(path, document)` a bundle (made on first use, its `source`
+ * given), `pictureIn(path, gltf, image, name, most)` a .glb's picture into one as WebP, at most `most` pixels
+ * a side, once however often it's used (its name in that bundle returned). `bundles`: path → document.
+ */
+export function bundler(source) {
+  const bundles = new Map(); // a bundle's path → { …its document, pictures }
+  const seen = new Map(); // `${bundle}:${a picture's bytes}` → its name there
+  const bundleAt = (path, document) => {
+    if (!bundles.has(path)) bundles.set(path, { source, ...document, pictures: [] });
+    return bundles.get(path);
+  };
+  const pictureIn = (path, gltf, image, name, most = 1024) => {
+    const bytes = gltf.imageOf(image);
+    const key = `${path}:${bytes.toString("base64")}`;
+    if (!seen.has(key)) {
+      const jpeg = gltf.json.images[Number(image.slice(6))].mimeType === "image/jpeg";
+      const raw = join(dirname(path), `${name}.${jpeg ? "jpg" : "png"}`);
+      writeFileSync(raw, bytes);
+      const scale = ["-vf", `scale=w='min(${most},iw)':h='min(${most},ih)'`];
+      bundles.get(path).pictures.push({ name, webp: webp(raw, 82, scale) });
+      seen.set(key, name);
+    }
+    return seen.get(key);
+  };
+  return { bundles, bundleAt, pictureIn };
+}
+
+/** A file's meshes for `sex` (a mesh named for neither body is both's), read afresh, so each body's shape
+ *  keys can be put right on its own. */
+const meshesFor = (gltf, sex) =>
+  meshPrimitives(gltf).filter((primitive) => {
+    const name = primitive.nodeName || primitive.name || "";
+    return !/^avatar-/u.test(name) && (sexOfName(name) ?? sex) === sex;
+  });
+/** Words from an extras value: a list, or a string of words ("torso, upperarms"). */
+const wordsOf = (value) => [
+  ...new Set((Array.isArray(value) ? value : String(value ?? "").split(/[\s,]+/u)).filter(Boolean)),
+];
+// A shape key's moves under a tenth of a millimetre are left out of hair and clothes.
+const PIECE_STILL = 1e-4;
+
+/**
+ * Each body's (assets/models/avatar-<sex>.glb in `dir`) keyReach and distant share, which its hair and
+ * clothes follow (followBody, packPart's `distant`): { reach: { sex: … }, shares: { sex: … } }.
+ */
+export function bodyReach(dir) {
+  const reach = {};
+  const shares = {};
+  for (const sex of ["male", "female"]) {
+    const path = join(dir, `avatar-${sex}.glb`);
+    if (!existsSync(path)) continue;
+    const primitives = bodyPrimitives(readGltf(path));
+    reach[sex] = keyReach(primitives);
+    shares[sex] = distantShare(primitives.reduce((sum, primitive) => sum + primitive.position.count, 0));
+  }
+  return { reach, shares };
+}
+
+/**
+ * Outfit pieces (`files`, outfit-<piece>.glb in `dir`, as make_outfit.py and make_mh_clothes.py write them)
+ * into bundles: each piece's parts drawn as one (mergePrimitives), the face keys only on what's worn on the
+ * head, and another way of wearing it (a cloak's hood up) a variant of its own, never shown with the usual
+ * one. `reach` and `shares` are each body's keyReach and distant share; `bundler` the bundles' bundleAt and
+ * pictureIn (bundler()); `slotOf(piece, file)` a piece's slot, `bundleOf(slot)` its bundle's [name, path],
+ * `pictureName(piece, image)` a picture's name. Returns the outfit index: each piece's bundle (by name),
+ * slot, bodies, parts and their colours, and variants. The kit's and the wardrobe packs' builders share it
+ * (scripts/build-3d-avatar-maker-packs.mjs).
+ */
+export function packOutfitPieces({ dir, files, reach, shares, bundler, slotOf, bundleOf, pictureName }) {
+  const FACE_KEYS = new Set(["jaw", "cheeks", "nose", "eyes", "ears_pointed"]);
+  const HEAD_SLOTS = new Set(["head", "brow", "neck"]);
+  const PART_NAMES = new Set(CLOTH_PARTS.map(([name]) => name));
+  const outfitIndex = {};
+  for (const file of files) {
+    const piece = file.slice("outfit-".length, -4);
+    const slot = slotOf(piece, file);
+    const [name, path] = bundleOf(slot);
+    const bundle = bundler.bundleAt(path, { pieces: {} });
+    const gltf = readGltf(join(dir, file));
+    const entry = { slot, layer: 0, hides: [] };
+    const info = { bundle: name, slot, bodies: [], parts: {} };
+    for (const sex of Object.keys(reach)) {
+      const nodes = new Map(); // node name ("female", "female_hood_up") → its meshes
+      for (const primitive of meshesFor(gltf, sex)) {
+        if (!nodes.has(primitive.nodeName)) nodes.set(primitive.nodeName, []);
+        nodes.get(primitive.nodeName).push(primitive);
+      }
+      for (const meshes of nodes.values()) {
+        const merged = mergePrimitives(meshes);
+        const kept = merged.keyNames.filter((key) => HEAD_SLOTS.has(slot) || !FACE_KEYS.has(key));
+        merged.targets = kept.map((key) => merged.targets[merged.keyNames.indexOf(key)]);
+        merged.keyNames = kept;
+        // (Not the nails: a millimetre or two thick, trimming would cut through them.)
+        if (!NAIL_SLOTS.some(([each]) => each === slot)) trimTriangles(merged, OUTFIT_TRIM);
+        followBody(merged, reach[sex]);
+        keyNormals(merged);
+        for (const { part: partName } of merged.parts)
+          if (!PART_NAMES.has(partName))
+            throw new Error(
+              `${file}: add the part "${partName}" to CLOTH_PARTS in packages/3d-avatar-maker/src/looks.js`,
+            );
+        const texture = (primitive) =>
+          primitive.texture?.startsWith("image:")
+            ? bundler.pictureIn(path, gltf, primitive.texture, pictureName(piece, primitive.texture.slice(6)))
+            : null;
+        const packed = part([merged], texture, { distant: shares[sex] ?? 1, still: PIECE_STILL });
+        const [mesh] = packed.meshes;
+        delete mesh.part;
+        delete mesh.colour;
+        mesh.parts = merged.parts;
+        const extras = meshes[0].extras ?? {};
+        const variant = extras.variant ?? "";
+        const into = variant ? ((entry.variants ??= {})[variant] ??= {}) : entry;
+        into.hides = wordsOf(extras.hides);
+        into[sex] = packed;
+        entry.layer = Number(extras.layer) || entry.layer;
+        if (variant && !(info.variants ??= []).includes(variant)) info.variants.push(variant);
+        if (!variant) info.parts[sex] = merged.parts.map(({ part: partName, colour }) => [partName, srgbHex(colour)]);
+      }
+      if (entry[sex]) info.bodies.push(sex);
+    }
+    bundle.pieces[piece] = entry;
+    outfitIndex[piece] = info;
+  }
+  return outfitIndex;
+}
+
 /**
  * The base avatar (assets/scripts/make_avatar.py) into the kit, with its shape keys, for src/avatar.js:
  * - kit/generic/avatar/avatar-<sex>.pack.png (scripts/wanderworld-packed.mjs), a body each (the skeleton, every part with its material's name and
@@ -1185,19 +1343,6 @@ function avatar(only = "", to = "") {
       return names.get(primitive.texture);
     };
   };
-  /** A part: packPart, each mesh saying its material (`part`), colour (linear) and how its alpha is used. */
-  const part = (primitives, texture, extra = {}) => {
-    const packed = packPart(primitives, { texture, ...extra });
-    packed.meshes.forEach((mesh, i) => {
-      const material = primitives[i].material;
-      mesh.part = material?.name ?? "part";
-      mesh.colour = (material?.pbrMetallicRoughness?.baseColorFactor ?? [1, 1, 1])
-        .slice(0, 3)
-        .map((value) => Math.round(value * 1e4) / 1e4);
-      if (material?.alphaMode && material.alphaMode !== "OPAQUE") mesh.alpha = material.alphaMode;
-    });
-    return packed;
-  };
   const glbs = readdirSync(dir).filter(
     (name) =>
       name.endsWith(".glb") &&
@@ -1210,17 +1355,7 @@ function avatar(only = "", to = "") {
    * (DISTANT_VERTICES' worth; its hair and outfit pieces keep the same share of theirs).
    */
   const bodyOf = (gltf, texture) => {
-    // (A halfling's foot hair is left out until it's remade: it reads as flecks.)
-    const primitives = skinnedPrimitives(gltf).filter((primitive) => !/^foothair-/u.test(primitive.nodeName ?? ""));
-    // (The underwear is packed without the races' keys, megabytes of them: the game carries a race's build
-    // onto it from the skin, as it does onto hair and clothes, src/avatar.js `carried`.)
-    for (const primitive of primitives) {
-      if (!/^underwear-/u.test(primitive.nodeName ?? "") || !primitive.targets) continue;
-      const kept = primitive.keyNames.filter((key) => !key.startsWith("race_"));
-      primitive.targets = kept.map((key) => primitive.targets[primitive.keyNames.indexOf(key)]);
-      primitive.keyNames = kept;
-    }
-    primitives.forEach(keyNormals);
+    const primitives = bodyPrimitives(gltf);
     const share = distantShare(primitives.reduce((sum, primitive) => sum + primitive.position.count, 0));
     const body = part(primitives, texture, { skeleton: skeletonOf(gltf), distant: share });
     // The underwear's styles, each a mesh of its own ("underwear-bottom-briefs", "underwear-top-bra"); a body
@@ -1289,39 +1424,7 @@ function avatar(only = "", to = "") {
   // ── Hair styles and outfit pieces: bundles with their pictures inside, and an index of which has which ──
   // (A file a bundle, not a piece or a picture: the package may list at most 256 asset files. A bundle is
   // loaded the first time someone wears one of its pieces, so a shirt doesn't fetch the armour.)
-  const bundles = new Map(); // a bundle's path → { …its document, pictures }
-  const seen = new Map(); // `${bundle}:${a picture's bytes}` → its name there
-  const bundleAt = (path, document) => {
-    if (!bundles.has(path)) bundles.set(path, { source, ...document, pictures: [] });
-    return bundles.get(path);
-  };
-  /** A .glb's picture into a bundle as WebP, at most `most` pixels a side, once however often it's used. */
-  const pictureIn = (path, gltf, image, name, most = 1024) => {
-    const bytes = gltf.imageOf(image);
-    const key = `${path}:${bytes.toString("base64")}`;
-    if (!seen.has(key)) {
-      const jpeg = gltf.json.images[Number(image.slice(6))].mimeType === "image/jpeg";
-      const raw = join(dirname(path), `${name}.${jpeg ? "jpg" : "png"}`);
-      writeFileSync(raw, bytes);
-      const scale = ["-vf", `scale=w='min(${most},iw)':h='min(${most},ih)'`];
-      bundles.get(path).pictures.push({ name, webp: webp(raw, 82, scale) });
-      seen.set(key, name);
-    }
-    return seen.get(key);
-  };
-  /** A file's meshes for `sex` (a mesh named for neither body is both's), read afresh, so each body's
-   *  shape keys can be put right on its own. */
-  const meshesFor = (gltf, sex) =>
-    meshPrimitives(gltf).filter((primitive) => {
-      const name = primitive.nodeName || primitive.name || "";
-      return !/^avatar-/u.test(name) && (sexOfName(name) ?? sex) === sex;
-    });
-  /** Words from an extras value: a list, or a string of words ("torso, upperarms"). */
-  const wordsOf = (value) => [
-    ...new Set((Array.isArray(value) ? value : String(value ?? "").split(/[\s,]+/u)).filter(Boolean)),
-  ];
-  // A shape key's moves under a tenth of a millimetre are left out of hair and clothes.
-  const PIECE_STILL = 1e-4;
+  const { bundles, bundleAt, pictureIn } = bundler(source);
   const sexes = Object.keys(reach);
 
   // The anthro bodies: a file each, with its pictures inside (the package may list only so many files).
@@ -1371,66 +1474,24 @@ function avatar(only = "", to = "") {
     hairIndex[style] = { bundle: name, bodies: Object.keys(entry) };
   }
 
-  // Outfit pieces: a bundle for each group of slots (looks.js CLOTH_SLOTS), each piece's parts drawn as
-  // one (mergePrimitives), the face keys only on what's worn on the head, and another way of wearing it
-  // (a cloak's hood up) a variant of its own, never shown with the usual one.
-  const FACE_KEYS = new Set(["jaw", "cheeks", "nose", "eyes", "ears_pointed"]);
-  const HEAD_SLOTS = new Set(["head", "brow", "neck"]);
-  const PART_NAMES = new Set(CLOTH_PARTS.map(([name]) => name));
-  const outfitIndex = {};
-  for (const file of glbs.filter((name) => /^outfit-[a-z0-9_]+\.glb$/u.test(name)).sort()) {
-    const piece = file.slice("outfit-".length, -4);
-    const slot = SLOT_OF[piece];
-    if (!slot) throw new Error(`${file}: add "${piece}" to CLOTHES in packages/3d-avatar-maker/src/looks.js`);
-    const name = `avatar-outfits-${[...CLOTH_SLOTS, ...NAIL_SLOTS].find(([each]) => each === slot)[3]}`;
-    const path = join(outfitsOut, `${name}.pack.png`);
-    const bundle = bundleAt(path, { pieces: {} });
-    const gltf = readGltf(join(dir, file));
-    const entry = { slot, layer: 0, hides: [] };
-    const info = { bundle: name, slot, bodies: [], parts: {} };
-    for (const sex of sexes) {
-      const nodes = new Map(); // node name ("female", "female_hood_up") → its meshes
-      for (const primitive of meshesFor(gltf, sex)) {
-        if (!nodes.has(primitive.nodeName)) nodes.set(primitive.nodeName, []);
-        nodes.get(primitive.nodeName).push(primitive);
-      }
-      for (const meshes of nodes.values()) {
-        const merged = mergePrimitives(meshes);
-        const kept = merged.keyNames.filter((key) => HEAD_SLOTS.has(slot) || !FACE_KEYS.has(key));
-        merged.targets = kept.map((key) => merged.targets[merged.keyNames.indexOf(key)]);
-        merged.keyNames = kept;
-        // (Not the nails: a millimetre or two thick, trimming would cut through them.)
-        if (!NAIL_SLOTS.some(([each]) => each === slot)) trimTriangles(merged, OUTFIT_TRIM);
-        followBody(merged, reach[sex]);
-        keyNormals(merged);
-        for (const { part: partName } of merged.parts)
-          if (!PART_NAMES.has(partName))
-            throw new Error(
-              `${file}: add the part "${partName}" to CLOTH_PARTS in packages/3d-avatar-maker/src/looks.js`,
-            );
-        const texture = (primitive) =>
-          primitive.texture?.startsWith("image:")
-            ? pictureIn(path, gltf, primitive.texture, `avatar-outfit-${piece}-${primitive.texture.slice(6)}`)
-            : null;
-        const packed = part([merged], texture, { distant: shares[sex] ?? 1, still: PIECE_STILL });
-        const [mesh] = packed.meshes;
-        delete mesh.part;
-        delete mesh.colour;
-        mesh.parts = merged.parts;
-        const extras = meshes[0].extras ?? {};
-        const variant = extras.variant ?? "";
-        const into = variant ? ((entry.variants ??= {})[variant] ??= {}) : entry;
-        into.hides = wordsOf(extras.hides);
-        into[sex] = packed;
-        entry.layer = Number(extras.layer) || entry.layer;
-        if (variant && !(info.variants ??= []).includes(variant)) info.variants.push(variant);
-        if (!variant) info.parts[sex] = merged.parts.map(({ part: partName, colour }) => [partName, srgbHex(colour)]);
-      }
-      if (entry[sex]) info.bodies.push(sex);
-    }
-    bundle.pieces[piece] = entry;
-    outfitIndex[piece] = info;
-  }
+  // Outfit pieces: a bundle for each group of slots (looks.js CLOTH_SLOTS).
+  const outfitIndex = packOutfitPieces({
+    dir,
+    files: glbs.filter((name) => /^outfit-[a-z0-9_]+\.glb$/u.test(name)).sort(),
+    reach,
+    shares,
+    bundler: { bundleAt, pictureIn },
+    slotOf: (piece, file) => {
+      if (!SLOT_OF[piece])
+        throw new Error(`${file}: add "${piece}" to CLOTHES in packages/3d-avatar-maker/src/looks.js`);
+      return SLOT_OF[piece];
+    },
+    bundleOf: (slot) => {
+      const name = `avatar-outfits-${[...CLOTH_SLOTS, ...NAIL_SLOTS].find(([each]) => each === slot)[3]}`;
+      return [name, join(outfitsOut, `${name}.pack.png`)];
+    },
+    pictureName: (piece, image) => `avatar-outfit-${piece}-${image}`,
+  });
   const sorted = (index) => Object.fromEntries(Object.entries(index).sort(([a], [b]) => a.localeCompare(b)));
   for (const [path, bundle] of bundles) writePacked(path, bundle, MESH_KINDS);
   if (Object.keys(hairIndex).length)
@@ -1641,4 +1702,5 @@ function main() {
   console.log(`wrote ${OUT} and ${OUTFITS}`);
 }
 
-main();
+// (Run as a script; imported, it only lends its packers: scripts/build-3d-avatar-maker-packs.mjs.)
+if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) main();

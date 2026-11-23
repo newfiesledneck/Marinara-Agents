@@ -103,7 +103,9 @@ SAME_AS = {}
 
 
 def split(fitted, how, body):
-    """The suit's faces by part: {"top": [...], "legs": [...]} (or shoes and socks)."""
+    """The suit's faces by part: {"top": [...], "legs": [...]} (or shoes and socks); `none`: all one part."""
+    if how == "none":
+        return {"all": list(range(len(fitted.faces)))}
     if how == "uv":
         # Faces sharing a texture coordinate are one panel.
         parent = {}

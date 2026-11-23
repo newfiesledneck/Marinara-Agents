@@ -8,6 +8,20 @@
       "bannerPath": "../../store/banners/3d-avatar-maker.webp",
       "bannerSmallPath": "../../store/banners/3d-avatar-maker-1200.webp"
     },
+    "3d-avatar-maker-wardrobe-everyday-men": {
+      "section": "alive",
+      "tagline": "Suits and everyday clothes for 3D Avatar Maker.",
+      "iconPath": "../../store/icons/3d-avatar-maker-wardrobe-everyday-men.webp",
+      "bannerPath": "../../store/banners/3d-avatar-maker-wardrobe-everyday-men.webp",
+      "bannerSmallPath": "../../store/banners/3d-avatar-maker-wardrobe-everyday-men-1200.webp"
+    },
+    "3d-avatar-maker-wardrobe-everyday-women": {
+      "section": "alive",
+      "tagline": "Dresses, tops, skirts and shoes for 3D Avatar Maker.",
+      "iconPath": "../../store/icons/3d-avatar-maker-wardrobe-everyday-women.webp",
+      "bannerPath": "../../store/banners/3d-avatar-maker-wardrobe-everyday-women.webp",
+      "bannerSmallPath": "../../store/banners/3d-avatar-maker-wardrobe-everyday-women-1200.webp"
+    },
     "modern-life-sim": {
       "section": "apps",
       "tagline": "A town, a job and rent with your cast.",

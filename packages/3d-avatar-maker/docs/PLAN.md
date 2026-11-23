@@ -76,6 +76,22 @@ poses with its arms lowered. Not yet checked in a real Engine.
 - The plan for community clothes (themed asset packs the maker finds through
   `/api/capability-packages/installed`) is in the shared notes (`avatar-asset-packs-plan.md`); not built yet.
 
+## Built (0.1.03)
+
+- Wardrobe packs (`src/packs.js`): staging-only packages `3d-avatar-maker-wardrobe-<theme>` with an
+  `avatar-pack.json` index and bundles in the kit's outfit format. The maker lists them through
+  `/api/capability-packages/installed`, reads each index as untrusted data (`readPack`: only its own slots,
+  parts and hide words, the body revision `BODY_REVISION`, declared bundles, CC-BY only with a credit), and
+  adds the pieces to the Clothes tab (`addPieces`). Saved files carry CC-BY credits (`licenceNote`). The
+  test page serves the repo's packs as if installed.
+- The first two packs, all CC0: Everyday Women's Clothes (26 pieces, 8.9 MiB) and Everyday Men's Clothes and
+  Suits (12 pieces, 4.2 MiB). One table (`assets/packs.json`) drives the fitting (`make_mh_packs.py`, reusing
+  `make_mh_clothes.py`) and the build (`scripts/build-3d-avatar-maker-packs.mjs`, reusing the kit packer's
+  `packOutfitPieces`). Left out: mindfront_kimono (fits badly), toigo_suit_with_jacket_and_bowtie (12.8k
+  vertices).
+- Next packs (from the plan note): accessories (needs face, ears, fingers and socks slots first),
+  historical and fantasy, modern casual (both with CC-BY items, credited).
+
 ## Next, in order
 
 1. **Dev catalog.** `_planning/scripts/update-dev-catalog.mjs` rebuilds only the packages in its

@@ -9,9 +9,11 @@ import { avatarChoices, createAvatar } from "./avatar.js";
 import { exportGlb, FILE_FORMAT, lookInGlb } from "./exporter.js";
 import { PACKAGE_ID, setKitBase } from "./kitfiles.js";
 import { checkLook, NEUTRAL_LOOK, OUTFIT_PRESETS, outfitLook } from "./looks.js";
+import { loadPacks } from "./packs.js";
 import { createPanel, h } from "./panel.js";
 import { createStage, POSES } from "./stage.js";
 import { STYLES } from "./styles.js";
+import { getJson } from "./util.js";
 
 const TAG = `marinara-capability-${PACKAGE_ID}`;
 const DRAFT_KEY = (owner) => `${PACKAGE_ID}:draft:${owner ? `${owner.type}:${owner.id}` : "none"}`;
@@ -19,15 +21,6 @@ const LAST_KEY = `${PACKAGE_ID}:last`;
 /** The look's fields that are records, merged part by part when a control changes one part. */
 const RECORDS = ["shape", "limbs", "colours", "underwear", "clothColours", "variants"];
 
-/** Same-origin JSON GET (the Engine's session rides along); null on any failure. */
-async function getJson(path) {
-  try {
-    const response = await fetch(path, { headers: { Accept: "application/json" } });
-    return response.ok ? await response.json() : null;
-  } catch {
-    return null;
-  }
-}
 const rows = (list) => (Array.isArray(list) ? list : Array.isArray(list?.items) ? list.items : []);
 /** A character card's name: rows keep the card as JSON in `data` (text or already read). */
 function cardName(row) {
@@ -384,20 +377,27 @@ function mount(element, props) {
   fillOwners();
   nameInput.value = state.name;
   render();
-  // The free draft first, so there is something to see while the Engine's lists load; then whoever was
-  // being worked on last time.
-  pickOwner("");
-  void listOwners().then((owners) => {
-    if (destroyed) return;
-    state.owners = owners;
-    const last = store.read(LAST_KEY);
-    const key = last ? `${last.type}:${last.id}` : "";
-    fillOwners();
-    if (key && owners.some((owner) => `${owner.type}:${owner.id}` === key)) {
-      ownerSelect.value = key;
-      pickOwner(key);
-    }
-  });
+  // The wardrobe packs first (packs.js): a draft read before them would lose the pack pieces it wears. Then
+  // the free draft, so there is something to see while the Engine's lists load, and then whoever was being
+  // worked on last time.
+  const listed = listOwners();
+  void loadPacks()
+    .then(() => {
+      if (destroyed) return null;
+      pickOwner("");
+      return listed;
+    })
+    .then((owners) => {
+      if (destroyed || !owners) return;
+      state.owners = owners;
+      const last = store.read(LAST_KEY);
+      const key = last ? `${last.type}:${last.id}` : "";
+      fillOwners();
+      if (key && owners.some((owner) => `${owner.type}:${owner.id}` === key)) {
+        ownerSelect.value = key;
+        pickOwner(key);
+      }
+    });
 
   return {
     destroy() {

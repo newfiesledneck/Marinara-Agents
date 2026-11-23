@@ -35,6 +35,22 @@ The package uses data from these items, read by `assets/scripts/make_avatar.py` 
 - Brows and lashes, baked onto MakeHuman's cards (`bake_brows.py` STYLES): eyebrows01_cc0 mindfront_eyebrows_02, _04,
   _07, _09; eyelashes01_cc0 mindfront_eyelashes_01, _05.
 
+## In the wardrobe packs (all CC0)
+
+The separate packages `3d-avatar-maker-wardrobe-everyday-women` and `-everyday-men` carry community clothes,
+listed with their authors in `assets/packs.json` and each pack's README, fitted by `make_mh_packs.py`. Every
+item's own `.mhclo` says CC0 too (Cortu's as "Cortu Johnstone - CC0").
+
+- Everyday women's: dress01_cc0 (eight toigo dresses, aethelraed_flapper_dress), shirts01_cc0 (six toigo tops,
+  joepal_crude_t-shirt_female), skirts01_cc0 (four toigo skirts), pants01_cc0 toigo_harem_pants, shoes01_cc0
+  (four toigo shoes, cortu_t-bar).
+- Everyday men's: suits01_cc0 (four toigo men's suits, toigo_female_double-breasted_suit, toigo_female_suit_2),
+  shirts01_cc0 namuhekam_male_polo_shirt and elvs_crude_t-shirt_male, pants01_cc0 toigo_wool_pants,
+  cortu_cargo_pants and cortu_jeans_shorts, shoes01_cc0 toigo_ankle_boots_male.
+- Left out for fit or size, not licence: mindfront_kimono (its scale references are helper vertices; fitted, it
+  had stray vertices a metre off the body and skin through it) and toigo_suit_with_jacket_and_bowtie (12.8k
+  vertices).
+
 ## Left out though the licence allows them
 
 - Skins painted bare (genitals in the picture), which a shareable avatar under underwear shouldn't carry: skins01_cc0

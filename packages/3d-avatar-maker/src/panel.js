@@ -32,6 +32,7 @@ import {
   LIMBS,
   OUTFIT_PRESETS,
   outfitLook,
+  PACK_PIECES,
   RACE_PARTS,
   RACE_SHAPES,
   RACES,
@@ -579,10 +580,18 @@ export function createPanel(actions) {
             );
             if (!on) return pick;
             const variants = CLOTH_VARIANTS[on.piece];
+            const pack = PACK_PIECES[on.piece];
             return h(
               "div",
               { class: "piece" },
               pick,
+              pack
+                ? h(
+                    "p",
+                    { class: "says" },
+                    `From ${pack.packName}, by ${pack.author}${pack.credit ? ` (${pack.licence.replace(/-/gu, " ")})` : ""}.`,
+                  )
+                : null,
               variants && on.variants?.length
                 ? row(
                     variants.label,

@@ -28,12 +28,20 @@ file you save, and you import that file yourself.
 | --- | --- |
 | Start | A ready-made look to begin from, a new male or female avatar, or a style (semi-real, or anime proportions) |
 | Body | Body, age, height; a race preset (human, dwarf, halfling, gnome, elf, half-elf, half-orc, tiefling) and six race sliders to mix; eight build sliders; arms, legs, torso and hips, and her bust in detail; arm and leg length, head size |
-| Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (46 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: beards, tusks, horns, a tail |
-| Skin and eyes | Nine skin pictures (three by three ages) or a colour of your own; pictured or coloured eyes; lip and nail colours |
+| Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (66 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: beards, tusks, horns, a tail |
+| Skin and eyes | 32 skin pictures (MakeHuman's nine in three ages, and 23 more) or a colour of your own; 24 pictured eyes or a colour; nail length and toenails; lip and nail colours |
 | Hair | 14 styles in any colour |
-| Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour |
+| Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus the clothes of any wardrobe packs you install |
 
 Every slider's middle is the body's own shape, and each control says what it changes.
+
+## Wardrobe packs
+
+More clothes come as separate packages you install from the catalog, such as 3D Avatar Maker: Everyday
+Women's Clothes and 3D Avatar Maker: Everyday Men's Clothes and Suits. The maker finds the installed packs
+when it opens (reload it after installing one) and lists their clothes in the Clothes tab, each with a line
+saying which pack it's from and who made it. It only reads a pack's files as data. A pack made for an older
+body is left out. If a pack piece is credited (CC BY), a saved avatar wearing it carries the credit.
 
 ## Keeping your work
 
@@ -83,6 +91,9 @@ its own copy of those files and code. A look saved from Wanderworld's Look card 
   `http://127.0.0.1:5197/`. `/viewer?file=/dev/out/last.glb` loads a saved file the way the Engine's 3D
   Avatars agent loads a GLB.
 - Test: `node tests/3d-avatar-maker.regression.mjs`.
+- Wardrobe packs: fitted by `assets/scripts/make_mh_packs.py` from `assets/packs.json`, built by
+  `node scripts/build-3d-avatar-maker-packs.mjs`. The test page serves the repo's `packages/3d-avatar-maker-*`
+  packs as if installed.
 - [AGENTS.md](AGENTS.md) has the rules for changing the models; [docs/PLAN.md](docs/PLAN.md) has what's
   built and what's next.
 

@@ -167,6 +167,14 @@ export const OFFICIAL_PACKAGE_GUIDANCE = Object.freeze({
     modes: ["conversation", "roleplay", "game"],
     activation: "Install it, then open Home → 3D Avatar Maker.",
   },
+  "3d-avatar-maker-wardrobe-everyday-women": {
+    modes: ["conversation", "roleplay", "game"],
+    activation: "Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+  },
+  "3d-avatar-maker-wardrobe-everyday-men": {
+    modes: ["conversation", "roleplay", "game"],
+    activation: "Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+  },
   "story-writer": {
     modes: ["conversation", "roleplay", "game"],
     activation: "Install it, restart Marinara Engine when prompted, then open Home → Story Writer.",

@@ -1,0 +1,662 @@
+{
+ "format": 1,
+ "for": "3d-avatar-maker",
+ "body": 1,
+ "maker": "0.1.03",
+ "name": "Everyday Women's Clothes",
+ "pieces": {
+  "aethelraed_flapper_dress": {
+   "label": "Flapper dress",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Aethelraed_Unraed",
+   "source": "http://www.makehumancommunity.org/node/581",
+   "credit": null
+  },
+  "cortu_t_bar": {
+   "label": "T-bar shoes",
+   "slot": "feet",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "shoe",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Cortu",
+   "source": "http://www.makehumancommunity.org/node/2801",
+   "credit": null
+  },
+  "joepal_crude_t_shirt_female": {
+   "label": "Plain T-shirt",
+   "slot": "top",
+   "bodies": [
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "underwear-top"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/tops.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Joel Palmius",
+   "source": "http://www.makehumancommunity.org/node/894",
+   "credit": null
+  },
+  "toigo_ankle_boots_female": {
+   "label": "Ankle boots",
+   "slot": "feet",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "feet"
+   ],
+   "parts": {
+    "female": [
+     [
+      "shoe",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1738",
+   "credit": null
+  },
+  "toigo_ballet_flats": {
+   "label": "Ballet flats",
+   "slot": "feet",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "shoe",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1734",
+   "credit": null
+  },
+  "toigo_ballet_flats_with_bows": {
+   "label": "Ballet flats with bows",
+   "slot": "feet",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "shoe",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1735",
+   "credit": null
+  },
+  "toigo_basic_tucked_t_shirt": {
+   "label": "Tucked T-shirt",
+   "slot": "top",
+   "bodies": [
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "underwear-top"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      9276813
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/tops.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1203",
+   "credit": null
+  },
+  "toigo_bodice_dress_with_lace_ruffle_skirt": {
+   "label": "Bodice dress, lace ruffle skirt",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1706",
+   "credit": null
+  },
+  "toigo_bodice_style_top": {
+   "label": "Bodice top",
+   "slot": "top",
+   "bodies": [
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "underwear-top"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/tops.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1667",
+   "credit": null
+  },
+  "toigo_camisole_dress_with_full_skirt": {
+   "label": "Camisole dress, full skirt",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1730",
+   "credit": null
+  },
+  "toigo_camisole_top": {
+   "label": "Camisole top",
+   "slot": "top",
+   "bodies": [
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "underwear-top"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/tops.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1726",
+   "credit": null
+  },
+  "toigo_cut_out_dress": {
+   "label": "Cut-out dress",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "upperarms",
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1704",
+   "credit": null
+  },
+  "toigo_fisherman_sweater": {
+   "label": "Fisherman sweater",
+   "slot": "top",
+   "bodies": [
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "upperarms",
+    "underwear-top"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      11221819
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/tops.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1187",
+   "credit": null
+  },
+  "toigo_halter_dress_knee_length": {
+   "label": "Halter dress, knee length",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      9906987
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1853",
+   "credit": null
+  },
+  "toigo_halter_dress_midi": {
+   "label": "Halter dress, midi",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      7412522
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1854",
+   "credit": null
+  },
+  "toigo_halter_dress_with_fluted_skirt": {
+   "label": "Halter dress, fluted skirt",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1855",
+   "credit": null
+  },
+  "toigo_harem_pants": {
+   "label": "Harem trousers",
+   "slot": "legs",
+   "bodies": [
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/legs.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1728",
+   "credit": null
+  },
+  "toigo_keyhole_tank_top": {
+   "label": "Keyhole tank top",
+   "slot": "top",
+   "bodies": [
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "underwear-top"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/tops.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1606",
+   "credit": null
+  },
+  "toigo_long_full_skirt": {
+   "label": "Long full skirt",
+   "slot": "legs",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/legs.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1727",
+   "credit": null
+  },
+  "toigo_mj_cloth_shoes": {
+   "label": "Mary Jane cloth shoes",
+   "slot": "feet",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "shoe",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1700",
+   "credit": null
+  },
+  "toigo_shift_dress": {
+   "label": "Shift dress",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      3355443
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1724",
+   "credit": null
+  },
+  "toigo_skirt_with_lace_ruffle": {
+   "label": "Skirt with lace ruffle",
+   "slot": "legs",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/legs.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1731",
+   "credit": null
+  },
+  "toigo_strapless_ruffle_top_dress": {
+   "label": "Strapless ruffle dress",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1705",
+   "credit": null
+  },
+  "toigo_tiered_mini_skirt": {
+   "label": "Tiered mini skirt",
+   "slot": "legs",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      8816262
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/legs.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1668",
+   "credit": null
+  },
+  "toigo_tiered_skirt": {
+   "label": "Tiered skirt",
+   "slot": "legs",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/legs.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1641",
+   "credit": null
+  },
+  "toigo_turtleneck_halter_top": {
+   "label": "Turtleneck halter top",
+   "slot": "top",
+   "bodies": [
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "underwear-top"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/tops.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MargaretToigo",
+   "source": "http://www.makehumancommunity.org/node/1642",
+   "credit": null
+  }
+ }
+}

@@ -1256,6 +1256,23 @@ export const CLOTHES = [
 ];
 /** A piece's slot, by its name. */
 export const SLOT_OF = Object.fromEntries(CLOTHES.map(([piece, , slot]) => [piece, slot]));
+/** The pieces installed wardrobe packs add (packs.js), each its checked index entry: { piece: entry }. */
+export const PACK_PIECES = {};
+/**
+ * Adds wardrobe packs' pieces ([{ piece, label, slot, … }], checked by packs.js) to the lists above, so the
+ * Clothes tab offers them and checkLook keeps them.
+ */
+// ponytail: CLOTHES, SLOT_OF and PACK_PIECES are module lists changed in place, so the packs are found once
+// a page (a pack installed while the maker is open shows after a reload); a registry object passed to the
+// builder and the panel is the upgrade if packs are ever added or removed while the page is open.
+export function addPieces(pieces) {
+  for (const entry of pieces) {
+    if (Object.hasOwn(SLOT_OF, entry.piece)) continue;
+    CLOTHES.push([entry.piece, entry.label, entry.slot]);
+    SLOT_OF[entry.piece] = entry.slot;
+    PACK_PIECES[entry.piece] = entry;
+  }
+}
 /** The other ways a piece can be worn: { piece: { label, says, ways: [[variant ("" is the usual), label]] } }.
  *  One shows at a time. */
 export const CLOTH_VARIANTS = {

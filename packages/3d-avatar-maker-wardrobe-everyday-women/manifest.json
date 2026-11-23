@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 2,
+  "capabilityApi": {
+    "major": 1,
+    "minor": 66
+  },
+  "builtAgainst": {
+    "engineVersion": "2.5.2",
+    "engineCommit": "fc0333c3fe978cda5e0b919bd6faec985901704e"
+  },
+  "id": "3d-avatar-maker-wardrobe-everyday-women",
+  "name": "3D Avatar Maker: Everyday Women's Clothes",
+  "version": "0.1.00",
+  "description": "26 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.03 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+  "engine": {
+    "min": "2.4.6",
+    "maxExclusive": "4.0.0"
+  },
+  "kind": [
+    "agent"
+  ],
+  "entrypoints": {
+    "agents": "agents.json"
+  },
+  "contributions": {
+    "assets": {
+      "paths": [
+        "avatar-pack.json",
+        "wardrobe/body.pack.png",
+        "wardrobe/feet.pack.png",
+        "wardrobe/legs.pack.png",
+        "wardrobe/tops.pack.png"
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "agents.json",
+      "sha256": "34175230a3ccfa5878fb15c9aa1469acf8edf3bad112642975de242e49de6333",
+      "bytes": 746
+    },
+    {
+      "path": "avatar-pack.json",
+      "sha256": "891e0be8eadc7cdb06c925e73aa9125fd88b8d28486ac6487564c4722cd73322",
+      "bytes": 12105
+    },
+    {
+      "path": "wardrobe/body.pack.png",
+      "sha256": "fbc71d2e486590963a1df3e03df645272b5db5c55ef0d49dc7b59c8fea2a8d16",
+      "bytes": 4145575
+    },
+    {
+      "path": "wardrobe/feet.pack.png",
+      "sha256": "4432c85f6d4eada00497374a436013386a8654bc5e5cc747c0d5c644e88e3b37",
+      "bytes": 904335
+    },
+    {
+      "path": "wardrobe/legs.pack.png",
+      "sha256": "10082987acc4960acb79a33a56baad2b4a561cd609114d45db5c517de8895333",
+      "bytes": 2363932
+    },
+    {
+      "path": "wardrobe/tops.pack.png",
+      "sha256": "b980fa3edb312f4a76f6a6f84f698bea34797f18d5f1d888ac9cb573dd3baaf0",
+      "bytes": 1915238
+    }
+  ],
+  "permissions": [],
+  "restartRequired": false
+}
