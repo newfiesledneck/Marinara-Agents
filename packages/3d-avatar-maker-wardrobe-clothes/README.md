@@ -1,8 +1,8 @@
 # 3D Avatar Maker: Clothes
 
-178 pieces of clothing for [3D Avatar Maker](../3d-avatar-maker/README.md): dresses and gowns, suits,
+186 pieces of clothing for [3D Avatar Maker](../3d-avatar-maker/README.md): dresses and gowns, suits,
 jumpsuits and one-pieces, shirts, tops, sweaters and jackets, a winter coat, trousers, jeans, shorts and skirts,
-underwear and swimwear, and shoes and boots, for the female body, the male body or both. They come from the
+underwear, lingerie and swimwear, and shoes and boots, for the female body, the male body or both. They come from the
 MakeHuman community. Most are CC BY, so they are free to share as long as their makers are credited. The maker
 does that for you: a saved avatar names the maker of every CC BY piece it wears. The rest are CC0.
 
@@ -13,13 +13,15 @@ with one of them still finds its clothes. Their hats, hoods and circlet are in
 packs once this one is installed.
 
 This package holds data only. It has no Home tab, no code and no permissions. It needs **3D Avatar Maker
-0.1.03 or later**, which finds it when both are installed.
+0.1.11 or later**, which finds it when both are installed and offers its bras, briefs and other underwear in
+the Underwear lists. An older maker leaves the underwear out.
 
 ## Use it
 
 1. Install **3D Avatar Maker** and this package from **Agents → Agent Organizer**. Neither needs a restart.
 2. Open **Home → 3D Avatar Maker** and go to the **Clothes** tab. The pieces below appear beside the maker's
-   own, in the slot each is worn in. Under a piece, a line names the pack, its maker and its licence.
+   own, in the slot each is worn in, and the underwear in the Underwear group's Top and Bottom lists. Under a
+   piece, a line names the pack, its maker and its licence.
 
 A piece is fitted to the maker's bodies as of 3D Avatar Maker 0.1.02, and follows their build sliders. A
 maker whose bodies have changed since then leaves the pack out until the pack is fitted again.
@@ -89,6 +91,8 @@ maker whose bodies have changed since then leaves the pack out until the pack is
 | Halter romper | Female | Whole outfit | Any colour |
 | Cut-out swimsuit | Female | Whole outfit | Any colour |
 | Shapewear | Female | Whole outfit | Its own picture |
+| Lace teddy | Female | Whole outfit | Its own picture |
+| Suspender belt | Female | Belt | Any colour |
 | Tucked T-shirt | Female | Shirt or top | Any colour |
 | Camisole top | Female | Shirt or top | Its own picture |
 | Keyhole tank top | Female | Shirt or top | Its own picture |
@@ -122,15 +126,17 @@ maker whose bodies have changed since then leaves the pack out until the pack is
 | Muscle shirt | Male | Shirt or top | Any colour |
 | Tank shirt | Male | Shirt or top | Any colour |
 | Sleeveless shirt | Female | Shirt or top | Any colour |
-| Bra top | Female | Shirt or top | Its own picture |
-| Bandeau bikini top | Female | Shirt or top | Its own picture |
-| Bikini top | Female | Shirt or top | Its own picture |
-| Brazilian bikini top | Female | Shirt or top | Its own picture |
-| Lace bra | Female | Shirt or top | Any colour |
-| Frilled bikini top | Female | Shirt or top | Its own picture |
-| Sports bra | Female | Shirt or top | Any colour |
-| Gathered bandeau top | Female | Shirt or top | Its own picture |
-| Plain bra | Female | Shirt or top | Any colour |
+| Bra top | Female | Underwear top | Its own picture |
+| Bandeau bikini top | Female | Underwear top | Its own picture |
+| Bikini top | Female | Underwear top | Its own picture |
+| Brazilian bikini top | Female | Underwear top | Its own picture |
+| Lace bra | Female | Underwear top | Any colour |
+| Frilled bikini top | Female | Underwear top | Its own picture |
+| Sports bra | Female | Underwear top | Any colour |
+| Gathered bandeau top | Female | Underwear top | Its own picture |
+| Plain bra | Female | Underwear top | Any colour |
+| Bra with a bow | Female | Underwear top | Its own picture |
+| Lace camisole | Female | Underwear top | Its own picture |
 | Tunic with a sash | Both | Over the shirt | Its own picture |
 | Hooded sweat jacket | Female | Over the shirt | Any colour |
 | Long open cardigan | Female | Over the shirt | Its own picture |
@@ -172,16 +178,20 @@ maker whose bodies have changed since then leaves the pack out until the pack is
 | Gored midi skirt | Female | Legs | Any colour |
 | Pleated tartan mini skirt | Female | Legs | Its own picture |
 | Long skirt, striped hem | Female | Legs | Its own picture |
-| Briefs | Female | Legs | Any colour |
-| Lace shorts | Female | Legs | Any colour |
-| Scalloped briefs | Female | Legs | Its own picture |
-| Bandeau bikini bottom | Female | Legs | Its own picture |
-| Bikini bottom | Female | Legs | Its own picture |
-| Brazilian bikini bottom | Female | Legs | Its own picture |
-| Lace briefs | Female | Legs | Any colour |
-| Frilled bikini bottom | Female | Legs | Its own picture |
-| Sports briefs | Female | Legs | Any colour |
-| Swim shorts, gathered | Female | Legs | Its own picture |
+| Briefs | Female | Underwear bottom | Any colour |
+| Lace shorts | Female | Underwear bottom | Any colour |
+| Scalloped briefs | Female | Underwear bottom | Its own picture |
+| Bandeau bikini bottom | Female | Underwear bottom | Its own picture |
+| Bikini bottom | Female | Underwear bottom | Its own picture |
+| Brazilian bikini bottom | Female | Underwear bottom | Its own picture |
+| Lace briefs | Female | Underwear bottom | Any colour |
+| Frilled bikini bottom | Female | Underwear bottom | Its own picture |
+| Sports briefs | Female | Underwear bottom | Any colour |
+| Swim shorts, gathered | Female | Underwear bottom | Its own picture |
+| Briefs with a bow | Female | Underwear bottom | Its own picture |
+| Embroidered briefs | Female | Underwear bottom | Its own picture |
+| Lace thong | Female | Underwear bottom | Any colour |
+| Strappy lace thong | Female | Underwear bottom | Any colour |
 | Ballet flats | Female | Feet | Its own picture |
 | Ballet flats with bows | Female | Feet | Its own picture |
 | Ankle boots | Female | Feet | Its own picture |
@@ -208,13 +218,16 @@ maker whose bodies have changed since then leaves the pack out until the pack is
 | Tight leather boots | Female | Feet | Any colour |
 
 "Any colour" pieces are plain cloth the maker dyes. The others keep their own picture, which a colour of your
-own tints. A bra or bikini top is worn in the Shirt or top slot and briefs in the Legs slot, so each takes the
-place of the body's own underwear; a swimsuit or bodysuit is a whole outfit. The flip-flops leave the feet
-showing.
+own tints. Underwear (bras, bikini tops, briefs, thongs and bikini bottoms) is chosen in the Underwear lists in
+place of the body's own, and is always the innermost layer; "Any colour" underwear takes the Underwear colour.
+It stays on under clothes unless the maker's "Show underwear under clothes" is off. A swimsuit, bodysuit,
+shapewear, the teddy and the men's swimming trunks are worn on bare skin, so the underwear they cover is left
+off under them. The suspender belt is worn in the Belt slot, over whatever is on the hips. The flip-flops leave
+the feet showing.
 
 ## Credits
 
-137 of the 178 pieces are licensed under Creative Commons Attribution, version 3.0 or 4.0 as
+145 of the 186 pieces are licensed under Creative Commons Attribution, version 3.0 or 4.0 as
 the table says ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/),
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)), by these MakeHuman community authors:
 DredNicolson (CC BY 4.0), Elvaerwyn (CC BY 4.0), janexx (CC BY 4.0), Joel Palmius (CC BY 4.0), madmanny (CC BY 4.0), Mindfront (CC BY 4.0), MTKnife (CC BY 4.0), punkduck (CC BY 3.0, CC BY 4.0). The other 41 are CC0 1.0
@@ -287,6 +300,8 @@ the maker carries each worn CC BY piece's credit in the file.
 | Halter romper (`punkduck_halterneck_romper`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/803 |
 | Cut-out swimsuit (`punkduck_one_piece_bikini01`) | punkduck | CC BY 4.0 | http://www.makehumancommunity.org/node/1483 |
 | Shapewear (`punkduck_shapewear`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/555 |
+| Lace teddy (`punkduck_teddy_erotic_lingerie`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/424 |
+| Suspender belt (`punkduck_french_lingerie_suspender_belt`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/930 |
 | Tucked T-shirt (`toigo_basic_tucked_t-shirt`) | MargaretToigo | CC0 1.0 | http://www.makehumancommunity.org/node/1203 |
 | Camisole top (`toigo_camisole_top`) | MargaretToigo | CC0 1.0 | http://www.makehumancommunity.org/node/1726 |
 | Keyhole tank top (`toigo_keyhole_tank_top`) | MargaretToigo | CC0 1.0 | http://www.makehumancommunity.org/node/1606 |
@@ -329,6 +344,8 @@ the maker carries each worn CC BY piece's credit in the file.
 | Sports bra (`punkduck_sport_bra`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/1225 |
 | Gathered bandeau top (`elvs_bandeau_swimwear_top_1`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1956 |
 | Plain bra (`joepal_plain_bra`) | Joel Palmius | CC BY 4.0 | http://www.makehumancommunity.org/node/3384 |
+| Bra with a bow (`elvs_bow_front_bra`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1666 |
+| Lace camisole (`elvs_camisole1`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1930 |
 | Tunic with a sash (`drednicolson_asymmetric_tunic_and_sash`) | DredNicolson | CC BY 4.0 | http://www.makehumancommunity.org/node/409 |
 | Hooded sweat jacket (`elvs_hooded_sweat_jacket1`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1450 |
 | Long open cardigan (`mindfront_cardigan_long_open_front`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/1528 |
@@ -380,6 +397,10 @@ the maker carries each worn CC BY piece's credit in the file.
 | Frilled bikini bottom (`punkduck_frill_bikini_bottom`) | punkduck | CC BY 4.0 | http://www.makehumancommunity.org/node/1504 |
 | Sports briefs (`punkduck_sport_briefs`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/749 |
 | Swim shorts, gathered (`elvs_swimwear_micro_shorts`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1957 |
+| Briefs with a bow (`elvs_bow_bottom_panty`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1665 |
+| Embroidered briefs (`punkduck_string_5`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/542 |
+| Lace thong (`punkduck_french_lingerie_thong`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/1064 |
+| Strappy lace thong (`punkduck_strappy_lace_thong`) | punkduck | CC BY 4.0 | http://www.makehumancommunity.org/node/1166 |
 | Ballet flats (`toigo_ballet_flats`) | MargaretToigo | CC0 1.0 | http://www.makehumancommunity.org/node/1734 |
 | Ballet flats with bows (`toigo_ballet_flats_with_bows`) | MargaretToigo | CC0 1.0 | http://www.makehumancommunity.org/node/1735 |
 | Ankle boots (`toigo_ankle_boots_female`) | MargaretToigo | CC0 1.0 | http://www.makehumancommunity.org/node/1738 |

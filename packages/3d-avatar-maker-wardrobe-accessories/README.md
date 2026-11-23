@@ -1,8 +1,8 @@
 # 3D Avatar Maker: Accessories
 
-45 accessories for [3D Avatar Maker](../3d-avatar-maker/README.md): hats, caps and helmets, hoods, a veil and a
-headband, a brass circlet, glasses, goggles and sunglasses, a medical mask, a respirator and a gas mask, pearl
-earrings, two rings, gloves in three lengths, and socks, leg warmers and stockings. They come from the MakeHuman
+47 accessories for [3D Avatar Maker](../3d-avatar-maker/README.md): hats, caps and helmets, hoods, a veil, a
+headband and a feather headdress, a brass circlet, glasses, goggles and sunglasses, a medical mask, a respirator and a gas mask, pearl
+earrings, a lace choker, two rings, gloves in three lengths, and socks, leg warmers and stockings. They come from the MakeHuman
 community. Some are CC BY, so they are free to share as long as their makers are credited. The maker does that
 for you: a saved avatar names the maker of every CC BY piece it wears. The rest are CC0.
 
@@ -10,7 +10,7 @@ Since 0.2.00 this pack also holds the headwear of the retired Historical and Fan
 under the same names. Their clothes are in [3D Avatar Maker: Clothes](../3d-avatar-maker-wardrobe-clothes/README.md).
 
 This package holds data only. It has no Home tab, no code and no permissions. It needs **3D Avatar Maker
-0.1.04 or later**, which added the Glasses, Face mask, Earrings, Rings and Socks slots it uses. The maker
+0.1.10 or later**, which has the Glasses, Face mask, Earrings, Necklace, Rings and Socks slots it uses. The maker
 finds it when both are installed.
 
 ## Use it
@@ -39,6 +39,7 @@ maker whose bodies have changed since then leaves the pack out until the pack is
 | Knitted hat | Both | Head | Any colour |
 | Sherpa hat | Both | Head | Its own picture |
 | Santa hat | Both | Head | Its own picture |
+| Feather headdress | Both | Head | Its own picture |
 | Chef's hat | Both | Head | Any colour |
 | Fishing hat | Both | Head | Its own picture |
 | Patrol cap | Both | Head | Its own picture |
@@ -61,6 +62,7 @@ maker whose bodies have changed since then leaves the pack out until the pack is
 | Medical mask | Both | Face mask | Its own picture |
 | Respirator mask | Both | Face mask | Any colour |
 | Pearl earrings | Both | Earrings | Its own picture |
+| Lace choker | Both | Necklace | Its own picture |
 | Gloves, short | Both | Hands | Any colour |
 | Gloves, to the elbow | Both | Hands | Any colour |
 | Opera gloves | Both | Hands | Any colour |
@@ -74,12 +76,12 @@ maker whose bodies have changed since then leaves the pack out until the pack is
 
 "Any colour" pieces are plain, and the maker dyes them. The others keep their own picture, which a colour of
 your own tints. Gloves hide a ring, and socks hide the toenails; socks go under any shoes. Most hats and helmets
-hide the hair; the headband, the circlet and the sun visor sit over it, and the gas mask covers the whole head.
+hide the hair; the headband, the feather headdress, the circlet and the sun visor sit over it, and the gas mask covers the whole head.
 The glasses' lenses are clear, except the sunglasses'.
 
 ## Credits
 
-24 of the 45 pieces are licensed under Creative Commons Attribution, version 3.0 or 4.0 as
+26 of the 47 pieces are licensed under Creative Commons Attribution, version 3.0 or 4.0 as
 the table says ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/),
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)), by these MakeHuman community authors:
 DredNicolson (CC BY 4.0), Elvaerwyn (CC BY 4.0), Mathias_Gredal (CC BY 4.0), Mindfront (CC BY 4.0), punkduck (CC BY 3.0, CC BY 4.0). The other 21 are CC0 1.0
@@ -104,6 +106,7 @@ the maker carries each worn CC BY piece's credit in the file.
 | Knitted hat (`mindfront_knitted_hat_01`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/745 |
 | Sherpa hat (`mindfront_sherpa_hat`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/3172 |
 | Santa hat (`elvs_santa_hat`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1273 |
+| Feather headdress (`elvs_basic_brave_feathers1`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1312 |
 | Chef's hat (`elvs_unisex_chef_hat_1`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/2967 |
 | Fishing hat (`mindfront_fishing_hat_01`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/337 |
 | Patrol cap (`mindfront_patrol_cap`) | Mindfront | CC BY 4.0 | http://www.makehumancommunity.org/node/841 |
@@ -126,6 +129,7 @@ the maker carries each worn CC BY piece's credit in the file.
 | Medical mask (`joepal_medical_mouth_protection`) | Joel Palmius | CC0 1.0 | http://www.makehumancommunity.org/node/2369 |
 | Respirator mask (`elvs_covid_mask`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/2523 |
 | Pearl earrings (`toigo_pearl_earrings`) | MargaretToigo | CC0 1.0 | http://www.makehumancommunity.org/node/1029 |
+| Lace choker (`punkduck_lace-choker`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/792 |
 | Gloves, short (`toigo_gloves_short`) | MargaretToigo | CC0 1.0 | http://www.makehumancommunity.org/node/1852 |
 | Gloves, to the elbow (`toigo_gloves_medium`) | MargaretToigo | CC0 1.0 | http://www.makehumancommunity.org/node/1851 |
 | Opera gloves (`toigo_gloves_long`) | MargaretToigo | CC0 1.0 | http://www.makehumancommunity.org/node/1850 |

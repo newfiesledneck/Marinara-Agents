@@ -197,6 +197,14 @@ function colours(name, list, current, onPick, says = "") {
   );
 }
 
+/** A list's [value, label] choices, a pack's named for its pack where another choice has the same label. */
+const namedChoices = (choices) =>
+  choices.map(([value, label]) =>
+    Object.hasOwn(PACK_PIECES, value) && choices.some(([other, same]) => other !== value && same === label)
+      ? [value, `${label} (${PACK_PIECES[value].packName})`]
+      : [value, label],
+  );
+
 /** Where a pack's piece or hair style (id in list, looks.js PACK_PIECES or PACK_HAIR) is from, or null. */
 const fromPack = (list, id) => {
   const pack = Object.hasOwn(list, id) ? list[id] : null;
@@ -605,7 +613,9 @@ export function createPanel(actions) {
       group(
         "Hair",
         "",
-        missing(look).hair ? h("p", { class: "says" }, missingNotes({ ...look, clothes: [] }).join(" ")) : null,
+        missing(look).hair
+          ? h("p", { class: "says" }, missingNotes({ hair: look.hair, fromPacks: look.fromPacks }).join(" "))
+          : null,
         row(
           "Style",
           select(
@@ -676,29 +686,69 @@ export function createPanel(actions) {
         ),
         group(
           "Underwear",
-          "Hidden by whatever is worn over it.",
+          "Always the innermost layer. Installed wardrobe packs add more to each list. A swimsuit or bodysuit worn on its own leaves it off.",
+          // (Underwear from a pack that isn't installed: kept in the look, not worn, as a piece is.)
+          ...missing(look).underwear.map((style) =>
+            h(
+              "div",
+              { class: "piece" },
+              h(
+                "p",
+                { class: "says" },
+                missingNotes({ underwear: { top: style }, fromPacks: look.fromPacks }).join(" "),
+              ),
+              h(
+                "button",
+                {
+                  type: "button",
+                  onclick: () =>
+                    change({ underwear: { [style === filled.underwear.top ? "top" : "bottom"]: undefined } }),
+                },
+                "Take it out of the look",
+              ),
+            ),
+          ),
           choices.tops.length
             ? row(
                 "Top",
                 select(
-                  [[BARE, "None"], ...UNDERWEAR_TOPS.filter(([style]) => choices.tops.includes(style))],
+                  namedChoices([[BARE, "None"], ...UNDERWEAR_TOPS.filter(([style]) => choices.tops.includes(style))]),
                   filled.underwear.top,
                   (value) => change({ underwear: { top: value } }),
                   "Underwear top",
                 ),
               )
             : null,
+          fromPack(PACK_PIECES, filled.underwear.top),
           row(
             "Bottom",
             select(
-              [[BARE, "None"], ...UNDERWEAR_BOTTOMS.filter(([style]) => choices.bottoms.includes(style))],
+              namedChoices([[BARE, "None"], ...UNDERWEAR_BOTTOMS.filter(([style]) => choices.bottoms.includes(style))]),
               filled.underwear.bottom,
               (value) => change({ underwear: { bottom: value } }),
               "Underwear bottom",
             ),
           ),
-          colours("Colour", CLOTH_COLOURS, filled.colours.underwear, (hex, redraw) =>
-            change({ colours: { underwear: hex } }, redraw),
+          fromPack(PACK_PIECES, filled.underwear.bottom),
+          row(
+            "Show underwear under clothes",
+            select(
+              [
+                ["on", "On"],
+                ["off", "Off"],
+              ],
+              filled.underwear.underClothes ? "on" : "off",
+              (value) => change({ underwear: { underClothes: value === "on" } }),
+              "Show underwear under clothes",
+            ),
+            "On: the underwear stays on under clothes, so a bra strap can show at an open neckline and briefs under a skirt. Clothes aren't fitted around underwear yet, so it pokes through many of them. Off: clothes hide the underwear they cover, which avoids that.",
+          ),
+          colours(
+            "Colour",
+            CLOTH_COLOURS,
+            filled.colours.underwear,
+            (hex, redraw) => change({ colours: { underwear: hex } }, redraw),
+            "Dyes the underwear, a pack's too where it's made to be dyed; a patterned piece keeps its own colours.",
           ),
         ),
         group(

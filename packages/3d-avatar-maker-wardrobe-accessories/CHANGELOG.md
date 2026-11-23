@@ -1,5 +1,9 @@
 # 3D Avatar Maker: Accessories release notes
 
+## 0.2.01 — 2026-11-23
+
+- 2 new pieces: a feather headdress and a lace choker (in the Necklace slot). Needs 3D Avatar Maker 0.1.10 or later, which added that slot.
+
 ## 0.2.00 — 2026-11-23
 
 - The hats, hoods, veil, headband, top hat, pith helmet and brass circlet from the retired Historical and Fantasy and Modern Casual packs are here now, with the same names, so saved avatars still find them. Clothes went to the new 3D Avatar Maker: Clothes pack.

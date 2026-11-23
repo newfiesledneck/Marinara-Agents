@@ -162,6 +162,12 @@ export const PIECE_ID = /^[a-z0-9_]{1,64}$/u;
 const PACK_ID = /^3d-avatar-maker-[a-z0-9-]{1,80}$/u;
 /** An id a look may keep while no installed pack has it: well-formed, and not one of every object's own names. */
 const keepable = (id) => typeof id === "string" && PIECE_ID.test(id) && !(id in Object.prototype);
+/** Whether an id is a piece, hair style or underwear style the kit or an installed pack has. */
+const known = (id) =>
+  Object.hasOwn(SLOT_OF, id) ||
+  [HAIRSTYLES, UNDERWEAR_TOPS, UNDERWEAR_BOTTOMS].some((list) => list.some(([style]) => style === id));
+/** An id kept for a pack that isn't installed: well-formed, and nothing the kit or an installed pack has. */
+const waitingId = (id) => id !== BARE && keepable(id) && !known(id);
 const shortText = (value, most) =>
   typeof value === "string" && value.trim() && value.length <= most ? value.trim() : null;
 
@@ -194,8 +200,7 @@ export function checkLook(raw) {
   if (Object.keys(tints).length) look.tints = tints;
   const hair = Object.hasOwn(OLDER_HAIR, raw.hair) ? OLDER_HAIR[raw.hair] : raw.hair;
   // (A style no installed pack has is kept, not worn: it comes back when its pack is installed again.)
-  if (HAIRSTYLES.some(([style]) => style === hair) || (keepable(hair) && !Object.hasOwn(SLOT_OF, hair)))
-    look.hair = hair;
+  if (HAIRSTYLES.some(([style]) => style === hair) || waitingId(hair)) look.hair = hair;
   const within = (value, count) => Number.isInteger(value) && value >= 0 && value < count;
   if (within(raw.hairColour, HAIR_COLOURS.length)) look.hairColour = raw.hairColour;
   if (isColour(raw.hairTint)) look.hairTint = raw.hairTint;
@@ -267,14 +272,15 @@ export function checkLook(raw) {
   }
   if (Object.keys(colours).length) look.colours = colours;
   if (Object.keys(makeup).length) look.makeup = makeup;
+  // Underwear: a style of each, the kit's or an installed pack's (UNDERWEAR_SLOTS), or a pack's that isn't
+  // installed (kept, not worn, as a piece is); and whether it shows under clothes (missing: it does).
   const underwear = {};
-  for (const [field, styles] of [
-    ["top", UNDERWEAR_TOPS],
-    ["bottom", UNDERWEAR_BOTTOMS],
-  ]) {
+  for (const [, field, styles] of UNDERWEAR_SLOTS) {
     const value = isRecord(raw.underwear) ? raw.underwear[field] : undefined;
-    if (value === BARE || styles.some(([style]) => style === value)) underwear[field] = value;
+    if (value === BARE || styles.some(([style]) => style === value) || waitingId(value)) underwear[field] = value;
   }
+  if (isRecord(raw.underwear) && typeof raw.underwear.underClothes === "boolean")
+    underwear.underClothes = raw.underwear.underClothes;
   if (Object.keys(underwear).length) look.underwear = underwear;
   // Clothing: known pieces (CLOTHES), the first one a slot; an empty list is nothing on (not the name's
   // everyday clothes). Each piece's part colours, and the way it's worn (a cloak's hood up), when known.
@@ -286,28 +292,20 @@ export function checkLook(raw) {
     for (const piece of raw.clothes) {
       if (Object.hasOwn(SLOT_OF, piece)) {
         if (!bySlot.has(SLOT_OF[piece])) bySlot.set(SLOT_OF[piece], piece);
-      } else if (
-        keepable(piece) &&
-        !HAIRSTYLES.some(([style]) => style === piece) &&
-        !waiting.includes(piece) &&
-        waiting.length < CLOTH_SLOTS.length
-      )
+      } else if (waitingId(piece) && !waiting.includes(piece) && waiting.length < CLOTH_SLOTS.length)
         waiting.push(piece);
     }
     look.clothes = [...bySlot.values(), ...waiting];
   }
-  // Which pack each pack piece and hair style worn came from, so the maker can name it while it's missing:
-  // { id: { pack, name, label } }, from the installed pack, else as the look recorded it.
+  // Which pack each pack piece, hair style and underwear worn came from, so the maker can name it while it's
+  // missing: { id: { pack, name, label } }, from the installed pack, else as the look recorded it.
   const fromPacks = {};
-  for (const id of [...(look.clothes ?? []), ...(look.hair ? [look.hair] : [])]) {
+  for (const id of [...(look.clothes ?? []), look.hair, look.underwear?.top, look.underwear?.bottom]) {
+    if (!id) continue;
     const own = packEntry(id);
     const said = isRecord(raw.fromPacks) && Object.hasOwn(raw.fromPacks, id) ? raw.fromPacks[id] : null;
     if (own) fromPacks[id] = { pack: own.pack, name: own.packName, label: own.label };
-    else if (
-      (waiting.includes(id) || (id === look.hair && !HAIRSTYLES.some(([style]) => style === id))) &&
-      isRecord(said) &&
-      PACK_ID.test(said.pack ?? "")
-    )
+    else if (waitingId(id) && isRecord(said) && PACK_ID.test(said.pack ?? ""))
       fromPacks[id] = {
         pack: said.pack,
         name: shortText(said.name, 80) ?? said.pack,
@@ -346,7 +344,8 @@ export function checkLook(raw) {
 //     colours: { skin, eyes, … },    each part's colour (0xRRGGBB): AVATAR_COLOURS
 //     makeup: { eyeshadow: { colour, amount }, eyeliner, blush, lipstick: { amount } },  MAKEUP_LAYERS, each
 //                                    optional (missing: none; a lipstick's colour is colours.lips)
-//     underwear: { top, bottom },    a style of each (UNDERWEAR_TOPS, UNDERWEAR_BOTTOMS), or "none"
+//     underwear: { top, bottom,      a style of each (UNDERWEAR_TOPS, UNDERWEAR_BOTTOMS: the kit's and the
+//                  underClothes },   packs'), or "none"; and whether it shows under clothes (missing: yes)
 //     clothes: [piece, …],           outfit pieces worn (CLOTHES), one a slot; missing: their work's (avatar.js).
 //                                    A pack's piece whose pack isn't installed stays here, not worn
 //     clothColours: { piece: { part: 0xRRGGBB } },  a colour of one's own for a piece's part (CLOTH_PARTS)
@@ -1273,6 +1272,27 @@ export const UNDERWEAR_BOTTOMS = [
   ["bikini", "Bikini"],
   ["thong", "Thong"],
 ];
+/**
+ * The underwear slots a wardrobe pack's piece may name (packs.js): such a piece is a choice in the look's
+ * `underwear` (the Underwear top or bottom list, where addPieces puts it), not a slot on the Clothes tab, and is
+ * always worn as the innermost layer: [slot, the underwear field, its list].
+ */
+export const UNDERWEAR_SLOTS = [
+  ["underwear_top", "top", UNDERWEAR_TOPS],
+  ["underwear_bottom", "bottom", UNDERWEAR_BOTTOMS],
+];
+/**
+ * The kit's pieces worn on bare skin, in place of underwear: the underwear they cover (by their hide words) is
+ * left off under them even when the look shows underwear under clothes. A pack's piece says so itself
+ * (packs.js `noUnderwear`).
+ */
+export const NO_UNDERWEAR = new Set([
+  "one_piece_swimsuit",
+  "bikini_top",
+  "bikini_bottom",
+  "swim_trunks",
+  "bikini_armour",
+]);
 
 // ── The base avatar's clothing (avatar.js; kit/fantasy/avatar) ──
 //
@@ -1506,18 +1526,26 @@ export const PACK_PIECES = {};
 // builder and the panel is the upgrade if packs are ever added or removed while the page is open.
 export function addPieces(pieces) {
   for (const entry of pieces) {
-    if (Object.hasOwn(SLOT_OF, entry.piece)) continue;
-    CLOTHES.push([entry.piece, entry.label, entry.slot]);
-    SLOT_OF[entry.piece] = entry.slot;
+    if (known(entry.piece)) continue;
+    // (Underwear goes in its list, UNDERWEAR_SLOTS, and is chosen as the look's `underwear`.)
+    const underwear = UNDERWEAR_SLOTS.find(([slot]) => slot === entry.slot);
+    if (underwear) underwear[2].push([entry.piece, entry.label]);
+    else {
+      CLOTHES.push([entry.piece, entry.label, entry.slot]);
+      SLOT_OF[entry.piece] = entry.slot;
+    }
     PACK_PIECES[entry.piece] = entry;
   }
 }
+/** Whether `id` is an installed pack's underwear (UNDERWEAR_SLOTS), worn as a piece of its own. */
+export const isPackUnderwear = (id) =>
+  Object.hasOwn(PACK_PIECES, id) && UNDERWEAR_SLOTS.some(([slot]) => slot === PACK_PIECES[id].slot);
 /** The hair styles installed wardrobe packs add (packs.js readHair), each its checked index entry: { style: entry }. */
 export const PACK_HAIR = {};
 /** Adds packs' hair styles ([{ style, label, … }]) to HAIRSTYLES, before "None", so the Hair tab offers them. */
 export function addHair(styles) {
   for (const entry of styles) {
-    if (HAIRSTYLES.some(([style]) => style === entry.style) || Object.hasOwn(SLOT_OF, entry.style)) continue;
+    if (known(entry.style)) continue;
     HAIRSTYLES.splice(HAIRSTYLES.length - 1, 0, [entry.style, entry.label]);
     PACK_HAIR[entry.style] = entry;
   }
@@ -1527,32 +1555,45 @@ export const packEntry = (id) =>
   Object.hasOwn(PACK_PIECES, id) ? PACK_PIECES[id] : Object.hasOwn(PACK_HAIR, id) ? PACK_HAIR[id] : null;
 
 /**
- * The CC BY credits of the pack pieces and hair a look wears, each once, for a saved file (exporter.js).
- * A piece or style whose pack isn't installed isn't worn, so it has none.
+ * The CC BY credits of the pack pieces, hair and underwear a look wears, each once, for a saved file
+ * (exporter.js). A piece or style whose pack isn't installed isn't worn, so it has none.
  */
 export const packCredits = (look) => [
   ...new Set(
-    [...(look?.clothes ?? []), ...(look?.hair ? [look.hair] : [])].map((id) => packEntry(id)?.credit).filter(Boolean),
+    [...(look?.clothes ?? []), look?.hair, look?.underwear?.top, look?.underwear?.bottom]
+      .map((id) => (id ? packEntry(id)?.credit : null))
+      .filter(Boolean),
   ),
 ];
 
-/** What a look has that no installed pack has (checkLook keeps it): { clothes: [piece], hair: style or null }. */
+/**
+ * What a look has that no installed pack has (checkLook keeps it): { clothes: [piece], hair: style or null,
+ * underwear: [style] }.
+ */
 export function missingFromLook(look) {
   const clothes = (look?.clothes ?? []).filter((piece) => !Object.hasOwn(SLOT_OF, piece));
   const hair = look?.hair && !HAIRSTYLES.some(([style]) => style === look.hair) ? look.hair : null;
-  return { clothes, hair };
+  const underwear = UNDERWEAR_SLOTS.map(([, field, styles]) => look?.underwear?.[field]).filter(
+    (style, at) => style !== undefined && style !== BARE && !UNDERWEAR_SLOTS[at][2].some(([known]) => known === style),
+  );
+  return { clothes, hair, underwear };
 }
 /**
- * The look as it's worn, for a saved avatar file: without the pieces and hair style whose packs aren't
- * installed (and their colours and pack notes). A look file and the draft keep them.
+ * The look as it's worn, for a saved avatar file: without the pieces, hair style and underwear whose packs
+ * aren't installed (and their colours and pack notes); missing underwear is none, as it's drawn. A look file
+ * and the draft keep them.
  */
 export function wornLook(look) {
-  const { clothes, hair } = missingFromLook(look);
-  if (!clothes.length && !hair) return look;
-  const gone = new Set([...clothes, hair]);
+  const { clothes, hair, underwear } = missingFromLook(look);
+  if (!clothes.length && !hair && !underwear.length) return look;
+  const gone = new Set([...clothes, hair, ...underwear]);
   const out = { ...look };
   if (out.clothes) out.clothes = out.clothes.filter((piece) => !gone.has(piece));
   if (hair) delete out.hair;
+  if (underwear.length)
+    out.underwear = Object.fromEntries(
+      Object.entries(out.underwear).map(([field, value]) => [field, gone.has(value) ? BARE : value]),
+    );
   for (const field of ["clothColours", "fromPacks"]) {
     if (!out[field]) continue;
     out[field] = Object.fromEntries(Object.entries(out[field]).filter(([id]) => !gone.has(id)));
@@ -1565,7 +1606,7 @@ export function wornLook(look) {
  * naming the pack where the look recorded it: [] when everything is there.
  */
 export function missingNotes(look) {
-  const { clothes, hair } = missingFromLook(look);
+  const { clothes, hair, underwear } = missingFromLook(look);
   const said = (id, kind) => {
     const from = look.fromPacks?.[id];
     return from
@@ -1575,6 +1616,7 @@ export function missingNotes(look) {
   return [
     ...clothes.map((piece) => said(piece, "The piece")),
     ...(hair ? [`${said(hair, "The hair style")} Another style shows until then.`] : []),
+    ...underwear.map((style) => said(style, "The underwear")),
   ];
 }
 /** The other ways a piece can be worn: { piece: { label, says, ways: [[variant ("" is the usual), label]] } }.
