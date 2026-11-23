@@ -5,7 +5,12 @@
 // expressions. Then it lowers the arms and, if the file has them, blinks and opens the mouth, so what a
 // chat would show can be seen here without an Engine.
 //
+// A .vrm is loaded the way the Engine loads a "VRM model" (renderers/vrm/vrm-renderer.ts): three-vrm's own
+// loader, which reads the file's humanoid bones, expressions and spring bones, with no T-pose made here
+// (the file rests in one).
+//
 //   /viewer?file=/dev/out/last.glb
+//   /viewer?file=/dev/out/last.vrm
 //
 // For development only; not part of the package.
 import {
@@ -27,6 +32,8 @@ import {
   VRMExpressionManager,
   VRMExpressionMorphTargetBind,
   VRMHumanoid,
+  VRMLoaderPlugin,
+  VRMUtils,
 } from "@pixiv/three-vrm";
 import { HUMANOID_BONES } from "../src/kitfiles.js";
 
@@ -54,7 +61,16 @@ function aimBone(bone, child, goal) {
 
 async function main() {
   const bytes = await (await fetch(file)).arrayBuffer();
-  const gltf = await new GLTFLoader().parseAsync(bytes, "");
+  const isVrm = /\.vrm$/iu.test(file);
+  const loader = new GLTFLoader();
+  if (isVrm) loader.register((parser) => new VRMLoaderPlugin(parser));
+  const gltf = await loader.parseAsync(bytes, "");
+  const vrm = isVrm ? gltf.userData.vrm : null;
+  if (isVrm && !vrm) throw new Error("This file has no VRM model in it.");
+  if (vrm) {
+    VRMUtils.removeUnnecessaryVertices(gltf.scene);
+    VRMUtils.combineSkeletons(gltf.scene);
+  }
   const root = new Group();
   root.add(gltf.scene);
   root.updateMatrixWorld(true);
@@ -65,29 +81,32 @@ async function main() {
   const nodes = {};
   const missing = [];
   for (const bone of BODY_BONES) {
-    const found = byName.get(HUMANOID_BONES[bone]);
+    const found = vrm ? vrm.humanoid.getRawBoneNode(bone) : byName.get(HUMANOID_BONES[bone]);
     if (found) nodes[bone] = found;
     else missing.push(bone);
   }
-  // T-pose, as the Engine makes it before it builds the humanoid.
-  for (const [side, sign] of [
-    ["left", 1],
-    ["right", -1],
-  ]) {
+  // T-pose, as the Engine makes it before it builds the humanoid (a VRM rests in one already).
+  for (const [side, sign] of vrm
+    ? []
+    : [
+        ["left", 1],
+        ["right", -1],
+      ]) {
     const goal = new Vector3(sign, 0, 0);
     aimBone(nodes[`${side}UpperArm`], nodes[`${side}LowerArm`], goal);
     aimBone(nodes[`${side}LowerArm`], nodes[`${side}Hand`], goal);
   }
-  const humanoid = new VRMHumanoid(Object.fromEntries(Object.entries(nodes).map(([bone, node]) => [bone, { node }])));
-  root.add(humanoid.normalizedHumanBonesRoot);
-  const manager = new VRMExpressionManager();
+  const humanoid =
+    vrm?.humanoid ?? new VRMHumanoid(Object.fromEntries(Object.entries(nodes).map(([bone, node]) => [bone, { node }])));
+  if (!vrm) root.add(humanoid.normalizedHumanBonesRoot);
+  const manager = vrm?.expressionManager ?? new VRMExpressionManager();
   const meshes = [];
   root.traverse((object) => {
     object.frustumCulled = false;
     if (object.isMesh && object.morphTargetDictionary) meshes.push(object);
   });
-  const have = [];
-  for (const slot of SLOTS) {
+  const have = vrm ? SLOTS.filter((slot) => manager.getExpression(slot)) : [];
+  for (const slot of vrm ? [] : SLOTS) {
     const expression = new VRMExpression(slot);
     for (const mesh of meshes) {
       const index = mesh.morphTargetDictionary[slot];
@@ -99,12 +118,14 @@ async function main() {
       have.push(slot);
     }
   }
-  const model = new VRMCore({
-    scene: root,
-    humanoid,
-    expressionManager: manager,
-    meta: { metaVersion: "1", name: "", authors: [], licenseUrl: "" },
-  });
+  const model =
+    vrm ??
+    new VRMCore({
+      scene: root,
+      humanoid,
+      expressionManager: manager,
+      meta: { metaVersion: "1", name: "", authors: [], licenseUrl: "" },
+    });
   const hipsToHead = nodes.head.getWorldPosition(worldA).y - nodes.hips.getWorldPosition(worldB).y;
   root.scale.setScalar(0.5 / hipsToHead); // the Engine's size for every model: half a metre, hips to head
 
@@ -132,9 +153,21 @@ async function main() {
     `${file}: ${(bytes.byteLength / 1048576).toFixed(1)} MB`,
     `body bones found: ${BODY_BONES.length - missing.length} of ${BODY_BONES.length}${missing.length ? ` (missing: ${missing.join(", ")})` : ""}`,
     `face shapes the Engine would use: ${have.length ? have.join(", ") : "none (a still face)"}`,
+    ...(vrm
+      ? [
+          `VRM ${vrm.meta?.metaVersion === "1" ? "1.0" : "0.x"}: "${vrm.meta?.name ?? ""}" by ${(vrm.meta?.authors ?? [vrm.meta?.author]).join(", ")}`,
+          `spring bones: ${vrm.springBoneManager?.joints.size ?? 0}`,
+        ]
+      : []),
     `meshes ${info.meshes.length}, materials ${info.materials.length}, pictures ${info.images?.length ?? 0}`,
   ].join("\n");
-  window.checked = { missing, have, bytes: bytes.byteLength };
+  window.checked = {
+    missing,
+    have,
+    bytes: bytes.byteLength,
+    vrm: Boolean(vrm),
+    springs: vrm?.springBoneManager?.joints.size ?? 0,
+  };
   // (For looking closer from the console or a test: window.look("leftHand", 0.35) puts the camera on a bone.)
   window.look = (bone, distance = 0.5) => {
     const at = (byName.get(bone) ?? humanoid.getRawBoneNode(bone) ?? nodes.head).getWorldPosition(new Vector3());

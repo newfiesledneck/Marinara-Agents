@@ -7,18 +7,24 @@
 //
 // three's GLTFExporter does the writing. Before it runs, each mesh is given a slimmed copy of its geometry
 // and standard materials; afterwards the figure is put back as it was.
+//
+// A .vrm (VRM 1.0) is the same file with three changes: the figure rests in a T-pose, as VRM asks, with that
+// pose made the meshes' own (their points moved there and the bones bound there, so a tool that reads the
+// bind pose sees a T-pose too); a `VRMC_vrm` block names the humanoid bones and holds the author's terms;
+// and a tail, when worn, swings on spring bones (`VRMC_springBone`).
 import {
   BufferAttribute,
   BufferGeometry,
   DoubleSide,
   FrontSide,
+  Matrix4,
   MeshStandardMaterial,
   Uint16BufferAttribute,
   Uint32BufferAttribute,
 } from "three";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
-import { restPose } from "./figure.js";
-import { texturesReady } from "./kitfiles.js";
+import { restPose, tPose } from "./figure.js";
+import { HUMANOID_BONES, texturesReady } from "./kitfiles.js";
 import { PACK_PIECES } from "./looks.js";
 
 export const FILE_FORMAT = 1;
@@ -146,15 +152,167 @@ function standardMaterial(material, name) {
 }
 
 /**
+ * `geometry` (a slimmed copy of `mesh`'s) moved, in world space, to where three draws it in the pose its
+ * bones are in now: each point by its bones' blend of (mesh world · bind⁻¹ · bone world · bone inverse ·
+ * bind). Normals turn with it. Returns the names of the bones that move any of its points.
+ */
+function bakePose(geometry, mesh) {
+  const { bones, boneInverses } = mesh.skeleton;
+  const placed = mesh.matrixWorld.clone().multiply(mesh.bindMatrixInverse);
+  const moves = bones.map((bone, i) =>
+    new Matrix4().multiplyMatrices(bone.matrixWorld, boneInverses[i]).premultiply(placed).multiply(mesh.bindMatrix),
+  );
+  const { position, normal, skinIndex, skinWeight } = geometry.attributes;
+  const points = new Float32Array(position.count * 3);
+  const normals = normal ? new Float32Array(normal.count * 3) : null;
+  const blend = new Float32Array(16);
+  const used = new Set();
+  for (let v = 0; v < position.count; v++) {
+    blend.fill(0);
+    for (let k = 0; k < 4; k++) {
+      const weight = skinWeight.getComponent(v, k);
+      if (!weight) continue;
+      const bone = skinIndex.getComponent(v, k);
+      used.add(bones[bone].name);
+      const e = moves[bone].elements;
+      for (let c = 0; c < 16; c++) blend[c] += weight * e[c];
+    }
+    const [x, y, z] = [position.getX(v), position.getY(v), position.getZ(v)];
+    points[v * 3] = blend[0] * x + blend[4] * y + blend[8] * z + blend[12];
+    points[v * 3 + 1] = blend[1] * x + blend[5] * y + blend[9] * z + blend[13];
+    points[v * 3 + 2] = blend[2] * x + blend[6] * y + blend[10] * z + blend[14];
+    if (!normals) continue;
+    const [a, b, c] = [normal.getX(v), normal.getY(v), normal.getZ(v)];
+    const nx = blend[0] * a + blend[4] * b + blend[8] * c;
+    const ny = blend[1] * a + blend[5] * b + blend[9] * c;
+    const nz = blend[2] * a + blend[6] * b + blend[10] * c;
+    const length = Math.hypot(nx, ny, nz) || 1;
+    normals.set([nx / length, ny / length, nz / length], v * 3);
+  }
+  geometry.setAttribute("position", new BufferAttribute(points, 3));
+  if (normals) geometry.setAttribute("normal", new BufferAttribute(normals, 3));
+  return used;
+}
+
+/** The licence VRM 1.0 files point to; the author's terms are the fields beside it. */
+export const VRM_LICENSE_URL = "https://vrm.dev/licenses/1.0/";
+/** The choices the Save tab offers for a VRM's terms (the VRM 1.0 meta fields), the first of each the usual. */
+export const VRM_TERM_CHOICES = {
+  avatarPermission: ["onlyAuthor", "onlySeparatelyLicensedPerson", "everyone"],
+  commercialUsage: ["personalNonProfit", "personalProfit", "corporation"],
+  // (One choice in the maker for two fields: allowRedistribution and modification.)
+  sharing: ["none", "share", "change", "changeAndShare"],
+  creditNotation: ["required", "unnecessary"],
+};
+const ALLOW_FLAGS = [
+  "allowExcessivelyViolentUsage",
+  "allowExcessivelySexualUsage",
+  "allowPoliticalOrReligiousUsage",
+  "allowAntisocialOrHateUsage",
+];
+/** Terms as the maker keeps them, every field known and valid: VRM's own defaults, the most careful, unless chosen. */
+export function vrmTerms(terms = {}) {
+  const checked = {};
+  for (const [field, choices] of Object.entries(VRM_TERM_CHOICES))
+    checked[field] = choices.includes(terms?.[field]) ? terms[field] : choices[0];
+  for (const flag of ALLOW_FLAGS) checked[flag] = terms?.[flag] === true;
+  checked.author = typeof terms?.author === "string" ? terms.author.trim().slice(0, 120) : "";
+  return checked;
+}
+
+/** The VRM 1.0 `meta` for an avatar: its name, author and terms, and the credits of what it wears. */
+export function vrmMeta(name, look, terms) {
+  const chosen = vrmTerms(terms);
+  const credited = licenceNote(look) !== LICENCE_NOTE;
+  return {
+    name: String(name ?? "").trim() || "Avatar",
+    version: "1",
+    authors: [chosen.author || "Unknown"],
+    licenseUrl: VRM_LICENSE_URL,
+    avatarPermission: chosen.avatarPermission,
+    commercialUsage: chosen.commercialUsage,
+    allowRedistribution: chosen.sharing === "share" || chosen.sharing === "changeAndShare",
+    modification:
+      { change: "allowModification", changeAndShare: "allowModificationRedistribution" }[chosen.sharing] ??
+      "prohibited",
+    // (A CC BY piece's maker must be credited wherever the avatar goes, whatever its author asks for themselves.)
+    creditNotation: credited ? "required" : chosen.creditNotation,
+    ...Object.fromEntries(ALLOW_FLAGS.map((flag) => [flag, chosen[flag]])),
+    thirdPartyLicenses: licenceNote(look),
+  };
+}
+
+// The tail's spring: stiff enough to keep its curve, a little weight, and slowed so it sways rather than whips.
+const TAIL_BONES = ["tail_01", "tail_02", "tail_03", "tail_04", "tail_05"];
+const TAIL_JOINT = { hitRadius: 0.02, stiffness: 1.5, gravityPower: 0.1, gravityDir: [0, -1, 0], dragForce: 0.4 };
+const LEG_RADIUS = 0.07; // metres: the legs' colliders, so a swinging tail stays outside the thighs
+
+/** The `VRMC_vrm` (and, with a tail, `VRMC_springBone`) blocks added to an exported file's description. */
+function addVrm(json, figure, meta, used) {
+  const nodeOf = new Map();
+  for (const skin of json.skins ?? [])
+    for (const index of skin.joints) if (!nodeOf.has(json.nodes[index].name)) nodeOf.set(json.nodes[index].name, index);
+  const humanBones = {};
+  for (const [bone, joint] of Object.entries(HUMANOID_BONES))
+    if (nodeOf.has(joint)) humanBones[bone] = { node: nodeOf.get(joint) };
+  json.extensions = { ...json.extensions, VRMC_vrm: { specVersion: "1.0", meta, humanoid: { humanBones } } };
+  const extensions = new Set(json.extensionsUsed ?? []).add("VRMC_vrm");
+  const tail = TAIL_BONES.filter((bone) => nodeOf.has(bone));
+  if (tail.length > 1 && used.has(tail[1])) {
+    const colliders = ["l", "r"].flatMap((side) => {
+      const [thigh, calf] = [figure.bones.get(`thigh_${side}`), figure.bones.get(`calf_${side}`)];
+      if (!nodeOf.has(thigh?.name) || !calf) return [];
+      return [
+        {
+          node: nodeOf.get(thigh.name),
+          shape: { capsule: { offset: [0, 0, 0], radius: LEG_RADIUS, tail: calf.position.toArray() } },
+        },
+      ];
+    });
+    json.extensions.VRMC_springBone = {
+      specVersion: "1.0",
+      colliders,
+      colliderGroups: colliders.length ? [{ name: "Legs", colliders: colliders.map((_, i) => i) }] : [],
+      springs: [
+        {
+          name: "Tail",
+          joints: tail.map((bone) => ({ node: nodeOf.get(bone), ...TAIL_JOINT })),
+          ...(colliders.length ? { colliderGroups: [0] } : {}),
+        },
+      ],
+    };
+    extensions.add("VRMC_springBone");
+  }
+  json.extensionsUsed = [...extensions];
+}
+
+/**
  * The figure as a .glb: { bytes (Uint8Array), vertices, triangles }. `look` and `name` are stored in the
  * file so it can be opened again. `maxTextureSize` shrinks the pictures (2048 keeps them as they are).
  */
-export async function exportGlb(figure, { look = {}, name = "", maxTextureSize = 2048 } = {}) {
+export function exportGlb(figure, options = {}) {
+  return exportFile(figure, options, null);
+}
+
+/**
+ * The figure as a VRM 1.0 .vrm, the same way: { bytes, vertices, triangles }. `terms` are the author's
+ * (vrmTerms); the file rests in a T-pose.
+ */
+export function exportVrm(figure, { terms, ...options } = {}) {
+  return exportFile(figure, options, terms ?? {});
+}
+
+async function exportFile(figure, { look = {}, name = "", maxTextureSize = 2048 } = {}, terms) {
   await texturesReady();
-  restPose(figure);
+  const vrm = terms !== null;
+  if (vrm) tPose(figure);
+  else restPose(figure);
+  const children = [...figure.root.children]; // (a VRM's meshes leave the root while it's written)
   const swapped = [];
   const made = [];
   const mimeTypes = new Map(); // a picture's type while exporting: JPEG unless something see-through uses it
+  const inverses = new Map(); // (a VRM's skeletons as they were: they're bound in the T-pose while it's written)
+  const used = new Set();
   let vertices = 0;
   let triangles = 0;
   try {
@@ -164,6 +322,7 @@ export async function exportGlb(figure, { look = {}, name = "", maxTextureSize =
         ? mesh.geometry.groups.map(({ start, count, materialIndex }) => ({ start, count, materialIndex }))
         : [{ start: 0, count: mesh.geometry.index.count, materialIndex: 0 }];
       const slim = slimGeometry(mesh.geometry, ranges);
+      if (vrm) for (const bone of bakePose(slim.geometry, mesh)) used.add(bone);
       vertices += slim.vertices;
       triangles += slim.triangles;
       const standard = materials.map((material, i) => {
@@ -184,6 +343,26 @@ export async function exportGlb(figure, { look = {}, name = "", maxTextureSize =
       mesh.geometry = slim.geometry;
       mesh.material = Array.isArray(mesh.material) ? standard : standard[0];
     });
+    // A VRM's points are in world space now, so its meshes go to the top of the file with no transform of
+    // their own (three's loader moves a skinned mesh by its node's transform where glTF says not to, so with
+    // one, three and other readers would draw it apart), bound where the bones stand: each inverse bind
+    // matrix (bone inverse · bind) the bone's world inverted.
+    if (vrm)
+      for (const mesh of figure.meshes) {
+        if (mesh.position.lengthSq() || mesh.scale.manhattanLength() !== 3 || mesh.quaternion.w !== 1)
+          throw new Error("A part of the avatar is placed in a way the VRM writer doesn't expect.");
+        figure.object.add(mesh);
+        const { skeleton } = mesh;
+        if (inverses.has(skeleton)) continue;
+        inverses.set(
+          skeleton,
+          skeleton.boneInverses.map((inverse) => inverse.clone()),
+        );
+        // (The bind matrix itself inverted: the maker's parts can carry a bindMatrixInverse that isn't.)
+        const unbind = mesh.bindMatrix.clone().invert();
+        skeleton.bones.forEach((bone, i) => skeleton.boneInverses[i].copy(bone.matrixWorld).invert().multiply(unbind));
+      }
+    figure.object.updateMatrixWorld(true);
     const before = new Map([...mimeTypes.keys()].map((map) => [map, map.userData.mimeType]));
     for (const [map, type] of mimeTypes) map.userData.mimeType = type;
     let glb;
@@ -198,6 +377,7 @@ export async function exportGlb(figure, { look = {}, name = "", maxTextureSize =
     const { json, bin } = readGlb(glb);
     json.asset = { ...json.asset, generator: GENERATOR, copyright: licenceNote(look) };
     json.extras = { ...json.extras, avatarMaker: { format: FILE_FORMAT, name: String(name ?? ""), look } };
+    if (vrm) addVrm(json, figure, vrmMeta(name, look, terms), used);
     return { bytes: writeGlb(json, bin), vertices, triangles };
   } finally {
     for (const { mesh, geometry, material } of swapped) {
@@ -205,10 +385,16 @@ export async function exportGlb(figure, { look = {}, name = "", maxTextureSize =
       mesh.material = material;
     }
     for (const item of made) item.dispose();
+    for (const [skeleton, saved] of inverses) saved.forEach((inverse, i) => skeleton.boneInverses[i].copy(inverse));
+    if (vrm) {
+      for (const mesh of figure.meshes) if (mesh.parent !== figure.root) figure.root.add(mesh);
+      figure.root.children.splice(0, figure.root.children.length, ...children); // (in their order, as drawn)
+      restPose(figure);
+    }
   }
 }
 
-/** The look stored in a .glb the maker saved: { name, look }, or null for any other file. */
+/** The look stored in a .glb or .vrm the maker saved: { name, look }, or null for any other file. */
 export function lookInGlb(buffer) {
   try {
     const stored = readGlb(buffer).json.extras?.avatarMaker;

@@ -120,6 +120,31 @@ poses with its arms lowered. Not yet checked in a real Engine.
   `x_scale` (six of Elvaerwyn's). Shoes the fitter wouldn't let hide the feet got `force: ["feet"]`, as the
   everyday ankle boots did.
 
+## Built (0.1.06)
+
+- VRM export (`exporter.js` `exportVrm`), VRM 1.0, beside the GLB on the Save tab. The writer is ours, on
+  three's GLTFExporter:
+  - **T-pose bind.** The figure goes into `figure.js tPose`, and that pose becomes the meshes' own: points
+    moved where three draws them (`bakePose`), skeletons bound there. A tool that reads the bind pose
+    (Blender, UniVRM) sees the T-pose too.
+  - **Meshes at the top of the file, with no transform of their own.** three's loader moves a skinned mesh
+    by its node's transform, which glTF says to ignore, so the root's offset and a dwarf's 0.87 scale would
+    otherwise put three and other readers apart.
+  - **`VRMC_vrm`.** It names every humanoid bone in `HUMANOID_BONES`, and its `meta` holds the author's terms
+    (`vrmTerms`, `vrmMeta`: VRM's careful defaults, chosen under the Save tab's "The VRM's terms" and kept
+    in the browser) plus the CC BY credits in `thirdPartyLicenses`. A CC BY piece forces
+    `creditNotation: required`.
+  - **`VRMC_springBone`.** A worn tail (bones `tail_01` to `tail_05`) swings on a spring with capsules on
+    the thighs. Settings came from a sweep in three-vrm: a slight droop that settles in under half a second.
+- There's no `lookAt` or `expressions` block yet. Both wait for the eye bones and the faces (items 2 and 3
+  below); `addVrm` is where they go.
+- The check page loads a `.vrm` the way the Engine's VRM renderer does (three-vrm's loader). The regression
+  test loads each saved VRM with three-vrm and checks:
+  - the bones are named, the arms rest level, and the model faces +Z;
+  - every point sits where the file lists it, so the bind pose is the rest pose;
+  - the tail springs;
+  - the figure is unchanged afterwards.
+
 ## Next, in order
 
 1. **Dev catalog.** `_planning/scripts/update-dev-catalog.mjs` rebuilds only the packages in its
@@ -133,8 +158,8 @@ poses with its arms lowered. Not yet checked in a real Engine.
    targets with their names (three's exporter puts them where the Engine reads them). The packer is still
    Wanderworld's `scripts/build-wanderworld-people.mjs --avatar`; this package needs its own copy first.
 3. **Eye bones** (`eye_l`, `eye_r`) so a VRM's eyes can follow the viewer, and the eyeballs weighted to them.
-4. **VRM export.** Our own writer on the GLB: the `VRMC_vrm` block (bone table, details and terms, the
-   face list, look-at), the T-pose (`figure.js tPose`), and spring bones for the tiefling's tail.
+4. **VRM export: the rest.** Built in 0.1.06 except the face list (`expressions`, once item 2 is done),
+   `lookAt` (with item 3), and a thumbnail picture in the meta. Not yet checked in a real Engine.
 5. **Hair movement.** Bone chains in the hair styles, then spring bones in the VRM. Hair is rigid today.
 6. **More to change:** skin texture layers (freckles, scars, tattoos, makeup), patterns and pictures on
    clothing, accessories fixed to a bone (glasses, earrings, hats, bags), more face sliders.

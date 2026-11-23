@@ -2,7 +2,7 @@
   {
     "id": "3d-avatar-maker",
     "name": "3D Avatar Maker",
-    "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the face doesn't move yet. Install it, then open Home → 3D Avatar Maker.",
+    "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the face doesn't move yet. Install it, then open Home → 3D Avatar Maker.",
     "author": "ThatOneCan",
     "phase": "pre_generation",
     "enabledByDefault": false,

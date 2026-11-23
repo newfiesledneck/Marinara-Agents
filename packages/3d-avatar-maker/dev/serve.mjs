@@ -25,6 +25,7 @@ const TYPES = {
   ".png": "image/png",
   ".webp": "image/webp",
   ".glb": "model/gltf-binary",
+  ".vrm": "model/gltf-binary",
 };
 const PAGE = `<!doctype html>
 <html lang="en">

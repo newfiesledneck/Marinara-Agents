@@ -57,6 +57,8 @@ input[type="color"] { width: 38px; height: 30px; padding: 0; border: 1px solid v
 .piece .row { margin-bottom: 6px; }
 .status { color: var(--soft); min-height: 1.4em; }
 .status.bad { color: var(--bad); }
+label.check { display: flex; gap: 8px; align-items: center; min-height: 28px; margin: 0 0 4px; }
+label.check input { accent-color: var(--accent); width: 18px; height: 18px; margin: 0; }
 ol.steps { margin: 6px 0 0; padding-left: 20px; color: var(--soft); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-width: 820px) {
