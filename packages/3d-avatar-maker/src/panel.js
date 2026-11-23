@@ -662,7 +662,7 @@ export function createPanel(actions) {
       ),
       group(
         "Save as a 3D avatar",
-        "A file with the body, hair, clothes and pictures in it, which also remembers your choices so it can be opened here again. A VRM stands in a T-pose, names its bones for any VRM app, carries the terms below, and swings a tail if one is worn. A GLB is a plain 3D model.",
+        "A file with the body, hair, clothes and pictures in it, which also remembers your choices so it can be opened here again. A VRM stands in a T-pose, names its bones for any VRM app, carries the terms below, and swings long hair and a tail as the avatar moves. A GLB is a plain 3D model.",
         row(
           "Picture size",
           (pictureSize = select(
@@ -757,7 +757,7 @@ export function createPanel(actions) {
       ),
       group(
         "Use it in a chat",
-        "The 3D Avatars agent shows the file. It blinks, its mouth moves as it talks, and its face shows how the character feels. In a VRM the eyes move too.",
+        "The 3D Avatars agent shows the file. It blinks, its mouth moves as it talks, and its face shows how the character feels. In a VRM the eyes move and long hair swings too.",
         h(
           "ol",
           { class: "steps" },

@@ -143,7 +143,12 @@ function mount(element, props) {
     "aria-label": "The avatar. Drag to turn it, scroll or pinch to zoom, arrow keys to move the view.",
   });
   const note = h("div", { class: "note", role: "status", "aria-live": "polite" });
-  const poseSelect = h("select", { "aria-label": "Pose", onchange: () => stage.setPose(poseSelect.value) });
+  const poseSelect = h("select", {
+    "aria-label": "Pose",
+    title:
+      "How the avatar stands in the preview. Moving turns its head now and then, so you can see the hair swing. A saved file rests in the A-pose (GLB) or the T-pose (VRM).",
+    onchange: () => stage.setPose(poseSelect.value),
+  });
   for (const [pose, label] of POSES) poseSelect.append(new Option(label, pose));
   // (What the face does in the preview: the moves a saved avatar has, played here. Nothing of it is saved.)
   const faceSelect = h("select", {

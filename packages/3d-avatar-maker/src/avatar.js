@@ -17,11 +17,13 @@ import {
   Matrix4,
   MeshLambertMaterial,
   Quaternion,
+  Skeleton,
   SkinnedMesh,
   Vector3,
 } from "three";
 import { FACE_MOVES } from "./face.js";
 import { standFigure } from "./figure.js";
+import { hairPlan, rigHair, SWINGING_HAIR } from "./hair.js";
 import {
   ANTHRO_BARE_SLOTS,
   ANTHRO_SHAPES,
@@ -78,6 +80,7 @@ import {
 } from "./looks.js";
 import { geometryOf, load, loadUrl, rigOf, sexFor, skeletonFor, texture, view } from "./kitfiles.js";
 import { paintedSkin } from "./skin.js";
+import { bodyColliders, fitColliders, HAIR_JOINT, TAIL_BONES, TAIL_JOINT } from "./springs.js";
 import { hashString, rng } from "./util.js";
 
 /** The region of the body each bone's vertices are, for what an outfit piece `hides`. */
@@ -642,6 +645,9 @@ function bodyKit(sex, species = "human") {
             .toArray(),
           hips: jointAt("pelvis").toArray(),
         },
+        // (Where hair starts to hang, hair.js: the eyes' height, about the head's middle.)
+        eyes: file.joints.includes("eye_l") ? jointAt("eye_l").y : jointAt("Head").y + 0.05,
+        headAt: jointAt("Head"),
       };
     });
     made.catch(() => bodies.delete(name)); // (tried again next time)
@@ -786,14 +792,23 @@ async function pieceOf(piece, sex, variant = "") {
 const SMALL_SLOTS = new Set(["brow", "face", "mouth", "ears", "fingers", "neck", "waist", "arms"]);
 
 const parts = new Map(); // a hair style's or outfit piece's meshes, made once: "hair:long:male" → [{ mesh, geometry, morphs, colours }]
-/** A hair style's or outfit piece's meshes, decoded once and shared; `small` ones aren't drawn far off. */
-function partMeshes(key, part, small = false) {
+/**
+ * A hair style's or outfit piece's meshes, decoded once and shared; `small` ones aren't drawn far off. A hair
+ * style that swings (`hangs`: { line, centre }, hair.js hairPlan) is weighted to the bone chains its hanging
+ * locks swing on, kept as `plan`.
+ */
+function partMeshes(key, part, small = false, hangs = null) {
   if (!parts.has(key))
     parts.set(
       key,
       part.meshes.map((mesh) => {
         const geometry = geometryOf(mesh);
         geometry.userData.shared = true;
+        const plan = hangs ? hairPlan(geometry, part.joints, hangs.line, hangs.centre) : null;
+        if (plan) {
+          geometry.setAttribute("skinIndex", plan.skinIndex);
+          geometry.setAttribute("skinWeight", plan.skinWeight);
+        }
         if (small) {
           const full = geometry.userData.distant?.full ?? { start: 0, count: geometry.index.count };
           geometry.userData.distant = { full, far: { start: full.start, count: 0 } };
@@ -803,6 +818,7 @@ function partMeshes(key, part, small = false) {
           geometry,
           morphs: Object.fromEntries(Object.entries(morphsOf(mesh)).map(([k, morph]) => [k, [morph]])),
           colours: new Map(), // a piece's part colours (by vertex), shared by everyone wearing it in them
+          plan,
         };
       }),
     );
@@ -1292,9 +1308,10 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   // Hair and outfit pieces: shared meshes, or each person's own when they have shape keys to follow. An
   // outfit piece is one mesh coloured by vertex, each of its parts (cloth, trim, metal…) the look's colour
   // or as made, those colours shared by everyone wearing the same.
-  const wearPart = ({ key, part, pictures, slot, piece }, colourFor) => {
-    for (const made of partMeshes(key, part, SMALL_SLOTS.has(slot))) {
-      const { mesh, geometry: shared, morphs, colours } = made;
+  const springs = []; // (the hair's chains and a tail: springs.js)
+  const wearPart = ({ key, part, pictures, slot, piece }, colourFor, hangs = null) => {
+    partMeshes(key, part, SMALL_SLOTS.has(slot), hangs).forEach((made, m) => {
+      const { mesh, geometry: shared, morphs, colours, plan } = made;
       // (A race's build, carried onto the piece from the skin the first time one of that race wears it.)
       // (The face in detail, the same way: hair, hats and collars follow a wider head, a longer neck or a
       // higher forehead. Each key is carried the first time it's used on the piece, and kept.)
@@ -1324,17 +1341,26 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
         colour = colours.get(said);
       }
       const keyed = Object.keys(morphs).length > 0;
-      if (keyed || colour) {
+      // (Swinging hair on a head made bigger or smaller has its points placed for its new weights: hair.js rigHair.)
+      const placed = !!plan && part.joints.some((name) => stretch.has(name));
+      if (keyed || colour || placed) {
         // (Its own geometry over the shared data: its positions and normals shaped, its colours.)
         const moved = keyed
           ? shaped(shared.attributes.position.array, shared.attributes.normal.array, morphs, weights)
           : null;
-        const borrowed = ["uv", "skinIndex", "skinWeight", ...(keyed ? [] : ["position", "normal"])];
+        const borrowed = [
+          "uv",
+          "skinIndex",
+          "skinWeight",
+          ...(keyed ? [] : ["normal"]),
+          ...(keyed || placed ? [] : ["position"]),
+        ];
         geometry = new BufferGeometry();
         if (moved) {
           geometry.setAttribute("position", new BufferAttribute(moved.position, 3));
           geometry.setAttribute("normal", new BufferAttribute(moved.normal, 3));
-        }
+        } else if (placed)
+          geometry.setAttribute("position", new BufferAttribute(shared.attributes.position.array.slice(), 3));
         for (const attribute of borrowed)
           if (shared.attributes[attribute]) geometry.setAttribute(attribute, shared.attributes[attribute]);
         if (colour) {
@@ -1359,14 +1385,35 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
         ...(mesh.alpha ? { alphaTest: 0.5, side: DoubleSide } : {}),
       });
       owned.push(() => material.dispose());
-      bind(geometry, material, part, kit.file);
-    }
+      const worn = bind(geometry, material, part, kit.file);
+      // The hair's chains, where this avatar's shape put its locks, added to the bones its points are bound to.
+      if (plan) {
+        const rig = rigHair(plan, part, geometry.attributes.position.array, bones, stretch, m ? `${m}_` : "");
+        const { bones: own, boneInverses } = worn.skeleton;
+        worn.bind(new Skeleton([...own, ...rig.bones], [...boneInverses, ...rig.inverses]), worn.bindMatrix);
+        for (const spring of rig.springs) springs.push({ ...spring, joint: HAIR_JOINT, meets: "body" });
+      }
+    });
   };
   // (A hood or helm that hides the hair leaves it off.)
-  if (hair && !hides.has("hair")) wearPart(hair, () => new Color(filled.hairColour));
+  // (A style that swings, from where its hair leaves the head: hair.js.)
+  const below = SWINGING_HAIR.get(filled.hair);
+  const hangs = below === undefined ? null : { line: kit.eyes - below, centre: kit.headAt };
+  if (hair && !hides.has("hair")) wearPart(hair, () => new Color(filled.hairColour), hangs);
   for (const piece of pieces) wearPart(piece, (mesh) => (mesh.partOf ? 0xffffff : new Color().setRGB(...mesh.colour)));
 
+  // A tail worn swings too, kept out of the legs.
+  const tail = TAIL_BONES.map((name) => bones.get(name)).filter(Boolean);
+  const tailWorn = kit.meshes.some((mesh) => mesh.piece?.startsWith("tail-") && isWorn(mesh, filled, sex));
+  if (tailWorn && tail.length > 1) springs.push({ name: "Tail", bones: tail, joint: TAIL_JOINT, meets: "legs" });
+  // (Each spring meets its own colliders: springs.js fitColliders may leave one out where a lock rests on it.)
+  const colliders = springs.length ? bodyColliders(kit, position, bones) : { body: [], legs: [] };
+  for (const spring of springs) spring.colliders = [...colliders[spring.meets]];
+
   const figure = standFigure(root, bones, filled.height * race.height);
+  figure.springs = springs;
+  figure.colliders = [...colliders.body, ...colliders.legs];
+  if (springs.length) fitColliders(figure);
   figure.dispose = () => {
     for (const letGo of owned) letGo();
   };

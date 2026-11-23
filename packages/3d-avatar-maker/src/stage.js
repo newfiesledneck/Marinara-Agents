@@ -14,17 +14,20 @@ import {
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { animateFace } from "./face.js";
-import { relaxedPose, restPose, tPose } from "./figure.js";
+import { movingPose, relaxedPose, restPose, tPose } from "./figure.js";
+import { createSprings } from "./springs.js";
 
 export const POSES = [
   ["relaxed", "Relaxed"],
+  ["moving", "Moving: looks about, to show the hair swing"],
   ["a", "A-pose"],
   ["t", "T-pose"],
 ];
 
 /**
  * A stage in `canvas`: { show(figure), setPose(pose), setFace(mode), view("body" | "face"), resize(), dispose(),
- * failed }. The face plays `mode` (face.js FACE_MODES) in every pose.
+ * failed }. The face plays `mode` (face.js FACE_MODES) in every pose, and the hair and a tail swing on their
+ * springs (springs.js) as the body moves; with reduced motion they rest.
  * `failed` is true when the browser gave no WebGL; the maker then says so in words.
  */
 export function createStage(canvas) {
@@ -62,6 +65,8 @@ export function createStage(canvas) {
   controls.listenToKeyEvents(canvas); // arrow keys move the view when the picture has focus
 
   let figure = null;
+  let springs = null; // (the figure's hair and tail swinging)
+  let last = 0;
   let pose = "relaxed";
   let face = "lively";
   let frame = 0;
@@ -75,6 +80,7 @@ export function createStage(canvas) {
     if (!figure) return;
     if (pose === "t") tPose(figure);
     else if (pose === "a") restPose(figure);
+    else if (pose === "moving" && !reduced) movingPose(figure, (performance.now() - started) / 1000);
     else relaxedPose(figure, reduced ? 0 : (performance.now() - started) / 1000);
   }
 
@@ -117,9 +123,12 @@ export function createStage(canvas) {
     frame = 0;
     if (disposed) return;
     if (visible && document.visibilityState !== "hidden") {
-      if (pose === "relaxed" && !reduced) applyPose();
+      const now = performance.now();
+      if ((pose === "relaxed" || pose === "moving") && !reduced) applyPose();
       controls.update();
-      if (figure) animateFace(figure, face, (performance.now() - started) / 1000, camera.position, reduced);
+      if (figure) animateFace(figure, face, (now - started) / 1000, camera.position, reduced);
+      if (springs && !reduced) springs.step(last ? (now - last) / 1000 : 0);
+      last = now;
       renderer.render(scene, camera);
     }
     frame = requestAnimationFrame(draw);
@@ -142,14 +151,17 @@ export function createStage(canvas) {
         figure.dispose();
       }
       figure = next;
+      springs = null;
       if (figure) {
         scene.add(figure.object);
         applyPose();
+        springs = createSprings(figure);
       }
     },
     setPose(next) {
       pose = next;
       applyPose();
+      springs?.reset(); // (from rest in the new pose, rather than whipped there)
     },
     setFace(next) {
       face = next;

@@ -180,16 +180,51 @@ poses with its arms lowered. Not yet checked in a real Engine.
 - **Size.** The models are 69 MB (male) and 79 MB (female), from 54 and 65. The kit's body bundles each grew
   by about 1.5 MB.
 
+## Built (0.1.08)
+
+- **Hair movement** (`src/hair.js`), worked out in the maker from each style's mesh, so no model changed.
+  - **Which styles.** `SWINGING_HAIR`: long, ponytail, braid, bob and angled bob. Short cuts stay rigid
+    (their hair at the nape lies on the skin).
+  - **The hang line.** Hair above it stays on the head: 3 cm under the eyes, 12 cm for the braid, which
+    wraps round the head from the temple first.
+  - **Sides and chains.** Below the line, each point is followed back up the mesh to the line. That gives
+    how far along the hair it is and which of eight sides of the head it hangs from. A side with enough hair
+    gets a chain of bones (`hair_<side>_0` to the tip) down the middle of its locks, each bone about 8 cm,
+    five at most.
+  - **Weights.** The points ease from their old weights onto the chains over 4 cm. They blend between
+    neighbouring sides and along each chain.
+  - **What a chain hangs from.** The bone the hanging hair followed most: the head for a bob or a ponytail,
+    the upper chest for long hair and the braid. With nothing moving, it follows the body as before.
+  - **Bigger or smaller heads.** Each point rests where its old weights put it: its place is moved for the
+    new weights (`rigHair`), and the regression test checks this.
+- **Springs** (`src/springs.js`), VRM 1.0's: the hair and a tail (whose spring moved here from the exporter).
+  - **Settings.** Hair: stiffness 0.5, gravity 0.02, drag 0.3. Tuned in Node:
+    - up to 5 cm of swing on long hair and 3.5 cm on a ponytail in the Moving pose;
+    - about 1.5 cm of sag at rest;
+    - settled within 1.5 s.
+  - **Colliders.** Fitted to the body as shaped: a ball for the head, capsules along the neck, collarbones and
+    upper arms, and capsules across the hips, waist, chest and back as deep as the body is there.
+    `fitColliders` makes each a little smaller where a joint rests close. Where a lock rests on one anyway (on
+    the shoulder), that spring leaves it out, so nothing is pushed while the avatar stands still, as built or
+    in the T-pose.
+  - **The file.** A VRM writes each spring with a collider group for what it meets. three-vrm reads them in
+    the regression test and holds them at rest.
+- **The maker** swings them with the same rules every frame, and a **Moving** pose (`figure.js movingPose`)
+  turns the head now and then to show it. Reduced motion holds them at rest; changing the pose starts them
+  from rest.
+
 ## Next, in order
 
-1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling and looking.
+1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
+   the hair swinging.
 2. **Smaller saved files.** three's exporter writes each face key for every vertex of the body; sparse
    accessors (only the vertices a key moves) would take a few megabytes off each file. A VRM thumbnail
    picture in the meta.
 3. **Faces on what's worn.** Hair, hats, masks and other clothes don't follow the face's keys yet (a face
    mask doesn't open with the mouth); the maker could carry them from the skin as it does the sliders.
 4. **More expressions.** Visemes beyond VRM's five vowels, a wink and a smirk as custom expressions.
-5. **Hair movement.** Bone chains in the hair styles, then spring bones in the VRM. Hair is rigid today.
+5. **More that swings:** skirts, cloaks and coat tails on chains of their own, and colliders that allow for
+   clothing over the body.
 6. **More to change:** skin texture layers (freckles, scars, tattoos, makeup), patterns and pictures on
    clothing, accessories fixed to a bone (glasses, earrings, hats, bags), more face sliders.
 7. **Generate avatar.** A server part with one route that asks a chosen model for a look from the card's
@@ -204,5 +239,9 @@ poses with its arms lowered. Not yet checked in a real Engine.
 - Seen close from below, the upper teeth's shading changes in steps (each face takes one of three copies of
   the picture). From a chat's distance it reads as the mouth's shadow.
 - A saved file has one picture for each piece worn. Packing them into one would make it smaller.
+- Swinging hair can dip about 2 cm into the shoulders, where a lock resting on a shoulder leaves out that
+  shoulder's collider. The colliders fit the body, not what's worn, so hair can pass into a thick cloak.
+- The sides of a long style are found from the mesh, so a chain can follow an uneven path, and the two sides
+  of a symmetrical style can get chains of different lengths.
 - Drafts live in the browser only.
 - `avatar.js` still carries the anthro code paths and a crowd's low-detail triangle lists.
