@@ -757,7 +757,7 @@ export function createPanel(actions) {
       ),
       group(
         "Use it in a chat",
-        "The 3D Avatars agent shows the file. This version has a still face: it blinks and talks once face movement is added to the bodies.",
+        "The 3D Avatars agent shows the file. It blinks, its mouth moves as it talks, and its face shows how the character feels. In a VRM the eyes move too.",
         h(
           "ol",
           { class: "steps" },

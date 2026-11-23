@@ -13,6 +13,7 @@ import {
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { animateFace } from "./face.js";
 import { relaxedPose, restPose, tPose } from "./figure.js";
 
 export const POSES = [
@@ -22,7 +23,8 @@ export const POSES = [
 ];
 
 /**
- * A stage in `canvas`: { show(figure), setPose(pose), view("body" | "face"), resize(), dispose(), failed }.
+ * A stage in `canvas`: { show(figure), setPose(pose), setFace(mode), view("body" | "face"), resize(), dispose(),
+ * failed }. The face plays `mode` (face.js FACE_MODES) in every pose.
  * `failed` is true when the browser gave no WebGL; the maker then says so in words.
  */
 export function createStage(canvas) {
@@ -30,7 +32,7 @@ export function createStage(canvas) {
   try {
     renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: false });
   } catch {
-    return { failed: true, show() {}, setPose() {}, view() {}, resize() {}, dispose() {} };
+    return { failed: true, show() {}, setPose() {}, setFace() {}, view() {}, resize() {}, dispose() {} };
   }
   renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio || 1));
   renderer.outputColorSpace = SRGBColorSpace;
@@ -61,6 +63,7 @@ export function createStage(canvas) {
 
   let figure = null;
   let pose = "relaxed";
+  let face = "lively";
   let frame = 0;
   let visible = true;
   let disposed = false;
@@ -116,6 +119,7 @@ export function createStage(canvas) {
     if (visible && document.visibilityState !== "hidden") {
       if (pose === "relaxed" && !reduced) applyPose();
       controls.update();
+      if (figure) animateFace(figure, face, (performance.now() - started) / 1000, camera.position, reduced);
       renderer.render(scene, camera);
     }
     frame = requestAnimationFrame(draw);
@@ -146,6 +150,9 @@ export function createStage(canvas) {
     setPose(next) {
       pose = next;
       applyPose();
+    },
+    setFace(next) {
+      face = next;
     },
     view,
     resize,

@@ -64,8 +64,8 @@
         },
         "id": "3d-avatar-maker",
         "name": "3D Avatar Maker",
-        "version": "0.1.06",
-        "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the face doesn't move yet. Install it, then open Home → 3D Avatar Maker.",
+        "version": "0.1.07",
+        "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks and shows feelings; more is coming. Install it, then open Home → 3D Avatar Maker.",
         "engine": {
           "min": "2.4.6",
           "maxExclusive": "4.0.0"
@@ -91,7 +91,7 @@
           "assets": {
             "paths": [
               "kit/avatar/avatar-eyes.webp",
-              "kit/avatar/avatar-female-5.webp",
+              "kit/avatar/avatar-female-6.webp",
               "kit/avatar/avatar-female-masks.png",
               "kit/avatar/avatar-female-skin-bronze-makeup.webp",
               "kit/avatar/avatar-female-skin-bronze.webp",
@@ -124,6 +124,7 @@
               "kit/avatar/avatar-male-3.webp",
               "kit/avatar/avatar-male-4.webp",
               "kit/avatar/avatar-male-5.webp",
+              "kit/avatar/avatar-male-6.webp",
               "kit/avatar/avatar-male-masks.png",
               "kit/avatar/avatar-male-skin-aksel.webp",
               "kit/avatar/avatar-male-skin-bronze.webp",
@@ -160,13 +161,13 @@
         "files": [
           {
             "path": "agents.json",
-            "sha256": "5641a560b9a7326565ede91607a82606f8c3b88a805dc9be096b80b30a391ce7",
-            "bytes": 771
+            "sha256": "82b70660658bbc18765337fa55500f0ca496979eac39752c2794b60da2b6f71f",
+            "bytes": 805
           },
           {
             "path": "client.js",
-            "sha256": "ae315ce3081432becb0c0cbb26db67fba3374939ef9af31d0c8860a0f798e276",
-            "bytes": 712325
+            "sha256": "2cbe011801f6ad65855b3b168a0b0579df0b4458bc9609835c8c2873a298bf42",
+            "bytes": 716952
           },
           {
             "path": "3d-avatar-maker-icon.webp",
@@ -179,7 +180,7 @@
             "bytes": 310322
           },
           {
-            "path": "kit/avatar/avatar-female-5.webp",
+            "path": "kit/avatar/avatar-female-6.webp",
             "sha256": "811eb0a68f84cca0577f5220d805089776deec58e9726aaac741316064c297db",
             "bytes": 293766
           },
@@ -295,8 +296,8 @@
           },
           {
             "path": "kit/avatar/avatar-female.pack.png",
-            "sha256": "1e35a6e45166b0b8ea7846ff0fab8fc12f7122c2b0d31e52ef334f088c0086a2",
-            "bytes": 7177970
+            "sha256": "e3df74877f57062a54db34a07c1b91c07fd0c7101158a97fbf460d7cd598543f",
+            "bytes": 8665795
           },
           {
             "path": "kit/avatar/avatar-female.webp",
@@ -310,13 +311,13 @@
           },
           {
             "path": "kit/avatar/avatar-hair-long.pack.png",
-            "sha256": "bb24f919ed5ee547ec58f58ce5220799089c21bf542485cf995a858b44828f2e",
-            "bytes": 2760322
+            "sha256": "62f1b6af13f993fa3848e0cc2a3a39a7e565b7bbc57a8c6e08957a984a763115",
+            "bytes": 2759898
           },
           {
             "path": "kit/avatar/avatar-hair-short.pack.png",
-            "sha256": "ff411580043e07cfb29c95bde1e04c05708270a3e76bcafc7e241b79066e7e6c",
-            "bytes": 2115364
+            "sha256": "63fa38204479f61e092fb818af9f940e11df13c4d181877c7110aad789b882be",
+            "bytes": 2114904
           },
           {
             "path": "kit/avatar/avatar-male-1.webp",
@@ -325,21 +326,26 @@
           },
           {
             "path": "kit/avatar/avatar-male-2.webp",
+            "sha256": "56250df564a3f41b4db71edeede0b477e1b24d916564207e4217b0c7067e900f",
+            "bytes": 37676
+          },
+          {
+            "path": "kit/avatar/avatar-male-3.webp",
             "sha256": "7de46d07b6ef4208db4291119ef36d0dbdcb3a384d6c5f16581c6b9166dbb98b",
             "bytes": 561922
           },
           {
-            "path": "kit/avatar/avatar-male-3.webp",
+            "path": "kit/avatar/avatar-male-4.webp",
             "sha256": "8ad852be0edadda0c5a435ecad8ff500bcdfc3477462a450684cae91a96fca79",
             "bytes": 787346
           },
           {
-            "path": "kit/avatar/avatar-male-4.webp",
+            "path": "kit/avatar/avatar-male-5.webp",
             "sha256": "63ea3fe4c76b4bb8cbb6f61da58d643b447d765e6ffd712b6208be70fbcefbdb",
             "bytes": 3278
           },
           {
-            "path": "kit/avatar/avatar-male-5.webp",
+            "path": "kit/avatar/avatar-male-6.webp",
             "sha256": "e8ef5283d1b416f2800ae4c134d23fb422c099bf4b74c5e06d27f4c9a6b5c153",
             "bytes": 169836
           },
@@ -440,8 +446,8 @@
           },
           {
             "path": "kit/avatar/avatar-male.pack.png",
-            "sha256": "915f166acec7ddf1b7f8216667659c251de976210cfcdd6cffe1a5386a4da0a0",
-            "bytes": 5131262
+            "sha256": "9abf60e289b68b623391709adf00869291f779d3f47d2ef737563ab77a271cec",
+            "bytes": 6681623
           },
           {
             "path": "kit/avatar/avatar-male.webp",
@@ -450,33 +456,33 @@
           },
           {
             "path": "kit/wardrobe/avatar-outfits-accessories.pack.png",
-            "sha256": "952102bb132758099393c1458212303f14a283faf6aa8d87a280ffb14bd7170e",
-            "bytes": 876114
+            "sha256": "1ff48dee5a4931477df65f072dcc16ed9373556cfa24d7ed89a969b28ae08feb",
+            "bytes": 876011
           },
           {
             "path": "kit/wardrobe/avatar-outfits-armour.pack.png",
-            "sha256": "f44d908b58c9a9faa249bf3f7f189189fd8bb3def6776d19580908e03b71a506",
-            "bytes": 4738396
+            "sha256": "7782fb0564995ceb814bd3f9a0fe6f853597071c6f87262b61f9f6c77314e72e",
+            "bytes": 4737349
           },
           {
             "path": "kit/wardrobe/avatar-outfits-body.pack.png",
-            "sha256": "33ead8a88256808f8e26670cf3261c1d470539107d35655b40648a2a0775a0ce",
-            "bytes": 3417403
+            "sha256": "e7d36552e7f6df582933b9088609dc4b4fccd6ea49f711a875f81f6d4502b53d",
+            "bytes": 3416751
           },
           {
             "path": "kit/wardrobe/avatar-outfits-feet.pack.png",
-            "sha256": "2106dd743e3d04454c3ca863c91e524712a465213fa1a219811f734474485d2d",
-            "bytes": 2786364
+            "sha256": "7aa2011fec36f1440b07f72ac3791ed01dae4e46a407eb76db9d06e26956f53c",
+            "bytes": 2785660
           },
           {
             "path": "kit/wardrobe/avatar-outfits-hands.pack.png",
-            "sha256": "81c1d44486bfef7a7c6178bd79b488acc29fff83a4a9f607f41d9d8226ea1807",
-            "bytes": 1208937
+            "sha256": "3503186beb408171eb39f55c9eac37b2b7c4a6362eef1da3e8df184bbec3e7cc",
+            "bytes": 1208700
           },
           {
             "path": "kit/wardrobe/avatar-outfits-head.pack.png",
-            "sha256": "72d24254c84fb4b16e668b1e31a884566dd7f63b2a2d119612f7f301c164c7e9",
-            "bytes": 1041381
+            "sha256": "b5310f22ed9f0c85e172ab29516780ea4982330f8597d722182b8248c8109721",
+            "bytes": 1040972
           },
           {
             "path": "kit/wardrobe/avatar-outfits-index.json",
@@ -485,13 +491,13 @@
           },
           {
             "path": "kit/wardrobe/avatar-outfits-legs.pack.png",
-            "sha256": "398450b19f7b32b41252c9768a3dcba457aa7886cbcfa98a7ba2e90498776283",
-            "bytes": 4412605
+            "sha256": "24a85572e27f493d3ad6662e1d8f4099f8092ecbff1121400f929b16080ce5ca",
+            "bytes": 4412007
           },
           {
             "path": "kit/wardrobe/avatar-outfits-tops.pack.png",
-            "sha256": "b672c9ba7c4d96af2c930075ea6df6a8a4d6f650da7ced33fd001d625261f8ed",
-            "bytes": 6333949
+            "sha256": "5166be0ef9c2fa5216f2296273e5a47014a6b1ae01aa2b3cc278ba441a27698f",
+            "bytes": 6332911
           }
         ],
         "permissions": [
@@ -502,9 +508,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-0.1.06.zip",
-        "sha256": "09a6d6e8554130ba193303ad9a0edb291bbd4c41e88d042a029d23f88d20e253",
-        "bytes": 51916767
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-0.1.07.zip",
+        "sha256": "e3c0c79836670180017e4c944c3b9f310335a1c07d0bbdf0e7793aaabbf15bb5",
+        "bytes": 54991992
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker/README.md"
     },

@@ -20,6 +20,7 @@ import {
   SkinnedMesh,
   Vector3,
 } from "three";
+import { FACE_MOVES } from "./face.js";
 import { standFigure } from "./figure.js";
 import {
   ANTHRO_BARE_SLOTS,
@@ -504,6 +505,22 @@ function shaped(position, normal, morphs, weights) {
       n[at + 2] /= length;
     }
   return { position: p, normal: n };
+}
+
+/**
+ * The face's keys (face.js FACE_MOVES) the body has, as morph targets over its whole vertex list, made the
+ * first time and shared by everyone with that body: [BufferAttribute named for its key].
+ */
+function faceMovesOf(kit) {
+  kit.faceMoves ??= FACE_MOVES.filter((key) => kit.morphs[key]).map((key) => {
+    const moves = new Float32Array(kit.position.length);
+    for (const { ids, delta } of kit.morphs[key])
+      for (let i = 0; i < ids.length; i++) for (let c = 0; c < 3; c++) moves[ids[i] * 3 + c] += delta[i * 3 + c];
+    const attribute = new BufferAttribute(moves, 3);
+    attribute.name = key;
+    return attribute;
+  });
+  return kit.faceMoves;
 }
 
 const bodies = new Map();
@@ -1131,7 +1148,15 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     }
   }
   const head = filled.limbs.head * race.head;
-  if (head !== 1) stretch.set("Head", new Matrix4().makeScale(head, head, head));
+  if (head !== 1) {
+    stretch.set("Head", new Matrix4().makeScale(head, head, head));
+    // (The eyes turn on bones of their own inside the head: each moved out with it, and grown as it is.)
+    for (const eye of ["eye_l", "eye_r"])
+      if (bones.has(eye)) {
+        bones.get(eye).position.multiplyScalar(head);
+        stretch.set(eye, new Matrix4().makeScale(head, head, head));
+      }
+  }
   root.updateMatrixWorld(true);
 
   const owned = []; // what this person alone has, to let go of with them
@@ -1248,9 +1273,16 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   });
   geometry.boundingBox = kit.boundingBox.clone();
   geometry.boundingSphere = kit.boundingSphere.clone();
+  // The face's moves, live (face.js): each a morph target, at 0 until the preview or an app plays it.
+  const faceMoves = faceMovesOf(kit);
+  if (faceMoves.length) {
+    geometry.morphAttributes.position = faceMoves;
+    geometry.morphTargetsRelative = true;
+  }
   bind(geometry, materials, kit.file);
   owned.push(() => {
-    // (Only what's this person's: the shared texture places, weights and triangles stay for the rest.)
+    // (Only what's this person's: the shared texture places, weights, face moves and triangles stay for the rest.)
+    geometry.morphAttributes = {};
     for (const attribute of Object.keys(kit.shared)) geometry.deleteAttribute(attribute);
     geometry.setIndex(null);
     geometry.dispose();

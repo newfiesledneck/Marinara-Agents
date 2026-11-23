@@ -21,7 +21,7 @@ const NAME = "3D Avatar Maker";
 const packageRoot = join(repoRoot, "packages", PACKAGE_ID);
 const artifactsDir = join(repoRoot, "artifacts");
 
-const VERSION = "0.1.06";
+const VERSION = "0.1.07";
 // A Home tab with its own icon, serving its own asset files (the kit: bodies, hair, clothing). The
 // Capability API and Engine minimum are Wanderworld's, the package this one began from, which uses the
 // same two surfaces (a Home tab and package assets).
@@ -31,7 +31,7 @@ const MAX_ENGINE_EXCLUSIVE = "4.0.0";
 const THREE_VERSION = "0.186.1"; // matches the Engine's own three.js
 const TAB_ICON = "3d-avatar-maker-icon.webp";
 const BASE_DESCRIPTION =
-  "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the face doesn't move yet.";
+  "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks and shows feelings; more is coming.";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 

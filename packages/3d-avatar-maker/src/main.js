@@ -7,6 +7,7 @@
 // saved for good as a file the user keeps (a small .json look, or the .vrm or .glb avatar, which holds the look too).
 import { avatarChoices, createAvatar } from "./avatar.js";
 import { exportGlb, exportVrm, FILE_FORMAT, lookInGlb, vrmTerms } from "./exporter.js";
+import { FACE_MODES } from "./face.js";
 import { PACKAGE_ID, setKitBase } from "./kitfiles.js";
 import { checkLook, NEUTRAL_LOOK, OUTFIT_PRESETS, outfitLook } from "./looks.js";
 import { loadPacks } from "./packs.js";
@@ -144,6 +145,13 @@ function mount(element, props) {
   const note = h("div", { class: "note", role: "status", "aria-live": "polite" });
   const poseSelect = h("select", { "aria-label": "Pose", onchange: () => stage.setPose(poseSelect.value) });
   for (const [pose, label] of POSES) poseSelect.append(new Option(label, pose));
+  // (What the face does in the preview: the moves a saved avatar has, played here. Nothing of it is saved.)
+  const faceSelect = h("select", {
+    "aria-label": "Face",
+    title: "What the face does here: blinking and looking at you, talking, or one expression held",
+    onchange: () => stage.setFace(faceSelect.value),
+  });
+  for (const [mode, label] of FACE_MODES) faceSelect.append(new Option(label, mode));
   const views = h(
     "div",
     { class: "views" },
@@ -152,6 +160,7 @@ function mount(element, props) {
     h("button", { type: "button", onclick: () => stage.view("hand") }, "Hand"),
     h("button", { type: "button", onclick: () => stage.view("feet") }, "Feet"),
     poseSelect,
+    faceSelect,
   );
   const stageBox = h("section", { class: "stage", "aria-label": "Preview" }, canvas, note, views);
 

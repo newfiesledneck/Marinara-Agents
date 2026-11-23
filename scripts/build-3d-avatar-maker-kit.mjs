@@ -1066,19 +1066,24 @@ function mergePrimitives(primitives) {
 
 /** A finger's joints: the hand's shape keys move these with the skin (jointMoves). */
 const FINGER_JOINT = /^(?:thumb|index|middle|ring|pinky)_0[123]_[lr]$/u;
+/** An eye's joint, at its eyeball's centre: the face's keys move it with the eyeball (jointMoves). */
+const EYE_JOINT = /^eye_[lr]$/u;
 /**
  * How far each finger joint moves under each shape key: { key: { joint: [x, y, z] } }, in metres. A key
  * that makes a hand bigger (a dwarf's) or moves it (broad shoulders, old age) leaves the game's joints where
  * the rest pose has them, and a finger turning about a pivot centimetres from its knuckle swings through the
  * hand. So each joint's move is recorded: the mean of the key's moves over the skin that bends there (the
  * body's vertices weighted to both the joint's bone and its parent), for the game to move the joint by
- * (src/avatar.js). Moves under a fifth of a millimetre are left out.
+ * (src/avatar.js). An eye's joint is moved the same way, by the mean of its eyeball's moves (the vertices on
+ * its bone alone), so a key that moves or widens the eyes leaves each turning about its own centre. Moves
+ * under a fifth of a millimetre are left out.
  */
 function jointMoves(primitives, skeleton) {
   const moves = {};
   skeleton.names.forEach((joint, at) => {
     const parent = skeleton.names[skeleton.parents[at]];
-    if (!FINGER_JOINT.test(joint) || !parent) return;
+    const eye = EYE_JOINT.test(joint);
+    if (!(FINGER_JOINT.test(joint) || eye) || !parent) return;
     for (const primitive of primitives) {
       const [own, above] = [primitive.jointNames.indexOf(joint), primitive.jointNames.indexOf(parent)];
       if (own < 0 || above < 0 || !primitive.targets) continue;
@@ -1090,7 +1095,7 @@ function jointMoves(primitives, skeleton) {
           if (primitive.joints.values[v * 4 + c] === own) onOwn += weight;
           if (primitive.joints.values[v * 4 + c] === above) onAbove += weight;
         }
-        if (onOwn > 0.15 && onAbove > 0.15) bent.push(v);
+        if (eye ? onOwn > 0.99 : onOwn > 0.15 && onAbove > 0.15) bent.push(v);
       }
       if (!bent.length) continue;
       primitive.keyNames.forEach((key, k) => {

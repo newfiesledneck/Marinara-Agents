@@ -28,7 +28,7 @@ function aimBone(bone, child, goal) {
 /**
  * The skeleton's root with its skinned meshes on it, scaled to `height` (a share of the body's own) and
  * stood on the floor: { object (add this to a scene), root, bones (name → Bone), meshes, humanoid (VRM
- * bone name → Bone), rest (each bone's turn as built) }.
+ * bone name → Bone), rest (each bone's turn as built), headRest (the head's turn in the world as built) }.
  */
 export function standFigure(root, bones, height = 1) {
   const object = new Group();
@@ -44,7 +44,9 @@ export function standFigure(root, bones, height = 1) {
   const humanoid = {};
   for (const [name, joint] of Object.entries(HUMANOID_BONES)) if (bones.has(joint)) humanoid[name] = bones.get(joint);
   const rest = new Map([...bones].map(([name, bone]) => [name, bone.quaternion.clone()]));
-  return { object, root, bones, meshes, humanoid, rest };
+  // (How the head is turned as built, facing +Z: the face's eyes measure "straight ahead" from it.)
+  const headRest = humanoid.head?.getWorldQuaternion(new Quaternion()) ?? new Quaternion();
+  return { object, root, bones, meshes, humanoid, rest, headRest };
 }
 
 /** Arms level and fingers straight along them: the rest pose a VRM asks for. */

@@ -1,5 +1,12 @@
 # 3D Avatar Maker release notes
 
+## 0.1.07 — 2026-11-23
+
+- The face moves: avatars blink, shape their mouth as they talk, and look happy, angry, sad, relaxed or surprised. In a chat, the 3D Avatars agent plays these on both VRM and GLB files.
+- Teeth and a tongue inside the mouth, seen when it opens.
+- The eyes turn to look. In a VRM, the 3D Avatars agent and other VRM apps move them.
+- A **Face** list under the picture plays it all in the maker: blinking and looking at you, talking, or one expression held.
+
 ## 0.1.06 — 2026-11-23
 
 - Save as VRM: the Save tab now saves a `.vrm` file as well as a `.glb`. Import it in 3D Avatars as a VRM model. It stands in a T-pose and works in other VRM apps too. A tail swings as the avatar moves.

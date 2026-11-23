@@ -4,8 +4,8 @@ Build a 3D avatar for a character or persona inside Marinara Engine, with no oth
 shape it, pick skin, eyes, hair and clothes, and save the result as a file the **3D Avatars** agent shows
 in your chats.
 
-Alpha. The avatar's face doesn't move yet: in a chat it stands, breathes and nods while it talks. Blinking,
-mouth shapes and expressions are the next thing being built (see [the plan](docs/PLAN.md)).
+Alpha. In a chat the avatar blinks, moves its mouth as it talks and shows how the character feels; a VRM's
+eyes move too. What's built and what's next is in [the plan](docs/PLAN.md).
 
 ## Use it
 
@@ -13,7 +13,9 @@ mouth shapes and expressions are the next thing being built (see [the plan](docs
 2. Open **Home → 3D Avatar Maker**.
 3. In **For**, pick the character or persona the avatar is for, or leave it on a free draft.
 4. Work through the tabs: **Body**, **Face**, **Skin and eyes**, **Hair**, **Clothes**. Drag the picture to
-   turn the avatar, scroll or pinch to zoom, and use **Whole body** and **Face** to jump between views.
+   turn the avatar, scroll or pinch to zoom, and use **Whole body** and **Face** to jump between views. The
+   **Face** list under the picture plays the face's moves: blinking and looking at you, talking, or one
+   expression held.
 5. On the **Save** tab, select **Save as VRM** (or **Save as GLB**).
 6. Open **Agents → 3D Avatars** and pick the same character or persona. Under **Avatar type**, choose
    **VRM model** and select **Import VRM** with the `.vrm` you saved. For a `.glb`, choose **GLB or FBX
@@ -60,11 +62,17 @@ toenails, as gloves and shoes hide the nails.
 
 Both files are binary glTF with everything inside them: the skeleton, the meshes that are drawn, standard
 materials and the pictures. Typical files are 5 to 10 MB. **Picture size** on the Save tab makes a smaller
-file for phones. The bones use the Unreal mannequin's names. The face doesn't move in either file yet.
+file for phones. The bones use the Unreal mannequin's names.
+
+Both carry the face's moves as shape keys named the way VRM names its expressions: `blink`, `blinkLeft` and
+`blinkRight`; the mouth shapes `aa`, `ih`, `ou`, `ee` and `oh`; and `happy`, `angry`, `sad`, `relaxed` and
+`surprised`. The 3D Avatars agent finds them by those names. The mouth opens on teeth and a tongue, and each
+eye turns on a bone of its own (`eye_l`, `eye_r`).
 
 - **VRM** (`.vrm`, VRM 1.0) is the avatar format VRoid Studio, VSeeFace and the 3D Avatars agent's **VRM
   model** read. The avatar rests in a T-pose, and the file names its humanoid bones, so any VRM app can pose
-  it. A tail swings on spring bones. The file carries the terms you set under **The VRM's terms** on the
+  it. Its expressions are bound to the face's keys, its eyes look about on their bones, and a tail swings on
+  spring bones. The file carries the terms you set under **The VRM's terms** on the
   Save tab: your name as the author, who may use the avatar, commercial use, sharing and changes, credit,
   and four uses VRM forbids unless allowed. They start at VRM's most careful choices, and the maker keeps
   yours in this browser for the next avatar. While the avatar wears a CC BY pack piece, the file asks for

@@ -21,8 +21,10 @@ import {
   MeshStandardMaterial,
   Uint16BufferAttribute,
   Uint32BufferAttribute,
+  Vector3,
 } from "three";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
+import { FACE_MOVES } from "./face.js";
 import { restPose, tPose } from "./figure.js";
 import { HUMANOID_BONES, texturesReady } from "./kitfiles.js";
 import { PACK_PIECES } from "./looks.js";
@@ -109,8 +111,7 @@ export function slimGeometry(geometry, ranges) {
     }
     if (drawn.length > start) groups.push({ start, count: drawn.length - start, materialIndex: range.materialIndex });
   }
-  const slim = new BufferGeometry();
-  for (const [name, attribute] of Object.entries(geometry.attributes)) {
+  const slimmed = (attribute) => {
     const size = attribute.itemSize;
     const array = new attribute.array.constructor(next * size);
     for (let vertex = 0; vertex < remap.length; vertex++) {
@@ -118,16 +119,26 @@ export function slimGeometry(geometry, ranges) {
       if (to < 0) continue;
       for (let c = 0; c < size; c++) array[to * size + c] = attribute.array[vertex * size + c];
     }
+    const out = new BufferAttribute(array, size, attribute.normalized);
+    out.name = attribute.name;
+    return out;
+  };
+  const slim = new BufferGeometry();
+  for (const [name, attribute] of Object.entries(geometry.attributes)) {
+    const out = slimmed(attribute);
     // (glTF wants normals of length one; the kit's come back from single bytes a little off it.)
     if (name === "normal")
-      for (let at = 0; at < array.length; at += 3) {
-        const length = Math.hypot(array[at], array[at + 1], array[at + 2]) || 1;
-        array[at] /= length;
-        array[at + 1] /= length;
-        array[at + 2] /= length;
+      for (let at = 0; at < out.array.length; at += 3) {
+        const length = Math.hypot(out.array[at], out.array[at + 1], out.array[at + 2]) || 1;
+        out.array[at] /= length;
+        out.array[at + 1] /= length;
+        out.array[at + 2] /= length;
       }
-    slim.setAttribute(name, new BufferAttribute(array, size, attribute.normalized));
+    slim.setAttribute(name, out);
   }
+  // (The face's moves, slimmed the same way: face.js.)
+  for (const [name, list] of Object.entries(geometry.morphAttributes)) slim.morphAttributes[name] = list.map(slimmed);
+  slim.morphTargetsRelative = geometry.morphTargetsRelative;
   slim.setIndex(next > 65535 ? new Uint32BufferAttribute(drawn, 1) : new Uint16BufferAttribute(drawn, 1));
   for (const group of groups) slim.addGroup(group.start, group.count, group.materialIndex);
   return { geometry: slim, vertices: next, triangles: drawn.length / 3 };
@@ -154,7 +165,8 @@ function standardMaterial(material, name) {
 /**
  * `geometry` (a slimmed copy of `mesh`'s) moved, in world space, to where three draws it in the pose its
  * bones are in now: each point by its bones' blend of (mesh world · bind⁻¹ · bone world · bone inverse ·
- * bind). Normals turn with it. Returns the names of the bones that move any of its points.
+ * bind). Normals and the face's moves (morph targets) turn with it. Returns the names of the bones that move
+ * any of its points.
  */
 function bakePose(geometry, mesh) {
   const { bones, boneInverses } = mesh.skeleton;
@@ -167,6 +179,8 @@ function bakePose(geometry, mesh) {
   const normals = normal ? new Float32Array(normal.count * 3) : null;
   const blend = new Float32Array(16);
   const used = new Set();
+  const targets = geometry.morphAttributes.position ?? [];
+  const turned = targets.map((target) => new Float32Array(target.array.length));
   for (let v = 0; v < position.count; v++) {
     blend.fill(0);
     for (let k = 0; k < 4; k++) {
@@ -181,6 +195,12 @@ function bakePose(geometry, mesh) {
     points[v * 3] = blend[0] * x + blend[4] * y + blend[8] * z + blend[12];
     points[v * 3 + 1] = blend[1] * x + blend[5] * y + blend[9] * z + blend[13];
     points[v * 3 + 2] = blend[2] * x + blend[6] * y + blend[10] * z + blend[14];
+    targets.forEach((target, t) => {
+      const [dx, dy, dz] = [target.getX(v), target.getY(v), target.getZ(v)];
+      turned[t][v * 3] = blend[0] * dx + blend[4] * dy + blend[8] * dz;
+      turned[t][v * 3 + 1] = blend[1] * dx + blend[5] * dy + blend[9] * dz;
+      turned[t][v * 3 + 2] = blend[2] * dx + blend[6] * dy + blend[10] * dz;
+    });
     if (!normals) continue;
     const [a, b, c] = [normal.getX(v), normal.getY(v), normal.getZ(v)];
     const nx = blend[0] * a + blend[4] * b + blend[8] * c;
@@ -191,6 +211,12 @@ function bakePose(geometry, mesh) {
   }
   geometry.setAttribute("position", new BufferAttribute(points, 3));
   if (normals) geometry.setAttribute("normal", new BufferAttribute(normals, 3));
+  if (targets.length)
+    geometry.morphAttributes.position = targets.map((target, t) => {
+      const out = new BufferAttribute(turned[t], 3);
+      out.name = target.name;
+      return out;
+    });
   return used;
 }
 
@@ -247,6 +273,10 @@ const TAIL_BONES = ["tail_01", "tail_02", "tail_03", "tail_04", "tail_05"];
 const TAIL_JOINT = { hitRadius: 0.02, stiffness: 1.5, gravityPower: 0.1, gravityDir: [0, -1, 0], dragForce: 0.4 };
 const LEG_RADIUS = 0.07; // metres: the legs' colliders, so a swinging tail stays outside the thighs
 
+const FEELINGS = new Set(["happy", "angry", "sad", "relaxed", "surprised"]);
+/** How far a VRM's eyes turn (degrees): as far as the maker's preview turns them (face.js). */
+const LOOK_RANGE = { sideways: 20, up: 11, down: 14 };
+
 /** The `VRMC_vrm` (and, with a tail, `VRMC_springBone`) blocks added to an exported file's description. */
 function addVrm(json, figure, meta, used) {
   const nodeOf = new Map();
@@ -255,7 +285,39 @@ function addVrm(json, figure, meta, used) {
   const humanBones = {};
   for (const [bone, joint] of Object.entries(HUMANOID_BONES))
     if (nodeOf.has(joint)) humanBones[bone] = { node: nodeOf.get(joint) };
-  json.extensions = { ...json.extensions, VRMC_vrm: { specVersion: "1.0", meta, humanoid: { humanBones } } };
+  const block = { specVersion: "1.0", meta, humanoid: { humanBones } };
+  // The face (face.js): each of VRM's expressions bound to the morph target of its name on every mesh that has
+  // one. A feeling eases a blink off while it's shown, as its own eyes are already narrowed or wide.
+  const preset = {};
+  json.nodes.forEach((node, index) => {
+    const names = node.mesh === undefined ? null : json.meshes[node.mesh].extras?.targetNames;
+    names?.forEach((name, at) => {
+      if (!FACE_MOVES.includes(name)) return;
+      preset[name] ??= {
+        morphTargetBinds: [],
+        isBinary: false,
+        ...(FEELINGS.has(name) ? { overrideBlink: "blend" } : {}),
+      };
+      preset[name].morphTargetBinds.push({ node: index, index: at, weight: 1 });
+    });
+  });
+  if (Object.keys(preset).length) block.expressions = { preset };
+  // The eyes turn on their bones to look (as far as LOOK_RANGE), from between them.
+  const [left, right] = [figure.bones.get("eye_l"), figure.bones.get("eye_r")];
+  if (humanBones.leftEye && humanBones.rightEye && left && right && figure.humanoid.head) {
+    const between = left.getWorldPosition(new Vector3()).add(right.getWorldPosition(new Vector3())).multiplyScalar(0.5);
+    const offset = figure.humanoid.head.worldToLocal(between);
+    const range = (degrees) => ({ inputMaxValue: 90, outputScale: degrees });
+    block.lookAt = {
+      type: "bone",
+      offsetFromHeadBone: offset.toArray().map((value) => Math.round(value * 1e5) / 1e5),
+      rangeMapHorizontalInner: range(LOOK_RANGE.sideways),
+      rangeMapHorizontalOuter: range(LOOK_RANGE.sideways),
+      rangeMapVerticalDown: range(LOOK_RANGE.down),
+      rangeMapVerticalUp: range(LOOK_RANGE.up),
+    };
+  }
+  json.extensions = { ...json.extensions, VRMC_vrm: block };
   const extensions = new Set(json.extensionsUsed ?? []).add("VRMC_vrm");
   const tail = TAIL_BONES.filter((bone) => nodeOf.has(bone));
   if (tail.length > 1 && used.has(tail[1])) {
@@ -308,6 +370,9 @@ async function exportFile(figure, { look = {}, name = "", maxTextureSize = 2048 
   if (vrm) tPose(figure);
   else restPose(figure);
   const children = [...figure.root.children]; // (a VRM's meshes leave the root while it's written)
+  // (The face at rest in the file, whatever the preview is playing: its keys' weights are written too.)
+  const faces = figure.meshes.map((mesh) => mesh.morphTargetInfluences?.slice());
+  for (const mesh of figure.meshes) mesh.morphTargetInfluences?.fill(0);
   const swapped = [];
   const made = [];
   const mimeTypes = new Map(); // a picture's type while exporting: JPEG unless something see-through uses it
@@ -385,6 +450,9 @@ async function exportFile(figure, { look = {}, name = "", maxTextureSize = 2048 
       mesh.material = material;
     }
     for (const item of made) item.dispose();
+    figure.meshes.forEach(
+      (mesh, at) => faces[at] && mesh.morphTargetInfluences.splice(0, faces[at].length, ...faces[at]),
+    );
     for (const [skeleton, saved] of inverses) saved.forEach((inverse, i) => skeleton.boneInverses[i].copy(inverse));
     if (vrm) {
       for (const mesh of figure.meshes) if (mesh.parent !== figure.root) figure.root.add(mesh);

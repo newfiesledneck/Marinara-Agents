@@ -17,6 +17,9 @@ data by this repository's own scripts; MakeHuman itself is neither run nor copie
   `avatar-<sex>-<n>.webp`): the bodies' base mesh and shapes, adapted with `assets/scripts/make_avatar.py`.
 - `avatar/avatar-<sex>-skin-<age>-<ethnicity>.webp`, `avatar/avatar-eyes.webp`, and the brow and lash
   styles in the bodies: MakeHuman's skins, eyes, eyebrows and eyelashes.
+- In the bodies: the face's moves (blinks, mouth shapes and feelings), each a mix of MakeHuman's
+  expression unit targets chosen by ThatOneCan; MakeHuman's teeth (teeth_base) and tongue (tongue01), and
+  their pictures, shaded darker towards the back of the mouth, in the bodies' mouth picture.
 - In `avatar/avatar-hair-short.pack.png` and `avatar-hair-long.pack.png`: the short, slicked, crop, fringe,
   curly, bob, bob angled, long, ponytail and braid hair styles (`make_mh_hair.py`).
 - In `wardrobe/avatar-outfits-<group>.pack.png`: the modern clothes (`make_mh_clothes.py`): the tee, long

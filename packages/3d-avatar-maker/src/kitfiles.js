@@ -184,6 +184,9 @@ export const HUMANOID_BONES = {
   rightLowerLeg: "calf_r",
   rightFoot: "foot_r",
   rightToes: "ball_r",
+  // (Each eyeball turns on a bone of its own: a body built before them has none.)
+  leftEye: "eye_l",
+  rightEye: "eye_r",
 };
 for (const [side, s] of [
   ["left", "l"],
