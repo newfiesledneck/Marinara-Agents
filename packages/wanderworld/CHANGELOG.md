@@ -1,5 +1,10 @@
 # Wanderworld release notes
 
+## 0.7.63 — 2026-11-20
+
+- A cave that doesn't lead down says so: its mouth reads "Look into the shallow cave" in place of "Go in", and its card says it's shallow. Before, "Go in" only opened a scene card, with nothing to say why. Settings → World → Places → Which caves lead down sets how many do.
+- A stronghold's gate and a ruin over a dungeon always lead down, straight into the stronghold or the dungeon. Before, one in four led nowhere and the rest opened on a small cave.
+
 ## 0.7.62 — 2026-11-20
 
 - The anthro wolf's head is a size bigger, in proportion to its shoulders; Head size in the Look card still sets it either way.

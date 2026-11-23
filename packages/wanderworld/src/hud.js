@@ -1575,7 +1575,7 @@ export function createHud(root, handlers) {
     deepPlaces:
       "On: \"Go in\" at a cave's mouth takes you down into it, a level at a time: a small cave, then a big cavern, a dungeon, a stronghold or another cave, up to four levels down. Your party comes with you. Off: a cave's mouth shows its card, for starting a scene there.",
     deepShare:
-      "Which of a world's caves lead down. The rest show their card as before. A cave keeps its answer: the same cave always leads to the same place.",
+      'Which of a world\'s caves lead down. The rest are shallow: their mouth says "Look into the shallow cave" in place of "Go in", and shows a card for a scene there. A cave keeps its answer: the same cave always leads to the same place. A stronghold\'s gate, a ruin over a dungeon and a cave a quest sends you into always lead down.',
     deepCreatures:
       "On: creatures live down there, the kinds that suit the place (rats, spiders, snakes, bats and slimes in caves, skeletons and ghouls in dungeons, bandits in strongholds), no tougher than your level can take, and tougher the deeper you go. The kinds switched off in Settings → Creatures stay off. Off: the deep places are empty.",
     worldEvents:

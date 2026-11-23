@@ -6,7 +6,15 @@
 import assert from "node:assert/strict";
 import { dungeonPlan } from "../packages/wanderworld/src/dungeon.js";
 import { createHerd } from "../packages/wanderworld/src/herd.js";
-import { boxesOf, createDeep, creaturesFor, deepPlan, deepSeed, leadsDown } from "../packages/wanderworld/src/deep.js";
+import {
+  boxesOf,
+  createDeep,
+  creaturesFor,
+  deepPlan,
+  deepSeed,
+  leadsDown,
+  wayDown,
+} from "../packages/wanderworld/src/deep.js";
 import { CELL, cavePlan, cavernPlan, intoRoom, MIN_WIDTH, openAt } from "../packages/wanderworld/src/deepcave.js";
 import { SRD_CREATURES } from "../packages/wanderworld/src/srd.js";
 import { createCollider, rng } from "../packages/wanderworld/src/world.js";
@@ -138,6 +146,21 @@ assert.deepEqual(deepPlan(77, 2, "stronghold"), dungeonPlan(77, 2, "stronghold")
 assert.deepEqual(deepPlan(77, 2, "tunnel"), cavePlan(77, 2), "a kind with no plan of its own is a cave");
 for (let seed = 1; seed < 20; seed++)
   assert.equal(deepPlan(seed, 4, "dungeon").down, null, "nothing goes deeper than four levels, whatever the kind");
+
+// The way down from a mouth: a shallow cave has none; a cave that leads down opens on a small cave; a
+// stronghold's gate or a ruin over a dungeon always leads down, straight into it; so does one a quest needs.
+{
+  const shallow = Array.from({ length: 50 }, (_, i) => `w:${i}`).find((cave) => !leadsDown(cave, 0.75));
+  const leading = Array.from({ length: 50 }, (_, i) => `w:${i}`).find((cave) => leadsDown(cave, 0.75));
+  assert.equal(wayDown({}, shallow, 0.75), null, "a shallow cave doesn't lead down");
+  assert.deepEqual(wayDown({}, leading, 0.75), ["cave"]);
+  assert.deepEqual(wayDown({ deep: "stronghold" }, shallow, 0.75), ["stronghold"], "a gate always does");
+  assert.deepEqual(wayDown({ deep: "dungeon" }, shallow, 0), ["dungeon"]);
+  assert.deepEqual(wayDown({ deep: "nonsense" }, shallow, 0), ["cave"]);
+  assert.deepEqual(wayDown({}, shallow, 0.75, true), ["cave"], "a quest's cave always does");
+  for (const kind of ["cave", "cavern", "dungeon", "stronghold"])
+    assert.ok(deepPlan(deepSeed(shallow, 1), 1, kind).entry, `a first level can be a ${kind}`);
+}
 
 // Which caves lead down: none, all, or a share, the same each time.
 const caves = Array.from({ length: 200 }, (_, i) => `world:${i}`);

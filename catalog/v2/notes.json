@@ -1466,6 +1466,12 @@
     "wanderworld": {
       "versions": [
         {
+          "version": "0.7.63",
+          "date": "2026-11-20",
+          "notes": "- A cave that doesn't lead down says so: its mouth reads \"Look into the shallow cave\" in place of \"Go in\", and its card says it's shallow. Before, \"Go in\" only opened a scene card, with nothing to say why. Settings → World → Places → Which caves lead down sets how many do.\n- A stronghold's gate and a ruin over a dungeon always lead down, straight into the stronghold or the dungeon. Before, one in four led nowhere and the rest opened on a small cave.",
+          "highlight": false
+        },
+        {
           "version": "0.7.62",
           "date": "2026-11-20",
           "notes": "- The anthro wolf's head is a size bigger, in proportion to its shoulders; Head size in the Look card still sets it either way.",
@@ -1577,12 +1583,6 @@
           "version": "0.7.44",
           "date": "2026-11-20",
           "notes": "- Settings → People → Default skins with underwear (on to begin with): anyone with no underwear chosen wears the usual; off, the base skin shows unless underwear is chosen in the Look card.\n- More hair style names for the new bodies (bob, braid, curly, afro, shaved, mohawk), offered when the kit has them.",
-          "highlight": false
-        },
-        {
-          "version": "0.7.43",
-          "date": "2026-11-20",
-          "notes": "- The built-in bodies, polished: a smooth jawline, closed lips, eyes with depth and a wet line, relaxed hands, and fine skin detail (pores, creases) in the texture rather than the shape.\n- Underwear as real garments with waistbands, hems and seams, in styles to choose top and bottom in the Look card: briefs, boxer-briefs and boxers for both; bikini, thong and boyshorts for the female body; a bra, a sports bra or a bralette; or none.",
           "highlight": false
         }
       ]
