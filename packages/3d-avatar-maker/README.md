@@ -14,9 +14,10 @@ mouth shapes and expressions are the next thing being built (see [the plan](docs
 3. In **For**, pick the character or persona the avatar is for, or leave it on a free draft.
 4. Work through the tabs: **Body**, **Face**, **Skin and eyes**, **Hair**, **Clothes**. Drag the picture to
    turn the avatar, scroll or pinch to zoom, and use **Whole body** and **Face** to jump between views.
-5. On the **Save** tab, select **Save as GLB**.
-6. Open **Agents → 3D Avatars**, pick the same character or persona, choose **GLB or FBX model** under
-   **Avatar type**, and select **Import GLB or FBX** with the file you saved.
+5. On the **Save** tab, select **Save as VRM** (or **Save as GLB**).
+6. Open **Agents → 3D Avatars** and pick the same character or persona. Under **Avatar type**, choose
+   **VRM model** and select **Import VRM** with the `.vrm` you saved. For a `.glb`, choose **GLB or FBX
+   model** and select **Import GLB or FBX**.
 7. Turn on **Show this avatar in chats**, and add 3D Avatars to the chat under **Chat Settings → Agents**.
 
 The maker never writes to your characters, personas or the 3D Avatars agent. An avatar leaves it only as a
@@ -52,15 +53,24 @@ toenails, as gloves and shoes hide the nails.
   browser. A draft is a convenience: it is lost if the browser's site data is cleared, and it isn't on your
   other devices.
 - **Save the look (.json).** A small file with every choice. **Open** reads it back.
-- **Save as GLB.** The avatar itself. The file also holds the look, so **Open** can read a saved avatar
-  and carry on editing it.
+- **Save as VRM** or **Save as GLB.** The avatar itself. Either file also holds the look, so **Open** can
+  read a saved avatar and carry on editing it.
 
 ## The saved file
 
-A `.glb` (binary glTF) with everything inside it: the skeleton, the meshes that are drawn, standard
+Both files are binary glTF with everything inside them: the skeleton, the meshes that are drawn, standard
 materials and the pictures. Typical files are 5 to 10 MB. **Picture size** on the Save tab makes a smaller
-file for phones. The bones use the Unreal mannequin's names, which the 3D Avatars agent and most 3D tools
-recognise, and the avatar rests in an A-pose.
+file for phones. The bones use the Unreal mannequin's names. The face doesn't move in either file yet.
+
+- **VRM** (`.vrm`, VRM 1.0) is the avatar format VRoid Studio, VSeeFace and the 3D Avatars agent's **VRM
+  model** read. The avatar rests in a T-pose, and the file names its humanoid bones, so any VRM app can pose
+  it. A tail swings on spring bones. The file carries the terms you set under **The VRM's terms** on the
+  Save tab: your name as the author, who may use the avatar, commercial use, sharing and changes, credit,
+  and four uses VRM forbids unless allowed. They start at VRM's most careful choices, and the maker keeps
+  yours in this browser for the next avatar. While the avatar wears a CC BY pack piece, the file asks for
+  credit and names that piece's maker, whatever you chose.
+- **GLB** (`.glb`) is a plain 3D model resting in an A-pose, for the 3D Avatars agent's **GLB or FBX model**
+  or any 3D tool.
 
 ## Works without AI
 
@@ -92,7 +102,7 @@ its own copy of those files and code. A look saved from Wanderworld's Look card 
 - Source: `src/` (bundled into `client.js` by `node scripts/build-3d-avatar-maker-package.mjs`).
 - Test page outside the Engine: `node packages/3d-avatar-maker/dev/serve.mjs`, then open
   `http://127.0.0.1:5197/`. `/viewer?file=/dev/out/last.glb` loads a saved file the way the Engine's 3D
-  Avatars agent loads a GLB.
+  Avatars agent loads a GLB, and a `.vrm` the way it loads a VRM model.
 - Test: `node tests/3d-avatar-maker.regression.mjs`.
 - Wardrobe packs: fitted by `assets/scripts/make_mh_packs.py` from `assets/packs.json`, built by
   `node scripts/build-3d-avatar-maker-packs.mjs`. The test page serves the repo's `packages/3d-avatar-maker-*`

@@ -275,6 +275,108 @@ assert.equal(lookInGlb(new Uint8Array([1, 2, 3])), null, "a file that isn't a GL
 assert.equal(lookInGlb(writeGlb({ asset: { version: "2.0" } })), null, "a GLB from elsewhere has no look");
 assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
 
+// ── A saved VRM: what three-vrm (and so the Engine's VRM model) reads, resting in a T-pose ──
+{
+  const { exportVrm, VRM_LICENSE_URL, vrmMeta, vrmTerms } = await import("../packages/3d-avatar-maker/src/exporter.js");
+  const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+  const { VRMLoaderPlugin } = await import("@pixiv/three-vrm");
+  const { Vector3 } = await import("three");
+  const tiefling = await createAvatar(startOf("female", racePreset("tiefling", "female")), "Test", "auto");
+  for (const mesh of tiefling.meshes) for (const material of [mesh.material].flat()) material.map = null;
+  for (const [name, figure] of Object.entries({ plain: made.plain, dwarf: made.dwarf, tiefling })) {
+    const look = startOf("female", { hair: "bob" });
+    const geometries = figure.meshes.map((mesh) => mesh.geometry);
+    const inverses = figure.meshes.map((mesh) => mesh.skeleton.boneInverses.map((inverse) => inverse.clone()));
+    const saved = await exportVrm(figure, { look, name: `Saved ${name}`, terms: { author: "Tester" } });
+    assert.deepEqual(
+      figure.meshes.map((mesh) => mesh.geometry),
+      geometries,
+      `${name}: the figure keeps its geometry`,
+    );
+    figure.meshes.forEach((mesh, i) =>
+      mesh.skeleton.boneInverses.forEach((inverse, b) =>
+        assert.ok(inverse.equals(inverses[i][b]), `${name}: its bones are bound as before`),
+      ),
+    );
+    for (const [bone, turn] of figure.rest)
+      assert.ok(figure.bones.get(bone).quaternion.equals(turn), `${name}: at rest`);
+    const { json } = readGlb(saved.bytes);
+    const block = json.extensions?.VRMC_vrm;
+    assert.equal(block?.specVersion, "1.0", `${name}: a VRM 1.0`);
+    assert.ok(json.extensionsUsed.includes("VRMC_vrm"));
+    for (const bone of VRM_REQUIRED)
+      assert.equal(
+        json.nodes[block.humanoid.humanBones[bone]?.node]?.name,
+        HUMANOID_BONES[bone],
+        `${name}: names its ${bone} bone`,
+      );
+    assert.deepEqual(block.meta.authors, ["Tester"]);
+    assert.equal(block.meta.licenseUrl, VRM_LICENSE_URL);
+    assert.equal(block.meta.name, `Saved ${name}`);
+    assert.equal(Boolean(json.extensions.VRMC_springBone), name === "tiefling", `${name}: springs only for a tail`);
+    assert.deepEqual(lookInGlb(saved.bytes), { name: `Saved ${name}`, look }, `${name}: the look comes back out`);
+
+    // Loaded with three-vrm as the Engine loads a VRM model.
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+    const bytes = saved.bytes;
+    const gltf = await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
+    const vrm = gltf.userData.vrm;
+    assert.ok(vrm?.humanoid, `${name}: three-vrm reads it as a VRM`);
+    assert.equal(vrm.meta.metaVersion, "1");
+    vrm.scene.updateMatrixWorld(true);
+    const at = (bone) => vrm.humanoid.getRawBoneNode(bone).getWorldPosition(new Vector3());
+    assert.ok(Math.abs(at("leftUpperArm").y - at("leftHand").y) < 0.01, `${name}: rests with its arms level`);
+    assert.ok(at("leftHand").x > at("leftUpperArm").x + 0.3, `${name}: its left arm out to +X`);
+    assert.ok(at("leftToes").z > at("leftFoot").z, `${name}: it faces +Z, as VRM 1.0 asks`);
+    // Bound in that pose: every point drawn where the file lists it.
+    let furthest = 0;
+    const point = new Vector3();
+    vrm.scene.traverse((object) => {
+      if (!object.isSkinnedMesh) return;
+      const position = object.geometry.attributes.position;
+      for (let i = 0; i < position.count; i += 97) {
+        const listed = point.fromBufferAttribute(position, i).clone().applyMatrix4(object.matrixWorld);
+        object.applyBoneTransform(i, point.fromBufferAttribute(position, i));
+        furthest = Math.max(furthest, point.applyMatrix4(object.matrixWorld).distanceTo(listed));
+      }
+    });
+    assert.ok(furthest < 0.001, `${name}: its bind pose is its rest pose (off by ${furthest.toFixed(5)})`);
+    if (name === "tiefling") {
+      assert.equal(vrm.springBoneManager.joints.size, 4, "the tail's four segments swing");
+      const tip = gltf.scene.getObjectByName("tail_05");
+      const start = tip.getWorldPosition(new Vector3());
+      for (let i = 0; i < 120; i++) vrm.update(1 / 60);
+      assert.ok(tip.getWorldPosition(new Vector3()).distanceTo(start) < 0.1, "the tail keeps its shape at rest");
+    }
+  }
+  tiefling.dispose();
+
+  // The author's terms: VRM's careful defaults, only known values, and the sharing choice split in two.
+  assert.deepEqual(vrmTerms({ avatarPermission: "nobody", allowExcessivelySexualUsage: "yes" }), {
+    avatarPermission: "onlyAuthor",
+    commercialUsage: "personalNonProfit",
+    sharing: "none",
+    creditNotation: "required",
+    allowExcessivelyViolentUsage: false,
+    allowExcessivelySexualUsage: false,
+    allowPoliticalOrReligiousUsage: false,
+    allowAntisocialOrHateUsage: false,
+    author: "",
+  });
+  const open = vrmMeta(
+    " ",
+    {},
+    { sharing: "changeAndShare", creditNotation: "unnecessary", avatarPermission: "everyone" },
+  );
+  assert.equal(open.name, "Avatar");
+  assert.deepEqual(open.authors, ["Unknown"], "a VRM needs an author");
+  assert.equal(open.allowRedistribution, true);
+  assert.equal(open.modification, "allowModificationRedistribution");
+  assert.equal(open.creditNotation, "unnecessary", "a CC0 avatar may ask for no credit");
+  assert.equal(vrmMeta("a", {}, { sharing: "change" }).allowRedistribution, false);
+}
+
 for (const figure of Object.values(made)) figure.dispose();
 
 // ── Wardrobe packs: an installed pack's index read as untrusted data (packs.js) ──
@@ -358,6 +460,11 @@ for (const figure of Object.values(made)) figure.dispose();
   assert.ok(!(await avatarChoices("male")).clothes.some(({ piece }) => piece === "test_good"), "and not on the other");
   assert.equal(licenceNote({ clothes: ["test_good"] }), LICENCE_NOTE, "a CC0 piece adds no credit");
   assert.match(licenceNote({ clothes: ["test_cc_by", "boots"] }), /CC0.*Test dress by Someone, CC BY 4\.0$/u);
+  // A VRM wearing a CC BY piece asks for credit whatever its author chose, and names the piece's maker.
+  const { vrmMeta } = await import("../packages/3d-avatar-maker/src/exporter.js");
+  const credited = vrmMeta("a", { clothes: ["test_cc_by"] }, { creditNotation: "unnecessary" });
+  assert.equal(credited.creditNotation, "required");
+  assert.match(credited.thirdPartyLicenses, /Test dress by Someone, CC BY 4\.0/u);
 }
 
 // ── The Accessories pack, as built: its pieces fill the maker's newer slots, and what covers what ──

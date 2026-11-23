@@ -4,9 +4,9 @@
 // The Engine mounts this element once, with view="browser", as the package's Home tab. Everything is made
 // in the browser from the package's own kit files (kitfiles.js): no AI and no outside service is needed.
 // The look being worked on is kept in this browser as a draft, one for each character or persona, and
-// saved for good as a file the user keeps (a small .json look, or the .glb avatar, which holds the look too).
+// saved for good as a file the user keeps (a small .json look, or the .vrm or .glb avatar, which holds the look too).
 import { avatarChoices, createAvatar } from "./avatar.js";
-import { exportGlb, FILE_FORMAT, lookInGlb } from "./exporter.js";
+import { exportGlb, exportVrm, FILE_FORMAT, lookInGlb, vrmTerms } from "./exporter.js";
 import { PACKAGE_ID, setKitBase } from "./kitfiles.js";
 import { checkLook, NEUTRAL_LOOK, OUTFIT_PRESETS, outfitLook } from "./looks.js";
 import { loadPacks } from "./packs.js";
@@ -18,6 +18,7 @@ import { getJson } from "./util.js";
 const TAG = `marinara-capability-${PACKAGE_ID}`;
 const DRAFT_KEY = (owner) => `${PACKAGE_ID}:draft:${owner ? `${owner.type}:${owner.id}` : "none"}`;
 const LAST_KEY = `${PACKAGE_ID}:last`;
+const TERMS_KEY = `${PACKAGE_ID}:vrm-terms`; // (the author's VRM terms, the same for every avatar they save)
 /** The look's fields that are records, merged part by part when a control changes one part. */
 const RECORDS = ["shape", "limbs", "colours", "underwear", "clothColours", "variants"];
 
@@ -129,6 +130,7 @@ function mount(element, props) {
     filled: null,
     choices: null,
     exported: null,
+    terms: vrmTerms(store.read(TERMS_KEY) ?? {}),
     building: 0,
     figure: null,
     redraw: true, // whether the controls are drawn again after the next build (not while a slider is dragged)
@@ -169,7 +171,7 @@ function mount(element, props) {
   });
   const openInput = h("input", {
     type: "file",
-    accept: ".glb,.json,model/gltf-binary,application/json",
+    accept: ".vrm,.glb,.json,model/gltf-binary,application/json",
     class: "visually-hidden",
     tabIndex: -1,
     "aria-hidden": "true",
@@ -208,7 +210,11 @@ function mount(element, props) {
       download(text, fileName(state.name, "avatar.json"), "application/json");
       panel.setStatus("Saved the look as a file.");
     },
-    onExport: (options) => void saveGlb(options),
+    onExport: (options) => void saveAvatar(options),
+    onTerms: (patch) => {
+      state.terms = vrmTerms({ ...state.terms, ...patch });
+      store.write(TERMS_KEY, state.terms);
+    },
   });
 
   const app = h(
@@ -253,6 +259,7 @@ function mount(element, props) {
       choices: state.choices,
       tab: state.tab,
       exported: state.exported,
+      terms: state.terms,
     });
   }
 
@@ -316,11 +323,11 @@ function mount(element, props) {
     void rebuildFigure();
   }
 
-  /** Opens a saved look (.json: this maker's, or a Wanderworld look) or an avatar this maker saved (.glb). */
+  /** Opens a saved look (.json: this maker's, or a Wanderworld look) or an avatar this maker saved (.vrm, .glb). */
   async function openFile(file) {
     try {
       let read = null;
-      if (/\.glb$/iu.test(file.name)) read = lookInGlb(await file.arrayBuffer());
+      if (/\.(?:glb|vrm)$/iu.test(file.name)) read = lookInGlb(await file.arrayBuffer());
       else {
         const parsed = JSON.parse(await file.text());
         if (parsed?.avatarMaker === "look" || parsed?.wanderworld === "look")
@@ -329,7 +336,7 @@ function mount(element, props) {
       const look = read ? checkLook(read.look) : null;
       if (!look || !Object.keys(look).length) {
         panel.setStatus(
-          /\.glb$/iu.test(file.name)
+          /\.(?:glb|vrm)$/iu.test(file.name)
             ? "That file wasn't saved by 3D Avatar Maker, so there is no look in it to open."
             : "That file isn't a saved look.",
           true,
@@ -351,17 +358,17 @@ function mount(element, props) {
     }
   }
 
-  async function saveGlb({ maxTextureSize }) {
+  async function saveAvatar({ format, maxTextureSize }) {
     if (!state.figure) return;
     panel.setStatus("Saving the avatar…");
     try {
-      const { bytes, vertices, triangles } = await exportGlb(state.figure, {
-        look: state.look,
-        name: state.name,
-        maxTextureSize,
-      });
+      const options = { look: state.look, name: state.name, maxTextureSize };
+      const { bytes, vertices, triangles } =
+        format === "vrm"
+          ? await exportVrm(state.figure, { ...options, terms: state.terms })
+          : await exportGlb(state.figure, options);
       stage.setPose(poseSelect.value); // (the export put the figure in its A-pose)
-      const file = fileName(state.name, "glb");
+      const file = fileName(state.name, format === "vrm" ? "vrm" : "glb");
       download(bytes, file, "model/gltf-binary");
       state.exported = { file, bytes: bytes.byteLength, vertices, triangles };
       render();

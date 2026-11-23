@@ -4,6 +4,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.06",
+          "date": "2026-11-23",
+          "notes": "- Save as VRM: the Save tab now saves a `.vrm` file as well as a `.glb`. Import it in 3D Avatars as a VRM model. It stands in a T-pose and works in other VRM apps too. A tail swings as the avatar moves.\n- The VRM's terms: put your name as the author, and choose who may use the avatar, commercial use, sharing and changes, and credit. Your choices are kept for the next avatar you save. A VRM wearing credited pack clothes always asks for credit to their makers.\n- **Open** reads a saved `.vrm` back for editing, as it does a `.glb`.",
+          "highlight": false
+        },
+        {
           "version": "0.1.05",
           "date": "2026-11-23",
           "notes": "- Took out two skins, Mid-toned and Viking tattoos. Their material files say AGPL-3, which doesn't match the CC0 their catalogue gives. An avatar saved with one of them opens with the default skin instead.",

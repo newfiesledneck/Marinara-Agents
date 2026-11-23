@@ -54,6 +54,36 @@ import {
 } from "./looks.js";
 import { hexNumber, hexText } from "./util.js";
 
+/** The terms a VRM file carries (exporter.js vrmTerms), in the words Marinara Engine's 3D Avatars agent shows. */
+const TERM_LISTS = {
+  avatarPermission: [
+    ["onlyAuthor", "Only the author"],
+    ["onlySeparatelyLicensedPerson", "Only people the author allows"],
+    ["everyone", "Anyone"],
+  ],
+  commercialUsage: [
+    ["personalNonProfit", "Personal use, not for money"],
+    ["personalProfit", "Personal use, including for money"],
+    ["corporation", "Any use, including by companies"],
+  ],
+  sharing: [
+    ["none", "Don't share it or change it"],
+    ["share", "May share it as it is"],
+    ["change", "May change it, but not share the changed one"],
+    ["changeAndShare", "May change it and share the changed one"],
+  ],
+  creditNotation: [
+    ["required", "Required"],
+    ["unnecessary", "Not needed"],
+  ],
+};
+const TERM_FLAGS = [
+  ["allowExcessivelyViolentUsage", "excessively violent use"],
+  ["allowExcessivelySexualUsage", "excessively sexual use"],
+  ["allowPoliticalOrReligiousUsage", "political or religious use"],
+  ["allowAntisocialOrHateUsage", "hateful or antisocial use"],
+];
+
 export const TABS = [
   ["start", "Start"],
   ["body", "Body"],
@@ -619,7 +649,7 @@ export function createPanel(actions) {
       ];
     },
 
-    save: ({ exported }) => [
+    save: ({ exported, terms, look }) => [
       group(
         "Keep working on it later",
         "A small file with every choice you made. Open it here again to carry on.",
@@ -632,7 +662,7 @@ export function createPanel(actions) {
       ),
       group(
         "Save as a 3D avatar",
-        "A .glb file with the body, hair, clothes and pictures in it. The file also remembers your choices, so it can be opened here again.",
+        "A file with the body, hair, clothes and pictures in it, which also remembers your choices so it can be opened here again. A VRM stands in a T-pose, names its bones for any VRM app, carries the terms below, and swings a tail if one is worn. A GLB is a plain 3D model.",
         row(
           "Picture size",
           (pictureSize = select(
@@ -648,13 +678,25 @@ export function createPanel(actions) {
           "How large the skin and clothing pictures are in the file.",
         ),
         h(
-          "button",
-          {
-            class: "main",
-            type: "button",
-            onclick: () => actions.onExport({ maxTextureSize: Number(pictureSize.value) }),
-          },
-          "Save as GLB",
+          "div",
+          { class: "swatches" },
+          h(
+            "button",
+            {
+              class: "main",
+              type: "button",
+              onclick: () => actions.onExport({ format: "vrm", maxTextureSize: Number(pictureSize.value) }),
+            },
+            "Save as VRM",
+          ),
+          h(
+            "button",
+            {
+              type: "button",
+              onclick: () => actions.onExport({ format: "glb", maxTextureSize: Number(pictureSize.value) }),
+            },
+            "Save as GLB",
+          ),
         ),
         exported
           ? h(
@@ -664,6 +706,55 @@ export function createPanel(actions) {
             )
           : null,
       ),
+      // (A change here is kept without drawing the tab again, so the author box keeps its cursor.)
+      foldable(
+        "terms",
+        "The VRM's terms",
+        "What you allow others to do with the avatar, written into a VRM file under the VRM Public License 1.0 for the apps that open it. Kept in this browser for every avatar you save. A GLB carries none of this.",
+        row(
+          "Author",
+          h("input", {
+            type: "text",
+            value: terms.author,
+            maxLength: 120,
+            placeholder: "Your name or handle",
+            "aria-label": "Author",
+            oninput: (event) => actions.onTerms({ author: event.target.value }),
+          }),
+          "Who made the avatar. Left empty, the file says Unknown.",
+        ),
+        ...[
+          ["avatarPermission", "Who may use it", "Who may appear as this avatar."],
+          ["commercialUsage", "Commercial use", "Whether it may be used to earn money, and by whom."],
+          ["sharing", "Sharing", "Whether others may pass the file on, or change the avatar."],
+          [
+            "creditNotation",
+            "Credit",
+            (look?.clothes ?? []).some((piece) => PACK_PIECES[piece]?.credit)
+              ? "Whether whoever uses it must name you. Always required while it wears a CC BY piece from a wardrobe pack, whose maker must be credited."
+              : "Whether whoever uses it must name you.",
+          ],
+        ].map(([field, name, says]) =>
+          row(
+            name,
+            select(TERM_LISTS[field], terms[field], (value) => actions.onTerms({ [field]: value }), name),
+            says,
+          ),
+        ),
+        h("p", { class: "says" }, "Uses VRM forbids unless allowed:"),
+        ...TERM_FLAGS.map(([flag, name]) =>
+          h(
+            "label",
+            { class: "check" },
+            h("input", {
+              type: "checkbox",
+              checked: terms[flag],
+              onchange: (event) => actions.onTerms({ [flag]: event.target.checked }),
+            }),
+            ` Allow ${name}`,
+          ),
+        ),
+      ),
       group(
         "Use it in a chat",
         "The 3D Avatars agent shows the file. This version has a still face: it blinks and talks once face movement is added to the bodies.",
@@ -672,7 +763,11 @@ export function createPanel(actions) {
           { class: "steps" },
           h("li", {}, "Open Agents and install 3D Avatars from the Agent Organizer if you haven't."),
           h("li", {}, "Open 3D Avatars and pick the character or persona."),
-          h("li", {}, "Under Avatar type choose GLB or FBX model, then Import GLB or FBX and choose the saved file."),
+          h(
+            "li",
+            {},
+            "For a .vrm, under Avatar type choose VRM model, then Import VRM. For a .glb, choose GLB or FBX model, then Import GLB or FBX.",
+          ),
           h(
             "li",
             {},
