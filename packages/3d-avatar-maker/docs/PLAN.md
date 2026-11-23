@@ -213,6 +213,13 @@ poses with its arms lowered. Not yet checked in a real Engine.
   turns the head now and then to show it. Reduced motion holds them at rest; changing the pose starts them
   from rest.
 
+## Built (0.1.09)
+
+- **Lip colour.** The lip faces reach 4 to 7 texels past the lips the skin pictures paint, and the mask was at
+  full strength to their edge (and softened past it), so a picked colour spilled onto the skin round the
+  mouth. The mask (`scripts/build-3d-avatar-maker-masks.mjs`) now fades the outer lips in from their edge,
+  nothing for 1.5 texels and all of it from 6 in, and keeps the colour full where the lips meet.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and

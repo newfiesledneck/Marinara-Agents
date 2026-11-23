@@ -15,7 +15,7 @@
         },
         "id": "3d-avatar-maker",
         "name": "3D Avatar Maker",
-        "version": "0.1.08",
+        "version": "0.1.09",
         "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
         "engine": {
           "min": "2.4.6",
@@ -117,7 +117,7 @@
           },
           {
             "path": "client.js",
-            "sha256": "2cd908ad1c4f863b1564bdc7272238112f613b7f5a44f72bbfcb99edf26a6eb3",
+            "sha256": "8b3db220c06b957db72ea379ca73a49bf723631c86c0562a02f3a6b4a0f10943",
             "bytes": 728953
           },
           {
@@ -137,8 +137,8 @@
           },
           {
             "path": "kit/avatar/avatar-female-masks.png",
-            "sha256": "d6175d73fd174b7c05090110eee700eb0d6396abe9e1df7818cef595a27ce609",
-            "bytes": 22997
+            "sha256": "6b4c3c1795a1d8675e3167443c04c603e55ad833ad22a37ec8e56551dae3f647",
+            "bytes": 17211
           },
           {
             "path": "kit/avatar/avatar-female-skin-bronze-makeup.webp",
@@ -302,8 +302,8 @@
           },
           {
             "path": "kit/avatar/avatar-male-masks.png",
-            "sha256": "d6175d73fd174b7c05090110eee700eb0d6396abe9e1df7818cef595a27ce609",
-            "bytes": 22997
+            "sha256": "6b4c3c1795a1d8675e3167443c04c603e55ad833ad22a37ec8e56551dae3f647",
+            "bytes": 17211
           },
           {
             "path": "kit/avatar/avatar-male-skin-aksel.webp",
@@ -459,9 +459,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-0.1.08.zip",
-        "sha256": "8c5def5be630cbb5d6c3036dbb4ec3feddcf7350224521f7144440ca964d7a3a",
-        "bytes": 55004027
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-0.1.09.zip",
+        "sha256": "25319b8ee584eba37239b166b8569100fcf4586f58e1b24d9a38376b571ae432",
+        "bytes": 54992455
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker/README.md"
     },

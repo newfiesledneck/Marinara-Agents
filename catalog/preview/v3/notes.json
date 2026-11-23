@@ -4,6 +4,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.09",
+          "date": "2026-11-23",
+          "notes": "- A lip colour you pick stays on the lips. It used to reach a little past them onto the skin round the mouth; now it fades in softly from the lips' edge, the way the made-up skins paint their lips.",
+          "highlight": false
+        },
+        {
           "version": "0.1.08",
           "date": "2026-11-23",
           "notes": "- Hair moves: the long, ponytail, braid, bob and angled bob styles swing as the avatar moves, and settle back into place when it stands still. In a VRM, the 3D Avatars agent and other VRM apps swing them. The head, neck, shoulders, arms and back keep the hair out.\n- A **Moving** pose in the maker's pose list turns the head now and then, so you can see the hair swing. A tail swings in the maker too.",

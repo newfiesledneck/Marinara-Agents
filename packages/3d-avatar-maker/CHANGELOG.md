@@ -1,5 +1,9 @@
 # 3D Avatar Maker release notes
 
+## 0.1.09 — 2026-11-23
+
+- A lip colour you pick stays on the lips. It used to reach a little past them onto the skin round the mouth; now it fades in softly from the lips' edge, the way the made-up skins paint their lips.
+
 ## 0.1.08 — 2026-11-23
 
 - Hair moves: the long, ponytail, braid, bob and angled bob styles swing as the avatar moves, and settle back into place when it stands still. In a VRM, the 3D Avatars agent and other VRM apps swing them. The head, neck, shoulders, arms and back keep the hair out.
