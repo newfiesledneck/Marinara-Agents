@@ -1,5 +1,9 @@
 # Wanderworld release notes
 
+## 0.7.61 — 2026-11-20
+
+- Clothes are lighter: each piece keeps about two thirds of its triangles, chosen so it looks the same in the game, which makes the package about 3 MB smaller and quicker to download.
+
 ## 0.7.60 — 2026-11-20
 
 - Clothes refitted (second batch): tops, dresses, robes, coats and the cloak now fit closer and are built over what's worn under them, so a shirt no longer shows through a vest and layered outfits stay clean as bodies change.
