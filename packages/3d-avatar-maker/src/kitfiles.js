@@ -35,13 +35,16 @@ const textures = new Map();
 const loader = new TextureLoader();
 
 /** A kit file (packed, or JSON), fetched once and shared; a failed fetch is tried again next time. */
-export function load(name) {
-  if (!files.has(name)) {
-    const made = fetchKit(urlOf(name), name);
-    made.catch(() => files.delete(name));
-    files.set(name, made);
+export const load = (name) => loadUrl(urlOf(name), name);
+
+/** A packed or JSON file at `url` (a kit file, or a wardrobe pack's bundle), fetched once and shared. */
+export function loadUrl(url, what = url) {
+  if (!files.has(url)) {
+    const made = fetchKit(url, what);
+    made.catch(() => files.delete(url));
+    files.set(url, made);
   }
-  return files.get(name);
+  return files.get(url);
 }
 
 /**

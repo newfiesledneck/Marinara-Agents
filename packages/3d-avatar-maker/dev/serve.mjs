@@ -3,9 +3,12 @@
 //
 //   node packages/3d-avatar-maker/dev/serve.mjs [port]     (default 5197)
 //
+// Installed wardrobe packs are stood in for by the repo's packages/3d-avatar-maker-*/ folders (or those in
+// the folder AVATAR_PACKS names): each is listed as active, and its declared assets are served.
+//
 // It is for development only and is not part of the package the Engine installs.
 import { createServer } from "node:http";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
@@ -13,6 +16,7 @@ import { build } from "esbuild";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = resolve(packageRoot, "../..");
 const port = Number(process.argv[2] ?? process.env.PORT ?? 5197);
+const packsRoot = resolve(process.env.AVATAR_PACKS ?? join(repoRoot, "packages"));
 
 const TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -59,6 +63,31 @@ const MOCK = {
     { id: "c2", data: { data: { name: "Sister Wren" } } },
   ],
 };
+
+/** The wardrobe packs, as the Engine lists installed packages: [{ id, version, status, readiness, manifest }]. */
+async function installedPacks() {
+  const names = (await readdir(packsRoot).catch(() => [])).filter((name) => /^3d-avatar-maker-[a-z0-9-]+$/u.test(name));
+  const packs = [];
+  for (const name of names) {
+    try {
+      const manifest = JSON.parse(await readFile(join(packsRoot, name, "manifest.json"), "utf8"));
+      if (manifest.id === name)
+        packs.push({ id: name, version: manifest.version, status: "active", readiness: "ready", manifest });
+    } catch {
+      // (A folder without a readable manifest isn't a pack.)
+    }
+  }
+  return packs;
+}
+
+/** A pack's asset file, as the Engine serves one: only a path its manifest declares, inside its folder. */
+async function packAsset(id, path) {
+  const pack = (await installedPacks()).find((each) => each.id === id);
+  if (!pack?.manifest.contributions?.assets?.paths?.includes(path)) return null;
+  const folder = join(packsRoot, id);
+  const file = normalize(join(folder, path));
+  return file.startsWith(folder + sep) ? file : null;
+}
 
 async function bundle(entry = "packages/3d-avatar-maker/src/main.js") {
   const result = await build({
@@ -107,6 +136,14 @@ createServer(async (request, response) => {
       return send(200, TYPES[extname(file)] ?? "application/octet-stream", await readFile(file));
     }
     if (Object.hasOwn(MOCK, path)) return send(200, TYPES[".json"], JSON.stringify(MOCK[path]));
+    if (path === "/api/capability-packages/installed")
+      return send(200, TYPES[".json"], JSON.stringify(await installedPacks()));
+    const asset = /^\/api\/capability-packages\/([a-z0-9-]+)\/assets\/(.+)$/u.exec(path);
+    if (asset) {
+      const file = await packAsset(asset[1], asset[2]);
+      if (!file) return send(404, "text/plain", "Not found");
+      return send(200, TYPES[extname(file)] ?? "application/octet-stream", await readFile(file));
+    }
     if (path.startsWith("/kit/")) {
       const file = normalize(join(packageRoot, path));
       if (!file.startsWith(join(packageRoot, "kit") + sep)) return send(403, "text/plain", "Forbidden");

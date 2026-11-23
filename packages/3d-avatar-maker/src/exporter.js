@@ -19,12 +19,19 @@ import {
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import { restPose } from "./figure.js";
 import { texturesReady } from "./kitfiles.js";
+import { PACK_PIECES } from "./looks.js";
 
 export const FILE_FORMAT = 1;
 export const GENERATOR = "3D Avatar Maker (Marinara Engine)";
+const KIT_NOTE =
+  "Body, hair, skin and clothing: MakeHuman base mesh and system assets (CC0 1.0), and parts made in Blender by ThatOneCan (CC0 1.0).";
 /** What travels with every exported file. The kit is CC0, so the file asks nothing of whoever gets it. */
-export const LICENCE_NOTE =
-  "Body, hair, skin and clothing: MakeHuman base mesh and system assets (CC0 1.0), and parts made in Blender by ThatOneCan (CC0 1.0). No credit required.";
+export const LICENCE_NOTE = `${KIT_NOTE} No credit required.`;
+/** The file's licence note for a look: the kit's, and the credit each CC-BY piece from a wardrobe pack asks for. */
+export function licenceNote(look) {
+  const credits = [...new Set((look?.clothes ?? []).map((piece) => PACK_PIECES[piece]?.credit).filter(Boolean))];
+  return credits.length ? `${KIT_NOTE} Clothing from wardrobe packs: ${credits.join("; ")}` : LICENCE_NOTE;
+}
 
 const GLB_MAGIC = 0x46546c67; // "glTF"
 const CHUNK_JSON = 0x4e4f534a;
@@ -189,7 +196,7 @@ export async function exportGlb(figure, { look = {}, name = "", maxTextureSize =
       }
     }
     const { json, bin } = readGlb(glb);
-    json.asset = { ...json.asset, generator: GENERATOR, copyright: LICENCE_NOTE };
+    json.asset = { ...json.asset, generator: GENERATOR, copyright: licenceNote(look) };
     json.extras = { ...json.extras, avatarMaker: { format: FILE_FORMAT, name: String(name ?? ""), look } };
     return { bytes: writeGlb(json, bin), vertices, triangles };
   } finally {

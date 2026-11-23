@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 2,
+  "capabilityApi": {
+    "major": 1,
+    "minor": 66
+  },
+  "builtAgainst": {
+    "engineVersion": "2.5.2",
+    "engineCommit": "fc0333c3fe978cda5e0b919bd6faec985901704e"
+  },
+  "id": "3d-avatar-maker-wardrobe-everyday-men",
+  "name": "3D Avatar Maker: Everyday Men's Clothes and Suits",
+  "version": "0.1.00",
+  "description": "12 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.03 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+  "engine": {
+    "min": "2.4.6",
+    "maxExclusive": "4.0.0"
+  },
+  "kind": [
+    "agent"
+  ],
+  "entrypoints": {
+    "agents": "agents.json"
+  },
+  "contributions": {
+    "assets": {
+      "paths": [
+        "avatar-pack.json",
+        "wardrobe/body.pack.png",
+        "wardrobe/feet.pack.png",
+        "wardrobe/legs.pack.png",
+        "wardrobe/tops.pack.png"
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "agents.json",
+      "sha256": "0d29e77ebb4d1056026ea77b8d12343446dd6e93a3ad0ca92ac61e6ca62fe717",
+      "bytes": 752
+    },
+    {
+      "path": "avatar-pack.json",
+      "sha256": "0ec9a2fa63a322bd0c2427cedf2f5fb57c671f3e74e6afed1f8ad061b04aa327",
+      "bytes": 6047
+    },
+    {
+      "path": "wardrobe/body.pack.png",
+      "sha256": "e21fed0c7673af92335afcd5af0e670b63cbcdc2e3a386f0bca61a60930ec601",
+      "bytes": 3260360
+    },
+    {
+      "path": "wardrobe/feet.pack.png",
+      "sha256": "92f4a979a91073c841d097ab72ab8f1e62295f3cf4801ce65a3d38044235f863",
+      "bytes": 153515
+    },
+    {
+      "path": "wardrobe/legs.pack.png",
+      "sha256": "6451c30ec1d2f951eef31760d6dfdd5d54a0755515e0be172acc195de1024487",
+      "bytes": 577523
+    },
+    {
+      "path": "wardrobe/tops.pack.png",
+      "sha256": "513bc4574c02ae127cd53fad5cce877027252ebebe99f48d55b7fefa1f3e8f7d",
+      "bytes": 374909
+    }
+  ],
+  "permissions": [],
+  "restartRequired": false
+}

@@ -272,4 +272,87 @@ assert.equal(lookInGlb(writeGlb({ asset: { version: "2.0" } })), null, "a GLB fr
 assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
 
 for (const figure of Object.values(made)) figure.dispose();
+
+// ── Wardrobe packs: an installed pack's index read as untrusted data (packs.js) ──
+{
+  const { BODY_REVISION, loadPacks, readPack } = await import("../packages/3d-avatar-maker/src/packs.js");
+  const { LICENCE_NOTE, licenceNote } = await import("../packages/3d-avatar-maker/src/exporter.js");
+  assert.deepEqual(await loadPacks(), [], "with no Engine to list the installed packages, there are no packs");
+  const installed = {
+    id: "3d-avatar-maker-wardrobe-test",
+    version: "0.1.00",
+    status: "active",
+    manifest: { contributions: { assets: { paths: ["avatar-pack.json", "wardrobe/body.pack.png"] } } },
+  };
+  const good = {
+    label: "Halter dress",
+    slot: "body",
+    bodies: ["female"],
+    layer: 1,
+    hides: ["torso", "hips"],
+    parts: { female: [["cloth", 0xb8a888]] },
+    variants: [],
+    bundle: "wardrobe/body.pack.png",
+    licence: "CC0-1.0",
+    author: "MargaretToigo",
+    source: "http://example.test/",
+    credit: null,
+  };
+  const index = {
+    format: 1,
+    for: "3d-avatar-maker",
+    body: BODY_REVISION,
+    maker: "0.1.03",
+    name: "Test Clothes",
+    pieces: {
+      test_good: good,
+      test_cc_by: { ...good, licence: "CC-BY-4.0", credit: "Test dress by Someone, CC BY 4.0" },
+      test_slot: { ...good, slot: "tail" },
+      test_nail_slot: { ...good, slot: "nails" },
+      test_part: { ...good, parts: { female: [["chrome", 0xffffff]] } },
+      test_colour: { ...good, parts: { female: [["cloth", "#ffffff"]] } },
+      test_hide: { ...good, hides: ["soul"] },
+      test_body: { ...good, bodies: ["wolf"] },
+      "Test-Bad": good,
+      constructor: good,
+      dress: good, // (the kit's own)
+      test_bundle: { ...good, bundle: "wardrobe/legs.pack.png" }, // (not among the pack's assets)
+      test_escape: { ...good, bundle: "../3d-avatar-maker/kit/wardrobe/avatar-outfits-body.pack.png" },
+      test_no_credit: { ...good, licence: "CC-BY-4.0" },
+      test_licence: { ...good, licence: "GPL-3.0" },
+      test_label: { ...good, label: "x".repeat(200) },
+    },
+  };
+  assert.deepEqual(readPack(installed, { ...index, body: BODY_REVISION + 1 }), [], "made for another body: skipped");
+  assert.deepEqual(readPack(installed, { ...index, for: "wanderworld" }), [], "an index for something else");
+  assert.deepEqual(readPack({ ...installed, status: "disabled" }, index), [], "a pack that isn't active");
+  assert.deepEqual(readPack({ ...installed, id: "someone-else-wardrobe" }, index), [], "a package that isn't a pack");
+  const read = readPack(installed, index);
+  assert.deepEqual(
+    read.map(({ piece }) => piece),
+    ["test_good", "test_cc_by"],
+    "only the well-formed pieces are kept",
+  );
+  assert.equal(
+    read[0].url,
+    "/api/capability-packages/3d-avatar-maker-wardrobe-test/assets/wardrobe/body.pack.png?v=0.1.00",
+  );
+  assert.deepEqual(read[0].parts, { female: [["cloth", 0xb8a888]] });
+  looks.addPieces(read);
+  assert.deepEqual(readPack(installed, index), [], "a piece id an earlier pack took is left out");
+  const worn = checkLook({
+    body: "female",
+    clothes: ["test_good", "boots"],
+    clothColours: { test_good: { cloth: 1 } },
+  });
+  assert.deepEqual(worn.clothes, ["test_good", "boots"], "checkLook keeps a pack's piece");
+  assert.deepEqual(worn.clothColours, { test_good: { cloth: 1 } }, "and its colours");
+  assert.ok(
+    (await avatarChoices("female")).clothes.some(({ piece, slot }) => piece === "test_good" && slot === "body"),
+    "the Clothes tab offers it on its body",
+  );
+  assert.ok(!(await avatarChoices("male")).clothes.some(({ piece }) => piece === "test_good"), "and not on the other");
+  assert.equal(licenceNote({ clothes: ["test_good"] }), LICENCE_NOTE, "a CC0 piece adds no credit");
+  assert.match(licenceNote({ clothes: ["test_cc_by", "boots"] }), /CC0.*Test dress by Someone, CC BY 4\.0$/u);
+}
 console.log("3d-avatar-maker.regression: ok");

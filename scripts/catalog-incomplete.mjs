@@ -46,6 +46,8 @@ export const INCOMPLETE_PACKAGE_IDS = new Set(["pixelforge"]);
 // Blackjack and Wordle for the next stable promotion after it).
 export const STAGING_ONLY_PACKAGE_IDS = new Set([
   "3d-avatar-maker",
+  "3d-avatar-maker-wardrobe-everyday-men",
+  "3d-avatar-maker-wardrobe-everyday-women",
   "modern-life-sim",
   "ruleset-5e-2014",
   "wanderworld",
