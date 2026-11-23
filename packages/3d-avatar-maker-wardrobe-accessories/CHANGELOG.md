@@ -1,5 +1,11 @@
 # 3D Avatar Maker: Accessories release notes
 
+## 0.2.00 — 2026-11-23
+
+- The hats, hoods, veil, headband, top hat, pith helmet and brass circlet from the retired Historical and Fantasy and Modern Casual packs are here now, with the same names, so saved avatars still find them. Clothes went to the new 3D Avatar Maker: Clothes pack.
+- 15 new pieces: a Santa hat, a chef's hat, a fishing hat, a patrol cap, a sun visor, a swim cap, a steel helmet, an aero cycling helmet, a riding helmet, safety glasses, swimming goggles, sports sunglasses, a respirator mask, a gas mask and lace-top stockings.
+- 24 of the 45 pieces are CC BY now. A saved avatar credits the maker of every CC BY piece it wears.
+
 ## 0.1.01 — 2026-11-23
 
 - Took out the cat mask, the hero mask and the lightning earrings. Their model files say AGPL-3, which doesn't match the CC0 their catalogue gives, so they are left out like other such items. 19 pieces remain.

@@ -478,8 +478,8 @@
         },
         "id": "3d-avatar-maker-wardrobe-accessories",
         "name": "3D Avatar Maker: Accessories",
-        "version": "0.1.01",
-        "description": "19 more accessories for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.04 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+        "version": "0.2.00",
+        "description": "45 more accessories for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.04 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
         "engine": {
           "min": "2.4.6",
           "maxExclusive": "4.0.0"
@@ -504,33 +504,33 @@
         "files": [
           {
             "path": "agents.json",
-            "sha256": "a135d3153f09453d3a56818718c348ed85514b5599ad3dc94234c904b9c5590a",
-            "bytes": 723
+            "sha256": "72ff6fbf721eac74c16570fe90bf1be5e037471b69fdb01792f414e48562369d",
+            "bytes": 789
           },
           {
             "path": "avatar-pack.json",
-            "sha256": "1725cbd61ef99302ed5ac4a6226cc7126d7f7fb13eade10e06bc0dfa67f69497",
-            "bytes": 9832
+            "sha256": "9cdc65b6aa31c95c1b215fe9a5e20b475ec219b60e02f943819a943001c89a5c",
+            "bytes": 27450
           },
           {
             "path": "wardrobe/accessories.pack.png",
-            "sha256": "3bd4a15c73a60dd30a9183971fd8f44345208d4c2b5a02e96667b2922ea55929",
-            "bytes": 2095362
+            "sha256": "59103cc9a28356d2e2e2bf34e9185306a2cdcb4dab2f60902b5d334299e2c0b8",
+            "bytes": 3862181
           },
           {
             "path": "wardrobe/feet.pack.png",
-            "sha256": "3c54a05cc06b2a6de6d12e69da43863738c18431ac7fb32d1fb0531eefd4c399",
-            "bytes": 924530
+            "sha256": "2e3a36fc714dda81ae24288f2bb366914ac5389e95ab316e58f43d649db20868",
+            "bytes": 1080835
           },
           {
             "path": "wardrobe/hands.pack.png",
-            "sha256": "dce84e39a9d5ba874312438e5de56cb375b03ccfaa8c29d9f6f44f679c98b4dc",
-            "bytes": 1474944
+            "sha256": "7b6f31ca69bb0fa3ca398e50cd3ac1af60a42b728fd7378f06ce59bc1b134488",
+            "bytes": 1474332
           },
           {
             "path": "wardrobe/head.pack.png",
-            "sha256": "73e00e53dec657a1dd8284042a6ac3d61abca598080f80cf3be05c10593eeb01",
-            "bytes": 244042
+            "sha256": "53667d6f86ebc46e4c800d7d619ef78dda141d6e38375225401cca8f3f5678bd",
+            "bytes": 7269029
           }
         ],
         "permissions": [],
@@ -539,9 +539,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker-wardrobe-accessories.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-wardrobe-accessories-0.1.01.zip",
-        "sha256": "26d91261748f7712a23de7e9fd57290d497a59b16df56ef7430aa7ddab1adf63",
-        "bytes": 4752224
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-wardrobe-accessories-0.2.00.zip",
+        "sha256": "b5ae31367ef5fd5b231b5b7c9cd3ff2267d62d64a33f3b54b5ba1cf1b7e1d1f1",
+        "bytes": 13717476
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker-wardrobe-accessories/README.md"
     },
@@ -556,170 +556,10 @@
           "engineVersion": "2.5.2",
           "engineCommit": "fc0333c3fe978cda5e0b919bd6faec985901704e"
         },
-        "id": "3d-avatar-maker-wardrobe-everyday-men",
-        "name": "3D Avatar Maker: Everyday Men's Clothes and Suits",
-        "version": "0.1.01",
-        "description": "10 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.03 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
-        "engine": {
-          "min": "2.4.6",
-          "maxExclusive": "4.0.0"
-        },
-        "kind": [
-          "agent"
-        ],
-        "entrypoints": {
-          "agents": "agents.json"
-        },
-        "contributions": {
-          "assets": {
-            "paths": [
-              "avatar-pack.json",
-              "wardrobe/body.pack.png",
-              "wardrobe/feet.pack.png",
-              "wardrobe/legs.pack.png",
-              "wardrobe/tops.pack.png"
-            ]
-          }
-        },
-        "files": [
-          {
-            "path": "agents.json",
-            "sha256": "d624d0e9655dc68c3e0537d25430f0ff972264ca32cfcfbc71fd1f7f06e52e9e",
-            "bytes": 752
-          },
-          {
-            "path": "avatar-pack.json",
-            "sha256": "f13161d35e8195d8c9a42bb024bc82ea771462b69cc2e2de1c544000a1438e0b",
-            "bytes": 5018
-          },
-          {
-            "path": "wardrobe/body.pack.png",
-            "sha256": "e21fed0c7673af92335afcd5af0e670b63cbcdc2e3a386f0bca61a60930ec601",
-            "bytes": 3260360
-          },
-          {
-            "path": "wardrobe/feet.pack.png",
-            "sha256": "92f4a979a91073c841d097ab72ab8f1e62295f3cf4801ce65a3d38044235f863",
-            "bytes": 153515
-          },
-          {
-            "path": "wardrobe/legs.pack.png",
-            "sha256": "0e6816dc8d75b01f3a009e1262cd3c9220a158718dd65acf9778828bd3329f87",
-            "bytes": 266796
-          },
-          {
-            "path": "wardrobe/tops.pack.png",
-            "sha256": "513bc4574c02ae127cd53fad5cce877027252ebebe99f48d55b7fefa1f3e8f7d",
-            "bytes": 374909
-          }
-        ],
-        "permissions": [],
-        "restartRequired": false
-      },
-      "category": "misc",
-      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker-wardrobe-everyday-men.png",
-      "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-wardrobe-everyday-men-0.1.01.zip",
-        "sha256": "4f8eff625b7ef8f23360bea528a3f34815a4119378459c96822b7dd6d1af54d7",
-        "bytes": 4064137
-      },
-      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker-wardrobe-everyday-men/README.md"
-    },
-    {
-      "manifest": {
-        "schemaVersion": 2,
-        "capabilityApi": {
-          "major": 1,
-          "minor": 66
-        },
-        "builtAgainst": {
-          "engineVersion": "2.5.2",
-          "engineCommit": "fc0333c3fe978cda5e0b919bd6faec985901704e"
-        },
-        "id": "3d-avatar-maker-wardrobe-everyday-women",
-        "name": "3D Avatar Maker: Everyday Women's Clothes",
-        "version": "0.1.01",
-        "description": "25 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share (CC0). Needs 3D Avatar Maker 0.1.03 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
-        "engine": {
-          "min": "2.4.6",
-          "maxExclusive": "4.0.0"
-        },
-        "kind": [
-          "agent"
-        ],
-        "entrypoints": {
-          "agents": "agents.json"
-        },
-        "contributions": {
-          "assets": {
-            "paths": [
-              "avatar-pack.json",
-              "wardrobe/body.pack.png",
-              "wardrobe/feet.pack.png",
-              "wardrobe/legs.pack.png",
-              "wardrobe/tops.pack.png"
-            ]
-          }
-        },
-        "files": [
-          {
-            "path": "agents.json",
-            "sha256": "3de8b6bd2cc9b9287c2f5adda453ecc2d6d62611d0c54019f30c5b80455d2a31",
-            "bytes": 746
-          },
-          {
-            "path": "avatar-pack.json",
-            "sha256": "320037a0e22082b2916d6c2aed7e89e33b33b0c453547fa0828e1561be42dd21",
-            "bytes": 11702
-          },
-          {
-            "path": "wardrobe/body.pack.png",
-            "sha256": "fbc71d2e486590963a1df3e03df645272b5db5c55ef0d49dc7b59c8fea2a8d16",
-            "bytes": 4145575
-          },
-          {
-            "path": "wardrobe/feet.pack.png",
-            "sha256": "d4a948d915523b82186d52c737c8c2dcf23c634ceb0a3e8acf51374315c290f1",
-            "bytes": 856638
-          },
-          {
-            "path": "wardrobe/legs.pack.png",
-            "sha256": "10082987acc4960acb79a33a56baad2b4a561cd609114d45db5c517de8895333",
-            "bytes": 2363932
-          },
-          {
-            "path": "wardrobe/tops.pack.png",
-            "sha256": "b980fa3edb312f4a76f6a6f84f698bea34797f18d5f1d888ac9cb573dd3baaf0",
-            "bytes": 1915238
-          }
-        ],
-        "permissions": [],
-        "restartRequired": false
-      },
-      "category": "misc",
-      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker-wardrobe-everyday-women.png",
-      "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-wardrobe-everyday-women-0.1.01.zip",
-        "sha256": "c53386260d24bd5d5090cd66eb0a83255e3f8ac5982e02a995d1f9b91b5bab05",
-        "bytes": 9296615
-      },
-      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker-wardrobe-everyday-women/README.md"
-    },
-    {
-      "manifest": {
-        "schemaVersion": 2,
-        "capabilityApi": {
-          "major": 1,
-          "minor": 66
-        },
-        "builtAgainst": {
-          "engineVersion": "2.5.2",
-          "engineCommit": "fc0333c3fe978cda5e0b919bd6faec985901704e"
-        },
-        "id": "3d-avatar-maker-wardrobe-historical-fantasy",
-        "name": "3D Avatar Maker: Historical and Fantasy Clothes",
+        "id": "3d-avatar-maker-wardrobe-clothes",
+        "name": "3D Avatar Maker: Clothes",
         "version": "0.1.00",
-        "description": "17 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.03 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+        "description": "178 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.03 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
         "engine": {
           "min": "2.4.6",
           "maxExclusive": "4.0.0"
@@ -736,87 +576,6 @@
               "avatar-pack.json",
               "wardrobe/body.pack.png",
               "wardrobe/feet.pack.png",
-              "wardrobe/head.pack.png",
-              "wardrobe/tops.pack.png"
-            ]
-          }
-        },
-        "files": [
-          {
-            "path": "agents.json",
-            "sha256": "dfc1e6de4dac4bffc52dd6eac53fe22596ba55b2e0ff6e29007499177db78533",
-            "bytes": 822
-          },
-          {
-            "path": "avatar-pack.json",
-            "sha256": "e4fa7179f40ceefe931168c12f0d03a64eab503911f39cffdfab50d53f42388b",
-            "bytes": 11199
-          },
-          {
-            "path": "wardrobe/body.pack.png",
-            "sha256": "368aeef8bd777db707885c699486826c465f7f51551b52ae2d39c70a84a329cd",
-            "bytes": 3228563
-          },
-          {
-            "path": "wardrobe/feet.pack.png",
-            "sha256": "291d55bd151e4a78da7c9fa8ad43668927da768ddb5cd332ee1138932457ca4c",
-            "bytes": 1263114
-          },
-          {
-            "path": "wardrobe/head.pack.png",
-            "sha256": "497aa59d41a821a0162ed61091ba9ca7e28e16da91eded0f37ecfe1f91b2eddc",
-            "bytes": 2693491
-          },
-          {
-            "path": "wardrobe/tops.pack.png",
-            "sha256": "e896e7f0e9c96fd5b69b2eaf380d8ea7588e46958c5059d383fe612522745def",
-            "bytes": 845616
-          }
-        ],
-        "permissions": [],
-        "restartRequired": false
-      },
-      "category": "misc",
-      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker-wardrobe-historical-fantasy.png",
-      "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-wardrobe-historical-fantasy-0.1.00.zip",
-        "sha256": "9d4098b4a07d777a0a90ddb432b6d09399c65eddc767469e5b5bece41e3fbc2a",
-        "bytes": 8045665
-      },
-      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker-wardrobe-historical-fantasy/README.md"
-    },
-    {
-      "manifest": {
-        "schemaVersion": 2,
-        "capabilityApi": {
-          "major": 1,
-          "minor": 66
-        },
-        "builtAgainst": {
-          "engineVersion": "2.5.2",
-          "engineCommit": "fc0333c3fe978cda5e0b919bd6faec985901704e"
-        },
-        "id": "3d-avatar-maker-wardrobe-modern-casual",
-        "name": "3D Avatar Maker: Modern Casual Clothes",
-        "version": "0.1.00",
-        "description": "34 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.03 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
-        "engine": {
-          "min": "2.4.6",
-          "maxExclusive": "4.0.0"
-        },
-        "kind": [
-          "agent"
-        ],
-        "entrypoints": {
-          "agents": "agents.json"
-        },
-        "contributions": {
-          "assets": {
-            "paths": [
-              "avatar-pack.json",
-              "wardrobe/body.pack.png",
-              "wardrobe/feet.pack.png",
-              "wardrobe/head.pack.png",
               "wardrobe/legs.pack.png",
               "wardrobe/tops.pack.png"
             ]
@@ -825,51 +584,46 @@
         "files": [
           {
             "path": "agents.json",
-            "sha256": "59f101556434fbd20325253ba1cb049a7b1d896b29bab169a093092455c8a1eb",
-            "bytes": 808
+            "sha256": "2613e11d957b4a00b628f6604070d4abcfddb98729a4593471e34ec0f7d01778",
+            "bytes": 789
           },
           {
             "path": "avatar-pack.json",
-            "sha256": "e44c1ed205ae0a9dc6bf14024c4aa9e641081b157ca0ae265a73fcd50eb0bd58",
-            "bytes": 22645
+            "sha256": "a93e4839587f3daa624aece7612777ee864d81dfe3dd4d84feeb0a22cab16b14",
+            "bytes": 110025
           },
           {
             "path": "wardrobe/body.pack.png",
-            "sha256": "e68e491defd0a7533a068bdfbd3c78d7790b1670c0066a2c1542600b0414b66e",
-            "bytes": 412886
+            "sha256": "8dbc55632d80d019bdd85a7908ac0ebf5d8dabf5e9aac57adec3b663fbda9a53",
+            "bytes": 27413213
           },
           {
             "path": "wardrobe/feet.pack.png",
-            "sha256": "cb362374d7d7c51a6da4b0ceffba57c5737ef4e7b08432d0b5d68fe0285fca22",
-            "bytes": 1979060
-          },
-          {
-            "path": "wardrobe/head.pack.png",
-            "sha256": "c1942ee0376f10d73802687645aa326bd5660c0ed8308b5ed92705c7ad031258",
-            "bytes": 1198697
+            "sha256": "88c046062a29c4de2adf034ccc1a0ef4dad689be7cc73cab86f1f814ded420c7",
+            "bytes": 7691885
           },
           {
             "path": "wardrobe/legs.pack.png",
-            "sha256": "90a441d281150b9de32dcce12ed47d65b0f509547707b91cf583388a2954c5e2",
-            "bytes": 2696732
+            "sha256": "71ba81117b0a90062aeca97c2bf1643400a84e1be521de6f6c4ca25e71e45520",
+            "bytes": 17220362
           },
           {
             "path": "wardrobe/tops.pack.png",
-            "sha256": "17b8fe9de48288d295a44646970d93db934ee437bff8328b14bf5f44c8acb38e",
-            "bytes": 3035250
+            "sha256": "e3ff811ce12754ee6b7467ef945578c34a845479fad6f210aa1a707a1ae2b820",
+            "bytes": 12853779
           }
         ],
         "permissions": [],
         "restartRequired": false
       },
       "category": "misc",
-      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker-wardrobe-modern-casual.png",
+      "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker-wardrobe-clothes.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-wardrobe-modern-casual-0.1.00.zip",
-        "sha256": "3dc771e193a8ad242dd0e70c38bf9897b161448c793dcb7dc26d8b836f7d2d02",
-        "bytes": 9349238
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-wardrobe-clothes-0.1.00.zip",
+        "sha256": "300a649874ebd60f8ffad75a5ba66e16b58a21815da3b82373501fe45fe610e4",
+        "bytes": 65292885
       },
-      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker-wardrobe-modern-casual/README.md"
+      "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker-wardrobe-clothes/README.md"
     },
     {
       "manifest": {

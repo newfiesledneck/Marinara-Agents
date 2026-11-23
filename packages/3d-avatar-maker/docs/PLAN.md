@@ -271,6 +271,17 @@ No item is fitted yet; the packs that fill these slots come next.
   The kit rebuilt byte for byte the same after the hair packing moved. A trial build of the Accessories pack
   with a `bone` and a hair style was read and worn by the maker (not committed).
 
+## Wardrobe packs merged (packs only; the maker unchanged)
+
+- Two packs instead of five: `3d-avatar-maker-wardrobe-clothes` 0.1.00 (178 garments, 62.3 MiB) and
+  `3d-avatar-maker-wardrobe-accessories` 0.2.00 (45 pieces, 13.1 MiB). Every piece kept its id. The four
+  merged-away packs left the catalog the way a package leaves it: their folders, store entries, guidance,
+  covers and README rows are gone, `build-3d-avatar-maker-packs.mjs` drops a wardrobe pack's catalog entry once
+  it isn't in `assets/packs.json`, and their old artifacts stay for installs that have them.
+- 118 new pieces (103 garments, 15 accessories) after the remaining community clothes were tried, rendered and
+  judged; `docs/MAKEHUMAN-PACKS.md` "The merge pass" lists each one kept and each one left out, and why.
+- Later passes add hair styles, body parts and held objects to the Accessories pack.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and

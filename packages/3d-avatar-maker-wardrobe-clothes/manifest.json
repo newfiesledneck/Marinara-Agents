@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 2,
+  "capabilityApi": {
+    "major": 1,
+    "minor": 66
+  },
+  "builtAgainst": {
+    "engineVersion": "2.5.2",
+    "engineCommit": "fc0333c3fe978cda5e0b919bd6faec985901704e"
+  },
+  "id": "3d-avatar-maker-wardrobe-clothes",
+  "name": "3D Avatar Maker: Clothes",
+  "version": "0.1.00",
+  "description": "178 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.03 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+  "engine": {
+    "min": "2.4.6",
+    "maxExclusive": "4.0.0"
+  },
+  "kind": [
+    "agent"
+  ],
+  "entrypoints": {
+    "agents": "agents.json"
+  },
+  "contributions": {
+    "assets": {
+      "paths": [
+        "avatar-pack.json",
+        "wardrobe/body.pack.png",
+        "wardrobe/feet.pack.png",
+        "wardrobe/legs.pack.png",
+        "wardrobe/tops.pack.png"
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "agents.json",
+      "sha256": "2613e11d957b4a00b628f6604070d4abcfddb98729a4593471e34ec0f7d01778",
+      "bytes": 789
+    },
+    {
+      "path": "avatar-pack.json",
+      "sha256": "a93e4839587f3daa624aece7612777ee864d81dfe3dd4d84feeb0a22cab16b14",
+      "bytes": 110025
+    },
+    {
+      "path": "wardrobe/body.pack.png",
+      "sha256": "8dbc55632d80d019bdd85a7908ac0ebf5d8dabf5e9aac57adec3b663fbda9a53",
+      "bytes": 27413213
+    },
+    {
+      "path": "wardrobe/feet.pack.png",
+      "sha256": "88c046062a29c4de2adf034ccc1a0ef4dad689be7cc73cab86f1f814ded420c7",
+      "bytes": 7691885
+    },
+    {
+      "path": "wardrobe/legs.pack.png",
+      "sha256": "71ba81117b0a90062aeca97c2bf1643400a84e1be521de6f6c4ca25e71e45520",
+      "bytes": 17220362
+    },
+    {
+      "path": "wardrobe/tops.pack.png",
+      "sha256": "e3ff811ce12754ee6b7467ef945578c34a845479fad6f210aa1a707a1ae2b820",
+      "bytes": 12853779
+    }
+  ],
+  "permissions": [],
+  "restartRequired": false
+}
