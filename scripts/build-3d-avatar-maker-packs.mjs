@@ -14,9 +14,9 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CLOTH_SLOTS } from "../packages/3d-avatar-maker/src/looks.js";
+import { CLOTH_SLOTS, HAIRSTYLES, PIECE_BONES, SLOT_OF } from "../packages/3d-avatar-maker/src/looks.js";
 import { MESH_KINDS, writePacked } from "./3d-avatar-maker-packed.mjs";
-import { bodyReach, bundler, packOutfitPieces } from "./build-3d-avatar-maker-kit.mjs";
+import { bodyReach, bundler, packHairStyles, packOutfitPieces } from "./build-3d-avatar-maker-kit.mjs";
 import { catalogArtworkUrl } from "./catalog-artwork.mjs";
 import { readCatalogFamily, writeCatalogFamily } from "./catalog-lanes.mjs";
 import { withPackageActivationGuidance } from "./catalog-package-guidance.mjs";
@@ -45,6 +45,8 @@ const ENGINE_MIN = "2.4.6";
 const MAX_ENGINE_EXCLUSIVE = "4.0.0";
 const boundary = JSON.parse(await readFile(join(makerRoot, "engine-boundary.json"), "utf8"));
 const LICENCES = new Set(["CC0-1.0", "CC-BY-3.0", "CC-BY-4.0"]);
+// The most a hair style's `swing` may be: how far below the eyes, in metres (src/packs.js MOST_SWING).
+const MOST_SWING = 0.3;
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 /** A CC-BY piece's attribution (title, author, source, licence and the change made), as a saved avatar carries it. */
@@ -69,17 +71,26 @@ for (const [id, pack] of Object.entries(packs)) {
   const packageRoot = join(repoRoot, "packages", id);
   const models = join(MODELS, "packs", id);
 
-  // ── The pieces: bundles in the maker's format, every picture named for the pack ──
-  const files = (existsSync(models) ? await readdir(models) : [])
-    .filter((name) => /^outfit-[a-z0-9_]+\.glb$/u.test(name))
-    .sort();
-  const fitted = files.map((file) => file.slice("outfit-".length, -4));
-  const missing = Object.keys(pack.pieces).filter((piece) => !fitted.includes(piece));
-  if (missing.length) throw new Error(`${id}: fit ${missing.join(", ")} first (assets/scripts/make_mh_packs.py)`);
-  const stray = fitted.filter((piece) => !pack.pieces[piece]);
-  if (stray.length) throw new Error(`${id}: ${stray.join(", ")} fitted but not in assets/packs.json`);
-  await rm(join(packageRoot, "wardrobe"), { recursive: true, force: true });
+  // ── The pieces and hair styles: bundles in the maker's format, every picture named for the pack ──
+  // (A pack's `hair` is optional: its styles are avatar-hair-<style>.glb beside the pieces, each its own bundle.)
+  const pieceSpecs = pack.pieces ?? {};
+  const hairSpecs = pack.hair ?? {};
+  const listed = existsSync(models) ? await readdir(models) : [];
+  const files = listed.filter((name) => /^outfit-[a-z0-9_]+\.glb$/u.test(name)).sort();
+  const hairFiles = listed.filter((name) => /^avatar-hair-[a-z0-9_]+\.glb$/u.test(name)).sort();
+  for (const [prefix, specs, kind] of [
+    ["outfit-", pieceSpecs, "pieces"],
+    ["avatar-hair-", hairSpecs, "hair"],
+  ]) {
+    const fitted = (kind === "hair" ? hairFiles : files).map((file) => file.slice(prefix.length, -4));
+    const missing = Object.keys(specs).filter((name) => !fitted.includes(name));
+    if (missing.length) throw new Error(`${id}: fit ${missing.join(", ")} first (assets/scripts/make_mh_packs.py)`);
+    const stray = fitted.filter((name) => !specs[name]);
+    if (stray.length) throw new Error(`${id}: ${stray.join(", ")} fitted but not in assets/packs.json's ${kind}`);
+  }
+  for (const folder of ["wardrobe", "hair"]) await rm(join(packageRoot, folder), { recursive: true, force: true });
   await mkdir(join(packageRoot, "wardrobe"), { recursive: true });
+  if (hairFiles.length) await mkdir(join(packageRoot, "hair"), { recursive: true });
   const source = `Clothes: MakeHuman community (CC0 and as each piece says), fitted in Blender by ThatOneCan (packages/3d-avatar-maker/assets/scripts/make_mh_packs.py)`;
   const bundles = bundler(source);
   const outfits = packOutfitPieces({
@@ -89,7 +100,7 @@ for (const [id, pack] of Object.entries(packs)) {
     shares,
     bundler: bundles,
     slotOf: (piece, file) => {
-      const slot = pack.pieces[piece].slot;
+      const slot = pieceSpecs[piece].slot;
       if (!CLOTH_SLOTS.some(([each]) => each === slot)) throw new Error(`${file}: "${slot}" isn't a CLOTH_SLOTS slot`);
       return slot;
     },
@@ -100,22 +111,46 @@ for (const [id, pack] of Object.entries(packs)) {
     // (The maker caches pictures by name, so a pack's are named for it.)
     pictureName: (piece, image) => `${id}-${piece}-${image}`,
   });
+  const hairIndex = packHairStyles({
+    dir: models,
+    files: hairFiles,
+    reach,
+    shares,
+    bundler: bundles,
+    // (A bundle each: wearing one style fetches only that style.)
+    bundleOf: (style) => {
+      const name = `hair/${style}.pack.png`;
+      return [name, join(packageRoot, name)];
+    },
+    pictureName: (style, image) => `${id}-hair-${style}-${image}`,
+  });
   for (const [path, bundle] of bundles.bundles) writePacked(path, bundle, MESH_KINDS);
 
-  // ── avatar-pack.json: what the maker reads first (src/packs.js readPack) ──
-  const pieces = {};
-  for (const piece of Object.keys(outfits).sort()) {
-    const spec = pack.pieces[piece];
-    const info = outfits[piece];
-    const entry = bundles.bundles.get(join(packageRoot, info.bundle)).pieces[piece];
+  // ── avatar-pack.json: what the maker reads first (src/packs.js readPack and readHair) ──
+  /** An entry's licence and its credit, after checking its id, label, author and licence. */
+  const licensed = (name, spec) => {
     const licence = spec.licence ?? pack.licence;
     const credit = licence === "CC0-1.0" ? null : creditLine(spec, licence);
-    if (!/^[a-z0-9_]{1,64}$/u.test(piece)) throw new Error(`${id}: piece id "${piece}"`);
+    if (!/^[a-z0-9_]{1,64}$/u.test(name)) throw new Error(`${id}: id "${name}"`);
     if (!spec.label || spec.label.length > 60 || !spec.author || spec.author.length > 80)
-      throw new Error(`${id} ${piece}: a label of at most 60 characters and an author of at most 80`);
+      throw new Error(`${id} ${name}: a label of at most 60 characters and an author of at most 80`);
     if (!LICENCES.has(licence) || (licence !== "CC0-1.0") !== Boolean(credit))
-      throw new Error(`${id} ${piece}: licence ${licence} with credit ${credit} (CC-BY needs a credit, CC0 none)`);
+      throw new Error(`${id} ${name}: licence ${licence} with credit ${credit} (CC-BY needs a credit, CC0 none)`);
+    return { licence, credit };
+  };
+  const pieces = {};
+  for (const piece of Object.keys(outfits).sort()) {
+    const spec = pieceSpecs[piece];
+    const info = outfits[piece];
+    const entry = bundles.bundles.get(join(packageRoot, info.bundle)).pieces[piece];
+    const { licence, credit } = licensed(piece, spec);
     if (info.variants?.length) throw new Error(`${id} ${piece}: the maker offers no pack variants yet`);
+    // (The bone it's fixed to: packs.json's, else its model's. A slot for held things has its own: looks.js boneOf.)
+    const bone = spec.bone ?? info.bone;
+    if (bone !== undefined && !PIECE_BONES.includes(bone))
+      throw new Error(
+        `${id} ${piece}: bone "${bone}" isn't one of PIECE_BONES in packages/3d-avatar-maker/src/looks.js`,
+      );
     pieces[piece] = {
       label: spec.label,
       slot: info.slot,
@@ -129,6 +164,26 @@ for (const [id, pack] of Object.entries(packs)) {
       author: spec.author,
       source: spec.source,
       credit,
+      ...(bone === undefined ? {} : { bone }),
+    };
+  }
+  const hair = {};
+  for (const style of Object.keys(hairIndex).sort()) {
+    const spec = hairSpecs[style];
+    const { licence, credit } = licensed(style, spec);
+    if (Object.hasOwn(SLOT_OF, style) || HAIRSTYLES.some(([name]) => name === style) || pieces[style])
+      throw new Error(`${id}: hair style id "${style}" is taken by a kit style, a kit piece or a piece of this pack`);
+    if (spec.swing !== undefined && !(Number.isFinite(spec.swing) && spec.swing >= 0 && spec.swing <= MOST_SWING))
+      throw new Error(`${id} ${style}: swing is metres below the eyes, 0 to ${MOST_SWING}`);
+    hair[style] = {
+      label: spec.label,
+      bodies: hairIndex[style].bodies,
+      bundle: hairIndex[style].bundle,
+      licence,
+      author: spec.author,
+      source: spec.source,
+      credit,
+      ...(spec.swing === undefined ? {} : { swing: spec.swing }),
     };
   }
   if (!pack.name || pack.name.length > 80) throw new Error(`${id}: a name of at most 80 characters`);
@@ -139,22 +194,26 @@ for (const [id, pack] of Object.entries(packs)) {
     maker,
     name: pack.name,
     pieces,
+    ...(Object.keys(hair).length ? { hair } : {}),
   };
   const indexBuffer = Buffer.from(`${JSON.stringify(index, null, 1)}\n`);
   await writeFile(join(packageRoot, "avatar-pack.json"), indexBuffer);
-  const bundlePaths = [...new Set(Object.values(pieces).map((piece) => piece.bundle))].sort();
+  const bundlePaths = [
+    ...new Set([...Object.values(pieces), ...Object.values(hair)].map((entry) => entry.bundle)),
+  ].sort();
   const assets = [{ path: "avatar-pack.json", buffer: indexBuffer }];
   for (const path of bundlePaths) assets.push({ path, buffer: await readFile(join(packageRoot, path)) });
 
   // ── Agent definition stub: satisfies the catalog loader; runtime-inert (the maker's own) ──
   const name = `3D Avatar Maker: ${pack.name}`;
-  const count = Object.keys(pieces).length;
-  const terms = Object.values(pieces).some((piece) => piece.credit)
+  const count = Object.keys(pieces).length + Object.keys(hair).length;
+  const terms = [...Object.values(pieces), ...Object.values(hair)].some((entry) => entry.credit)
     ? "free to share with credit to their makers (CC BY; a saved avatar carries the credits)"
     : "free to share (CC0)";
+  const tabs = Object.keys(hair).length ? "Clothes and Hair tabs" : "Clothes tab";
   const description = withPackageActivationGuidance(
     id,
-    `${count} more ${pack.things ?? "pieces of clothing"} for 3D Avatar Maker's Clothes tab, from the MakeHuman community and ${terms}. Needs 3D Avatar Maker ${maker} or later.`,
+    `${count} more ${pack.things ?? "pieces of clothing"} for 3D Avatar Maker's ${tabs}, from the MakeHuman community and ${terms}. Needs 3D Avatar Maker ${maker} or later.`,
   );
   const agentDefinition = {
     id,
@@ -232,7 +291,7 @@ for (const [id, pack] of Object.entries(packs)) {
     documentationUrl: `https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/${id}/README.md`,
   });
   console.log(
-    `built ${id} ${version}: ${count} pieces in ${bundlePaths.join(", ")}, artifact ${archive.byteLength} bytes`,
+    `built ${id} ${version}: ${Object.keys(pieces).length} pieces and ${Object.keys(hair).length} hair styles in ${bundlePaths.join(", ")}, artifact ${archive.byteLength} bytes`,
   );
 }
 catalog.packages.sort((left, right) => left.manifest.name.localeCompare(right.manifest.name));

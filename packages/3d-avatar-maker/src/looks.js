@@ -157,6 +157,13 @@ export const HEIGHTS = [0.55, 1.15];
 
 const isColour = (value) => Number.isInteger(value) && value >= 0 && value <= 0xffffff;
 const isRecord = (value) => !!value && typeof value === "object" && !Array.isArray(value);
+/** What a pack's piece or hair style id may be (packs.js reads them the same way), and a pack's package id. */
+export const PIECE_ID = /^[a-z0-9_]{1,64}$/u;
+const PACK_ID = /^3d-avatar-maker-[a-z0-9-]{1,80}$/u;
+/** An id a look may keep while no installed pack has it: well-formed, and not one of every object's own names. */
+const keepable = (id) => typeof id === "string" && PIECE_ID.test(id) && !(id in Object.prototype);
+const shortText = (value, most) =>
+  typeof value === "string" && value.trim() && value.length <= most ? value.trim() : null;
 
 /**
  * A look as saved or sent, made safe: only the choices there are, each one of its menu (or left out).
@@ -185,8 +192,10 @@ export function checkLook(raw) {
     if (isColour(colour)) tints[piece] = colour;
   }
   if (Object.keys(tints).length) look.tints = tints;
-  const hair = OLDER_HAIR[raw.hair] ?? raw.hair;
-  if (HAIRSTYLES.some(([style]) => style === hair)) look.hair = hair;
+  const hair = Object.hasOwn(OLDER_HAIR, raw.hair) ? OLDER_HAIR[raw.hair] : raw.hair;
+  // (A style no installed pack has is kept, not worn: it comes back when its pack is installed again.)
+  if (HAIRSTYLES.some(([style]) => style === hair) || (keepable(hair) && !Object.hasOwn(SLOT_OF, hair)))
+    look.hair = hair;
   const within = (value, count) => Number.isInteger(value) && value >= 0 && value < count;
   if (within(raw.hairColour, HAIR_COLOURS.length)) look.hairColour = raw.hairColour;
   if (isColour(raw.hairTint)) look.hairTint = raw.hairTint;
@@ -249,15 +258,46 @@ export function checkLook(raw) {
   if (Object.keys(underwear).length) look.underwear = underwear;
   // Clothing: known pieces (CLOTHES), the first one a slot; an empty list is nothing on (not the name's
   // everyday clothes). Each piece's part colours, and the way it's worn (a cloak's hood up), when known.
+  // A well-formed piece id no installed pack has (its pack was uninstalled) is kept but not worn, at most
+  // one for each slot there is, so it's worn again once its pack is back.
+  const waiting = [];
   if (Array.isArray(raw.clothes)) {
     const bySlot = new Map();
-    for (const piece of raw.clothes)
-      if (Object.hasOwn(SLOT_OF, piece) && !bySlot.has(SLOT_OF[piece])) bySlot.set(SLOT_OF[piece], piece);
-    look.clothes = [...bySlot.values()];
+    for (const piece of raw.clothes) {
+      if (Object.hasOwn(SLOT_OF, piece)) {
+        if (!bySlot.has(SLOT_OF[piece])) bySlot.set(SLOT_OF[piece], piece);
+      } else if (
+        keepable(piece) &&
+        !HAIRSTYLES.some(([style]) => style === piece) &&
+        !waiting.includes(piece) &&
+        waiting.length < CLOTH_SLOTS.length
+      )
+        waiting.push(piece);
+    }
+    look.clothes = [...bySlot.values(), ...waiting];
   }
+  // Which pack each pack piece and hair style worn came from, so the maker can name it while it's missing:
+  // { id: { pack, name, label } }, from the installed pack, else as the look recorded it.
+  const fromPacks = {};
+  for (const id of [...(look.clothes ?? []), ...(look.hair ? [look.hair] : [])]) {
+    const own = packEntry(id);
+    const said = isRecord(raw.fromPacks) && Object.hasOwn(raw.fromPacks, id) ? raw.fromPacks[id] : null;
+    if (own) fromPacks[id] = { pack: own.pack, name: own.packName, label: own.label };
+    else if (
+      (waiting.includes(id) || (id === look.hair && !HAIRSTYLES.some(([style]) => style === id))) &&
+      isRecord(said) &&
+      PACK_ID.test(said.pack ?? "")
+    )
+      fromPacks[id] = {
+        pack: said.pack,
+        name: shortText(said.name, 80) ?? said.pack,
+        label: shortText(said.label, 60) ?? id,
+      };
+  }
+  if (Object.keys(fromPacks).length) look.fromPacks = fromPacks;
   const clothColours = {};
   for (const [piece, colours] of Object.entries(isRecord(raw.clothColours) ? raw.clothColours : {})) {
-    if (!Object.hasOwn(SLOT_OF, piece) || !isRecord(colours)) continue;
+    if ((!Object.hasOwn(SLOT_OF, piece) && !waiting.includes(piece)) || !isRecord(colours)) continue;
     const kept = {};
     for (const [part] of CLOTH_PARTS) if (isColour(colours[part])) kept[part] = colours[part];
     if (Object.keys(kept).length) clothColours[piece] = kept;
@@ -285,9 +325,11 @@ export function checkLook(raw) {
 //     limbs: { arms, legs, head },   arm and leg length and head size, as a share of the usual
 //     colours: { skin, eyes, … },    each part's colour (0xRRGGBB): AVATAR_COLOURS
 //     underwear: { top, bottom },    a style of each (UNDERWEAR_TOPS, UNDERWEAR_BOTTOMS), or "none"
-//     clothes: [piece, …],           outfit pieces worn (CLOTHES), one a slot; missing: their work's (avatar.js)
+//     clothes: [piece, …],           outfit pieces worn (CLOTHES), one a slot; missing: their work's (avatar.js).
+//                                    A pack's piece whose pack isn't installed stays here, not worn
 //     clothColours: { piece: { part: 0xRRGGBB } },  a colour of one's own for a piece's part (CLOTH_PARTS)
 //     variants: { piece: variant },  another way of wearing a piece (CLOTH_VARIANTS: a cloak's hood up)
+//     fromPacks: { id: { pack, name, label } },  the wardrobe pack each pack piece and hair style came from
 //     age,                           "young", "middle" or "old" (AGES): shape keys and skins of its own
 //     skin,                          a skin picture (SKINS: MakeHuman's), or "custom": colours.skin
 //     brows, lashes,                 which style of each (1 … BROWS, 1 … LASHES)
@@ -1128,15 +1170,27 @@ export const UNDERWEAR_BOTTOMS = [
 // together. A slot's pieces are packed into one of the kit's bundles (the last column), so wearing a shirt
 // loads the tops and not the armour. "mh_" pieces are MakeHuman's (CC0) modern clothes.
 
-/** The slots, as the Look card lists them: [slot, label, what goes there, the kit bundle it's in]. */
+/**
+ * The slots, as the Look card lists them: [slot, label, what goes there, the kit bundle it's in, and for a
+ * slot whose pieces are always held stiff, the bone they're fixed to (PIECE_BONES)].
+ */
 export const CLOTH_SLOTS = [
   ["head", "Head", "A hood, a helm or a hat. Most hide the hair.", "head"],
   ["brow", "Brow", "A circlet on the brow.", "head"],
+  [
+    "horns",
+    "Horns or antlers",
+    "Horns or antlers fixed to the head, beside any horns chosen on the Face tab. A hat, hood or helm hides them.",
+    "extras",
+    "Head",
+  ],
   ["face", "Glasses", "Glasses or a mask over the eyes.", "accessories"],
   ["mouth", "Face mask", "A mask over the mouth and nose.", "accessories"],
   ["ears", "Earrings", "A pair of earrings.", "accessories"],
   ["neck", "Neck", "A scarf.", "accessories"],
+  ["necklace", "Necklace", "A necklace, a chain or a collar. A scarf hides it.", "accessories"],
   ["back", "Cloak or coat", "Worn over everything else.", "body"],
+  ["on_back", "On the back", "Wings, a backpack, or a guitar slung across the back.", "objects"],
   ["body", "Whole outfit", "A dress, gown, robe or one-piece: top and legs in one.", "body"],
   ["top", "Shirt or top", "Next to the skin, under everything else.", "tops"],
   ["over", "Over the shirt", "A tunic, vest, corset, padded gambeson or jacket.", "tops"],
@@ -1146,14 +1200,74 @@ export const CLOTH_SLOTS = [
   ["arms", "Forearms", "Leather bracers.", "hands"],
   ["hands", "Hands", "Gloves or plate gauntlets.", "hands"],
   ["fingers", "Rings", "A ring. Gloves hide it.", "accessories"],
+  ["wrists", "Wrists", "Bracelets or bangles. Gloves and bracers hide them.", "accessories"],
   ["waist", "Belt", "A belt with pouches.", "accessories"],
+  [
+    "belly",
+    "Belly",
+    "A belly piercing or a belly chain. A one-piece outfit, a breastplate or an apron hides it.",
+    "accessories",
+  ],
+  ["hip", "At the hip", "A sword, a purse or a bag hung at the hip.", "objects"],
   ["apron", "Apron", "A work apron, as a smith or a cook wears.", "accessories"],
   ["legs", "Legs", "Trousers, skirts, shorts and the like.", "legs"],
+  [
+    "tail",
+    "Tail",
+    "A tail worn as an item, such as a cat's. The tiefling tail on the Face tab is separate from this.",
+    "extras",
+  ],
   ["thighs", "Thigh plates", "Plate tassets hung from the waist.", "armour"],
   ["shins", "Shins", "Plate greaves.", "armour"],
   ["socks", "Socks", "Socks or leg warmers, under the shoes.", "feet"],
+  ["ankles", "Ankles", "Anklets. Socks and greaves hide them.", "accessories"],
   ["feet", "Feet", "Boots, shoes or sandals.", "feet"],
+  [
+    "hand_right",
+    "Right hand",
+    "Something held in the right hand: a sword, a microphone, a bag. It moves with the hand and doesn't bend.",
+    "objects",
+    "hand_r",
+  ],
+  [
+    "hand_left",
+    "Left hand",
+    "Something held in the left hand. It moves with the hand and doesn't bend.",
+    "objects",
+    "hand_l",
+  ],
 ];
+/**
+ * The body bones a piece can be fixed to, so it moves with that bone alone and never bends with the skin:
+ * a sword in a hand, horns on the head, wings on the upper back. These are the skeleton's own names (the
+ * Unreal mannequin's, kitfiles.js HUMANOID_BONES): the head, neck, spine, hips and the limbs, not the
+ * fingers, toes, eyes or the tail's and hair's bones.
+ */
+export const PIECE_BONES = [
+  "Head",
+  "neck_01",
+  "spine_01",
+  "spine_02",
+  "spine_03",
+  "pelvis",
+  "clavicle_l",
+  "clavicle_r",
+  "upperarm_l",
+  "upperarm_r",
+  "lowerarm_l",
+  "lowerarm_r",
+  "hand_l",
+  "hand_r",
+  "thigh_l",
+  "thigh_r",
+  "calf_l",
+  "calf_r",
+  "foot_l",
+  "foot_r",
+];
+/** The bone a piece in `slot` is fixed to: its own (`bone`, from PIECE_BONES), else its slot's, else none. */
+export const boneOf = (slot, bone = null) =>
+  PIECE_BONES.includes(bone) ? bone : (CLOTH_SLOTS.find(([each]) => each === slot)?.[4] ?? null);
 /**
  * The nails' slots, the same way: pieces the packer bundles with the gloves and the shoes, which the Skin tab
  * chooses (NAILS) rather than the Clothes tab. Gloves hide the fingernails, shoes and socks the toenails
@@ -1171,7 +1285,16 @@ export const NAILS = [
   ["none", "None"],
 ];
 /** The slots whose pieces are left off while a piece in one of these slots is worn over them. */
-export const COVERED_BY = { nails: ["hands"], toenails: ["feet", "socks"], fingers: ["hands"] };
+export const COVERED_BY = {
+  nails: ["hands"],
+  toenails: ["feet", "socks"],
+  fingers: ["hands"],
+  wrists: ["hands", "arms"],
+  ankles: ["socks", "shins"],
+  necklace: ["neck"],
+  belly: ["body", "plate", "apron"],
+  horns: ["head"],
+};
 /** Whether a piece in `slot` is left off under the slots worn (a Set): a ring under gloves. */
 export const isCovered = (slot, worn) => (COVERED_BY[slot] ?? []).some((over) => worn.has(over));
 /** The pieces: [piece (the kit's name), label, slot]. The kit says which body each is made for. */
@@ -1279,6 +1402,71 @@ export function addPieces(pieces) {
     PACK_PIECES[entry.piece] = entry;
   }
 }
+/** The hair styles installed wardrobe packs add (packs.js readHair), each its checked index entry: { style: entry }. */
+export const PACK_HAIR = {};
+/** Adds packs' hair styles ([{ style, label, … }]) to HAIRSTYLES, before "None", so the Hair tab offers them. */
+export function addHair(styles) {
+  for (const entry of styles) {
+    if (HAIRSTYLES.some(([style]) => style === entry.style) || Object.hasOwn(SLOT_OF, entry.style)) continue;
+    HAIRSTYLES.splice(HAIRSTYLES.length - 1, 0, [entry.style, entry.label]);
+    PACK_HAIR[entry.style] = entry;
+  }
+}
+/** The pack that added a piece or hair style id, if one did. */
+export const packEntry = (id) =>
+  Object.hasOwn(PACK_PIECES, id) ? PACK_PIECES[id] : Object.hasOwn(PACK_HAIR, id) ? PACK_HAIR[id] : null;
+
+/**
+ * The CC BY credits of the pack pieces and hair a look wears, each once, for a saved file (exporter.js).
+ * A piece or style whose pack isn't installed isn't worn, so it has none.
+ */
+export const packCredits = (look) => [
+  ...new Set(
+    [...(look?.clothes ?? []), ...(look?.hair ? [look.hair] : [])].map((id) => packEntry(id)?.credit).filter(Boolean),
+  ),
+];
+
+/** What a look has that no installed pack has (checkLook keeps it): { clothes: [piece], hair: style or null }. */
+export function missingFromLook(look) {
+  const clothes = (look?.clothes ?? []).filter((piece) => !Object.hasOwn(SLOT_OF, piece));
+  const hair = look?.hair && !HAIRSTYLES.some(([style]) => style === look.hair) ? look.hair : null;
+  return { clothes, hair };
+}
+/**
+ * The look as it's worn, for a saved avatar file: without the pieces and hair style whose packs aren't
+ * installed (and their colours and pack notes). A look file and the draft keep them.
+ */
+export function wornLook(look) {
+  const { clothes, hair } = missingFromLook(look);
+  if (!clothes.length && !hair) return look;
+  const gone = new Set([...clothes, hair]);
+  const out = { ...look };
+  if (out.clothes) out.clothes = out.clothes.filter((piece) => !gone.has(piece));
+  if (hair) delete out.hair;
+  for (const field of ["clothColours", "fromPacks"]) {
+    if (!out[field]) continue;
+    out[field] = Object.fromEntries(Object.entries(out[field]).filter(([id]) => !gone.has(id)));
+    if (!Object.keys(out[field]).length) delete out[field];
+  }
+  return out;
+}
+/**
+ * In plain words, what the look has that isn't shown because its pack isn't installed, one line each,
+ * naming the pack where the look recorded it: [] when everything is there.
+ */
+export function missingNotes(look) {
+  const { clothes, hair } = missingFromLook(look);
+  const said = (id, kind) => {
+    const from = look.fromPacks?.[id];
+    return from
+      ? `${kind} "${from.label}" isn't shown because its pack, ${from.name}, isn't installed. Install it again to bring it back.`
+      : `${kind} "${id}" isn't shown: none of the installed wardrobe packs has it.`;
+  };
+  return [
+    ...clothes.map((piece) => said(piece, "The piece")),
+    ...(hair ? [`${said(hair, "The hair style")} Another style shows until then.`] : []),
+  ];
+}
 /** The other ways a piece can be worn: { piece: { label, says, ways: [[variant ("" is the usual), label]] } }.
  *  One shows at a time. */
 export const CLOTH_VARIANTS = {
@@ -1385,15 +1573,17 @@ export function readDesign(raw) {
     clothColours: isRecord(raw.clothColours)
       ? Object.fromEntries(Object.entries(raw.clothColours).map(([piece, parts]) => [piece, colours(parts)]))
       : undefined,
+    fromPacks: undefined,
   });
-  return look;
+  // (A design names only what's here: a piece or hair style it made up isn't kept for a pack to bring.)
+  return wornLook(look);
 }
 
 /** `over` laid on `base` (two checked looks): each choice of `over` wins, part by part for the avatar's
  *  sliders and colours, so a look's own choices sit on what lore says. */
 export function mergeLooks(base, over) {
   const out = { ...base, ...over };
-  for (const field of ["shape", "limbs", "colours", "underwear", "tints", "clothColours", "variants"])
+  for (const field of ["shape", "limbs", "colours", "underwear", "tints", "clothColours", "variants", "fromPacks"])
     if (base?.[field] || over?.[field]) out[field] = { ...base?.[field], ...over?.[field] };
   return out;
 }
@@ -1419,6 +1609,7 @@ export const PRESET_FIELDS = [
   "clothes",
   "clothColours",
   "variants",
+  "fromPacks",
   "hair",
   "hairColour",
   "hairTint",

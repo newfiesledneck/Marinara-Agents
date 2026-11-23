@@ -30,8 +30,12 @@ import {
   HEIGHTS,
   HORN_COLOURS,
   LIMBS,
+  missingFromLook as missing,
+  missingNotes,
   OUTFIT_PRESETS,
   outfitLook,
+  packCredits,
+  PACK_HAIR,
   PACK_PIECES,
   RACE_PARTS,
   RACE_SHAPES,
@@ -189,6 +193,18 @@ function colours(name, list, current, onPick, says = "") {
     h("div", {}, box, says ? h("div", { class: "ends" }, h("span", {}, says)) : null),
   );
 }
+
+/** Where a pack's piece or hair style (id in list, looks.js PACK_PIECES or PACK_HAIR) is from, or null. */
+const fromPack = (list, id) => {
+  const pack = Object.hasOwn(list, id) ? list[id] : null;
+  return pack
+    ? h(
+        "p",
+        { class: "says" },
+        `From ${pack.packName}, by ${pack.author}${pack.credit ? ` (${pack.licence.replace(/-/gu, " ")})` : ""}.`,
+      )
+    : null;
+};
 
 const group = (title, says, ...children) =>
   h("section", { class: "group" }, h("h2", {}, title), says ? h("p", { class: "says" }, says) : null, ...children);
@@ -516,10 +532,11 @@ export function createPanel(actions) {
       ),
     ],
 
-    hair: ({ filled, choices }) => [
+    hair: ({ look, filled, choices }) => [
       group(
         "Hair",
         "",
+        missing(look).hair ? h("p", { class: "says" }, missingNotes({ ...look, clothes: [] }).join(" ")) : null,
         row(
           "Style",
           select(
@@ -530,13 +547,15 @@ export function createPanel(actions) {
           ),
           "A hood or helm that covers the head hides the hair.",
         ),
+        fromPack(PACK_HAIR, filled.hair),
         colours("Hair colour", HAIR_COLOURS, filled.hairColour, (hex, redraw) =>
           change({ hairTint: hex, hairColour: undefined }, redraw),
         ),
       ),
     ],
 
-    clothes: ({ filled, choices }) => {
+    clothes: ({ look, filled, choices }) => {
+      const gone = missing(look).clothes;
       const bySlot = new Map(CLOTH_SLOTS.map(([slot]) => [slot, []]));
       for (const entry of choices.clothes) bySlot.get(entry.slot)?.push(entry);
       const worn = new Set(filled.clothes);
@@ -545,6 +564,27 @@ export function createPanel(actions) {
         change({ clothes: piece ? [...kept, piece] : kept });
       };
       return [
+        gone.length
+          ? group(
+              "Not shown",
+              "Pieces from a wardrobe pack that isn't installed. They stay in the look and come back when the pack is installed again; a saved avatar leaves them out.",
+              ...gone.map((piece) =>
+                h(
+                  "div",
+                  { class: "piece" },
+                  h("p", { class: "says" }, missingNotes({ clothes: [piece], fromPacks: look.fromPacks }).join(" ")),
+                  h(
+                    "button",
+                    {
+                      type: "button",
+                      onclick: () => change({ clothes: filled.clothes.filter((other) => other !== piece) }),
+                    },
+                    "Take it out of the look",
+                  ),
+                ),
+              ),
+            )
+          : null,
         group(
           "Ready-made outfits",
           "Changes the clothes only.",
@@ -610,18 +650,11 @@ export function createPanel(actions) {
             );
             if (!on) return pick;
             const variants = CLOTH_VARIANTS[on.piece];
-            const pack = PACK_PIECES[on.piece];
             return h(
               "div",
               { class: "piece" },
               pick,
-              pack
-                ? h(
-                    "p",
-                    { class: "says" },
-                    `From ${pack.packName}, by ${pack.author}${pack.credit ? ` (${pack.licence.replace(/-/gu, " ")})` : ""}.`,
-                  )
-                : null,
+              fromPack(PACK_PIECES, on.piece),
               variants && on.variants?.length
                 ? row(
                     variants.label,
@@ -730,8 +763,8 @@ export function createPanel(actions) {
           [
             "creditNotation",
             "Credit",
-            (look?.clothes ?? []).some((piece) => PACK_PIECES[piece]?.credit)
-              ? "Whether whoever uses it must name you. Always required while it wears a CC BY piece from a wardrobe pack, whose maker must be credited."
+            packCredits(look).length
+              ? "Whether whoever uses it must name you. Always required while it wears a CC BY piece or hair style from a wardrobe pack, whose maker must be credited."
               : "Whether whoever uses it must name you.",
           ],
         ].map(([field, name, says]) =>

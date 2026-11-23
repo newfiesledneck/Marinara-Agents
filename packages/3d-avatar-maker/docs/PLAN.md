@@ -220,6 +220,57 @@ poses with its arms lowered. Not yet checked in a real Engine.
   mouth. The mask (`scripts/build-3d-avatar-maker-masks.mjs`) now fades the outer lips in from their edge,
   nothing for 1.5 texels and all of it from 6 in, and keeps the colour full where the lips meet.
 
+## Built (0.1.10): bone-fixed accessories
+
+The code for the community items still to come (objects, jewellery, horns, wings, tails and 29 hair styles).
+No item is fitted yet; the packs that fill these slots come next.
+
+- **Fixed to a bone.** A piece can move with one body bone alone: its `bone`, one of looks.js
+  `PIECE_BONES` (the head, neck, spine, hips, collarbones and limbs; not the fingers, toes, eyes, tail or hair
+  bones).
+  - **At load** (`avatar.js` `fixedPart`), every point gets its whole weight on that bone, through the piece's
+    own inverse bind matrix for it (the body's, if the piece has none). It rests exactly where it was fitted
+    and never bends.
+  - **Head size.** A bigger head grows it as it grows the hair and eyes, through the bone's stretch.
+  - **Shape keys** move it as one, by the average of how they move its points (`rigid`). It follows a higher
+    brow or a bigger hand and keeps its shape.
+  - **Where it's said.** A kit piece takes `bone` from its model's extras, a pack piece from its index.
+- **New slots** (looks.js `CLOTH_SLOTS`): horns or antlers, necklace, on the back (wings, a backpack, a slung
+  guitar), wrists, belly, at the hip, tail, ankles, and the right and left hand.
+  - **Slot bones** (`boneOf`): a hand's pieces are fixed to `hand_r` or `hand_l`, horns to `Head`, unless a
+    piece names another bone.
+  - **What covers what** (`COVERED_BY`): gloves and bracers hide the wrists, socks and greaves the ankles, a
+    scarf the necklace, a one-piece outfit, a breastplate or an apron the belly, and anything on the head the
+    horns.
+  - **Tails.** The race tail on the Face tab is separate from this slot and keeps its spring bones.
+- **Hair from packs.** A pack's index may list `hair` styles (`packs.js` `readHair`). Each has a label, its
+  bodies, a bundle of its own in the kit's hair bundle format, an author, a licence and a credit. An optional
+  `swing` (metres below the eyes where its locks leave the head, at most 0.3) gives it chains (`hair.js`
+  `swingOf`). The Hair tab offers the styles beside the kit's and names each one's pack and maker. A CC BY
+  style's credit goes into a saved file as a piece's does (`looks.js` `packCredits`).
+- **The pack contract** is still `format: 1`. `bone` and `hair` are optional, so the packs built before read
+  as they did. The builder writes `bone` from `assets/packs.json` (else the model's extras) and a pack's
+  `hair` from its models `avatar-hair-<style>.glb`, a bundle `hair/<style>.pack.png` for each style. The
+  kit's builder and the packs' share the hair packing (`packHairStyles`).
+- **Looks outlast an uninstalled pack.**
+  - **Kept.** `checkLook` keeps a well-formed piece id or hair style that no installed pack has, at most one
+    for each slot, with its colours. `fromPacks` records each pack piece's and style's pack and label.
+  - **Said.** Such a piece isn't worn. The preview, the Clothes tab and the Hair tab say what isn't shown and
+    which pack to install again, and the Clothes tab can take it out of the look. Once the pack is installed
+    again, it's worn.
+  - **Saved.** Drafts and look files keep it. A saved GLB or VRM has only what's worn (`wornLook`), and an AI
+    design keeps only what's there.
+- **Checked** in the regression test, with a test pack made from the kit's own gloves, helm and long hair:
+  - pieces fixed to the hand, head and upper back keep their shape to a ten-thousandth of a millimetre as the
+    arm, fingers, back and head turn, while the same gloves unfixed bend by 25 cm;
+  - a fixed piece rests where it was fitted and grows with a bigger head;
+  - readPack and readHair take the new slots, bones and styles and refuse bad ones;
+  - a look keeps its missing pieces and wears them once the pack is back;
+  - a GLB and a VRM bind each fixed piece to its one bone, and three-vrm reads the VRM.
+
+  The kit rebuilt byte for byte the same after the hair packing moved. A trial build of the Accessories pack
+  with a `bone` and a hair style was read and worn by the maker (not committed).
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -232,8 +283,9 @@ poses with its arms lowered. Not yet checked in a real Engine.
 4. **More expressions.** Visemes beyond VRM's five vowels, a wink and a smirk as custom expressions.
 5. **More that swings:** skirts, cloaks and coat tails on chains of their own, and colliders that allow for
    clothing over the body.
-6. **More to change:** skin texture layers (freckles, scars, tattoos, makeup), patterns and pictures on
-   clothing, accessories fixed to a bone (glasses, earrings, hats, bags), more face sliders.
+6. **More to change:** the community objects, jewellery, horns, wings, tails and hair styles fitted into
+   packs for the new slots; a grip for a hand that holds something; skin texture layers (freckles, scars,
+   tattoos, makeup), patterns and pictures on clothing, more face sliders.
 7. **Generate avatar.** A server part with one route that asks a chosen model for a look from the card's
    text, or from its portrait when the model can see pictures. Wanderworld's `designMenu`, `readDesign`
    and `/look-design` route are the starting point. Off by default; needs `routes` and a restart.
@@ -250,5 +302,9 @@ poses with its arms lowered. Not yet checked in a real Engine.
   shoulder's collider. The colliders fit the body, not what's worn, so hair can pass into a thick cloak.
 - The sides of a long style are found from the mesh, so a chain can follow an uneven path, and the two sides
   of a symmetrical style can get chains of different lengths.
+- A hand that holds something stays open, as the maker has no grip pose yet. A held piece is fitted for one
+  hand; the other hand needs a piece of its own.
+- Slots cover slots, not regions: sandals and tall boots alike leave an anklet on, and a crop top and a
+  T-shirt alike leave a belly piercing on (where the shirt is drawn over it).
 - Drafts live in the browser only.
 - `avatar.js` still carries the anthro code paths and a crowd's low-detail triangle lists.

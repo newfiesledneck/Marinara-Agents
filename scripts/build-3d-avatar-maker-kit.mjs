@@ -42,7 +42,14 @@ import { fileURLToPath } from "node:url";
 import { MeshoptSimplifier } from "three/examples/jsm/libs/meshopt_simplifier.module.js";
 import { MESH_KINDS, RIGGED_KINDS, writePacked } from "./3d-avatar-maker-packed.mjs";
 // (The avatar's hair styles and clothing slots are the game's own lists: a piece the game can't name isn't packed.)
-import { CLOTH_PARTS, CLOTH_SLOTS, HAIRSTYLES, NAIL_SLOTS, SLOT_OF } from "../packages/3d-avatar-maker/src/looks.js";
+import {
+  CLOTH_PARTS,
+  CLOTH_SLOTS,
+  HAIRSTYLES,
+  NAIL_SLOTS,
+  PIECE_BONES,
+  SLOT_OF,
+} from "../packages/3d-avatar-maker/src/looks.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 await MeshoptSimplifier.ready;
@@ -1221,14 +1228,18 @@ export function bodyReach(dir) {
  * usual one. `reach` and `shares` are each body's keyReach and distant share; `bundler` the bundles' bundleAt and
  * pictureIn (bundler()); `slotOf(piece, file)` a piece's slot, `bundleOf(slot)` its bundle's [name, path],
  * `pictureName(piece, image)` a picture's name. Returns the outfit index: each piece's bundle (by name),
- * slot, bodies, parts and their colours, and variants. The kit's and the wardrobe packs' builders share it
- * (scripts/build-3d-avatar-maker-packs.mjs).
+ * slot, bodies, parts and their colours, variants, and the bone it's fixed to (its model's `bone` extra, one
+ * of looks.js PIECE_BONES; the bundle's entry has it too). The kit's and the wardrobe packs' builders share
+ * it (scripts/build-3d-avatar-maker-packs.mjs).
  */
 export function packOutfitPieces({ dir, files, reach, shares, bundler, slotOf, bundleOf, pictureName }) {
   const FACE_KEYS = new Set(["jaw", "cheeks", "nose", "eyes", "ears_pointed"]);
-  const HEAD_SLOTS = new Set(["head", "brow", "face", "mouth", "ears", "neck"]);
+  const HEAD_SLOTS = new Set(["head", "brow", "horns", "face", "mouth", "ears", "neck"]);
   // Small, thin solid pieces keep every triangle: trimming would cut through a nail, a ring or a frame.
-  const WHOLE_SLOTS = new Set([...NAIL_SLOTS.map(([slot]) => slot), "face", "ears", "fingers"]);
+  const WHOLE_SLOTS = new Set([
+    ...NAIL_SLOTS.map(([slot]) => slot),
+    ...["face", "ears", "fingers", "wrists", "ankles", "necklace", "belly"],
+  ]);
   const PART_NAMES = new Set(CLOTH_PARTS.map(([name]) => name));
   const outfitIndex = {};
   for (const file of files) {
@@ -1273,6 +1284,13 @@ export function packOutfitPieces({ dir, files, reach, shares, bundler, slotOf, b
         into.hides = wordsOf(extras.hides);
         into[sex] = packed;
         entry.layer = Number(extras.layer) || entry.layer;
+        if (extras.bone !== undefined) {
+          if (!PIECE_BONES.includes(extras.bone))
+            throw new Error(
+              `${file}: bone "${extras.bone}" isn't one of PIECE_BONES in packages/3d-avatar-maker/src/looks.js`,
+            );
+          entry.bone = info.bone = extras.bone;
+        }
         if (variant && !(info.variants ??= []).includes(variant)) info.variants.push(variant);
         if (!variant) info.parts[sex] = merged.parts.map(({ part: partName, colour }) => [partName, srgbHex(colour)]);
       }
@@ -1282,6 +1300,40 @@ export function packOutfitPieces({ dir, files, reach, shares, bundler, slotOf, b
     outfitIndex[piece] = info;
   }
   return outfitIndex;
+}
+
+/**
+ * Hair styles (`files`, avatar-hair-<style>.glb in `dir`: a `male` and a `female` mesh, skinned or hung on
+ * the head bone) into bundles of `styles`, each keeping only the keys that move the head. `reach`, `shares`
+ * and `bundler` as packOutfitPieces's; `bundleOf(style, file)` a style's bundle's [name, path],
+ * `pictureName(style, image)` a picture's name. Returns the hair index: each style's bundle (by name) and
+ * bodies. The kit's and the wardrobe packs' builders share it.
+ */
+export function packHairStyles({ dir, files, reach, shares, bundler, bundleOf, pictureName }) {
+  const hairIndex = {};
+  for (const file of files) {
+    const style = file.slice("avatar-hair-".length, -4);
+    const [name, path] = bundleOf(style, file);
+    const bundle = bundler.bundleAt(path, { styles: {} });
+    const gltf = readGltf(join(dir, file));
+    const entry = {};
+    for (const sex of Object.keys(reach)) {
+      const own = meshesFor(gltf, sex);
+      if (!own.length) continue;
+      for (const primitive of own) {
+        followBody(primitive, reach[sex]);
+        keyNormals(primitive);
+      }
+      const texture = (primitive) =>
+        primitive.texture?.startsWith("image:")
+          ? bundler.pictureIn(path, gltf, primitive.texture, pictureName(style, primitive.texture.slice(6)))
+          : null;
+      entry[sex] = part(own, texture, { distant: shares[sex] ?? 1, still: PIECE_STILL });
+    }
+    bundle.styles[style] = entry;
+    hairIndex[style] = { bundle: name, bodies: Object.keys(entry) };
+  }
+  return hairIndex;
 }
 
 /**
@@ -1431,7 +1483,6 @@ function avatar(only = "", to = "") {
   // (A file a bundle, not a piece or a picture: the package may list at most 256 asset files. A bundle is
   // loaded the first time someone wears one of its pieces, so a shirt doesn't fetch the armour.)
   const { bundles, bundleAt, pictureIn } = bundler(source);
-  const sexes = Object.keys(reach);
 
   // The anthro bodies: a file each, with its pictures inside (the package may list only so many files).
   for (const file of glbs.filter((name) => /^anthro-[a-z]+-(?:male|female)\.glb$/u.test(name)).sort()) {
@@ -1453,32 +1504,20 @@ function avatar(only = "", to = "") {
   }
 
   // Hair: in two bundles, the short styles and the long. Each keeps only the keys that move the head.
-  const hairIndex = {};
-  for (const file of glbs.filter((name) => /^avatar-hair-[a-z0-9_]+\.glb$/u.test(name)).sort()) {
-    const style = file.slice("avatar-hair-".length, -4);
-    if (!HAIRSTYLES.some(([name]) => name === style))
-      throw new Error(`${file}: add "${style}" to HAIRSTYLES in packages/3d-avatar-maker/src/looks.js`);
-    const name = `avatar-hair-${LONG_HAIR.has(style) ? "long" : "short"}`;
-    const path = join(out, `${name}.pack.png`);
-    const bundle = bundleAt(path, { styles: {} });
-    const gltf = readGltf(join(dir, file));
-    const entry = {};
-    for (const sex of sexes) {
-      const own = meshesFor(gltf, sex);
-      if (!own.length) continue;
-      for (const primitive of own) {
-        followBody(primitive, reach[sex]);
-        keyNormals(primitive);
-      }
-      const texture = (primitive) =>
-        primitive.texture?.startsWith("image:")
-          ? pictureIn(path, gltf, primitive.texture, `avatar-hair-${style}-${primitive.texture.slice(6)}`)
-          : null;
-      entry[sex] = part(own, texture, { distant: shares[sex] ?? 1, still: PIECE_STILL });
-    }
-    bundle.styles[style] = entry;
-    hairIndex[style] = { bundle: name, bodies: Object.keys(entry) };
-  }
+  const hairIndex = packHairStyles({
+    dir,
+    files: glbs.filter((name) => /^avatar-hair-[a-z0-9_]+\.glb$/u.test(name)).sort(),
+    reach,
+    shares,
+    bundler: { bundleAt, pictureIn },
+    bundleOf: (style, file) => {
+      if (!HAIRSTYLES.some(([name]) => name === style))
+        throw new Error(`${file}: add "${style}" to HAIRSTYLES in packages/3d-avatar-maker/src/looks.js`);
+      const name = `avatar-hair-${LONG_HAIR.has(style) ? "long" : "short"}`;
+      return [name, join(out, `${name}.pack.png`)];
+    },
+    pictureName: (style, image) => `avatar-hair-${style}-${image}`,
+  });
 
   // Outfit pieces: a bundle for each group of slots (looks.js CLOTH_SLOTS).
   const outfitIndex = packOutfitPieces({

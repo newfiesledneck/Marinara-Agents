@@ -50,7 +50,7 @@ def spec_of(entry):
 
 
 def main(only):
-    which = [(pack, piece) for pack, p in PACKS.items() for piece in p["pieces"] if not only or pack in only or piece in only]
+    which = [(pack, piece) for pack, p in PACKS.items() for piece in p.get("pieces", {}) if not only or pack in only or piece in only]
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sexes = sorted({s for pack, piece in which for s in PACKS[pack]["pieces"][piece]["bodies"]})
     bodies = {s: mc.Body(s) for s in sexes}

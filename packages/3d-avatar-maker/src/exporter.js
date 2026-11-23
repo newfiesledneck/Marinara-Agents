@@ -27,7 +27,7 @@ import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import { FACE_MOVES } from "./face.js";
 import { restPose, tPose } from "./figure.js";
 import { HUMANOID_BONES, texturesReady } from "./kitfiles.js";
-import { PACK_PIECES } from "./looks.js";
+import { packCredits } from "./looks.js";
 
 export const FILE_FORMAT = 1;
 export const GENERATOR = "3D Avatar Maker (Marinara Engine)";
@@ -35,10 +35,13 @@ const KIT_NOTE =
   "Body, hair, skin and clothing: MakeHuman base mesh and system assets (CC0 1.0), and parts made in Blender by ThatOneCan (CC0 1.0).";
 /** What travels with every exported file. The kit is CC0, so the file asks nothing of whoever gets it. */
 export const LICENCE_NOTE = `${KIT_NOTE} No credit required.`;
-/** The file's licence note for a look: the kit's, and the credit each CC-BY piece from a wardrobe pack asks for. */
+/**
+ * The file's licence note for a look: the kit's, and the credit each CC-BY piece and hair style from a
+ * wardrobe pack asks for.
+ */
 export function licenceNote(look) {
-  const credits = [...new Set((look?.clothes ?? []).map((piece) => PACK_PIECES[piece]?.credit).filter(Boolean))];
-  return credits.length ? `${KIT_NOTE} Clothing from wardrobe packs: ${credits.join("; ")}` : LICENCE_NOTE;
+  const credits = packCredits(look);
+  return credits.length ? `${KIT_NOTE} From wardrobe packs: ${credits.join("; ")}` : LICENCE_NOTE;
 }
 
 const GLB_MAGIC = 0x46546c67; // "glTF"
