@@ -91,6 +91,9 @@ for (const body of ["male", "female"]) {
       HAIRSTYLES.some(([known]) => known === style),
       `${body}: hair ${style} has a name`,
     );
+  // (Every kit style is made for both bodies; afro is the older kit's only.)
+  for (const [style] of HAIRSTYLES.filter(([style]) => style !== "afro"))
+    assert.ok(choices.hair.includes(style), `${body}: the kit has hair ${style}`);
   for (const { piece } of choices.clothes)
     assert.ok(
       CLOTHES.some(([known]) => known === piece),
@@ -151,6 +154,105 @@ for (const body of ["male", "female"]) {
 
 // ── A figure stands on the floor, on a full humanoid skeleton, in each pose ──
 const startOf = (body, over = {}) => checkLook({ ...NEUTRAL_LOOK, body, ...over });
+/** Every style in `styles` is worn on `body` from its bundle: a figure wearing it has more meshes than a bald one. */
+async function offeredHairLoads(body, styles) {
+  const drawn = async (hair) => {
+    const figure = await createAvatar(startOf(body, { hair }), "Test", "auto");
+    const result = [figure.meshes.length, figure.avatar.hair];
+    figure.dispose();
+    return result;
+  };
+  const [bald] = await drawn("none");
+  for (const style of styles) {
+    const [count, worn] = await drawn(style);
+    assert.equal(worn, style, `${body}: hair ${style} is the look's`);
+    assert.ok(count > bald, `${body}: hair ${style} loads from its bundle`);
+  }
+}
+for (const body of ["male", "female"])
+  await offeredHairLoads(
+    body,
+    (await avatarChoices(body)).hair.filter((style) => style !== "none"),
+  );
+/**
+ * Hair style `hair` on `body`: if it `swings`, its locks hang on chains, rest exactly where they were made, clear of
+ * every collider, hold the style standing still, swing as the head turns and settle again; if not, no springs.
+ */
+async function hairMoves(body, hair, swings) {
+  const { Vector3 } = await import("three");
+  const { createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
+  const { movingPose } = await import("../packages/3d-avatar-maker/src/figure.js");
+  const tips = (figure) =>
+    figure.springs.flatMap((spring) => spring.bones.slice(1).map((bone) => bone.getWorldPosition(new Vector3())));
+  const furthest = (a, b) => Math.max(...a.map((point, i) => point.distanceTo(b[i])));
+  const figure = await createAvatar(startOf(body, { hair }), "Test", "auto");
+  const label = `${body} ${hair}`;
+  if (!swings) {
+    assert.equal(figure.springs.length, 0, `${label}: a short cut stays as it is`);
+    figure.dispose();
+    return;
+  }
+  assert.ok(figure.springs.length > 0, `${label}: its locks hang on chains`);
+  const mesh = figure.meshes.find((one) => one.skeleton.bones.some((bone) => bone.name.startsWith("hair_")));
+  // Bound where it rests: every point of the hair drawn where it was made, and its weights whole.
+  const { position, skinWeight } = mesh.geometry.attributes;
+  let off = 0;
+  let unweighted = 0;
+  const point = new Vector3();
+  for (let i = 0; i < position.count; i++) {
+    const listed = point.fromBufferAttribute(position, i).clone().applyMatrix4(mesh.matrixWorld);
+    mesh.applyBoneTransform(i, point.fromBufferAttribute(position, i));
+    off = Math.max(off, point.applyMatrix4(mesh.matrixWorld).distanceTo(listed));
+    const sum = [0, 1, 2, 3].reduce((total, c) => total + skinWeight.getComponent(i, c), 0);
+    if (Math.abs(sum - 1) > 1e-4) unweighted++;
+  }
+  assert.ok(off < 0.001, `${label}: the hair rests where it was made (off by ${off.toFixed(5)})`);
+  assert.equal(unweighted, 0, `${label}: every point's weights add up to one`);
+  // No collider a spring meets holds one of its joints at rest, as built or in the T-pose.
+  for (const pose of [restPose, tPose]) {
+    pose(figure);
+    for (const spring of figure.springs)
+      for (const bone of spring.bones.slice(1))
+        for (const collider of spring.colliders) {
+          const at = bone.getWorldPosition(new Vector3());
+          const start = collider.offset.clone().applyMatrix4(collider.bone.matrixWorld);
+          const end = (collider.tail ?? collider.offset).clone().applyMatrix4(collider.bone.matrixWorld);
+          const line = end.clone().sub(start);
+          const t = line.lengthSq() ? Math.max(0, Math.min(1, at.clone().sub(start).dot(line) / line.lengthSq())) : 0;
+          const gap = at.distanceTo(start.addScaledVector(line, t)) - collider.radius - spring.joint.hitRadius;
+          assert.ok(gap > 0, `${label}: ${bone.name} rests clear of ${collider.bone.name}'s collider`);
+        }
+  }
+  // Swinging: still at rest, it holds its style; looking about, it swings; standing still again, it settles.
+  relaxedPose(figure, 0);
+  const springs = createSprings(figure);
+  const rest = tips(figure);
+  for (let f = 0; f < 120; f++) {
+    relaxedPose(figure, 0);
+    springs.step(1 / 60);
+  }
+  assert.ok(furthest(tips(figure), rest) < 0.025, `${label}: holds its style at rest`);
+  let swung = 0;
+  for (let f = 0; f < 240; f++) {
+    movingPose(figure, f / 60);
+    springs.step(1 / 60);
+    const now = tips(figure);
+    const held = figure.springs.map((spring) => spring.bones.map((bone) => bone.quaternion.clone()));
+    for (const spring of figure.springs)
+      for (const bone of spring.bones) bone.quaternion.copy(figure.rest.get(bone.name));
+    figure.root.updateMatrixWorld(true);
+    swung = Math.max(swung, furthest(now, tips(figure)));
+    figure.springs.forEach((spring, s) => spring.bones.forEach((bone, b) => bone.quaternion.copy(held[s][b])));
+    figure.root.updateMatrixWorld(true);
+  }
+  assert.ok(swung > 0.003, `${label}: swings as the head turns (${(swung * 100).toFixed(1)} cm)`);
+  for (let f = 0; f < 120; f++) {
+    relaxedPose(figure, 0);
+    springs.step(1 / 60);
+  }
+  assert.ok(furthest(tips(figure), rest) < 0.025, `${label}: and settles`);
+  figure.dispose();
+}
 const knight = outfitLook(
   OUTFIT_PRESETS.find((preset) => preset.name === "Knight"),
   "male",
@@ -493,84 +595,10 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
   // ── Hair movement: chains through the hanging locks, springs, colliders (hair.js, springs.js) ──
   {
     const { SWINGING_HAIR } = await import("../packages/3d-avatar-maker/src/hair.js");
-    const { createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
-    const { movingPose } = await import("../packages/3d-avatar-maker/src/figure.js");
-    const tips = (figure) =>
-      figure.springs.flatMap((spring) => spring.bones.slice(1).map((bone) => bone.getWorldPosition(new Vector3())));
-    const furthest = (a, b) => Math.max(...a.map((point, i) => point.distanceTo(b[i])));
-    for (const body of ["female", "male"]) {
-      for (const hair of [...SWINGING_HAIR.keys(), "short"]) {
-        const figure = await createAvatar(startOf(body, { hair }), "Test", "auto");
-        const label = `${body} ${hair}`;
-        if (!SWINGING_HAIR.has(hair)) {
-          assert.equal(figure.springs.length, 0, `${label}: a short cut stays as it is`);
-          figure.dispose();
-          continue;
-        }
-        assert.ok(figure.springs.length > 0, `${label}: its locks hang on chains`);
-        const mesh = figure.meshes.find((one) => one.skeleton.bones.some((bone) => bone.name.startsWith("hair_")));
-        // Bound where it rests: every point of the hair drawn where it was made, and its weights whole.
-        const { position, skinWeight } = mesh.geometry.attributes;
-        let off = 0;
-        let unweighted = 0;
-        const point = new Vector3();
-        for (let i = 0; i < position.count; i++) {
-          const listed = point.fromBufferAttribute(position, i).clone().applyMatrix4(mesh.matrixWorld);
-          mesh.applyBoneTransform(i, point.fromBufferAttribute(position, i));
-          off = Math.max(off, point.applyMatrix4(mesh.matrixWorld).distanceTo(listed));
-          const sum = [0, 1, 2, 3].reduce((total, c) => total + skinWeight.getComponent(i, c), 0);
-          if (Math.abs(sum - 1) > 1e-4) unweighted++;
-        }
-        assert.ok(off < 0.001, `${label}: the hair rests where it was made (off by ${off.toFixed(5)})`);
-        assert.equal(unweighted, 0, `${label}: every point's weights add up to one`);
-        // No collider a spring meets holds one of its joints at rest, as built or in the T-pose.
-        for (const pose of [restPose, tPose]) {
-          pose(figure);
-          for (const spring of figure.springs)
-            for (const bone of spring.bones.slice(1))
-              for (const collider of spring.colliders) {
-                const at = bone.getWorldPosition(new Vector3());
-                const start = collider.offset.clone().applyMatrix4(collider.bone.matrixWorld);
-                const end = (collider.tail ?? collider.offset).clone().applyMatrix4(collider.bone.matrixWorld);
-                const line = end.clone().sub(start);
-                const t = line.lengthSq()
-                  ? Math.max(0, Math.min(1, at.clone().sub(start).dot(line) / line.lengthSq()))
-                  : 0;
-                const gap = at.distanceTo(start.addScaledVector(line, t)) - collider.radius - spring.joint.hitRadius;
-                assert.ok(gap > 0, `${label}: ${bone.name} rests clear of ${collider.bone.name}'s collider`);
-              }
-        }
-        // Swinging: still at rest, it holds its style; looking about, it swings; standing still again, it settles.
-        relaxedPose(figure, 0);
-        const springs = createSprings(figure);
-        const rest = tips(figure);
-        for (let f = 0; f < 120; f++) {
-          relaxedPose(figure, 0);
-          springs.step(1 / 60);
-        }
-        assert.ok(furthest(tips(figure), rest) < 0.025, `${label}: holds its style at rest`);
-        let swung = 0;
-        for (let f = 0; f < 240; f++) {
-          movingPose(figure, f / 60);
-          springs.step(1 / 60);
-          const now = tips(figure);
-          const held = figure.springs.map((spring) => spring.bones.map((bone) => bone.quaternion.clone()));
-          for (const spring of figure.springs)
-            for (const bone of spring.bones) bone.quaternion.copy(figure.rest.get(bone.name));
-          figure.root.updateMatrixWorld(true);
-          swung = Math.max(swung, furthest(now, tips(figure)));
-          figure.springs.forEach((spring, s) => spring.bones.forEach((bone, b) => bone.quaternion.copy(held[s][b])));
-          figure.root.updateMatrixWorld(true);
-        }
-        assert.ok(swung > 0.003, `${label}: swings as the head turns (${(swung * 100).toFixed(1)} cm)`);
-        for (let f = 0; f < 120; f++) {
-          relaxedPose(figure, 0);
-          springs.step(1 / 60);
-        }
-        assert.ok(furthest(tips(figure), rest) < 0.025, `${label}: and settles`);
-        figure.dispose();
-      }
-    }
+    // (Every kit style each body is offered: the ones in SWINGING_HAIR swing, the rest stay as they are.)
+    for (const body of ["female", "male"])
+      for (const hair of (await avatarChoices(body)).hair.filter((style) => style !== "none"))
+        await hairMoves(body, hair, SWINGING_HAIR.has(hair));
     // On a bigger head, the swinging hair rests where its own weights put it, so nothing tears where hair that
     // grew with the head meets hair that didn't.
     {
@@ -739,6 +767,28 @@ for (const figure of Object.values(made)) figure.dispose();
   for (const each of read)
     assert.equal(Boolean(each.credit), each.licence !== "CC0-1.0", `${each.piece}: a credit exactly when CC BY`);
   looks.addPieces(read);
+  // Its hair styles: every one accepted and credited, offered and worn on each body it's for, and the ones
+  // that hang swing on chains (hairMoves), the rest staying as they are.
+  const { readHair } = await import("../packages/3d-avatar-maker/src/packs.js");
+  const styles = readHair({ id, version: manifest.version, status: "active", manifest }, index);
+  assert.equal(
+    styles.length,
+    Object.keys(index.hair ?? {}).length,
+    "every hair style of the Accessories pack is accepted",
+  );
+  for (const each of styles)
+    assert.ok(each.credit?.includes(`by ${each.author} (`), `${each.style}: CC BY, with its author credited`);
+  looks.addHair(styles);
+  for (const body of ["male", "female"]) {
+    const mine = styles.filter((each) => each.bodies.includes(body));
+    const offered = (await avatarChoices(body)).hair;
+    for (const { style } of mine) assert.ok(offered.includes(style), `${body}: the Hair tab offers ${style}`);
+    await offeredHairLoads(
+      body,
+      mine.map(({ style }) => style),
+    );
+    for (const { style, swing } of mine) await hairMoves(body, style, swing !== null);
+  }
   const slots = new Set(read.map(({ slot }) => slot));
   for (const slot of ["face", "mouth", "ears", "fingers", "socks", "hands", "head"])
     assert.ok(slots.has(slot), `the pack has something to wear in "${slot}"`);

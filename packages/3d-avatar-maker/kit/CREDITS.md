@@ -43,6 +43,10 @@ Items from the MakeHuman community asset packs, each CC0 by its pack catalogue a
   eyelashes01_cc0) baked in Blender by ThatOneCan onto MakeHuman's eyebrow009 and eyelashes02 cards (`bake_brows.py`).
 - In `avatar/avatar-eyes.webp`, after MakeHuman's nine: eye pictures by bobby_03, Mindfront, Nyloseth, Hatshj and
   spamrakuen (`make_avatar.py` COMMUNITY_EYES).
+- In `avatar/avatar-hair-bobs.pack.png`: the blunt, curled-under and inverted bobs, each with and without a
+  fringe, MargaretToigo's (hair01_cc0: toigo_blunt_bob, toigo_curled_under_bob, toigo_inverted_bob and their
+  `_with_bangs`), fitted to the bodies in Blender by ThatOneCan (`make_mh_hair.py`), the fringes tucked under at
+  the crown.
 
 ## Made in Blender by ThatOneCan (CC0)
 

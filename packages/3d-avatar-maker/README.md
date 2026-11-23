@@ -33,7 +33,7 @@ file you save, and you import that file yourself.
 | Body | Body, age, height; a race preset (human, dwarf, halfling, gnome, elf, half-elf, half-orc, tiefling) and six race sliders to mix; eight build sliders; arms, legs, torso and hips, and her bust in detail; arm and leg length, head size |
 | Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (66 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: beards, tusks, horns, a tail |
 | Skin and eyes | 30 skin pictures (MakeHuman's nine in three ages, and 21 more) or a colour of your own; 24 pictured eyes or a colour; nail length and toenails; lip and nail colours |
-| Hair | 14 styles in any colour, and any styles a wardrobe pack adds. Long, ponytail, braid, bob and angled bob swing as the avatar moves, and so do a pack's long styles |
+| Hair | 20 styles in any colour, and any styles a wardrobe pack adds (the Accessories pack has 14). Long, ponytail, braid and every bob swing as the avatar moves, and so do a pack's long styles |
 | Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus what any wardrobe packs you install add. Glasses, a face mask, earrings, rings and socks have places of their own, which the Accessories pack fills. Horns or antlers, a necklace, the wrists, the belly, the ankles, a tail, the back (wings, a backpack), the hip and each hand have places of their own too, for packs to fill. Something held in a hand and horns are fixed to the hand or head, so they move with it and never bend |
 
 Every slider's middle is the body's own shape, and each control says what it changes.
@@ -103,11 +103,13 @@ use and share however you like, with no credit required:
 
 - The bodies' base mesh and shapes, the skins, eyes, eyebrows and eyelashes, ten of the hair styles and
   the modern clothes are from [MakeHuman](http://www.makehumancommunity.org/) (CC0), used as data.
-- Extra face and body shapes, 21 more skins, 15 more eye pictures, the nails and six brow and lash styles are from MakeHuman's community packs
-  (CC0), by Elvaerwyn, jujube, habanero, RehmanPolanski, Mindfront, skalldyrssuppe,
-  onlytheghosts, toigo, flower-angel, ken1138, bobby_03, Nyloseth, Hatshj and spamrakuen.
+- Extra face and body shapes, 21 more skins, 15 more eye pictures, the nails, six brow and lash styles and six
+  bobs are from MakeHuman's community packs (CC0), by Elvaerwyn, jujube, habanero, RehmanPolanski, Mindfront,
+  skalldyrssuppe, onlytheghosts, toigo (MargaretToigo), flower-angel, ken1138, bobby_03, Nyloseth, Hatshj and
+  spamrakuen.
 - The races' shapes and parts, four hair styles and the fantasy clothing and armour were made in Blender
-  by ThatOneCan, who also fitted the nails and baked the new brows and lashes; all released as CC0 1.0 too.
+  by ThatOneCan, who also fitted the nails and the six community bobs and baked the new brows and lashes; all
+  released as CC0 1.0 too.
 
 [kit/CREDITS.md](kit/CREDITS.md) lists each file. The package's code is under the repository's licence, and
 its bundle includes [three.js](https://threejs.org/) (MIT).

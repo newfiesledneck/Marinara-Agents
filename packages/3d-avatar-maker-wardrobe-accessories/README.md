@@ -6,18 +6,24 @@ earrings, two rings, gloves in three lengths, and socks, leg warmers and stockin
 community. Some are CC BY, so they are free to share as long as their makers are credited. The maker does that
 for you: a saved avatar names the maker of every CC BY piece it wears. The rest are CC0.
 
+Since 0.2.01 it also has 14 hair styles by Elvaerwyn for the maker's **Hair** tab. They're CC BY 4.0, and a
+saved avatar wearing one credits her.
+
 Since 0.2.00 this pack also holds the headwear of the retired Historical and Fantasy and Modern Casual packs,
 under the same names. Their clothes are in [3D Avatar Maker: Clothes](../3d-avatar-maker-wardrobe-clothes/README.md).
 
 This package holds data only. It has no Home tab, no code and no permissions. It needs **3D Avatar Maker
-0.1.04 or later**, which added the Glasses, Face mask, Earrings, Rings and Socks slots it uses. The maker
-finds it when both are installed.
+0.1.04 or later**, which added the Glasses, Face mask, Earrings, Rings and Socks slots it uses. The hair
+styles need **0.1.10 or later**; an older maker shows the rest of the pack without them. The maker finds it
+when both are installed.
 
 ## Use it
 
 1. Install **3D Avatar Maker** and this package from **Agents → Agent Organizer**. Neither needs a restart.
 2. Open **Home → 3D Avatar Maker** and go to the **Clothes** tab. The pieces below appear beside the maker's
    own, in the slot each is worn in. Under a piece, a line names the pack, its maker and its licence.
+3. The hair styles are on the **Hair** tab, after the maker's own, each with a line naming the pack and its
+   maker. Pick any hair colour for them.
 
 A piece is fitted to the maker's bodies as of 3D Avatar Maker 0.1.02, and follows their build sliders. A
 maker whose bodies have changed since then leaves the pack out until the pack is fitted again.
@@ -76,6 +82,29 @@ maker whose bodies have changed since then leaves the pack out until the pack is
 your own tints. Gloves hide a ring, and socks hide the toenails; socks go under any shoes. Most hats and helmets
 hide the hair; the headband, the circlet and the sun visor sit over it, and the gas mask covers the whole head.
 The glasses' lenses are clear, except the sunglasses'.
+
+### Hair styles
+
+| Style | Body | Swings |
+| --- | --- | --- |
+| 1950s updo | Female | No |
+| Braided bun | Female | No |
+| Long and straight | Female | Yes |
+| Long and loose | Female | Yes |
+| Long, side-parted | Female | Yes |
+| Long and swept back | Female | Yes |
+| Long, half up | Female | Yes |
+| Long half-updo | Both | Yes |
+| Long and tousled | Both | Yes |
+| Feathered, to the shoulders | Female | Yes |
+| Layered, with a fringe | Female | Yes |
+| Short and straight | Female | Yes |
+| Wavy bob | Female | Yes |
+| Short, swept up | Male | No |
+
+Each style is fitted to the bodies its maker made it for; two were made for both. The ones that hang loose
+swing on spring bones as the avatar moves, in the maker and in a saved VRM. Updos and short cuts stay as they
+are. A hair style takes the hair colour you pick, as the maker's own do.
 
 ## Credits
 
@@ -137,16 +166,39 @@ the maker carries each worn CC BY piece's credit in the file.
 | Leg warmers (`toigo_leg_warmer_socks`) | MargaretToigo | CC0 1.0 | http://www.makehumancommunity.org/node/1092 |
 | Lace-top stockings (`punkduck_french_lingerie_stockings`) | punkduck | CC BY 3.0 | http://www.makehumancommunity.org/node/932 |
 
-The names in brackets are the MakeHuman items. They come from the community packs glasses01_cc0, glasses02_ccby, gloves01_cc0, hats01_cc0, hats03_cc-by, hats04_cc-by, jewelry01_cc0, jewelry02_cc-by, masks01_cc0, masks02_ccby, suits02_cc0, underwear02_cc0 and
+The 14 hair styles are all by Elvaerwyn, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+(their files say "CC-BY"). Each was fitted to the maker's bodies in Blender by ThatOneCan
+(`packages/3d-avatar-maker/assets/scripts/make_mh_hair.py`): moved onto the bodies' heads, lifted off the skin,
+weighted to the head and neck, with its picture made grey so the maker can colour it. That fitting is CC0.
+
+| Hair style | Author | Licence | Source |
+| --- | --- | --- | --- |
+| 1950s updo (`elvs_50s_updo`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/2001 |
+| Long, side-parted (`elvs_adrienne_hair`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1862 |
+| Feathered, to the shoulders (`elvs_ashley_may_hair`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1861 |
+| Braided bun (`elvs_braid_bun`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/2177 |
+| Long and straight (`elvs_daisy_hair`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1859 |
+| Long and loose (`elvs_hazel_hair`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/2816 |
+| Long and swept back (`elvs_island_princess_hair`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1811 |
+| Layered, with a fringe (`elvs_katherine_hair`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1863 |
+| Long half-updo (`elvs_keylth_hair`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/2173 |
+| Long, half up (`elvs_lady_hippy_hair`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1812 |
+| Short, swept up (`elvs_maxwell_hair`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1639 |
+| Short and straight (`elvs_short_daisy_hair`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1860 |
+| Long and tousled (`elvs_that_80s_babe_hair`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/2174 |
+| Wavy bob (`elvs_wavy_bob`) | Elvaerwyn | CC BY 4.0 | http://www.makehumancommunity.org/node/1551 |
+
+The names in brackets are the MakeHuman items. They come from the community packs glasses01_cc0, glasses02_ccby, gloves01_cc0, hair02_ccby, hats01_cc0, hats03_cc-by, hats04_cc-by, jewelry01_cc0, jewelry02_cc-by, masks01_cc0, masks02_ccby, suits02_cc0, underwear02_cc0 and
 underwear04_cc0; `packages/3d-avatar-maker/docs/MAKEHUMAN-PACKS.md` records the licence check of each item, which
 read every one of its files.
 
 ## How it's made
 
-`packages/3d-avatar-maker/assets/packs.json` lists the pieces. `assets/scripts/make_mh_packs.py` fits them to
-the bodies in Blender the way the maker's own MakeHuman clothes are fitted, and
-`scripts/build-3d-avatar-maker-packs.mjs` packs them into `wardrobe/*.pack.png`, writes `avatar-pack.json`
-with each piece's credit, and builds this package.
+`packages/3d-avatar-maker/assets/packs.json` lists the pieces and hair styles. `assets/scripts/make_mh_packs.py`
+fits the pieces to the bodies in Blender the way the maker's own MakeHuman clothes are fitted, and
+`assets/scripts/make_mh_hair.py -- packs` fits the hair styles the way the maker's own hair is fitted.
+`scripts/build-3d-avatar-maker-packs.mjs` packs them into `wardrobe/*.pack.png` and `hair/<style>.pack.png`,
+writes `avatar-pack.json` with each piece's and style's credit, and builds this package.
 
 ## Changelog
 

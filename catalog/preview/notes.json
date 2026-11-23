@@ -74,6 +74,12 @@
     "3d-avatar-maker-wardrobe-accessories": {
       "versions": [
         {
+          "version": "0.2.01",
+          "date": "2026-11-23",
+          "notes": "- 14 hair styles for the Hair tab, all by Elvaerwyn and CC BY 4.0: a 1950s updo, a braided bun, long straight, loose, side-parted, swept-back and tousled styles, two half-updos, a feathered cut to the shoulders, a layered cut with a fringe, a short straight cut, a wavy bob and a short swept-up men's cut. The long and loose ones swing as the avatar moves. They need 3D Avatar Maker 0.1.10 or later; an older maker still shows the rest of the pack.",
+          "highlight": false
+        },
+        {
           "version": "0.2.00",
           "date": "2026-11-23",
           "notes": "- The hats, hoods, veil, headband, top hat, pith helmet and brass circlet from the retired Historical and Fantasy and Modern Casual packs are here now, with the same names, so saved avatars still find them. Clothes went to the new 3D Avatar Maker: Clothes pack.\n- 15 new pieces: a Santa hat, a chef's hat, a fishing hat, a patrol cap, a sun visor, a swim cap, a steel helmet, an aero cycling helmet, a riding helmet, safety glasses, swimming goggles, sports sunglasses, a respirator mask, a gas mask and lace-top stockings.\n- 24 of the 45 pieces are CC BY now. A saved avatar credits the maker of every CC BY piece it wears.",
