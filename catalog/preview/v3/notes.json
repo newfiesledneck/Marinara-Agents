@@ -4,6 +4,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.10",
+          "date": "2026-11-23",
+          "notes": "- Room for accessories fixed to the body: things held in either hand, horns or antlers, a necklace, something on the back, at the hip, on the wrists, ankles and belly, and a tail. A piece held or fixed this way keeps its shape as the avatar moves. The packs that fill these places come next.\n- Wardrobe packs can now add hair styles too, which the Hair tab lists beside the maker's own.\n- An avatar that wears something from a pack you've since uninstalled keeps it in its look. The maker says what isn't shown and which pack to install, and it comes back once the pack is installed again. A saved file still holds only what's worn.",
+          "highlight": false
+        },
+        {
           "version": "0.1.09",
           "date": "2026-11-23",
           "notes": "- A lip colour you pick stays on the lips. It used to reach a little past them onto the skin round the mouth; now it fades in softly from the lips' edge, the way the made-up skins paint their lips.",
