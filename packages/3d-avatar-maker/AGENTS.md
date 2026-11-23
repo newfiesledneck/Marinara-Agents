@@ -43,13 +43,13 @@ executable (Blender 5.3 is what the scripts were written with) and keep that pat
 
 ```bash
 "$BLENDER" --background --factory-startup --python packages/3d-avatar-maker/assets/scripts/make_avatar.py
+node scripts/build-3d-avatar-maker-kit.mjs
 ```
 
-The scripts and the packer were copied from Wanderworld and still carry its paths in places: the body
-script reads MakeHuman's data from the user's asset folder, and the packer is still Wanderworld's
-`scripts/build-wanderworld-people.mjs --avatar`. Give this package its own packer (reading and writing
-only under `packages/3d-avatar-maker/`) before the first model change, so packing never touches
-Wanderworld's kit.
+The first writes the models into `assets/models/`; the second packs them into `kit/avatar` and
+`kit/wardrobe` (ffmpeg on `PATH`, or `FFMPEG`). The packer reads and writes only under
+`packages/3d-avatar-maker/`. The body script reads MakeHuman's data from the user's asset folder
+(`MAKEHUMAN_DATA` and `MAKEHUMAN_ASSETS`, else `_planning/Wanderworld asset packs/MakeHuman`).
 
 Judge model work against the avatar's bar: it is what the user looks at all the time, so check renders up
 close, in the maker's own view and on the check page, not only in Blender.

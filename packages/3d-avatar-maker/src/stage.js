@@ -81,6 +81,12 @@ export function createStage(canvas) {
       const at = figure ? figure.humanoid.head.getWorldPosition(head).y + 0.06 : 1.62;
       controls.target.set(0, at, 0);
       camera.position.set(0.18, at + 0.02, 0.95);
+    } else if (which === "hand" && figure?.humanoid.leftHand) {
+      // (The left hand, from the front and a little above, close enough to see the nails.)
+      const at = figure.humanoid.leftMiddleProximal ?? figure.humanoid.leftHand;
+      at.getWorldPosition(head);
+      controls.target.copy(head);
+      camera.position.set(head.x + 0.12, head.y + 0.1, head.z + 0.42);
     } else {
       controls.target.set(0, tall * 0.52, 0);
       camera.position.set(0.5, tall * 0.6, Math.max(2.6, tall * 2.3));
