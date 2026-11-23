@@ -48,7 +48,8 @@ Two packages carry the community clothes, listed with their authors in `assets/p
 README, fitted by `make_mh_packs.py`: `3d-avatar-maker-wardrobe-clothes` (every garment: dresses, suits and
 bodysuits, tops, trousers, shorts, skirts, underwear and lingerie, swimwear and shoes) and
 `3d-avatar-maker-wardrobe-accessories` (hats and helmets, hoods, the circlet and a feather headdress, glasses,
-goggles and masks, earrings, a choker, rings, gloves and socks, and since 0.2.02 hair styles). CC0 and CC BY pieces share a pack; each piece
+goggles and masks, earrings, a choker, rings, gloves and socks, since 0.2.02 hair styles, and since 0.2.03 the other jewellery,
+horns, wings, tails and things to hold or carry). CC0 and CC BY pieces share a pack; each piece
 carries its own licence and credit. Until the merge (Clothes 0.1.00, Accessories 0.2.00) there were five packs,
 described below as they were built; every piece kept its id when it moved. Since Clothes 0.1.01, bras, bikini
 tops, briefs, thongs and bikini bottoms are in the slots `underwear_top` and `underwear_bottom`, which the maker
@@ -243,6 +244,71 @@ pack (`assets/packs.json` `hair`, fitted with `make_mh_hair.py -- packs`).
     as smudges, and its swoop covers one eye;
   - o4saken_chinesebob01 and o4saken_long01 (the latter catalogue CC0, files CC BY 4.0; 15.0k vertices): the
     "base scalp" cards at the crown stand up ragged.
+
+### Jewellery, body parts and objects (Accessories 0.2.03, 2026-11-23)
+
+The jewellery, horns, wings, tails and objects not yet used, fitted into the slots 3D Avatar Maker 0.1.10 added
+(`necklace`, `wrists`, `ankles`, `belly`, `horns`, `on_back`, `tail`, `hip`, `hand_right`, `hand_left`). Every
+file of each item was read for a licence line first. Each fitted piece was rendered in Blender (EEVEE) on both
+bodies, front, side and back with a close-up for jewellery, and the fixed ones again on the woman in the maker's
+relaxed pose, in the T-pose and with the head and hands turned, each on its one bone as the maker fixes it.
+All are CC BY 4.0 unless named otherwise (the files of Elvaerwyn's and WojackOWL's items say only "CC-BY").
+
+- Added, 50 pieces:
+  - bracelets (Wrists, fixed to the forearm: `lowerarm_r` for the bangle, `lowerarm_l` for the rest, the arm
+    each was modelled on): jewelry02_cc-by elvs_bangle_bracelet1, elvs_bracelet_pearls-l1,
+    elvs_multi_bangle_bracelet1, punkduck_bracelet_infinity_love;
+  - anklets (Ankles, fixed to `calf_l`): elvs_braided_anklet1, elvs_chunky_chain_anklet, elvs_circle_chain_anklet1,
+    elvs_interlocking_rings_anklet1, elvs_pearl_anklet_1 (it has no picture, so it is one plain pearl colour);
+  - necklaces (Necklace, bending with the body): elvs_candy_cane_necklace, elvs_goth_statement_necklace1,
+    punkduck_twisted_pearl_necklace, punkduck_necklace_native_american_fashion_ (CC BY 3.0, as "Beaded
+    necklace"; the same author's skirt of that name is in Clothes), punkduck_spike_collar;
+  - earrings (Earrings, fixed to `Head`): elvs_double_hoops, elvs_twisty_hoops1, punkduck_pearl-chain_earrings
+    (CC BY 3.0), elvs_f_earring_array1_l (the left ear only); elvs_m_facial_jewel_array1 (brow bar, nose and lip
+    rings) goes in Brow, fixed to `Head`;
+  - belly (Belly, bending with the body): elvs_heart_belly_jewel, elvs_navel_ring_heartfob,
+    elvs_stars_belly_circlet (a ring of stars round the navel, not a chain), wojackowl_belly_piercing;
+  - horns and antlers (Horns, fixed to `Head` by the slot): bodyparts02_cc-by elvs_deer_antlers_1,
+    elvs_moose_antlers_1, elvs_gazelle_horns_1 and _2, elvs_longhorn_steer_horns_1, elvs_unicorn_horn_1;
+  - wings (On the back, fixed to `spine_03`): bodyparts03_cc-by elvs_childrens_costume_wings1,
+    elvs_dual_fanned_wings_collaberation, elvs_static_wings1_dragonfly, _wings2_dragon1, _wings3_butterfly1,
+    _wings4_bone_wings1 and _wings5_fairy_moth1;
+  - tails (Tail, fixed to `pelvis`): elvs_cat_tail_as_clothes_1, elvs_fluffy_tail_as_clothes_1;
+  - held (fixed to the hand by the slot): equipment01_cc0 joepal_crude_sword (CC0) in the right hand;
+    equipment03_cc-by punkduck_microphone and punkduck_tennis_racket (CC BY 3.0) in the right hand,
+    punkduck_shopping_bag01 in the left;
+  - carried: punkduck_handbag01 (a shoulder bag on the right shoulder, so At the hip and bending with the body,
+    not held) and elvs_sling_purse1 (At the hip, the same); punkduck_electric_guitar (CC BY 3.0; On the back,
+    hung in front on its strap, fixed to `spine_02`; its headstock prints the author's own name);
+  - worn: punkduck_wireless_headset (Earrings, as it covers the ears, fixed to `Head`; a hat still clips its
+    band), punkduck_head_mirror (Brow, fixed to `Head`; its `.obj` says CC0, its `.mhclo` CC BY 4.0, credited
+    under CC BY 4.0), punkduck_stethoscope (Necklace, bending with the body: its ear tubes follow the head),
+    mindfront_tactical_vest_female and _male (Body armour, so a jacket can go under one; one for each body).
+- Thinned (make_mh_packs.py `decimate`, a share of the faces kept; each point left takes the shape keys and
+  weights of the fitted point nearest it), as they were modelled far finer than the maker needs:
+  elvs_bangle_bracelet1 (18.7k vertices to 3.9k), elvs_f_earring_array1_l (61.6k), elvs_m_facial_jewel_array1
+  (14.6k), elvs_goth_statement_necklace1 (30.7k), punkduck_twisted_pearl_necklace (24.8k),
+  elvs_dual_fanned_wings_collaberation (17.6k), elvs_static_wings5_fairy_moth1 (13.3k), elvs_sling_purse1
+  (25.7k), both tactical vests (19.9k), and to keep the Accessories bundle small the other bracelets, every
+  anklet but the braided one, and the double hoops. Each was rendered again after thinning.
+- Left out for licence:
+  - punkduck_diver_scuba_rig: its `.mhclo` says CC BY-NC-SA (non-commercial), though its `.obj` and catalogue say
+    CC BY. Its model is grinsegold's.
+  - Already in the AGPL lists below: culturalibre_cl_spiral_bracelets, culturalibre_leather_bracelet,
+    elvs_pumpkin_hallows_earrings1, jaldmic_ankh_collar, culturalibre_cl_devil_tail, culturalibre_tigra_tail,
+    jaldmic_demon_horns, jaldmic_toriel_horns, culturalibre_suitcase, and every other item of equipment01_cc0
+    and equipment02_cc-by.
+- Left out as named for a character, film or brand: jaldmic_no_heart_enchanted_gemstone (its files are named
+  care_bears_…) and punkduck_makehuman_medal (MakeHuman's logo on a medal; left out as the racing suit was for
+  the same logo).
+- Left out as too heavy: elvs_chunky_chain~heart_necklace (48.8k vertices; thinned it still had 23k, as its
+  links are each a separate piece).
+- Left out as belonging elsewhere in the maker:
+  - elvs_scruffy_beard1 (bodyparts06_cc-by): a beard goes on the Face tab, in the hair's colour and moving with
+    the jaw's keys (make_avatar.py's facial hair), not on the Clothes tab;
+  - toigo_long_fingernails_blue_butterfly and wolgade_female_fingernails (bodyparts04_cc0): the nails are the
+    Skin tab's own (looks.js `NAILS`, fitted by make_mh_clothes.py), which a pack can't fill. wolgade's plain set
+    would only repeat Mindfront's; toigo's painted long nails could become a nail choice there.
 
 ### The five packs before the merge
 

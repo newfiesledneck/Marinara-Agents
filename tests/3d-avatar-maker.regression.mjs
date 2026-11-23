@@ -1287,6 +1287,41 @@ for (const figure of Object.values(made)) figure.dispose();
     (await meshes({ clothes: ["spamrakuen_sagerfrogs_glasses_01", "toigo_pearl_earrings"] })) >= bare + 2,
     "glasses and earrings are worn together",
   );
+  for (const slot of ["necklace", "wrists", "ankles", "belly", "horns", "on_back", "tail", "hip", "hand_right"])
+    assert.ok(slots.has(slot), `the pack has something to wear in "${slot}"`);
+  // What covers what (looks.js COVERED_BY), with the pack's own pieces and the kit's.
+  for (const [over, under, what] of [
+    ["toigo_gloves_short", "elvs_bangle_bracelet1", "gloves hide a bangle"],
+    ["bracers", "punkduck_bracelet_infinity_love", "bracers hide a bracelet"],
+    ["joepal_crude_low_socks", "elvs_braided_anklet1", "socks hide an anklet"],
+    ["scarf", "punkduck_spike_collar", "a scarf hides a collar"],
+    ["dress", "wojackowl_belly_piercing", "a dress hides a belly piercing"],
+    ["elvs_tophat1", "elvs_deer_antlers_1", "a hat hides antlers"],
+  ])
+    assert.equal(await meshes({ clothes: [over, under] }), await meshes({ clothes: [over] }), what);
+  // Every piece is worn on each body it's for, and one fixed to a bone (its own, or its slot's: a held thing to
+  // the hand, horns to the head) is drawn bound to that bone alone.
+  // (Bald, with bare nails, so a piece that hides the hair or the nails still adds a mesh.)
+  const worn = async (body, clothes) => {
+    const look = startOf(body, { clothes, hair: "none", nails: "none", toenails: false });
+    const figure = await createAvatar(look, "Test", "auto");
+    const alone = figure.meshes
+      .filter((mesh) => mesh.skeleton?.bones.length === 1)
+      .map((mesh) => mesh.skeleton.bones[0].name);
+    const count = figure.meshes.length;
+    figure.dispose();
+    return { count, alone };
+  };
+  const unworn = { male: await worn("male", []), female: await worn("female", []) };
+  for (const { piece, slot, bone, bodies } of read)
+    for (const body of bodies) {
+      const { count, alone } = await worn(body, [piece]);
+      assert.ok(count > unworn[body].count, `${piece} is worn on the ${body} body`);
+      const fixed = looks.boneOf(slot, bone);
+      const on = (bones, name) => bones.filter((each) => each === name).length;
+      if (fixed) assert.ok(on(alone, fixed) > on(unworn[body].alone, fixed), `${piece} is fixed to ${fixed} alone`);
+      else assert.equal(alone.length, unworn[body].alone.length, `${piece} bends with the body`);
+    }
 }
 
 // ── The Clothes pack, as built: every piece is accepted, carries its credit, and a saved file names its maker ──

@@ -39,7 +39,7 @@ const MODELS = join(makerRoot, "assets/models");
 // Accessories, keeping every piece id; their old artifacts stay for installs that have them.)
 const VERSIONS = {
   "3d-avatar-maker-wardrobe-clothes": "0.1.02",
-  "3d-avatar-maker-wardrobe-accessories": "0.2.02",
+  "3d-avatar-maker-wardrobe-accessories": "0.2.03",
 };
 // A piece's bundle: its slot's group (looks.js CLOTH_SLOTS), or "underwear" for an underwear slot
 // (UNDERWEAR_SLOTS: a choice in the maker's Underwear lists, always the innermost layer).
