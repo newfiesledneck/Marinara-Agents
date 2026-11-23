@@ -29,13 +29,13 @@ const artifactsDir = join(repoRoot, "artifacts");
 const MODELS = join(makerRoot, "assets/models");
 
 // Each pack's version (+0.0.01 for every committed rebuild, with a CHANGELOG.md entry, as the maker's).
+// (Everyday Women's, Everyday Men's, Historical and Fantasy, and Modern Casual were merged into Clothes and
+// Accessories, keeping every piece id; their old artifacts stay for installs that have them.)
 const VERSIONS = {
-  "3d-avatar-maker-wardrobe-everyday-women": "0.1.01",
-  "3d-avatar-maker-wardrobe-everyday-men": "0.1.01",
-  "3d-avatar-maker-wardrobe-accessories": "0.1.01",
-  "3d-avatar-maker-wardrobe-historical-fantasy": "0.1.00",
-  "3d-avatar-maker-wardrobe-modern-casual": "0.1.00",
+  "3d-avatar-maker-wardrobe-clothes": "0.1.00",
+  "3d-avatar-maker-wardrobe-accessories": "0.2.00",
 };
+const FAMILY = "3d-avatar-maker-wardrobe-";
 // The bodies the pieces are fitted to (src/packs.js BODY_REVISION: the bodies made in 0.1.02), and the first
 // maker that reads packs (a pack's own `maker` in packs.json when it needs a later one, for its slots).
 const BODY_REVISION = 1;
@@ -60,6 +60,11 @@ for (const id of only) if (!packs[id]) throw new Error(`No pack ${id} in package
 // Each body's key reach and distant share, read once (followBody: a piece's keys move it only where they move the body).
 const { reach, shares } = bodyReach(MODELS);
 const { catalog } = await readCatalogFamily(repoRoot);
+// A wardrobe pack no longer in packs.json leaves the catalog (its package folder is gone, as build-agent-catalog.mjs
+// drops a package without one).
+catalog.packages = catalog.packages.filter(
+  (entry) => !entry.manifest.id.startsWith(FAMILY) || Object.hasOwn(packs, entry.manifest.id),
+);
 
 for (const [id, pack] of Object.entries(packs)) {
   if (only.length && !only.includes(id)) continue;

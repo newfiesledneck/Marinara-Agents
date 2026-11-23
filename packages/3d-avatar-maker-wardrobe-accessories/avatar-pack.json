@@ -37,6 +37,402 @@
    "source": "http://www.makehumancommunity.org/node/582",
    "credit": null
   },
+  "donitz_monk_robe_hood": {
+   "label": "Monk's hood, up",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      5258552
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      5258552
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Donitz",
+   "source": "http://www.makehumancommunity.org/node/3235",
+   "credit": null
+  },
+  "donitz_monk_robe_hood_down": {
+   "label": "Monk's hood, pulled low",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      5192759
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      5192759
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC0-1.0",
+   "author": "Donitz",
+   "source": "http://www.makehumancommunity.org/node/3236",
+   "credit": null
+  },
+  "drednicolson_pith_helmet": {
+   "label": "Pith helmet",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "DredNicolson",
+   "source": "http://www.makehumancommunity.org/node/415",
+   "credit": "\"drednicolson_pith_helmet\" by DredNicolson (http://www.makehumancommunity.org/node/415), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_charity_veil1": {
+   "label": "Veil",
+   "slot": "head",
+   "bodies": [
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      3947580
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2610",
+   "credit": "\"elvs_charity_veil1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2610), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_covid_goggles1": {
+   "label": "Safety glasses",
+   "slot": "face",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "frame",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "frame",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2533",
+   "credit": "\"elvs_covid_goggles1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2533), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_covid_mask": {
+   "label": "Respirator mask",
+   "slot": "mouth",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      16645628
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      16645628
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2523",
+   "credit": "\"elvs_covid_mask\" by Elvaerwyn (http://www.makehumancommunity.org/node/2523), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_dirty_lil_maid_bonnet": {
+   "label": "Maid's frilled headband",
+   "slot": "head",
+   "bodies": [
+    "female"
+   ],
+   "layer": 4,
+   "hides": [],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1575",
+   "credit": "\"elvs_dirty_lil_maid_bonnet\" by Elvaerwyn (http://www.makehumancommunity.org/node/1575), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_male_flat_cap1": {
+   "label": "Flat cap",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1814",
+   "credit": "\"elvs_male_flat_cap1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1814), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_santa_hat": {
+   "label": "Santa hat",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1273",
+   "credit": "\"elvs_santa_hat\" by Elvaerwyn (http://www.makehumancommunity.org/node/1273), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_slouchy_beanie1": {
+   "label": "Slouchy beanie",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2088",
+   "credit": "\"elvs_slouchy_beanie1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2088), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_tophat1": {
+   "label": "Top hat",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      4080470
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      4080470
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/1360",
+   "credit": "\"elvs_tophat1\" by Elvaerwyn (http://www.makehumancommunity.org/node/1360), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "elvs_unisex_chef_hat_1": {
+   "label": "Chef's hat",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2967",
+   "credit": "\"elvs_unisex_chef_hat_1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2967), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "gredal_gas_mask": {
+   "label": "Gas mask",
+   "slot": "face",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "frame",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "frame",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Mathias_Gredal",
+   "source": "http://www.makehumancommunity.org/node/2715",
+   "credit": "\"gredal_gas_mask\" by Mathias_Gredal (http://www.makehumancommunity.org/node/2715), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
   "joachip_ring_1": {
    "label": "Plain ring",
    "slot": "fingers",
@@ -192,6 +588,408 @@
    "author": "Joel Palmius",
    "source": "http://www.makehumancommunity.org/node/520",
    "credit": null
+  },
+  "mindfront_fishing_hat_01": {
+   "label": "Fishing hat",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Mindfront",
+   "source": "http://www.makehumancommunity.org/node/337",
+   "credit": "\"mindfront_fishing_hat_01\" by Mindfront (http://www.makehumancommunity.org/node/337), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "mindfront_helmet_kz45": {
+   "label": "Steel helmet",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Mindfront",
+   "source": "http://www.makehumancommunity.org/node/1310",
+   "credit": "\"mindfront_helmet_kz45\" by Mindfront (http://www.makehumancommunity.org/node/1310), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "mindfront_knitted_hat_01": {
+   "label": "Knitted hat",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      12502985
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      12502985
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Mindfront",
+   "source": "http://www.makehumancommunity.org/node/745",
+   "credit": "\"mindfront_knitted_hat_01\" by Mindfront (http://www.makehumancommunity.org/node/745), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "mindfront_patrol_cap": {
+   "label": "Patrol cap",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Mindfront",
+   "source": "http://www.makehumancommunity.org/node/841",
+   "credit": "\"mindfront_patrol_cap\" by Mindfront (http://www.makehumancommunity.org/node/841), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "mindfront_sherpa_hat": {
+   "label": "Sherpa hat",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Mindfront",
+   "source": "http://www.makehumancommunity.org/node/3172",
+   "credit": "\"mindfront_sherpa_hat\" by Mindfront (http://www.makehumancommunity.org/node/3172), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_bicycle_helmet_time_trial_aero_helmet": {
+   "label": "Aero cycling helmet",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/670",
+   "credit": "\"punkduck_bicycle_helmet_time_trial_aero_helmet\" by punkduck (http://www.makehumancommunity.org/node/670), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_brass_circlet_crown": {
+   "label": "Brass circlet",
+   "slot": "brow",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "metal",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "metal",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/1383",
+   "credit": "\"punkduck_brass_circlet_crown\" by punkduck (http://www.makehumancommunity.org/node/1383), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_french_lingerie_stockings": {
+   "label": "Lace-top stockings",
+   "slot": "socks",
+   "bodies": [
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "feet",
+    "calves"
+   ],
+   "parts": {
+    "female": [
+     [
+      "sock",
+      16645629
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/932",
+   "credit": "\"punkduck_french_lingerie_stockings\" by punkduck (http://www.makehumancommunity.org/node/932), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_goggles": {
+   "label": "Swimming goggles",
+   "slot": "face",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "frame",
+      3355957
+     ]
+    ],
+    "female": [
+     [
+      "frame",
+      3355957
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/664",
+   "credit": "\"punkduck_goggles\" by punkduck (http://www.makehumancommunity.org/node/664), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_riding_helmet": {
+   "label": "Riding helmet",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      6776938
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      6776938
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/1567",
+   "credit": "\"punkduck_riding_helmet\" by punkduck (http://www.makehumancommunity.org/node/1567), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_sport_sunglasses": {
+   "label": "Sports sunglasses",
+   "slot": "face",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 3,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "frame",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "frame",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/accessories.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/695",
+   "credit": "\"punkduck_sport-sunglasses\" by punkduck (http://www.makehumancommunity.org/node/695), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_sun_visor_sports_visor": {
+   "label": "Sun visor",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/694",
+   "credit": "\"punkduck_sun_visor_sports_visor\" by punkduck (http://www.makehumancommunity.org/node/694), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "punkduck_swim_cap": {
+   "label": "Swim cap",
+   "slot": "head",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 4,
+   "hides": [
+    "hair"
+   ],
+   "parts": {
+    "male": [
+     [
+      "felt",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "felt",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/head.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/663",
+   "credit": "\"punkduck_swim_cap\" by punkduck (http://www.makehumancommunity.org/node/663), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
   "spamrakuen_sagerfrogs_glasses_01": {
    "label": "Glasses, rectangular",

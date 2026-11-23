@@ -37,9 +37,107 @@ The package uses data from these items, read by `assets/scripts/make_avatar.py` 
 
 ## In the wardrobe packs
 
+Two packages carry the community clothes, listed with their authors in `assets/packs.json` and each pack's
+README, fitted by `make_mh_packs.py`: `3d-avatar-maker-wardrobe-clothes` (every garment: dresses, suits and
+bodysuits, tops, trousers, shorts, skirts, underwear, swimwear and shoes) and
+`3d-avatar-maker-wardrobe-accessories` (hats and helmets, hoods, the circlet, glasses, goggles and masks,
+earrings, rings, gloves and socks). CC0 and CC BY pieces share a pack; each piece carries its own licence and
+credit. Until the merge (Clothes 0.1.00, Accessories 0.2.00) there were five packs, described below as they were
+built; every piece kept its id when it moved.
+
+### The merge pass (2026-11-23)
+
+The four packs Everyday Women's, Everyday Men's, Historical and Fantasy, and Modern Casual were merged into
+Clothes, except their hats, hoods, veil, headband and circlet, which moved to Accessories. Then every
+clothes-type item not yet used, excluded or left out was tried: 137 items fitted, 118 kept. For each, every file
+was read again for a licence line first (CC0 or CC BY only; an AGPL line anywhere excludes it), and each fitted
+piece was rendered in Blender (EEVEE) on each body it's offered for, front, side and back, and the ones the
+fitter flagged again on the heavy, muscular body (heavy, muscle, belly and bust or chest at 1).
+
+- Added to Clothes (CC BY 3.0 or 4.0 as each item's files say, unless CC0):
+  - dresses: dress01_cc0 toigo_dress_with_tiered_skirt, toigo_keyhole_neck_dress (CC0); dress02_cc-by
+    elvs_double_handkerchief_halter_dress, elvs_frilled_party_dress, elvs_fringe_hippy_dress,
+    elvs_fringe_leather_dress, elvs_goddess_dress5 (fitted with `skin: false`), elvs_halter_dress_knee_length,
+    _long, _mini and _tiered, elvs_sarong_cover_up (a wrap dress, so a whole outfit), elvs_simple_60s_dress,
+    elvs_simple_fashion_dress_1 and _2; dress03_cc-by mindfront_ballet_dress_the_swan, mindfront_f_dress_01,
+    _02, _03, _04, _06, _07, _08 and _11, punkduck_black_cocktail_dress, punkduck_figure_skating_dress,
+    punkduck_middle_length_qipao, punkduck_tube_dress;
+  - suits and bodysuits: suits03_cc-by elvs_halter_style_pantsuit1, mindfront_m_suit_01,
+    punkduck_short_bodysuit_female, punkduck_tennis_dress, punkduck_triathlon_suit_female;
+  - tops: shirts02_ccby and shirts03_ccby elvs_male_boho_top1, janexx_old_female_sweater,
+    mindfront_cardigan_long_open_front (over the shirt), mindfront_knitted_sweater_02, mindfront_lusekofta,
+    punkduck_lace_up_blouse, drednicolson_short-tail_camo_tee, elvs_disco_top2, elvs_disco_top_1_butterfly,
+    elvs_male_logo_tshirt1 (the print is the author's own signature), elvs_male_muscle_shirt1,
+    elvs_male_tankshirt1, punkduck_sleeveless_shirt;
+  - trousers and shorts: pants02_ccby and pants03_ccby elvs_disco_pants_double_ruffles, _single_ruffles and
+    _skinny, elvs_gored_elephant_pants, elvs_jeans_bootcut, elvs_male_trouser, elvs_male_trouser_with_chain,
+    mindfront_female_trousers_1, mindfront_male_trousers_1, elvs_male_swim_shorts1, elvs_male_trouser_short_1
+    and _2, mindfront_male_swimming_trunks_01, _02 and _03; suits03_cc-by elvs_emt_uniform_pants_female and
+    _male;
+  - skirts: skirts02_cc-by elvs_asymmetrical_skirt, elvs_disco_mini_skirt, elvs_gored_midi_skirt,
+    elvs_pleated_plaid_mini_skirt, punkduck_skirt_native_american_fashion;
+  - underwear and swimwear (bras and tops in the Shirt or top slot, briefs in Legs, one-pieces as a whole
+    outfit; each hides the body's own underwear it replaces): underwear01_cc0 wolgade_female_top_01 and
+    wolgade_female_panties_01 (CC0); underwear02_cc0 (a zip named CC0 whose catalogue and files say CC BY)
+    elvs_crude_bootyshorts, elvs_lace_panty, mindfront_bikini_01, punkduck_babydoll, punkduck_bandeau_bikini_bra
+    and _slip, punkduck_bikini02_bra and _slip, punkduck_brazilian_bikini_bra and _slip,
+    punkduck_french_lingerie_bra and _mini_briefs, punkduck_frill_bikini_top and _bottom, punkduck_sport_bra and
+    _briefs; underwear03_cc-by elvs_bandeau_swimwear_top_1, elvs_swimwear_micro_shorts,
+    elvs_vintage_swimwear1_50s_strapless, joepal_plain_bra, mindfront_f_one-piece_swimsuit_01,
+    punkduck_female_strapless_bodysuit, punkduck_halterneck_romper, punkduck_one_piece_bikini01,
+    punkduck_shapewear;
+  - shoes: shoes01_cc0 toigo_ballet_flats_with_flowers (CC0); shoes02_ccby elvs_flatshoe_bow1, _gemmed1 and
+    _plain1, elvs_male_flip_flop_sandals1 (hides nothing: the feet show), mindfront_shoes_monk_strap_female
+    (fitted at `clearance: 0.001`), punkduck_cycling_shoes; shoes03_ccby madmanny_tight_leather_boots.
+- Added to Accessories: hats03_cc-by and hats04_cc-by elvs_santa_hat, elvs_unisex_chef_hat_1,
+  mindfront_fishing_hat_01, mindfront_patrol_cap, punkduck_sun_visor_sports_visor, punkduck_swim_cap,
+  mindfront_helmet_kz45, punkduck_bicycle_helmet_time_trial_aero_helmet (its print names the author's own
+  made-up brand), punkduck_riding_helmet; glasses02_ccby elvs_covid_goggles1, punkduck_goggles,
+  punkduck_sport-sunglasses; masks02_ccby elvs_covid_mask (Face mask), gredal_gas_mask (Glasses slot, hides the
+  hair); underwear02_cc0 punkduck_french_lingerie_stockings (Socks).
+- Credited under CC BY 4.0 though their files say CC0, as their catalogue says CC-BY:
+  janexx_old_female_sweater, joepal_plain_bra, gredal_gas_mask.
+- Left out for licence: four more items whose `.obj` says AGPL-3 (culturalibre_heroine_boots_4,
+  culturalibre_hero_mask_5, punkduck_string_2, punkduck_transparent_bra; added to the list below).
+- Left out as named for a character, film or brand: green_tomato_rei_ayanami, green_tomato_yoko_tsuno,
+  slayer227_spider-gwen, punkduck_deathnote_t-shirt, punkduck_kill_bill_shoes, elvs_lara_tank1 (Lara Croft),
+  sonicteam998_maria_skirt (tagged Sonic). After fitting: elvs_racing_fire_suit_female1 (MakeHuman's logo and
+  sponsor-style patches) and elvs_emt_uniform_jacket_female and _male (the Red Cross emblem, which is protected).
+- Left out as too heavy to ship (over about 12k vertices): elvs_crochet_baby_doll (23k),
+  elvs_fashion_stylized_qipoa (19k), elvs_fringe_off_shoulder_dress (14k), elvs_goddess_dress3 (32k), _4 (19k),
+  _6 (14k) and _8 (33k), toigo_female_suit (14k), matcreator_mc-bodysuit-2021 (28k),
+  matcreator_mc-scifi-armor_helios (71k) and _jupiter7 (13k), elvs_male_coveralls_1 (18k),
+  elvs_racing_fire_suit_male1 (13k), elvs_ladies_tank1 (31k), elvs_male_athletic_tank1 (58k),
+  elvs_retro_girly_shorts1 (15k), toigo_flats (29k), toigo_stiletto_booties (22k, heeled too),
+  elvs_flatshoe_buckle_1 (40k), elvs_zombie_killer_sneakers (77k), elvs_knee_high_heel_boots1 (37k, heeled),
+  elvs_wedge_tall_boots1 (23k, a wedge heel), elvs_all_tied_up_bikini (78k), elvs_camisole1 (13k),
+  elvs_ladies_sunglass1 (19k).
+- Left out as explicit lingerie, kept out of packs meant for shareable avatars (they could be added if wanted):
+  the thongs punkduck_string_5, punkduck_french_lingerie_thong and punkduck_strappy_lace_thong,
+  punkduck_teddy_erotic_lingerie, punkduck_french_lingerie_suspender_belt (no slot fits it either), and after
+  fitting elvs_bow_front_bra and elvs_bow_bottom_panty (open cups and an open back leave the breasts and
+  buttocks bare).
+- Left out for the fitting, not the item (the faults come from `make_mh_clothes.py`'s push off the skin under
+  every shape key and its one clearance for every layer; retry these once the fitting is reworked):
+  - mindfront_f_dress_05, _09 and _10 and punkduck_evening_gown: their floor-length hems run through the flat
+    feet, and pushed off them they break into spikes (refitted with `skin: false`, still spiky);
+  - matcreator_mc-skinsuit_2022: spikes at the feet and skin through all over;
+  - thegreatengineer_galactic_warrior_uniform: its belt and knee bands flare into flaps on a heavier body;
+  - elvs_sporty_tracksuit_hoodie_dress1 and punkduck_wetsuit: their cuffs break into spikes on a heavier body;
+  - mindfront_shoes_monk_strap_male: its own sock shows through the heel, still at 1 mm clearance (the female
+    one is in).
+- Left out for the item itself, after rendering:
+  - joachip_cyborg_suit: a crude low-poly costume with skin through a gap at the back;
+  - matcreator_mc-scifi-armor_guardian: only boots and bracers, two slots in one piece, and the toes break up;
+  - punkduck_female_half-boots: heeled, so the toes come through the maker's flat foot;
+  - donitz_monk_robe_hood_off: made to lie on the robe's collar; alone it hangs off the back as a flap.
+- Left out by choice: elvs_basic_brave_feathers1, a "brave" feather headdress (a costume stereotype; it fits).
+- Not tried here, for later passes: objects (equipment), jewellery needing new slots, body parts and all hair.
+
+### The five packs before the merge
+
 The separate packages `3d-avatar-maker-wardrobe-everyday-women`, `-everyday-men`, `-accessories`,
-`-historical-fantasy` and `-modern-casual` carry community clothes, listed with their authors in
-`assets/packs.json` and each pack's README, fitted by `make_mh_packs.py`. The first three are all CC0: every
+`-historical-fantasy` and `-modern-casual` carried community clothes. The first three are all CC0: every
 one of each item's own files says CC0 too, or names no licence (spamrakuen's glasses, joachip_ring_1), where
 the catalogue's CC0 stands. Their 0.1.01 took out six items whose `.obj` says AGPL-3 though their `.mhclo`
 says CC0 (listed under "Excluded: a model or material file says AGPL-3"). The last two are mostly CC BY,
@@ -190,7 +288,7 @@ isn't clearly CC0 or CC-BY, so these are left out unless that's decided otherwis
 - underwear02_cc0.zip: punkduck_bandeau_bra (catalogue CC-BY, files AGPL3 (see also http://www.makehuman.org/doc/node/external_tools_license.html))
 - underwear02_cc0.zip: punkduck_string_4 (catalogue CC-BY, files AGPL3 (see also http://www.makehuman.org/doc/node/external_tools_license.html))
 
-## Excluded: a model or material file says AGPL-3 though the item's other files don't (105)
+## Excluded: a model or material file says AGPL-3 though the item's other files don't (109)
 
 The check above read each item's `.mhclo` (or `.mhmat`). On 2026-11-23 every text file of every item was read,
 in all 63 zips. These items have an AGPL-3 line in another file, usually the `.obj` that holds the mesh, while
@@ -303,6 +401,11 @@ no licence lines at all, so the kit's MakeHuman hair, clothes, eyes and skins ar
 - underwear01_cc0.zip: v0rt3x_stockings_white_fishnet_large: stockings_white_l.obj
 - underwear01_cc0.zip: v0rt3x_stockings_white_fishnet_medium: stockings_white_m.obj
 - underwear01_cc0.zip: v0rt3x_stockings_white_fishnet_small: stockings_white_s.obj
+- Found on the merge pass (their folders hadn't been extracted for the first full read):
+  - masks01_cc0.zip: culturalibre_hero_mask_5: hero_mask_5.obj
+  - shoes01_cc0.zip: culturalibre_heroine_boots_4: heroine_boots_4.obj
+  - underwear02_cc0.zip: punkduck_string_2: string2.obj
+  - underwear02_cc0.zip: punkduck_transparent_bra: transparent_bra.obj
 
 ## In a zip named for another licence: use the catalogue's (27)
 

@@ -47,10 +47,7 @@ export const INCOMPLETE_PACKAGE_IDS = new Set(["pixelforge"]);
 export const STAGING_ONLY_PACKAGE_IDS = new Set([
   "3d-avatar-maker",
   "3d-avatar-maker-wardrobe-accessories",
-  "3d-avatar-maker-wardrobe-everyday-men",
-  "3d-avatar-maker-wardrobe-everyday-women",
-  "3d-avatar-maker-wardrobe-historical-fantasy",
-  "3d-avatar-maker-wardrobe-modern-casual",
+  "3d-avatar-maker-wardrobe-clothes",
   "modern-life-sim",
   "ruleset-5e-2014",
   "wanderworld",
