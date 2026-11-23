@@ -1,5 +1,15 @@
 # 3D Avatar Maker release notes
 
+## 0.1.10 — 2026-11-23
+
+- Room for accessories fixed to the body: things held in either hand, horns or antlers, a necklace, something on the back, at the hip, on the wrists, ankles and belly, and a tail. A piece held or fixed this way keeps its shape as the avatar moves. The packs that fill these places come next.
+- Wardrobe packs can now add hair styles too, which the Hair tab lists beside the maker's own.
+- An avatar that wears something from a pack you've since uninstalled keeps it in its look. The maker says what isn't shown and which pack to install, and it comes back once the pack is installed again. A saved file still holds only what's worn.
+
+## 0.1.09 — 2026-11-23
+
+- A lip colour you pick stays on the lips. It used to reach a little past them onto the skin round the mouth; now it fades in softly from the lips' edge, the way the made-up skins paint their lips.
+
 ## 0.1.08 — 2026-11-23
 
 - Hair moves: the long, ponytail, braid, bob and angled bob styles swing as the avatar moves, and settle back into place when it stands still. In a VRM, the 3D Avatars agent and other VRM apps swing them. The head, neck, shoulders, arms and back keep the hair out.

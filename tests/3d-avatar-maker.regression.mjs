@@ -12,11 +12,15 @@ import { Box3 } from "three";
 
 const kitRoot = join(dirname(fileURLToPath(import.meta.url)), "../packages/3d-avatar-maker/kit");
 const packagesRoot = join(kitRoot, "../..");
+/** A test pack's assets, made below: "<pack id>/<path>" → bytes. */
+const served = new Map();
 globalThis.fetch = async (url) => {
   // (A wardrobe pack's asset, as the Engine serves an installed package's: from its folder in the repo.)
   const asset = /\/api\/capability-packages\/([a-z0-9-]+)\/assets\/([^?]+)/u.exec(String(url));
   const name = String(url).split("/kit/")[1]?.split("?")[0];
   try {
+    if (asset && served.has(`${asset[1]}/${asset[2]}`))
+      return new Response(served.get(`${asset[1]}/${asset[2]}`), { status: 200 });
     if (asset) return new Response(await readFile(join(packagesRoot, asset[1], asset[2])), { status: 200 });
     return new Response(await readFile(join(kitRoot, name)), { status: 200 });
   } catch {
@@ -670,7 +674,7 @@ for (const figure of Object.values(made)) figure.dispose();
     pieces: {
       test_good: good,
       test_cc_by: { ...good, licence: "CC-BY-4.0", credit: "Test dress by Someone, CC BY 4.0" },
-      test_slot: { ...good, slot: "tail" },
+      test_slot: { ...good, slot: "aura" },
       test_nail_slot: { ...good, slot: "nails" },
       test_part: { ...good, parts: { female: [["chrome", 0xffffff]] } },
       test_colour: { ...good, parts: { female: [["cloth", "#ffffff"]] } },
@@ -792,5 +796,360 @@ for (const figure of Object.values(made)) figure.dispose();
     };
     assert.ok((await count([piece])) > (await count([])), `${piece} is worn`);
   }
+}
+
+// ── Bone-fixed pieces, a pack's hair styles, and looks that outlast an uninstalled pack ──
+{
+  const { BODY_REVISION, readHair, readPack } = await import("../packages/3d-avatar-maker/src/packs.js");
+  const { exportVrm, licenceNote, vrmMeta } = await import("../packages/3d-avatar-maker/src/exporter.js");
+  const { geometryOf, load } = await import("../packages/3d-avatar-maker/src/kitfiles.js");
+  const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+  const { VRMLoaderPlugin } = await import("@pixiv/three-vrm");
+  const { Matrix4, Vector3 } = await import("three");
+  const { boneOf, CLOTH_SLOTS, missingNotes, PIECE_BONES, readDesign, wornLook } = looks;
+
+  // Every bone a piece can be fixed to is a humanoid bone, and in both bodies' skeletons.
+  const humanoid = new Set(Object.values(HUMANOID_BONES));
+  for (const sex of ["male", "female"]) {
+    const body = await load(`avatar-${sex}.pack.png`);
+    for (const bone of PIECE_BONES)
+      assert.ok(humanoid.has(bone) && body.joints.includes(bone), `${bone}: a ${sex} body bone a saved file names`);
+  }
+  assert.equal(boneOf("hand_right"), "hand_r", "a right-hand piece is fixed to the right hand");
+  assert.equal(boneOf("hand_left"), "hand_l");
+  assert.equal(boneOf("horns"), "Head", "horns to the head");
+  assert.equal(boneOf("wrists"), null, "a bracelet bends with the skin unless its pack says otherwise");
+  assert.equal(boneOf("on_back", "spine_03"), "spine_03", "a piece's own bone");
+  assert.equal(boneOf("hip", "eye_l"), null, "but only one of PIECE_BONES");
+
+  // A test pack made from the kit's own files, served as an installed pack's assets are: the leather gloves
+  // held in the right hand and worn on the wrists (bending, for comparison), the open helm worn as antlers
+  // and as wings, and the long hair as a CC BY pack style that swings.
+  const id = "3d-avatar-maker-test-objects";
+  const asJson = (document) =>
+    Buffer.from(
+      JSON.stringify(document, (key, value) =>
+        value instanceof Uint8Array ? Buffer.from(value).toString("base64") : value,
+      ),
+    );
+  const hands = await load("avatar-outfits-hands.pack.png");
+  const heads = await load("avatar-outfits-head.pack.png");
+  const kitHair = await load("avatar-hair-long.pack.png");
+  served.set(
+    `${id}/wardrobe/objects.pack.png`,
+    asJson({
+      pieces: {
+        test_held: hands.pieces.gloves,
+        test_bent: hands.pieces.gloves,
+        test_antlers: heads.pieces.helm,
+        test_wings: heads.pieces.helm,
+      },
+      pictures: [],
+    }),
+  );
+  served.set(`${id}/hair/test_waves.pack.png`, asJson({ styles: { test_waves: kitHair.styles.long }, pictures: [] }));
+  const installed = {
+    id,
+    version: "0.1.00",
+    status: "active",
+    manifest: {
+      contributions: {
+        assets: { paths: ["avatar-pack.json", "wardrobe/objects.pack.png", "hair/test_waves.pack.png"] },
+      },
+    },
+  };
+  const piece = (label, slot, over = {}) => ({
+    label,
+    slot,
+    bodies: ["male", "female"],
+    layer: 3,
+    hides: [],
+    parts: {},
+    variants: [],
+    bundle: "wardrobe/objects.pack.png",
+    licence: "CC0-1.0",
+    author: "Tester",
+    source: "http://example.test/",
+    credit: null,
+    ...over,
+  });
+  const style = (over = {}) => ({
+    label: "Test waves",
+    bodies: ["male", "female"],
+    bundle: "hair/test_waves.pack.png",
+    licence: "CC-BY-4.0",
+    author: "Hairdresser",
+    source: "http://example.test/",
+    credit: "Test waves by Hairdresser, CC BY 4.0",
+    swing: 0.03,
+    ...over,
+  });
+  const index = {
+    format: 1,
+    for: "3d-avatar-maker",
+    body: BODY_REVISION,
+    maker: "0.1.09",
+    name: "Test Objects",
+    pieces: {
+      test_held: piece("Held glove", "hand_right"),
+      test_antlers: piece("Antlers", "horns"),
+      test_wings: piece("Wings", "on_back", { bone: "spine_03" }),
+      test_bent: piece("Bent glove", "wrists"),
+      test_finger_bone: piece("Bad", "hip", { bone: "index_01_r" }),
+      test_eye_bone: piece("Bad", "hip", { bone: "eye_l" }),
+      test_listed_bone: piece("Bad", "hip", { bone: ["Head"] }),
+      test_proto_bone: piece("Bad", "hip", { bone: "toString" }),
+    },
+    hair: {
+      test_waves: style(),
+      test_still: style({ label: "Still", swing: null }),
+      test_swing: style({ swing: 2 }),
+      test_swing_text: style({ swing: "0.03" }),
+      test_no_credit: style({ credit: null }),
+      test_bundle: style({ bundle: "hair/elsewhere.pack.png" }),
+      test_licence: style({ licence: "CC-BY-NC-4.0" }),
+      long: style(), // (the kit's own)
+      test_held: style(), // (a piece of this pack)
+      "Bad-Id": style(),
+      constructor: style(),
+    },
+  };
+  const pieces = readPack(installed, index);
+  assert.deepEqual(
+    pieces.map((entry) => [entry.piece, entry.slot, entry.bone]),
+    [
+      ["test_held", "hand_right", null],
+      ["test_antlers", "horns", null],
+      ["test_wings", "on_back", "spine_03"],
+      ["test_bent", "wrists", null],
+    ],
+    "the new slots and a known bone are read; a finger's, an eye's or a malformed bone is left out",
+  );
+  const styles = readHair(installed, index);
+  assert.deepEqual(
+    styles.map((entry) => [entry.style, entry.swing]),
+    [
+      ["test_waves", 0.03],
+      ["test_still", null],
+    ],
+    "only well-formed hair styles, with a free id, a declared bundle and a credit for CC BY",
+  );
+  assert.equal(styles[0].url, `/api/capability-packages/${id}/assets/hair/test_waves.pack.png?v=0.1.00`);
+  assert.deepEqual(readHair(installed, { ...index, hair: undefined }), [], "a pack without hair (format 1 as before)");
+  assert.deepEqual(readHair(installed, { ...index, format: 2 }), [], "an index this maker can't read");
+
+  // A look or draft that wore pieces and a hair style from the pack, opened while it isn't installed.
+  const record = { pack: id, name: "Test Objects", label: "Held glove" };
+  const saved = startOf("female", {
+    clothes: ["test_held", "boots", "test_antlers"],
+    hair: "test_waves",
+    clothColours: { test_held: { cloth: 0x112233 } },
+    fromPacks: {
+      test_held: record,
+      test_waves: { pack: id, name: "Test Objects", label: "Test waves" },
+      boots: record, // (a kit piece has no pack)
+      test_gone: record, // (not in the look)
+    },
+  });
+  assert.deepEqual(saved.clothes, ["boots", "test_held", "test_antlers"], "unknown pieces are kept");
+  assert.equal(saved.hair, "test_waves", "and an unknown hair style");
+  assert.deepEqual(saved.fromPacks, {
+    test_held: record,
+    test_waves: { pack: id, name: "Test Objects", label: "Test waves" },
+  });
+  assert.deepEqual(saved.clothColours, { test_held: { cloth: 0x112233 } }, "with their colours");
+  assert.deepEqual(checkLook(saved), saved, "through every later check, as a draft is");
+  const notes = missingNotes(saved);
+  assert.equal(notes.length, 3);
+  assert.match(notes[0], /"Held glove" isn't shown because its pack, Test Objects, isn't installed/u);
+  assert.match(notes[1], /"test_antlers" isn't shown: none of the installed wardrobe packs has it/u);
+  assert.match(notes[2], /hair style "Test waves" isn't shown.*Another style shows/u);
+  const worn = wornLook(saved);
+  assert.deepEqual(worn.clothes, ["boots"], "a saved avatar file has only what's worn");
+  assert.ok(!worn.hair && !worn.fromPacks && !worn.clothColours, "and nothing of the missing pack");
+  const design = readDesign({ clothes: ["test_held", "boots"], hair: "test_waves" });
+  assert.deepEqual([design.clothes, design.hair], [["boots"], undefined], "a design keeps only what's there");
+  // Kept strictly: well-formed ids only, at most one for each slot, and a pack record only for a pack.
+  const junk = checkLook({
+    clothes: [
+      ...["Bad-Id", "constructor", "__proto__", "toString", 7, "x".repeat(65), "long"],
+      ...Array.from({ length: 80 }, (_, i) => `gone_${i}`),
+    ],
+    hair: "toString",
+    fromPacks: { gone_0: { pack: "someone-else", name: "x" }, gone_1: { pack: id, name: 5 } },
+  });
+  assert.equal(junk.clothes.length, CLOTH_SLOTS.length, "as many unknown pieces as there are slots");
+  assert.ok(
+    junk.clothes.every((each) => /^gone_\d+$/u.test(each)),
+    "only well-formed ids, never a hair style's",
+  );
+  assert.equal(junk.hair, undefined);
+  assert.deepEqual(junk.fromPacks, { gone_1: { pack: id, name: id, label: "gone_1" } });
+  // Built without the pack: the missing pieces and style aren't worn.
+  const meshCount = async (look) => {
+    const figure = await createAvatar(look, "Test", "auto");
+    const count = figure.meshes.length;
+    figure.dispose();
+    return [count, figure.avatar.hair];
+  };
+  const [without, shownHair] = await meshCount(saved);
+  assert.equal(without, (await meshCount(worn))[0], "missing pieces aren't drawn");
+  assert.notEqual(shownHair, "test_waves", "another hair style shows meanwhile");
+
+  // The pack installed again: the same look wears them, and names where they're from.
+  looks.addPieces(pieces);
+  looks.addHair(styles);
+  const back = checkLook(saved);
+  assert.deepEqual(back.clothes, saved.clothes, "the look wears them again");
+  assert.equal(back.hair, "test_waves");
+  assert.deepEqual(back.fromPacks.test_antlers, { pack: id, name: "Test Objects", label: "Antlers" });
+  assert.deepEqual(missingNotes(back), [], "nothing missing now");
+  assert.equal(wornLook(back), back, "everything in it is worn");
+  const [withPack, hairNow] = await meshCount(back);
+  assert.ok(withPack >= without + 2, "the held glove and antlers are drawn");
+  assert.equal(hairNow, "test_waves", "and the pack's hair style");
+  assert.ok((await avatarChoices("female")).hair.includes("test_waves"), "the Hair tab offers the pack's style");
+  assert.ok(
+    (await avatarChoices("male")).clothes.some((entry) => entry.piece === "test_held" && entry.slot === "hand_right"),
+    "the Clothes tab offers the held piece in its slot",
+  );
+  assert.match(licenceNote(back), /Test waves by Hairdresser, CC BY 4\.0/u, "a pack style's credit goes in the file");
+  assert.equal(vrmMeta("a", back, { creditNotation: "unnecessary" }).creditNotation, "required");
+
+  // A bone-fixed piece rests exactly as fitted and moves with its bone alone; one that isn't bends.
+  const figure = await createAvatar(
+    startOf("female", { clothes: ["test_held", "test_antlers", "test_wings", "test_bent"], hair: "test_waves" }),
+    "Test",
+    "auto",
+  );
+  assert.ok(
+    figure.springs.some((spring) => spring.name.startsWith("Hair")),
+    "the pack's long style swings",
+  );
+  const on = (bone) =>
+    figure.meshes.filter((mesh) => mesh.skeleton.bones.length === 1 && mesh.skeleton.bones[0].name === bone);
+  const [held, antlers, wings] = [on("hand_r"), on("Head"), on("spine_03")];
+  assert.ok(held.length && antlers.length && wings.length, "each is bound to its one bone");
+  const bent = figure.meshes.find(
+    (mesh) =>
+      mesh.skeleton.bones.some((bone) => bone.name === "index_02_r") &&
+      mesh.geometry.attributes.position.count === held[0].geometry.attributes.position.count,
+  );
+  assert.ok(bent, "the glove worn on the wrists keeps its own weights");
+  const world = (mesh) => {
+    const out = [];
+    const point = new Vector3();
+    const { position } = mesh.geometry.attributes;
+    for (let i = 0; i < position.count; i += 5) {
+      mesh.applyBoneTransform(i, point.fromBufferAttribute(position, i));
+      out.push(point.clone().applyMatrix4(mesh.matrixWorld));
+    }
+    return out;
+  };
+  /** How much the distances between points changed (metres), against a few anchors. */
+  const bending = (now, was) => {
+    let most = 0;
+    for (const anchor of [0, Math.floor(now.length / 3), Math.floor((now.length * 2) / 3)])
+      for (let i = 0; i < now.length; i++)
+        most = Math.max(most, Math.abs(now[i].distanceTo(now[anchor]) - was[i].distanceTo(was[anchor])));
+    return most;
+  };
+  // At rest: every point where the mesh lists it, and the mesh is the fitted piece moved as one (by the
+  // look's shape keys, on average), so its shape is exactly as fitted.
+  const fitted = hands.pieces.gloves.female.meshes.map((mesh) => geometryOf(mesh).attributes.position);
+  held.forEach((mesh, m) => {
+    const { position } = mesh.geometry.attributes;
+    const shift = new Vector3().fromBufferAttribute(position, 0).sub(new Vector3().fromBufferAttribute(fitted[m], 0));
+    let off = 0;
+    let unlike = 0;
+    const point = new Vector3();
+    for (let i = 0; i < position.count; i++) {
+      const listed = new Vector3().fromBufferAttribute(position, i);
+      mesh.applyBoneTransform(i, point.copy(listed));
+      off = Math.max(off, point.distanceTo(listed));
+      unlike = Math.max(unlike, listed.sub(shift).distanceTo(new Vector3().fromBufferAttribute(fitted[m], i)));
+    }
+    assert.ok(off < 1e-5, `the held piece rests where it's listed (off by ${off})`);
+    assert.ok(unlike < 1e-5 && shift.length() < 0.01, `in its fitted shape (${unlike}), moved ${shift.length()} m`);
+  });
+  const rest = [held[0], antlers[0], wings[0], bent].map(world);
+  const handWas = figure.bones.get("hand_r").matrixWorld.clone();
+  const turn = (name, x, y, z) => figure.bones.get(name).rotateX(x).rotateY(y).rotateZ(z);
+  turn("lowerarm_r", 0.3, 0.2, 0.6);
+  turn("hand_r", 0.7, 0.3, 0.4);
+  for (const finger of ["thumb", "index", "middle", "ring", "pinky"])
+    for (const joint of [1, 2, 3]) turn(`${finger}_0${joint}_r`, 0.4, 0, 0.5);
+  turn("spine_02", 0.2, 0.3, 0.1);
+  turn("spine_03", 0.1, 0.2, 0.3);
+  turn("neck_01", 0.3, 0.4, 0);
+  turn("Head", 0.4, -0.5, 0.2);
+  figure.object.updateMatrixWorld(true);
+  const posed = [held[0], antlers[0], wings[0], bent].map(world);
+  ["held piece", "antlers", "wings"].forEach((name, i) => {
+    const bend = bending(posed[i], rest[i]);
+    assert.ok(bend < 1e-5, `the ${name} don't bend as the arm, hand, back and head move (${bend})`);
+  });
+  assert.ok(bending(posed[3], rest[3]) > 0.002, "the glove that isn't fixed bends with the fingers");
+  const byHand = figure.bones.get("hand_r").matrixWorld.clone().multiply(new Matrix4().copy(handWas).invert());
+  const followed = Math.max(...posed[0].map((point, i) => point.distanceTo(rest[0][i].clone().applyMatrix4(byHand))));
+  assert.ok(followed < 1e-5, `the held piece moves with the hand (${followed})`);
+  restPose(figure);
+  for (const mesh of figure.meshes) for (const material of [mesh.material].flat()) material.map = null;
+
+  // A bigger head grows the antlers with it, as it does the hair and eyes: the same shape, larger.
+  const grown = await createAvatar(
+    startOf("female", { clothes: ["test_antlers"], limbs: { head: 1.2 } }),
+    "Test",
+    "auto",
+  );
+  const plain = await createAvatar(
+    startOf("female", { clothes: ["test_antlers"], limbs: { head: 1 } }),
+    "Test",
+    "auto",
+  );
+  const [big, usual] = [grown, plain].map((one) =>
+    world(one.meshes.find((mesh) => mesh.skeleton.bones.length === 1 && mesh.skeleton.bones[0].name === "Head")),
+  );
+  let ratio = 0;
+  for (let i = 1; i < big.length; i++)
+    ratio = Math.max(ratio, Math.abs(big[i].distanceTo(big[0]) / usual[i].distanceTo(usual[0]) - 1.2));
+  assert.ok(ratio < 1e-3, `the antlers grow with the head (${ratio})`);
+  grown.dispose();
+  plain.dispose();
+
+  // Saved: a GLB and a VRM with the fixed pieces, each bound to its one bone, the VRM read by three-vrm.
+  const look = wornLook(checkLook({ ...back, clothes: [...back.clothes, "test_gone"] }));
+  assert.ok(!look.clothes.includes("test_gone"));
+  const glb = await exportGlb(figure, { look, name: "Holding" });
+  const { json } = readGlb(glb.bytes);
+  const single = json.skins.filter((skin) => skin.joints.length === 1).map((skin) => json.nodes[skin.joints[0]].name);
+  for (const bone of ["hand_r", "Head", "spine_03"])
+    assert.ok(single.includes(bone), `the GLB binds a piece to ${bone} alone`);
+  assert.deepEqual(lookInGlb(glb.bytes), { name: "Holding", look }, "and keeps the look as worn");
+  const vrmFile = await exportVrm(figure, { look, name: "Holding", terms: { author: "Tester" } });
+  const loader = new GLTFLoader();
+  loader.register((parser) => new VRMLoaderPlugin(parser));
+  const bytes = vrmFile.bytes;
+  const gltf = await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
+  const vrm = gltf.userData.vrm;
+  assert.ok(vrm?.humanoid, "three-vrm reads the VRM");
+  vrm.scene.updateMatrixWorld(true);
+  let furthest = 0;
+  let fixedMeshes = 0;
+  const point = new Vector3();
+  vrm.scene.traverse((object) => {
+    if (!object.isSkinnedMesh) return;
+    if (object.skeleton.bones.length === 1) fixedMeshes++;
+    const position = object.geometry.attributes.position;
+    for (let i = 0; i < position.count; i += 97) {
+      const listed = point.fromBufferAttribute(position, i).clone().applyMatrix4(object.matrixWorld);
+      object.applyBoneTransform(i, point.fromBufferAttribute(position, i));
+      furthest = Math.max(furthest, point.applyMatrix4(object.matrixWorld).distanceTo(listed));
+    }
+  });
+  assert.ok(fixedMeshes >= 3, "the fixed pieces are in the VRM on their bones");
+  assert.ok(furthest < 0.001, `the VRM's bind pose is its rest pose (off by ${furthest.toFixed(5)})`);
+  assert.match(vrm.meta.thirdPartyLicenses ?? "", /Test waves by Hairdresser/u, "and credits the pack's hair");
+  figure.dispose();
 }
 console.log("3d-avatar-maker.regression: ok");

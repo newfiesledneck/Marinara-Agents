@@ -9,7 +9,7 @@ import { avatarChoices, createAvatar } from "./avatar.js";
 import { exportGlb, exportVrm, FILE_FORMAT, lookInGlb, vrmTerms } from "./exporter.js";
 import { FACE_MODES } from "./face.js";
 import { PACKAGE_ID, setKitBase } from "./kitfiles.js";
-import { checkLook, NEUTRAL_LOOK, OUTFIT_PRESETS, outfitLook } from "./looks.js";
+import { checkLook, missingNotes, NEUTRAL_LOOK, OUTFIT_PRESETS, outfitLook, wornLook } from "./looks.js";
 import { loadPacks } from "./packs.js";
 import { createPanel, h } from "./panel.js";
 import { createStage, POSES } from "./stage.js";
@@ -296,7 +296,11 @@ function mount(element, props) {
       state.filled = figure.avatar;
       if (bodyChanged || !state.choices) state.choices = await avatarChoices(figure.avatar.body);
       stage.show(figure);
-      if (!stage.failed) note.textContent = "";
+      if (!stage.failed) {
+        // (What the look has that isn't shown, because its pack isn't installed, said under the picture.)
+        note.className = "note";
+        note.textContent = missingNotes(state.look).join(" ");
+      }
       if (state.redraw || bodyChanged) render();
       state.redraw = false;
     } catch (error) {
@@ -376,7 +380,8 @@ function mount(element, props) {
     if (!state.figure) return;
     panel.setStatus("Saving the avatar…");
     try {
-      const options = { look: state.look, name: state.name, maxTextureSize };
+      // (Only what's worn: a piece or hair style whose pack isn't installed stays in the draft and the look file.)
+      const options = { look: wornLook(state.look), name: state.name, maxTextureSize };
       const { bytes, vertices, triangles } =
         format === "vrm"
           ? await exportVrm(state.figure, { ...options, terms: state.terms })

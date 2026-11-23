@@ -33,8 +33,8 @@ file you save, and you import that file yourself.
 | Body | Body, age, height; a race preset (human, dwarf, halfling, gnome, elf, half-elf, half-orc, tiefling) and six race sliders to mix; eight build sliders; arms, legs, torso and hips, and her bust in detail; arm and leg length, head size |
 | Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (66 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: beards, tusks, horns, a tail |
 | Skin and eyes | 30 skin pictures (MakeHuman's nine in three ages, and 21 more) or a colour of your own; 24 pictured eyes or a colour; nail length and toenails; lip and nail colours |
-| Hair | 14 styles in any colour. Long, ponytail, braid, bob and angled bob swing as the avatar moves |
-| Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus what any wardrobe packs you install add. Glasses, a face mask, earrings, rings and socks have places of their own, which the Accessories pack fills |
+| Hair | 14 styles in any colour, and any styles a wardrobe pack adds. Long, ponytail, braid, bob and angled bob swing as the avatar moves, and so do a pack's long styles |
+| Clothes | Underwear, ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus what any wardrobe packs you install add. Glasses, a face mask, earrings, rings and socks have places of their own, which the Accessories pack fills. Horns or antlers, a necklace, the wrists, the belly, the ankles, a tail, the back (wings, a backpack), the hip and each hand have places of their own too, for packs to fill. Something held in a hand and horns are fixed to the hand or head, so they move with it and never bend |
 
 Every slider's middle is the body's own shape, and each control says what it changes.
 
@@ -45,9 +45,15 @@ Clothes, 3D Avatar Maker: Everyday Men's Clothes and Suits, 3D Avatar Maker: Acc
 earrings, rings, gloves, socks and hats), 3D Avatar Maker: Historical and Fantasy Clothes, and 3D Avatar
 Maker: Modern Casual Clothes. The last two are mostly CC BY. The maker finds the installed packs when it opens (reload it after
 installing one) and lists their clothes in the Clothes tab, each with a line saying which pack it's from and
-who made it. It only reads a pack's files as data. A pack made for an older body is left out. If a pack piece
-is credited (CC BY), a saved avatar wearing it carries the credit. Gloves hide a ring and socks hide the
-toenails, as gloves and shoes hide the nails.
+who made it. A pack can add hair styles to the Hair tab the same way. It only reads a pack's files as data. A
+pack made for an older body is left out. If a pack piece or hair style is credited (CC BY), a saved avatar
+wearing it carries the credit. Gloves hide a ring and socks hide the toenails, as gloves and shoes hide the
+nails. Gloves and bracers hide bracelets, socks and greaves hide anklets, a scarf hides a necklace, and a hat,
+hood or helm hides horns.
+
+If you uninstall a pack, a draft or look file that wore its pieces keeps them. The maker says which pieces
+aren't shown and which pack to install again, and they're worn again once it's back. A saved VRM or GLB has
+only what's worn.
 
 ## Keeping your work
 

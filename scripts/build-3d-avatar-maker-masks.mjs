@@ -1,5 +1,6 @@
 // 3D Avatar Maker's paint mask: for each body, a picture in the skin picture's layout saying where the lips
-// are (green), so the maker can colour them through the skin picture with a clean edge (src/skin.js).
+// are (green), so the maker can colour them through the skin picture with a soft edge that stays on the lips
+// (src/skin.js).
 // Written to packages/3d-avatar-maker/kit/avatar as avatar-<sex>-masks.png.
 //
 //   node scripts/build-3d-avatar-maker-masks.mjs
@@ -104,19 +105,99 @@ function soften(channel, radius) {
   }
 }
 
+// The lip faces reach a few texels past the lips the skin pictures paint (4 on the darker made-up skins, 7 on
+// the pale young ones), so a colour at full strength to their edge spills onto the skin round the mouth. The
+// outer lips fade in from their edge instead: nothing for the first FADE_FROM texels, all of it from FADE_TO in.
+// (Where the lips meet, they keep the colour right up to the mouth.)
+export const FADE_FROM = 1.5;
+export const FADE_TO = 6;
+
+/**
+ * How far (in texels) each texel of `inside` is from the nearest texel outside it: a two-pass chamfer
+ * distance (3 across, 4 diagonally, divided by 3), close to the true distance.
+ */
+function distanceIn(inside) {
+  const size = MASK_SIZE;
+  const far = new Float32Array(size * size);
+  for (let i = 0; i < far.length; i++) far[i] = inside[i] ? 1e9 : 0;
+  const at = (x, y) => (x < 0 || y < 0 || x >= size || y >= size ? 0 : far[y * size + x]);
+  for (let y = 0; y < size; y++)
+    for (let x = 0; x < size; x++) {
+      const i = y * size + x;
+      if (far[i])
+        far[i] = Math.min(far[i], at(x - 1, y) + 3, at(x, y - 1) + 3, at(x - 1, y - 1) + 4, at(x + 1, y - 1) + 4);
+    }
+  for (let y = size - 1; y >= 0; y--)
+    for (let x = size - 1; x >= 0; x--) {
+      const i = y * size + x;
+      if (far[i])
+        far[i] = Math.min(far[i], at(x + 1, y) + 3, at(x, y + 1) + 3, at(x + 1, y + 1) + 4, at(x - 1, y + 1) + 4);
+    }
+  for (let i = 0; i < far.length; i++) far[i] /= 3;
+  return far;
+}
+
+/** The texels joined to `start` (4-way) where `keep(i)` holds, as a list of indices. */
+function region(start, keep, seen) {
+  const size = MASK_SIZE;
+  const found = [];
+  const stack = [start];
+  seen[start] = 1;
+  while (stack.length) {
+    const i = stack.pop();
+    found.push(i);
+    const [x, y] = [i % size, Math.floor(i / size)];
+    for (const [nx, ny] of [
+      [x + 1, y],
+      [x - 1, y],
+      [x, y + 1],
+      [x, y - 1],
+    ]) {
+      if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
+      const j = ny * size + nx;
+      if (!seen[j] && keep(j)) {
+        seen[j] = 1;
+        stack.push(j);
+      }
+    }
+  }
+  return found;
+}
+
 for (const sex of ["male", "female"]) {
   const file = await unpack(readFileSync(join(KIT, `avatar-${sex}.pack.png`)));
   const lipMesh = file.meshes.find((mesh) => mesh.part === "lips" && !mesh.piece);
   if (!lipMesh) throw new Error(`avatar-${sex}: no lips to mask`);
   const lipFaces = decoded(lipMesh);
-  const lips = new Float32Array(MASK_SIZE * MASK_SIZE);
+  const faces = new Uint8Array(MASK_SIZE * MASK_SIZE);
   const texel = (uv, i) => [uv[i * 2] * MASK_SIZE, uv[i * 2 + 1] * MASK_SIZE];
-  // The lips: their own faces, softened a little at the edge.
   for (let t = 0; t < lipFaces.index.length; t += 3) {
     const ids = [lipFaces.index[t], lipFaces.index[t + 1], lipFaces.index[t + 2]];
-    rasterise(...ids.map((id) => texel(lipFaces.uv, id)), (x, y) => (lips[y * MASK_SIZE + x] = 1));
+    rasterise(...ids.map((id) => texel(lipFaces.uv, id)), (x, y) => (faces[y * MASK_SIZE + x] = 1));
   }
-  soften(lips, 2);
+  // The outer lips (the biggest piece of the lip faces in the picture; the rest are inside the mouth), with
+  // the mouth's slit filled, so only their outer edge fades.
+  const seen = new Uint8Array(faces.length);
+  const outside = new Uint8Array(faces.length);
+  for (const i of region(0, (j) => !faces[j], seen)) outside[i] = 1;
+  seen.fill(0);
+  let outer = [];
+  for (let i = 0; i < faces.length; i++)
+    if (!outside[i] && !seen[i]) {
+      const piece = region(i, (j) => !outside[j], seen);
+      if (piece.length > outer.length) outer = piece;
+    }
+  const inside = new Uint8Array(faces.length);
+  for (const i of outer) inside[i] = 1;
+  const far = distanceIn(inside);
+  const lips = new Float32Array(faces.length);
+  for (let i = 0; i < lips.length; i++) {
+    if (inside[i]) {
+      const t = Math.min(1, Math.max(0, (far[i] - FADE_FROM) / (FADE_TO - FADE_FROM)));
+      lips[i] = faces[i] || far[i] > FADE_TO ? t * t * (3 - 2 * t) : 0;
+    } else lips[i] = faces[i];
+  }
+  soften(lips, 1);
   const rgb = Buffer.alloc(MASK_SIZE * MASK_SIZE * 3);
   for (let i = 0; i < lips.length; i++) rgb[i * 3 + 1] = Math.round(Math.min(1, lips[i]) * 255);
   const bytes = writePng(join(KIT, `avatar-${sex}-masks.png`), MASK_SIZE, MASK_SIZE, rgb);
