@@ -74,6 +74,12 @@
     "3d-avatar-maker-wardrobe-accessories": {
       "versions": [
         {
+          "version": "0.2.01",
+          "date": "2026-11-23",
+          "notes": "- 2 new pieces: a feather headdress and a lace choker (in the Necklace slot). Needs 3D Avatar Maker 0.1.10 or later, which added that slot.",
+          "highlight": false
+        },
+        {
           "version": "0.2.00",
           "date": "2026-11-23",
           "notes": "- The hats, hoods, veil, headband, top hat, pith helmet and brass circlet from the retired Historical and Fantasy and Modern Casual packs are here now, with the same names, so saved avatars still find them. Clothes went to the new 3D Avatar Maker: Clothes pack.\n- 15 new pieces: a Santa hat, a chef's hat, a fishing hat, a patrol cap, a sun visor, a swim cap, a steel helmet, an aero cycling helmet, a riding helmet, safety glasses, swimming goggles, sports sunglasses, a respirator mask, a gas mask and lace-top stockings.\n- 24 of the 45 pieces are CC BY now. A saved avatar credits the maker of every CC BY piece it wears.",
@@ -95,6 +101,12 @@
     },
     "3d-avatar-maker-wardrobe-clothes": {
       "versions": [
+        {
+          "version": "0.1.01",
+          "date": "2026-11-23",
+          "notes": "- Bras, bikini tops, briefs and bikini bottoms are underwear now: the maker offers them in its Underwear lists in place of the body's own, under any shirt, skirt or trousers. Before, they took the Shirt or top and Legs slots, so nothing could be worn over them. Needs 3D Avatar Maker 0.1.11 or later; an older one leaves the underwear out.\n- 8 new pieces: a bra with a bow, a lace camisole, briefs with a bow, embroidered briefs, a lace thong, a strappy lace thong, a lace teddy and a suspender belt (worn in the Belt slot).\n- Swimsuits, bodysuits, the shapewear, the teddy and the men's swimming trunks say they are worn on bare skin, so the maker leaves the underwear off under them.",
+          "highlight": false
+        },
         {
           "version": "0.1.00",
           "date": "2026-11-23",

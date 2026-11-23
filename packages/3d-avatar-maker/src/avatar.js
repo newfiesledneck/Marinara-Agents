@@ -40,7 +40,9 @@ import {
   SLOT_OF,
   NAIL_SLOTS,
   isCovered,
+  isPackUnderwear,
   NAILS,
+  NO_UNDERWEAR,
   boneOf,
   PACK_HAIR,
   PACK_PIECES,
@@ -77,6 +79,7 @@ import {
   sliderKeys,
   sliderRange,
   UNDERWEAR_BOTTOMS,
+  UNDERWEAR_SLOTS,
   UNDERWEAR_TOPS,
   USUAL_HAIR,
   USUAL_HAIR_COLOURS,
@@ -126,8 +129,9 @@ export function setUnderwearByDefault(on) {
   underwearByDefault = on !== false;
 }
 
-/** What an outfit piece can hide: these regions of skin (and underwear on them), the underwear itself, or the
- *  hair (a hat or a hood). */
+/** What an outfit piece can hide: these regions of skin (and, when the look hides underwear under clothes,
+ *  underwear on them), the underwear itself (left on under clothes unless the look says otherwise or the piece
+ *  is worn on bare skin, createAvatar), or the hair (a hat or a hood). */
 export const HIDE_WORDS = [
   ...new Set(Object.values(REGION_OF)),
   "underwear",
@@ -144,6 +148,11 @@ const COVERED = new Set([
   "underwear_trim",
   ...["fur", "fur2", "fur_tufts", "fur2_tufts", "nose", "claws", "scales", "scales2", "horns"],
 ]);
+/** Whether underwear shows under clothes where a look doesn't say (the Clothes tab's "Show underwear under clothes"). */
+const UNDER_CLOTHES = true;
+/** The look's underwear fields ("top", "bottom"), and the field a pack's underwear slot fills. */
+const UNDERWEAR_FIELDS = UNDERWEAR_SLOTS.map(([, field]) => field);
+const UNDERWEAR_FIELD_OF = Object.fromEntries(UNDERWEAR_SLOTS.map(([slot, field]) => [slot, field]));
 /** A piece in one of these slots lies over a wolf's neck ruff, whatever it hides. */
 const RUFF_SLOTS = new Set(["neck", "back", "armour", "plate"]);
 /** A body's kit file: the human's, or an anthro kind's. */
@@ -421,6 +430,7 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
     underwear: {
       top: chosen.underwear?.top ?? (underwearByDefault && sex === "female" ? "bra" : BARE),
       bottom: chosen.underwear?.bottom ?? (underwearByDefault ? "briefs" : BARE),
+      underClothes: chosen.underwear?.underClothes ?? UNDER_CLOTHES,
     },
     clothes,
     clothColours,
@@ -689,17 +699,20 @@ function isWorn(mesh, look, sex) {
   return !!style && underwear[style[1]] === style[2];
 }
 
-/** The body's triangles that show (shared by everyone wearing the same and hiding the same), in groups. */
-function trianglesOf(kit, look, hides) {
+/**
+ * The body's triangles that show (shared by everyone wearing the same and hiding the same), in groups. The
+ * underwear is hidden whole by its hide words ("underwear", "underwear-top", "underwear-bottom"); `shows`
+ * keeps it under the regions hidden, where the skin goes.
+ */
+function trianglesOf(kit, look, hides, shows = false) {
   const { underwear } = look;
-  const key = `${underwear.top}|${underwear.bottom}|${look.brows}|${look.lashes}|${look.wings}|${look.facialHair}|${look.tusks}|${look.horns}|${look.tail}|${[...hides].sort().join(",")}`;
+  const key = `${underwear.top}|${underwear.bottom}|${look.brows}|${look.lashes}|${look.wings}|${look.facialHair}|${look.tusks}|${look.horns}|${look.tail}|${shows}|${[...hides].sort().join(",")}`;
   if (!kit.indices.has(key)) {
     const hidden = (mesh) => {
-      if (
-        /^underwear/u.test(mesh.part) &&
-        (hides.has("underwear") || (mesh.piece && hides.has(mesh.piece.replace(/-[^-]+$/u, ""))))
-      )
-        return () => true;
+      if (/^underwear/u.test(mesh.part)) {
+        if (hides.has("underwear") || (mesh.piece && hides.has(mesh.piece.replace(/-[^-]+$/u, "")))) return () => true;
+        if (shows) return () => false;
+      }
       if (!COVERED.has(mesh.part)) return () => false;
       return (a, b, c) => hides.has(kit.regions[a]) && hides.has(kit.regions[b]) && hides.has(kit.regions[c]);
     };
@@ -808,6 +821,8 @@ async function pieceOf(piece, sex, variant = "") {
     slot,
     layer: pack ? pack.layer : (data.layer ?? 0),
     hides: pack ? pack.hides : (way.hides ?? []),
+    // (Worn on bare skin, in place of underwear: a swimsuit. looks.js NO_UNDERWEAR, packs.js `noUnderwear`.)
+    noUnderwear: pack ? pack.noUnderwear : NO_UNDERWEAR.has(piece),
     bone,
     part: way[sex],
     pictures: pack ? packPictures(bundle, pack.pack) : bundle.pictures,
@@ -875,6 +890,12 @@ function partMeshes(key, part, small = false, hangs = null, fixed = false) {
   return parts.get(key);
 }
 
+/** The installed packs' underwear in `slot` (looks.js UNDERWEAR_SLOTS) made for `sex`'s body. */
+const packUnderwear = (slot, sex) =>
+  Object.values(PACK_PIECES)
+    .filter((entry) => entry.slot === slot && entry.bodies.includes(sex))
+    .map((entry) => entry.piece);
+
 /**
  * Which shape keys, hair styles, underwear and outfit pieces the kit has for `sex`'s body of `species`:
  * what the Look card offers. Each piece as { piece, slot, parts: [[part, its colour as made (0xRRGGBB)]],
@@ -898,8 +919,9 @@ export async function avatarChoices(sex, species = "human") {
     ),
     tail: kit.meshes.some((mesh) => mesh.piece === "tail-tiefling"),
     races: RACES.map(([race]) => race).filter((race) => !raceOf(race).key || kit.file.keys.includes(raceOf(race).key)),
-    tops: kit.tops,
-    bottoms: kit.bottoms,
+    // (The underwear styles the body's model has, then the installed packs' for this body.)
+    tops: [...kit.tops, ...packUnderwear("underwear_top", sex)],
+    bottoms: [...kit.bottoms, ...packUnderwear("underwear_bottom", sex)],
     brows: kit.brows,
     lashes: kit.lashes,
     hair: anthro
@@ -1145,10 +1167,19 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   ];
   const dyes = { ...filled.clothColours };
   if (filled.colours.nails !== WHITE) for (const piece of nails) dyes[piece] = { nail: filled.colours.nails };
-  const [kit, hair, worn] = await Promise.all([
+  // Underwear from a pack (looks.js UNDERWEAR_SLOTS): a piece of its own, the innermost layer, dyed the
+  // underwear's colour where it's made to be dyed (a pattern keeps its own). The body's own is a mesh of it.
+  const packUnderwear = UNDERWEAR_FIELDS.map((field) => filled.underwear[field]).filter(isPackUnderwear);
+  for (const piece of packUnderwear)
+    if (PACK_PIECES[piece].tint)
+      dyes[piece] = Object.fromEntries(
+        (PACK_PIECES[piece].parts[sex] ?? []).map(([part]) => [part, filled.colours.underwear]),
+      );
+  const [kit, hair, worn, underwearWorn] = await Promise.all([
     bodyKit(sex, filled.species),
     filled.hair === BARE ? null : hairOf(filled.hair, sex),
     Promise.all([...clothes, ...nails].map((piece) => pieceOf(piece, sex, filled.variants[piece]))),
+    Promise.all(packUnderwear.map((piece) => pieceOf(piece, sex))),
   ]);
   const { root, bones } = rigOf(kit.file);
   let moved = null; // joints moved with the body's shape (below), for binding
@@ -1157,6 +1188,26 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   const hides = new Set();
   const pieces = worn.filter(Boolean).sort((a, b) => a.layer - b.layer);
   for (const piece of pieces) for (const word of piece.hides) hides.add(word);
+  // The underwear under them (`off`: the fields left off). A piece worn on bare skin (a swimsuit) leaves off
+  // the underwear its hide words name. Shown under clothes, the rest stays on, under everything; else what a
+  // piece covers is hidden as the skin is, by its hide words or the torso or hips it hides.
+  const off = new Set();
+  for (const piece of pieces)
+    for (const field of UNDERWEAR_FIELDS) {
+      const named = piece.hides.includes("underwear") || piece.hides.includes(`underwear-${field}`);
+      const over = piece.hides.includes(field === "top" ? "torso" : "hips");
+      if (named && piece.noUnderwear) off.add(field);
+      else if ((named || over) && !filled.underwear.underClothes) off.add(field);
+    }
+  const underwear = underwearWorn.filter((piece) => piece && !off.has(UNDERWEAR_FIELD_OF[piece.slot]));
+  for (const piece of underwear) for (const word of piece.hides) if (!word.startsWith("underwear")) hides.add(word);
+  // (The body's own underwear: shown under clothes, only the words of what's worn on bare skin hide it.)
+  const bodyHides = filled.underwear.underClothes
+    ? new Set([
+        ...[...hides].filter((word) => !word.startsWith("underwear")),
+        ...[...off].map((field) => `underwear-${field}`),
+      ])
+    : hides;
   const flat = hides.has("neck") || hides.has("torso") || pieces.some((piece) => RUFF_SLOTS.has(piece.slot));
   const weights = keyWeights(filled, sex, kit.file.keys, flat);
   // The finger joints go where the look's keys put the knuckles (the kit's jointMoves: a dwarf's bigger
@@ -1316,7 +1367,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   geometry.setAttribute("color", new BufferAttribute(colour, 3, true));
   for (const [attribute, shared] of Object.entries(kit.shared)) geometry.setAttribute(attribute, shared);
   if (filled.eyePicture !== TINT) geometry.setAttribute("uv", eyeUvsOf(kit, filled.eyePicture));
-  const { index, groups } = trianglesOf(kit, filled, hides);
+  const { index, groups } = trianglesOf(kit, filled, bodyHides, filled.underwear.underClothes);
   geometry.setIndex(index);
   geometry.userData.distant = { groups: true }; // (each group has its own: kit.js drawDistant)
   const materials = groups.map((group, i) => {
@@ -1460,7 +1511,8 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   const below = swingOf(filled.hair);
   const hangs = below === undefined ? null : { line: kit.eyes - below, centre: kit.headAt };
   if (hair && !hides.has("hair")) wearPart(hair, () => new Color(filled.hairColour), hangs);
-  for (const piece of pieces) wearPart(piece, (mesh) => (mesh.partOf ? 0xffffff : new Color().setRGB(...mesh.colour)));
+  for (const piece of [...underwear, ...pieces])
+    wearPart(piece, (mesh) => (mesh.partOf ? 0xffffff : new Color().setRGB(...mesh.colour)));
 
   // A tail worn swings too, kept out of the legs.
   const tail = TAIL_BONES.map((name) => bones.get(name)).filter(Boolean);

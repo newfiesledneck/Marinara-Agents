@@ -796,6 +796,156 @@ for (const figure of Object.values(made)) figure.dispose();
     else assert.ok(note.includes(`by ${author} (${source}), CC BY`), `a saved ${piece} credits its maker`);
     assert.ok((await count([piece])) > (await count([])), `${piece} is worn`);
   }
+  // Its underwear is in the Underwear lists, not among the clothes, and a swimsuit is worn on bare skin.
+  const underwear = read.filter(({ slot }) => slot.startsWith("underwear_"));
+  assert.ok(
+    underwear.some(({ piece }) => piece === "joepal_plain_bra") &&
+      underwear.some(({ piece }) => piece === "elvs_lace_panty"),
+    "the pack's bras and briefs are underwear",
+  );
+  for (const { piece, slot } of underwear) {
+    assert.ok(!looks.SLOT_OF[piece], `${piece} isn't offered as clothing`);
+    const list = slot === "underwear_top" ? looks.UNDERWEAR_TOPS : looks.UNDERWEAR_BOTTOMS;
+    assert.ok(
+      list.some(([style]) => style === piece),
+      `${piece} is in the ${slot} list`,
+    );
+  }
+  assert.ok(index.pieces.mindfront_f_one_piece_swimsuit_01.noUnderwear, "a swimsuit leaves the underwear off");
+}
+
+// ── Underwear from a pack, and underwear under clothes ──
+{
+  const { BODY_REVISION, readPack } = await import("../packages/3d-avatar-maker/src/packs.js");
+  const { licenceNote } = await import("../packages/3d-avatar-maker/src/exporter.js");
+  const { Color } = await import("three");
+  const { missingNotes, wornLook } = looks;
+  // A test pack whose underwear is the kit's own bikini, served as an installed pack's assets are.
+  const id = "3d-avatar-maker-test-underwear";
+  const tops = await (await import("../packages/3d-avatar-maker/src/kitfiles.js")).load("avatar-outfits-tops.pack.png");
+  const legs = await (await import("../packages/3d-avatar-maker/src/kitfiles.js")).load("avatar-outfits-legs.pack.png");
+  served.set(
+    `${id}/wardrobe/underwear.pack.png`,
+    Buffer.from(
+      JSON.stringify(
+        { pieces: { test_bra: tops.pieces.bikini_top, test_briefs: legs.pieces.bikini_bottom }, pictures: [] },
+        (key, value) => (value instanceof Uint8Array ? Buffer.from(value).toString("base64") : value),
+      ),
+    ),
+  );
+  const installed = {
+    id,
+    version: "0.1.00",
+    status: "active",
+    manifest: { contributions: { assets: { paths: ["avatar-pack.json", "wardrobe/underwear.pack.png"] } } },
+  };
+  const entry = (label, slot, over = {}) => ({
+    label,
+    slot,
+    bodies: ["female"],
+    layer: 0,
+    hides: [],
+    parts: { female: [["cloth", 0xffffff]] },
+    variants: [],
+    bundle: "wardrobe/underwear.pack.png",
+    licence: "CC0-1.0",
+    author: "Tester",
+    source: "http://example.test/",
+    credit: null,
+    ...over,
+  });
+  const index = {
+    format: 1,
+    for: "3d-avatar-maker",
+    body: BODY_REVISION,
+    maker: "0.1.11",
+    name: "Test Underwear",
+    pieces: {
+      test_bra: entry("Test bra", "underwear_top", {
+        tint: true,
+        licence: "CC-BY-4.0",
+        credit: "Test bra by Tester, CC BY 4.0",
+      }),
+      test_briefs: entry("Test briefs", "underwear_bottom"),
+      thong: entry("Not the kit's", "underwear_bottom"), // (a kit underwear style's id)
+      test_flag: entry("Bad", "underwear_top", { noUnderwear: "yes" }),
+      test_tint: entry("Bad", "underwear_top", { tint: 1 }),
+      test_slot: entry("Bad", "underwear"),
+    },
+  };
+  const pieces = readPack(installed, index);
+  assert.deepEqual(
+    pieces.map(({ piece, slot, tint }) => [piece, slot, tint]),
+    [
+      ["test_bra", "underwear_top", true],
+      ["test_briefs", "underwear_bottom", false],
+    ],
+    "pack underwear is read into the underwear slots; a kit style's id, a bad flag or slot is left out",
+  );
+
+  // Before the pack is installed: a look with its underwear keeps it, says so, and saves without it.
+  const record = { pack: id, name: "Test Underwear", label: "Test bra" };
+  const saved = startOf("female", {
+    underwear: { top: "test_bra", bottom: "briefs", underClothes: false },
+    fromPacks: { test_bra: record },
+  });
+  assert.deepEqual(saved.underwear, { top: "test_bra", bottom: "briefs", underClothes: false }, "kept");
+  assert.deepEqual(saved.fromPacks, { test_bra: record });
+  assert.deepEqual(checkLook(saved), saved, "through every later check, as a draft is");
+  assert.match(missingNotes(saved).join(" "), /underwear "Test bra" isn't shown because its pack, Test Underwear/u);
+  assert.equal(wornLook(saved).underwear.top, looks.BARE, "a saved avatar has no underwear top, as it's drawn");
+  assert.equal(checkLook({ underwear: { top: "Bad-Id", bottom: "toString" } }).underwear, undefined, "ids checked");
+
+  looks.addPieces(pieces);
+  assert.ok(
+    looks.UNDERWEAR_TOPS.some(([style]) => style === "test_bra"),
+    "the Top list offers the pack's bra",
+  );
+  assert.ok(!looks.SLOT_OF.test_bra && !looks.CLOTHES.some(([piece]) => piece === "test_bra"), "not as clothing");
+  const choices = await avatarChoices("female");
+  assert.ok(choices.tops.includes("test_bra") && choices.bottoms.includes("test_briefs"), "offered on its body");
+  assert.ok(!(await avatarChoices("male")).tops.includes("test_bra"), "and not on the other");
+  assert.ok(!choices.clothes.some(({ piece }) => piece === "test_bra"));
+  const back = checkLook(saved);
+  assert.equal(back.underwear.top, "test_bra", "the look wears it again");
+  assert.deepEqual(missingNotes(back), []);
+  assert.equal(checkLook({ underwear: { bottom: "test_bra" } }).underwear, undefined, "a top isn't a bottom");
+  assert.match(licenceNote({ underwear: { top: "test_bra" } }), /Test bra by Tester, CC BY 4\.0/u, "credited");
+
+  // Drawn: the body's own briefs as triangles of the body, a pack's as a piece of its own.
+  const made = async (look) => {
+    const figure = await createAvatar(startOf("female", { hair: "none", ...look }), "Test", "auto");
+    const body = figure.meshes.find((mesh) => mesh.name === "body");
+    const briefs = figure.kit.meshes.find((mesh) => mesh.piece === "underwear-bottom-briefs");
+    let shown = 0;
+    for (const vertex of body.geometry.index.array)
+      if (vertex >= briefs.start && vertex < briefs.start + briefs.count) shown++;
+    // (Each piece's first colour, red, as a fraction: what it's dyed.)
+    const reds = figure.meshes
+      .filter((mesh) => mesh.name === "piece" && mesh.geometry.attributes.color)
+      .map((mesh) => mesh.geometry.attributes.color.array[0] / 65535);
+    const result = { meshes: figure.meshes.length, briefs: shown, reds };
+    figure.dispose();
+    return result;
+  };
+  const skirt = { clothes: ["short_skirt"] };
+  const on = await made({ ...skirt, underwear: { bottom: "briefs" } });
+  const off = await made({ ...skirt, underwear: { bottom: "briefs", underClothes: false } });
+  assert.ok(on.briefs > 0, "the body's briefs show under a skirt with underwear shown under clothes");
+  assert.equal(off.briefs, 0, "and are hidden under it with that off");
+  assert.equal((await made({ clothes: ["one_piece_swimsuit"] })).briefs, 0, "a swimsuit is worn without them");
+  const packOn = await made({ ...skirt, underwear: { bottom: "test_briefs" } });
+  const packOff = await made({ ...skirt, underwear: { bottom: "test_briefs", underClothes: false } });
+  assert.equal(packOn.briefs, 0, "the pack's briefs replace the body's own");
+  assert.ok(packOn.meshes > packOff.meshes, "the pack's briefs show under the skirt with that on, and not with it off");
+  // The underwear's colour dyes a pack's piece made to be dyed.
+  const colour = 0x8a2a2a;
+  const { reds } = await made({ underwear: { top: "test_bra" }, colours: { underwear: colour } });
+  const red = new Color().setHex(colour).r;
+  assert.ok(
+    reds.some((value) => Math.abs(value - red) < 1e-4),
+    `the pack's bra takes the underwear's colour (${reds.join(", ")} for ${red})`,
+  );
 }
 
 // ── Bone-fixed pieces, a pack's hair styles, and looks that outlast an uninstalled pack ──

@@ -282,6 +282,46 @@ No item is fitted yet; the packs that fill these slots come next.
   judged; `docs/MAKEHUMAN-PACKS.md` "The merge pass" lists each one kept and each one left out, and why.
 - Later passes add hair styles, body parts and held objects to the Accessories pack.
 
+## Underwear of its own (for 0.1.11, not released yet)
+
+The maker's code waits for its 0.1.11 release; the packs that use it are Clothes 0.1.01 and Accessories 0.2.01.
+
+- **Pack underwear.** A pack piece in the slot `underwear_top` or `underwear_bottom` (looks.js
+  `UNDERWEAR_SLOTS`) goes in the Underwear group's Top or Bottom list (`addPieces`), not on the Clothes tab,
+  and the look's `underwear.top` or `.bottom` names it. It's worn as a piece of its own, the innermost layer,
+  in place of the body's own underwear mesh. Where its index says `tint` (a grey picture under its parts'
+  colours), the Underwear colour dyes it.
+- **The contract** stays `format: 1`. New and optional: the two underwear slots, `tint`, and `noUnderwear`
+  (below). An older maker leaves the underwear pieces out and ignores the flags, so the Clothes pack says it
+  needs 0.1.11. The builder puts underwear in its own bundle (`wardrobe/underwear.pack.png`), at layer 0,
+  without underwear hide words, and writes `tint` from packs.json's `tex`.
+- **Looks.** `checkLook` keeps a pack's underwear while its pack is uninstalled, as it keeps pieces, and
+  `fromPacks` names its pack. It isn't drawn meanwhile; the preview note and the Underwear group say so, and the
+  group can take it out of the look. `wornLook` makes it none in a saved file, as it's drawn. A saved file
+  credits CC BY underwear (`packCredits`).
+- **Underwear under clothes.** `underwear.underClothes`, on unless a look says otherwise, the control "Show
+  underwear under clothes":
+  - On: the body's own underwear stays drawn under every region a piece hides, and the hide words
+    `underwear`, `underwear-top` and `underwear-bottom` no longer hide it; a pack's underwear is worn under
+    everything. The skin is still hidden under clothes as before.
+  - Off: as before. Clothes hide the underwear they cover by those words and by the regions they hide (a pack's
+    top under anything that hides the torso, its bottom under anything that hides the hips).
+  - Worn on bare skin: a piece that says so (`noUnderwear` in a pack; looks.js `NO_UNDERWEAR` for the kit's
+    swimsuit, bikini, swim trunks and bikini armour) leaves off the underwear its hide words name either way.
+    Chosen for swimwear, bodysuits, shapewear and the teddy: worn without underwear, and tight enough that it
+    would show through. A romper, a babydoll and dresses are worn over underwear.
+- **Clipping.** Nothing is fitted around underwear yet, so it can show through tight clothes; the fitting rework
+  (each layer clearing the ones under it, underwear as layer 0) is what fixes that. Where it clips today is in
+  `docs/MAKEHUMAN-PACKS.md`, "The underwear pass".
+- **Pieces.** The merge pass's 19 bras, bikini tops, briefs and bikini bottoms moved to the underwear slots
+  without a refit. 10 more were fitted: 8 pieces of underwear and lingerie in Clothes, a lace choker and a feather
+  headdress in Accessories (`docs/MAKEHUMAN-PACKS.md`).
+- **Checked** in the regression test: pack underwear reads into the lists and not the clothes; bad flags, slots
+  and ids are refused; a look with an uninstalled pack's underwear survives `checkLook`, says so, and saves
+  without it; the body's briefs are drawn under a skirt with the control on and hidden with it off, a swimsuit
+  leaves them off, a pack's briefs show under the skirt or not the same way, and the Underwear colour dyes a
+  tintable pack bra.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -317,5 +357,8 @@ No item is fitted yet; the packs that fill these slots come next.
   hand; the other hand needs a piece of its own.
 - Slots cover slots, not regions: sandals and tall boots alike leave an anklet on, and a crop top and a
   T-shirt alike leave a belly piercing on (where the shirt is drawn over it).
+- Underwear shown under clothes pokes through many clothes until the fitting allows for it, the kit's everyday
+  tee, jeans and trousers among them, so most avatars show it at first sight while the setting is on by default.
+  The suspender belt is a Belt piece, so a skirt doesn't hide it.
 - Drafts live in the browser only.
 - `avatar.js` still carries the anthro code paths and a crowd's low-detail triangle lists.
