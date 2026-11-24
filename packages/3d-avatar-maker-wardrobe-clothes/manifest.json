@@ -10,8 +10,8 @@
   },
   "id": "3d-avatar-maker-wardrobe-clothes",
   "name": "3D Avatar Maker: Clothes",
-  "version": "0.1.02",
-  "description": "186 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.11 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+  "version": "0.1.03",
+  "description": "194 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.11 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
   "engine": {
     "min": "2.4.6",
     "maxExclusive": "4.0.0"
@@ -38,43 +38,43 @@
   "files": [
     {
       "path": "agents.json",
-      "sha256": "4e051252a27ff8cadf2f2f71b240f7c637e64cf6e018e8cdd125637d0e910f39",
+      "sha256": "f910020dc30e08d8343a0581264c3c2b3177671cb07fa4e1f2a8a7efbc7df73b",
       "bytes": 789
     },
     {
       "path": "avatar-pack.json",
-      "sha256": "5fdc3ce7290d6eb2b6743d6f26916a054cf79c0b3a0e08bf210c83ab969cd12a",
-      "bytes": 115765
+      "sha256": "db13395c0f1acdf7ec4223042767550ba33adbc593e51e2c5d043f6906e99955",
+      "bytes": 121438
     },
     {
       "path": "wardrobe/accessories.pack.png",
-      "sha256": "2050622b1b3f610d199f780b454380a3dc0232241bcc162593dc18777cb2d353",
-      "bytes": 320163
+      "sha256": "b6e8d1ceb67b7abb7e2c8953f0ed7c88b34ee2083a0a2b41de034a608705914c",
+      "bytes": 307915
     },
     {
       "path": "wardrobe/body.pack.png",
-      "sha256": "7434723652609f4c5869fc4a9ff273555cdc26638711fd68c9ea37490a20e9be",
-      "bytes": 27719241
+      "sha256": "b451c21fa420c248569bbac168ef4d7bbfcc292b00ee72f683d4532535cbab91",
+      "bytes": 30650012
     },
     {
       "path": "wardrobe/feet.pack.png",
-      "sha256": "88c046062a29c4de2adf034ccc1a0ef4dad689be7cc73cab86f1f814ded420c7",
-      "bytes": 7691885
+      "sha256": "ceca5383c9562d69fd743057ecbbb9fd656e4a6cff7bc3fab718fae8e359ecc6",
+      "bytes": 7999709
     },
     {
       "path": "wardrobe/legs.pack.png",
-      "sha256": "b7e7393db8b6dd941cc693fc09984ea5e9f16656c5b9301cf10fe57e7d83dcb1",
-      "bytes": 15360341
+      "sha256": "33ca62b4324ec8f1f1e4922d43a0fe9afc887c79a4d8c42d09e069ee5acebae1",
+      "bytes": 14929778
     },
     {
       "path": "wardrobe/tops.pack.png",
-      "sha256": "495aeaf0bf8e25b4a183dfd6eb5d22aa880ce967ba620afc6a6f77bd49a7843f",
-      "bytes": 10183882
+      "sha256": "78c90112ae7375ca2f61f22ab94be41ee2fe4df3f697c25f81a3d689c5030026",
+      "bytes": 10034606
     },
     {
       "path": "wardrobe/underwear.pack.png",
-      "sha256": "a05a310abdd027569b270d7ec79a1581807f41dfb977b0d41a9c39990725c26d",
-      "bytes": 6842006
+      "sha256": "0bb089a80e4a3ab6eee383582dcf20bc3d7d2bc50c9863dc44b5e5862c4ca985",
+      "bytes": 6688213
     }
   ],
   "permissions": [],

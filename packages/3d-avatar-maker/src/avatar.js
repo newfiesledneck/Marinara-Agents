@@ -152,9 +152,9 @@ const COVERED = new Set([
   ...["fur", "fur2", "fur_tufts", "fur2_tufts", "nose", "claws", "scales", "scales2", "horns"],
 ]);
 /** Whether underwear shows under clothes where a look doesn't say (the Clothes tab's "Show underwear under clothes"). */
-// ponytail: off until the clothes fitting clears underwear (most tops and trousers let it poke through
-// today); turn it on once the refit lands, which the user wants as the default.
-const UNDER_CLOTHES = false;
+// (On: the clothes are fitted as MakeHuman places them and worn layered, each over what's under it, the
+// underwear deepest: layers.js.)
+const UNDER_CLOTHES = true;
 /** The look's underwear fields ("top", "bottom"), and the field a pack's underwear slot fills. */
 const UNDERWEAR_FIELDS = UNDERWEAR_SLOTS.map(([, field]) => field);
 const UNDERWEAR_FIELD_OF = Object.fromEntries(UNDERWEAR_SLOTS.map(([slot, field]) => [slot, field]));

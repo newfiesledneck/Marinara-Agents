@@ -79,10 +79,10 @@ or GLB has only what's worn.
 ## Underwear under clothes
 
 Underwear is always the innermost layer. With **Show underwear under clothes** on (the Underwear group on the
-Clothes tab; off until the clothes are fitted around underwear, then on unless you turn it off), it stays on under everything, so a bra strap shows at an open neckline or
-off the shoulder and briefs show under a skirt. Clothes still hide the skin they cover. Clothes aren't fitted
-around underwear yet, so it pokes through many of them, the everyday tee and jeans among them; turn the setting
-off and clothes hide the underwear they cover, as they did before. A swimsuit, bodysuit, shapewear, a teddy or swimming trunks are
+Clothes tab; on unless you turn it off), it stays on under everything, so a bra strap shows at an open neckline or
+off the shoulder and briefs show under a skirt. Clothes still hide the skin they cover, and each is worn
+just over what's under it, so underwear stays under them; a speck can still show where two layers meet at
+a shallow angle. Turn the setting off and clothes hide the underwear they cover, as they did before. A swimsuit, bodysuit, shapewear, a teddy or swimming trunks are
 worn on bare skin, so the underwear they cover is left off under them either way. The setting is part of the look,
 so a saved avatar keeps it.
 

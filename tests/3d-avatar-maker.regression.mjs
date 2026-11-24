@@ -1742,12 +1742,8 @@ for (const figure of Object.values(made)) figure.dispose();
   const off = await made({ ...skirt, underwear: { bottom: "briefs", underClothes: false } });
   assert.ok(on.briefs > 0, "the body's briefs show under a skirt with underwear shown under clothes");
   assert.equal(off.briefs, 0, "and are hidden under it with that off");
-  // (Off until the clothes are fitted around underwear: avatar.js UNDER_CLOTHES.)
-  assert.equal(
-    (await made({ ...skirt, underwear: { bottom: "briefs" } })).briefs,
-    0,
-    "hidden where a look doesn't say",
-  );
+  // (Shown where a look doesn't say: avatar.js UNDER_CLOTHES.)
+  assert.ok((await made({ ...skirt, underwear: { bottom: "briefs" } })).briefs > 0, "shown where a look doesn't say");
   assert.equal(
     (await made({ clothes: ["one_piece_swimsuit"], underwear: { bottom: "briefs", underClothes: true } })).briefs,
     0,

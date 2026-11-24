@@ -795,7 +795,7 @@ export function createPanel(actions) {
               (value) => change({ underwear: { underClothes: value === "on" } }),
               "Show underwear under clothes",
             ),
-            "On: the underwear stays on under clothes, so a bra strap can show at an open neckline and briefs under a skirt. Clothes aren't fitted around underwear yet, so it pokes through many of them. Off: clothes hide the underwear they cover, which avoids that.",
+            "On: the underwear stays on under clothes, so a bra strap can show at an open neckline and briefs under a skirt. Each piece of clothing is worn just over it. Off: clothes hide the underwear they cover.",
           ),
           colours(
             "Colour",

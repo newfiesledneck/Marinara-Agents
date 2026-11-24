@@ -1611,7 +1611,8 @@
    "licence": "CC-BY-4.0",
    "author": "Elvaerwyn",
    "source": "http://www.makehumancommunity.org/node/2440",
-   "credit": "\"elvs_sporty_tracksuit_hoodie_dress1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2440), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"elvs_sporty_tracksuit_hoodie_dress1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2440), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.25
   },
   "elvs_swimwear_micro_shorts": {
    "label": "Swim shorts, gathered",
@@ -1801,7 +1802,8 @@
    "licence": "CC0-1.0",
    "author": "MatCreator",
    "source": "http://www.makehumancommunity.org/node/2991",
-   "credit": null
+   "credit": null,
+   "noUnderwear": true
   },
   "mindfront_ballet_dress_the_swan": {
    "label": "Ballet dress",
@@ -2012,7 +2014,8 @@
    "licence": "CC-BY-4.0",
    "author": "Mindfront",
    "source": "http://www.makehumancommunity.org/node/1234",
-   "credit": "\"mindfront_f_dress_05\" by Mindfront (http://www.makehumancommunity.org/node/1234), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"mindfront_f_dress_05\" by Mindfront (http://www.makehumancommunity.org/node/1234), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
   },
   "mindfront_f_dress_06": {
    "label": "Halter dress, teal",
@@ -2120,7 +2123,8 @@
    "licence": "CC-BY-4.0",
    "author": "Mindfront",
    "source": "http://www.makehumancommunity.org/node/1424",
-   "credit": "\"mindfront_f_dress_09\" by Mindfront (http://www.makehumancommunity.org/node/1424), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"mindfront_f_dress_09\" by Mindfront (http://www.makehumancommunity.org/node/1424), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
   },
   "mindfront_f_dress_10": {
    "label": "Gown with slits and gloves",
@@ -2146,7 +2150,8 @@
    "licence": "CC-BY-4.0",
    "author": "Mindfront",
    "source": "http://www.makehumancommunity.org/node/1426",
-   "credit": "\"mindfront_f_dress_10\" by Mindfront (http://www.makehumancommunity.org/node/1426), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"mindfront_f_dress_10\" by Mindfront (http://www.makehumancommunity.org/node/1426), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
   },
   "mindfront_f_dress_11": {
    "label": "Checked dress, half sleeves",
@@ -3015,7 +3020,8 @@
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/806",
-   "credit": "\"punkduck_evening_gown\" by punkduck (http://www.makehumancommunity.org/node/806), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_evening_gown\" by punkduck (http://www.makehumancommunity.org/node/806), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
   },
   "punkduck_female_short_jeans": {
    "label": "Denim shorts",
@@ -4079,7 +4085,8 @@
    "licence": "CC-BY-3.0",
    "author": "punkduck",
    "source": "http://www.makehumancommunity.org/node/662",
-   "credit": "\"punkduck_wetsuit\" by punkduck (http://www.makehumancommunity.org/node/662), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+   "credit": "\"punkduck_wetsuit\" by punkduck (http://www.makehumancommunity.org/node/662), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
   },
   "punkduck_winter_boots": {
    "label": "Winter boots",
