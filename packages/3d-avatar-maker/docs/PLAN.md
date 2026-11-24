@@ -746,6 +746,40 @@ painted in the hair's colour.
   Contact sheets of every style before and after (brown on pale skin, black on dark, the dwarf, talking and
   smiling, stubble, the scalp, the female body) are in the hand-over note.
 
+## Built: Generate avatar (0.1.14)
+
+The user asked for an avatar made from a character's description or portrait, and then for a second
+call that revises it from how it looks now.
+
+- **No server part.** The Engine's `POST /api/generate/raw` (since Engine 2.2.0; Story Writer's client uses
+  it too) takes a connection id and chat messages with `images` from the page, so the maker calls it
+  directly: no `routes` permission, no restart, and the package stays client only with `ui`. Wanderworld's
+  `/look-design` route was the plan; reading Story Writer showed it isn't needed.
+- **src/generate.js:**
+  - `cardOf(row)`: a card's appearance, description and personality, and its portrait path (only an image
+    under `/api/`);
+  - `textConnections`: the chat connections from `/api/connections`, names and models only;
+  - `designMenu()`: the options from `avatarChoices` for both bodies, each marked when only one body has it
+    (sliders, skins, hair, underwear, pieces by slot, packs included; about 16,000 characters with the
+    kit alone, 34,000 with both packs). The old one, copied from Wanderworld, is gone from avatar.js;
+  - `designMessages`: Generate (a whole look) or Revise (the settings now from `lookForModel`, the user's
+    note, and only the fields to change);
+  - `designedLook`: the answer through `readDesign`, with a new race brought in as choosing it does
+    (`racePreset`), merged part by part;
+  - `pictureData`: a portrait or a chosen file shrunk to 768 pixels, as a JPEG;
+  - `askModel`: the raw call, with the CSRF header and the admin secret as Wanderworld sends them.
+- **Revise** sends `stage.snapshots()`: the whole body (512 by 768) and the face (512 square, straight on),
+  drawn on a grey ground and read in the same task, then the user's view is put back.
+- **The Generate tab:** off until **Let a model design avatars** is ticked (kept in this browser). It shows
+  what each call sends, and offers Stop, Undo and the model's last answer. A call with pictures that fails
+  is asked again with the words alone.
+- `readDesign` now reads a stubble colour written `#rrggbb`.
+- The test page has a stand-in connection and model (`dev/serve.mjs`), which keeps the last request in
+  `dev/out/last-design-request.json`.
+- Checks: `cardOf`, `textConnections`, the menu (every female piece offered, humans only, under 60,000
+  characters), the messages (pictures in order, colours as `#rrggbb`, sliders as made left out), `readJson`
+  and `designedLook`.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -762,9 +796,8 @@ painted in the hair's colour.
    open hand, and the guitar's neck floats where a hand would hold it); a held piece for the other hand (each is
    fitted for one); skin texture layers (freckles, scars, tattoos) painted as the makeup is; patterns and
    pictures on clothing; more face sliders.
-7. **Generate avatar.** A server part with one route that asks a chosen model for a look from the card's
-   text, or from its portrait when the model can see pictures. Wanderworld's `designMenu`, `readDesign`
-   and `/look-design` route are the starting point. Off by default; needs `routes` and a restart.
+7. **Generate avatar, tried on real models.** Check how well a few connections (with and without sight)
+   follow the menu, and tune the instructions or the menu's wording from what they get wrong.
 8. **Anime style.** A head for each body built for it, eye pictures, a hair set, flat shading with an
    outline (MToon, VRM only). The body below the neck and all clothing are shared.
 

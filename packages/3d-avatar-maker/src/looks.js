@@ -1734,7 +1734,7 @@ export const CLOTH_HEX = {
 };
 
 /**
- * A look the AI designed (server.mjs `/look-design`), as a checked look: colours written "#rrggbb" (as the
+ * A look the AI designed (generate.js), as a checked look: colours written "#rrggbb" (as the
  * model is asked to) read as numbers, then every field through checkLook, so only what the lists have is
  * kept. Never the avatar (which 3D model shows) or a preset's name: a design is the built-in body's alone.
  */
@@ -1765,6 +1765,7 @@ export function readDesign(raw) {
         )
       : undefined,
     hairTint: colour(raw.hairTint),
+    stubble: isRecord(raw.stubble) ? { ...raw.stubble, colour: colour(raw.stubble.colour) } : undefined,
     clothColours: isRecord(raw.clothColours)
       ? Object.fromEntries(Object.entries(raw.clothColours).map(([piece, parts]) => [piece, colours(parts)]))
       : undefined,

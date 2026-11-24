@@ -21,7 +21,7 @@ const NAME = "3D Avatar Maker";
 const packageRoot = join(repoRoot, "packages", PACKAGE_ID);
 const artifactsDir = join(repoRoot, "artifacts");
 
-const VERSION = "0.1.13";
+const VERSION = "0.1.14";
 // A Home tab with its own icon, serving its own asset files (the kit: bodies, hair, clothing). The
 // Capability API and Engine minimum are Wanderworld's, the package this one began from, which uses the
 // same two surfaces (a Home tab and package assets).
@@ -136,12 +136,16 @@ const manifest = {
     { path: TAB_ICON, sha256: sha256(iconBuffer), bytes: iconBuffer.byteLength },
     ...kitPayloads.map((asset) => ({ path: asset.path, sha256: sha256(asset.buffer), bytes: asset.buffer.byteLength })),
   ],
-  // ui: it draws its own Home tab. It also reads your persona and character lists (names only) through the
-  //   Engine's same-origin routes, to offer who an avatar is for, and the installed-package list, to find
+  // ui: it draws its own Home tab. It also reads your persona and character lists through the Engine's
+  //   same-origin routes, to offer who an avatar is for (and, for Generate, what their card says of how
+  //   they look and their card picture), and the installed-package list, to find
   //   its wardrobe packs (active packages named 3d-avatar-maker-*, declaring avatar-pack.json), whose
   //   declared assets (the index and clothing bundles) it then reads and checks as data. It runs nothing
   //   from a pack. It writes nothing to the Engine: an avatar leaves as a file the user saves and imports
   //   under the 3D Avatars agent themselves. Drafts are kept in the browser under this package's own keys.
+  //   Generate (off until the user turns it on) reads the connection list (names and models) and sends what it
+  //   shows it sends to the Engine's own POST /api/generate/raw on the connection the user picks, as Story
+  //   Writer's client does; the answer is read as data through looks.js readDesign.
   permissions: ["ui"],
   // Client only, so it's ready as soon as it's installed.
   restartRequired: false,

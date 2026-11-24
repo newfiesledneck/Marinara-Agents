@@ -2428,4 +2428,111 @@ for (const figure of Object.values(made)) figure.dispose();
   }
   for (const figure of Object.values(bodies)) figure.dispose();
 }
+
+// ── Generate avatar (generate.js): what a card says, what the model is told, and how its answer is read ──
+{
+  const gen = await import("../packages/3d-avatar-maker/src/generate.js");
+  const { checkLook, NEUTRAL_LOOK } = looks;
+  // A character's V2 card kept as text, and a persona's flat row; only an Engine picture path is a portrait.
+  const character = gen.cardOf({
+    avatarPath: "/api/avatars/file/mira.png?v=2",
+    data: JSON.stringify({ data: { name: "Mira", description: "A baker.", extensions: { appearance: "Red hair." } } }),
+  });
+  assert.equal(character.words, "Appearance: Red hair.\nDescription: A baker.");
+  assert.equal(character.picture, "/api/avatars/file/mira.png?v=2");
+  const persona = gen.cardOf({
+    name: "Ash",
+    appearance: "Tall.",
+    personality: "Calm.",
+    avatarPath: "https://x.test/a.png",
+  });
+  assert.deepEqual(
+    persona,
+    { words: "Appearance: Tall.\nPersonality: Calm.", picture: null },
+    "no picture from elsewhere",
+  );
+  assert.equal(gen.cardOf({ avatarPath: "/api/avatars/file/../secret.png" }).picture, null);
+  assert.ok(gen.cardOf({ description: "word ".repeat(2000) }).words.length <= gen.MOST_WORDS + 1, "long cards are cut");
+  // Only chat connections, nothing but their names and models.
+  assert.deepEqual(
+    gen.textConnections([
+      { id: "c1", name: "Main", provider: "openai", model: "m", isDefault: "true", apiKey: "secret" },
+      { id: "c2", name: "Pictures", provider: "image_generation" },
+      { name: "no id" },
+    ]),
+    [{ id: "c1", name: "Main", model: "m", isDefault: true }],
+  );
+  // The menu names what each body has: the kit's sliders, skins, hair, underwear and clothes by slot.
+  const menu = await gen.designMenu();
+  for (const word of [
+    "eye_tilt:",
+    "jaw_forward:",
+    "race_dwarf:",
+    "bronze (",
+    "underwear:",
+    "bra (",
+    "Legs (",
+    "stubble:",
+  ])
+    assert.ok(menu.includes(word), `the menu has ${word}`);
+  assert.ok(!/species|\bwolf\b|scales/u.test(menu), "humans only");
+  const female = await avatarChoices("female");
+  for (const piece of female.clothes.map(({ piece }) => piece))
+    assert.ok(menu.includes(`${piece} (`), `${piece} is offered`);
+  assert.ok(menu.length < 60000, `the menu stays a size a model reads (${menu.length} characters)`);
+  // The messages: a portrait, and to revise, the look now and its pictures after it.
+  const made = gen.designMessages({
+    name: "Mira",
+    words: "Red hair.",
+    menu: "MENU",
+    picture: "data:image/jpeg;base64,AA",
+  });
+  assert.equal(made[1].images.length, 1);
+  assert.ok(!made[1].content.includes("settings now"), "a new design isn't shown a look");
+  const revise = gen.designMessages({
+    mode: "revise",
+    name: "Mira",
+    words: "",
+    menu: "MENU",
+    current: {
+      body: "female",
+      colours: { skin: 0x112233 },
+      shape: { jaw: 0, nose: 0.5 },
+      makeup: { lipstick: { amount: 1 } },
+    },
+    views: ["data:b", "data:f"],
+    note: "older",
+  });
+  assert.deepEqual(revise[1].images, ["data:b", "data:f"]);
+  assert.match(revise[1].content, /"skin":"#112233"/u);
+  assert.match(revise[1].content, /"shape":\{"nose":0\.5\}/u, "a slider as made isn't listed");
+  assert.match(revise[1].content, /"lipstick":\{"amount":1\}/u, "an amount stays a number");
+  assert.match(revise[1].content, /What the user wants changed: older/u);
+  assert.equal(gen.designMessages({ name: "A", words: "", menu: "M" })[1].images, undefined, "no pictures, no images");
+  // The answer: JSON past thinking and prose, read as a look of the maker's options only.
+  assert.deepEqual(gen.readJson('<think>{"no":1}</think>Here: {"hair": "bob"} done'), { hair: "bob" });
+  assert.equal(gen.readJson("no look"), null);
+  const base = checkLook({ ...NEUTRAL_LOOK, body: "female", clothes: ["boots"], hair: "none" });
+  const { look, design } = gen.designedLook(base, {
+    race: "dwarf",
+    shape: { nose: 0.4, nonsense: 3 },
+    colours: { eyes: "#3366aa" },
+    stubble: { shape: "light", colour: "#221100" },
+    clothes: ["not_a_piece"],
+    avatar: "vrm",
+  });
+  assert.equal(design.avatar, undefined, "never the avatar a card shows");
+  assert.equal(look.race, "dwarf");
+  assert.equal(look.shape.race_dwarf, 1, "a new race brings its build, as choosing it does");
+  assert.equal(look.shape.nose, 0.4);
+  assert.equal(look.colours.eyes, 0x3366aa);
+  assert.equal(look.stubble.colour, 0x221100, "stubble's colour read from #rrggbb");
+  assert.deepEqual(look.clothes, [], "a made-up piece isn't kept");
+  const kept = gen.designedLook(base, { colours: { lips: "#aa2233" } }).look;
+  assert.deepEqual(
+    [kept.clothes, kept.hair, kept.colours.lips],
+    [["boots"], "none", 0xaa2233],
+    "a revision keeps the rest",
+  );
+}
 console.log("3d-avatar-maker.regression: ok");

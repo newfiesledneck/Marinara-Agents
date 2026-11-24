@@ -12,7 +12,7 @@ VRM the eyes move, and long hair, skirts, dresses, coats and the bust swing too.
 1. Install **3D Avatar Maker** from **Agents → Agent Organizer**. It needs no restart.
 2. Open **Home → 3D Avatar Maker**.
 3. In **For**, pick the character or persona the avatar is for, or leave it on a free draft.
-4. Work through the tabs: **Body**, **Face**, **Skin and eyes**, **Hair**, **Clothes**. Drag the picture to
+4. Work through the tabs: **Body**, **Face**, **Skin and eyes**, **Hair**, **Clothes**, or let a model start you off on the **Generate** tab (optional, below). Drag the picture to
    turn the avatar, scroll or pinch to zoom, and use **Whole body** and **Face** to jump between views. The
    **Face** list under the picture plays the face's moves: blinking and looking at you, talking, or one
    expression held. In the pose list, **Moving** turns the head and hips now and then and lifts each knee in a
@@ -128,8 +128,30 @@ of it rests as it was made.
 ## Works without AI
 
 Everything here runs in your browser from the package's own files. Nothing is sent to an AI model or to
-any outside service. Designing an avatar from a description or a portrait with a model you choose is
-planned as an optional extra, off unless you turn it on.
+any outside service unless you turn on **Generate** (below).
+
+## Generate with AI (optional)
+
+The **Generate** tab can have a model design the avatar for you. It's off until you tick **Let a model
+design avatars**, and the rest of the maker works the same without it.
+
+- **Connection** is one of your Engine connections. The call goes through the Engine's own route, as a chat
+  does, so it uses that connection's key and costs what a message on it costs.
+- **About them** is what the model reads about the character or persona. It's filled from their card's
+  appearance, description and personality, and you can change it or write your own for a free draft.
+- **Send their portrait too** adds their card picture, at most 768 pixels across, for a model that can see
+  pictures. **Use another picture…** sends one you choose instead. If the model refuses pictures, the maker
+  asks again with the words alone and says so.
+- **Generate avatar** asks for a whole new look in place of the one on show.
+- **Revise avatar** sends the avatar's settings as they are now, two pictures of it (whole body and face,
+  unless you untick that) and what you write under **What to change**. It asks only for what to change, so
+  you can generate, adjust by hand, and then ask for a closer match to the portrait.
+- **Undo the design** puts back the look from before the last design. **The model's last answer** shows
+  what came back.
+
+Each call also sends the list of the maker's options, about 15,000 to 35,000 characters depending on the
+wardrobe packs installed, so the model can only choose things the maker has. Anything else in its answer
+is dropped. Nothing is saved in the Engine: the look goes into the maker like any change you make.
 
 ## Credits and licence of what you make
 

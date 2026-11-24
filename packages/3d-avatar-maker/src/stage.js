@@ -9,6 +9,7 @@ import {
   PerspectiveCamera,
   Scene,
   SRGBColorSpace,
+  Vector2,
   Vector3,
   WebGLRenderer,
 } from "three";
@@ -27,7 +28,7 @@ export const POSES = [
 
 /**
  * A stage in `canvas`: { show(figure), setPose(pose), setFace(mode), setMotion(id), pauseMotion(paused),
- * view("body" | "face"), resize(), dispose(), failed }. The face plays `mode` (face.js FACE_MODES) in every
+ * view("body" | "face"), snapshots(), resize(), dispose(), failed }. The face plays `mode` (face.js FACE_MODES) in every
  * pose, and the hair, hanging clothes, the bust and a tail swing on their springs (springs.js) as the body
  * moves; with reduced motion they rest. An animation (motions.js MOTIONS) plays over the pose only when the user
  * picks one, reduced motion or not, and the Face and Hand views follow the part they show while it plays.
@@ -47,6 +48,7 @@ export function createStage(canvas) {
       setMotion: none,
       pauseMotion: none,
       view: none,
+      snapshots: () => [],
       resize: none,
       dispose: none,
     };
@@ -219,6 +221,50 @@ export function createStage(canvas) {
       motion.pause(paused);
     },
     view,
+    /**
+     * The avatar as it looks now, for a model to compare (generate.js): JPEG data URLs of the whole body
+     * (512 by 768) and the face (512 square), each from its own view on a grey ground. The view the user
+     * had is put back.
+     */
+    snapshots() {
+      if (!figure) return [];
+      const size = renderer.getSize(new Vector2());
+      const ratio = renderer.getPixelRatio();
+      const had = { position: camera.position.clone(), target: controls.target.clone(), viewing };
+      const shots = [];
+      renderer.setPixelRatio(1);
+      renderer.setClearColor(0x9a9a9a, 1);
+      for (const [which, width, height] of [
+        ["body", 512, 768],
+        ["face", 512, 512],
+      ]) {
+        renderer.setSize(width, height, false);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        view(which);
+        if (which === "face") {
+          // (Straight on and centred, close enough for the model to read the features.)
+          const at = figure.humanoid.head.getWorldPosition(head).y + 0.05;
+          controls.target.set(0, at, 0);
+          camera.position.set(0, at + 0.01, 0.7);
+          controls.update();
+        }
+        renderer.render(scene, camera);
+        // (Read in the same task as the drawing: the canvas keeps no copy of it once the page is drawn.)
+        shots.push(canvas.toDataURL("image/jpeg", 0.85));
+      }
+      renderer.setClearColor(0x000000, 0);
+      renderer.setPixelRatio(ratio);
+      renderer.setSize(size.x, size.y, false);
+      camera.aspect = size.x / size.y;
+      camera.updateProjectionMatrix();
+      viewing = had.viewing;
+      camera.position.copy(had.position);
+      controls.target.copy(had.target);
+      controls.update();
+      renderer.render(scene, camera);
+      return shots;
+    },
     resize,
     dispose() {
       disposed = true;
