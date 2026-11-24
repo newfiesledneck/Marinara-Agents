@@ -1,5 +1,9 @@
 # 3D Avatar Maker release notes
 
+## 0.1.15 — 2026-11-23
+
+- Fixed: reopening the maker went back to the free draft instead of the character or persona you were last working on.
+
 ## 0.1.14 — 2026-11-23
 
 - A new **Generate** tab lets a model on one of your connections design the avatar from a character's or persona's card, and their portrait if you tick it. **Revise avatar** sends the avatar as it looks now, with what you'd like changed, and asks only for what to change. **Undo** puts the last look back.

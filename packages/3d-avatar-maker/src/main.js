@@ -475,7 +475,8 @@ function mount(element, props) {
   render();
   // The wardrobe packs first (packs.js): a draft read before them would lose the pack pieces it wears. Then
   // the free draft, so there is something to see while the Engine's lists load, and then whoever was being
-  // worked on last time.
+  // worked on last time (read now: showing the free draft notes it as the last one worked on).
+  const last = store.read(LAST_KEY);
   const listed = listOwners();
   void loadPacks()
     .then(() => {
@@ -486,7 +487,6 @@ function mount(element, props) {
     .then((owners) => {
       if (destroyed || !owners) return;
       state.owners = owners;
-      const last = store.read(LAST_KEY);
       const key = last ? `${last.type}:${last.id}` : "";
       fillOwners();
       if (key && owners.some((owner) => `${owner.type}:${owner.id}` === key)) {

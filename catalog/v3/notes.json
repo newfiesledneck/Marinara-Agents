@@ -26,6 +26,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.15",
+          "date": "2026-11-23",
+          "notes": "- Fixed: reopening the maker went back to the free draft instead of the character or persona you were last working on.",
+          "highlight": false
+        },
+        {
           "version": "0.1.14",
           "date": "2026-11-23",
           "notes": "- A new **Generate** tab lets a model on one of your connections design the avatar from a character's or persona's card, and their portrait if you tick it. **Revise avatar** sends the avatar as it looks now, with what you'd like changed, and asks only for what to change. **Undo** puts the last look back.\n- It's off until you turn it on, says what each call sends, and needs no restart. Everything else works without it.",
