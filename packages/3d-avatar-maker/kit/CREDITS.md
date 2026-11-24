@@ -54,11 +54,17 @@ Items from the MakeHuman community asset packs, each CC0 by its pack catalogue a
 Released as CC0 1.0 by their maker.
 
 - In the bodies' files (`make_avatar.py`): the races' shapes (dwarf, halfling, gnome, elf, half-orc,
-  tiefling), the tusks, horns, the tiefling's tail, the beards and the moustache, the eyeballs, the
-  underwear styles, the finger bones and weights. The face
+  tiefling), the tusks, horns, the tiefling's tail, the eyeballs, the underwear styles, the finger bones
+  and weights.
+- The facial hair in the bodies' files (`make_avatar.py`, its strand picture by `wwavatar.py`): six beards
+  (short and boxed, full, long, a dwarf's with braids, a goatee with a moustache, mutton chops) and the
+  moustache, rebuilt as cards of strands fanned along the face, and the picture of locks they're cut from. The face
   and body sliders' shapes are MakeHuman's targets (CC0), chosen and paired by ThatOneCan.
 - `avatar/avatar-<sex>-masks.png`: where the lips are in the skin picture, made from the bodies by
   `scripts/build-3d-avatar-maker-masks.mjs`.
+- `avatar/avatar-<sex>-hair-masks-<n>.png`: where each facial hair style grows, where the kit's hair styles
+  lie on the scalp, and stubble's full beard, in the skin picture, made by the same script from the bodies'
+  beards and the kit's hair styles.
 - `avatar/avatar-makeup-masks.png`: where the eyeshadow, eyeliner and blush go in the skin picture, made by
   the same script from where toigo's made-up skins (CC0) differ from the plain skins they were painted on.
 - In the hair files (`make_hair.py`): the parted, buns, shaved and mohawk hair styles.

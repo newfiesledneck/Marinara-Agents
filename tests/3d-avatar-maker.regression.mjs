@@ -200,6 +200,101 @@ for (const body of ["male", "female"]) {
   assert.deepEqual([...texels.subarray(4, 7)], [228, 50, 25], "half blush is half way to its colour");
   assert.deepEqual([...texels.subarray(8, 11)], [200, 100, 50], "no eyeshadow leaves the skin");
   assert.deepEqual(makeupLayers({}), [null, null, null], "no makeup, nothing to paint");
+
+  // The hair masks: each body's three files, half the skin picture's size, every mask HAIR_MASKS names
+  // there (each facial hair style's ground, the scalp, stubble's full beard), none on the lips, and the
+  // smaller styles inside the full beard's ground.
+  const { HAIR_MASKS, HAIR_MASK_FILES, STUBBLE_SHAPES, hairLayers, hairTexel } =
+    await import("../packages/3d-avatar-maker/src/skin.js");
+  for (const body of ["male", "female"]) {
+    const files = await Promise.all(HAIR_MASK_FILES.map((_, n) => maskOf(`avatar-${body}-hair-masks-${n}.png`)));
+    const count = {};
+    for (const [name, [file, channel]] of Object.entries(HAIR_MASKS)) {
+      const { width, at } = files[file];
+      assert.equal(width, 1024, `${body}: the hair masks are 1024 across`);
+      let full = 0;
+      for (let y = 0; y < width; y++)
+        for (let x = 0; x < width; x++) {
+          const value = at(x, y, channel);
+          if (value > 128) full++;
+          if (value && lipsAt[body](x * 2, y * 2, 1) > 128 && name !== "scalp")
+            assert.ok(value < 64, `${body}: ${name} keeps off the lips (${x}, ${y})`);
+        }
+      count[name] = full;
+      assert.ok(full > 200, `${body}: the ${name} mask has its ground (${full} texels)`);
+    }
+    assert.ok(count["moustache-01"] < count["beard-05"], `${body}: a moustache grows on less than a goatee`);
+    assert.ok(count["beard-05"] < count["beard-02"], `${body}: a goatee on less than a full beard`);
+    assert.ok(count["beard-06"] < count["beard-02"], `${body}: mutton chops on less than a full beard`);
+    assert.ok(count.scalp > count["beard-02"], `${body}: the scalp's mask is bigger than a beard's`);
+  }
+  // Under hair, the skin goes towards the hair's colour as far as the mask says; stubble adds fine hairs.
+  const under = hairLayers({ facialHair: "beard-02", scalp: true, hair: 0x402010 });
+  assert.deepEqual(
+    under.map((layer) => layer.mask),
+    [HAIR_MASKS.scalp, HAIR_MASKS["beard-02"]],
+    "a hair style and a beard: the scalp's mask and the beard's",
+  );
+  const skinTexel = () => new Uint8ClampedArray([220, 180, 160, 255]);
+  const beardOnly = under.filter((layer) => layer.mask === HAIR_MASKS["beard-02"]);
+  const shaded = skinTexel();
+  hairTexel(shaded, 0, beardOnly, [0, 255, 0], 0, 10, 10, 2048);
+  assert.ok(shaded[0] < 120 && shaded[0] > 0x40, `under a beard the skin is near the hair's colour (${shaded[0]})`);
+  const bare = skinTexel();
+  hairTexel(bare, 0, beardOnly, [0, 0, 0], 0, 10, 10, 2048);
+  assert.deepEqual([...bare.subarray(0, 3)], [220, 180, 160], "outside the mask the skin is as it was");
+  assert.deepEqual(hairLayers({ facialHair: "none", scalp: false, hair: 0x402010 }), [], "no hair, nothing to paint");
+  assert.deepEqual(
+    STUBBLE_SHAPES.map(([shape]) => shape),
+    looks.STUBBLE.map(([shape]) => shape),
+    "the skin paints every stubble shape the look offers",
+  );
+  for (const [, mask] of STUBBLE_SHAPES) assert.ok(HAIR_MASKS[mask], `stubble's mask ${mask} is a hair mask`);
+  // Stubble: some texels are fine hairs, darker than the shadow between them, and denser stubble has more.
+  const hairsAt = (density) => {
+    const [layer] = hairLayers({ facialHair: "none", hair: 0x201008, stubble: { shape: "heavy", density } });
+    let hairs = 0;
+    for (let x = 0; x < 400; x++) {
+      const texel = skinTexel();
+      hairTexel(texel, 0, [layer], [0, 0, 255], 0, x, 7, 2048);
+      if (texel[0] < 120) hairs++;
+    }
+    return hairs;
+  };
+  assert.ok(
+    hairsAt(1) > hairsAt(0.3) && hairsAt(0.3) > 0,
+    `denser stubble, more hairs (${hairsAt(1)}, ${hairsAt(0.3)})`,
+  );
+}
+
+// ── Facial hair and stubble in a look ──
+{
+  const { FACIAL_HAIR, STUBBLE, STUBBLE_DENSITY } = looks;
+  // Every style id there has been still opens, the race presets' among them.
+  for (const id of ["beard-01", "beard-02", "beard-03", "beard-04", "beard-05", "moustache-01", "beard-06"])
+    assert.equal(checkLook({ facialHair: id }).facialHair, id, `${id} opens`);
+  assert.ok(
+    FACIAL_HAIR.some(([id]) => id === racePreset("dwarf", "male").facialHair),
+    "the dwarf's beard is offered",
+  );
+  assert.equal(checkLook({ facialHair: "beard-99" }).facialHair, undefined, "an unknown style is left out");
+  // Stubble: none unless chosen, one of its shapes, its density within 0 and 1 (missing: the usual), a colour
+  // of its own or none.
+  assert.equal(checkLook({ body: "male" }).stubble, undefined, "no stubble unless chosen");
+  assert.deepEqual(checkLook({ stubble: { shape: "light" } }).stubble, { shape: "light", density: STUBBLE_DENSITY });
+  assert.deepEqual(checkLook({ stubble: { shape: "heavy", density: 3, colour: 0x111111 } }).stubble, {
+    shape: "heavy",
+    density: 1,
+    colour: 0x111111,
+  });
+  assert.equal(checkLook({ stubble: { shape: "short", density: -2 } }).stubble.density, 0, "density at least 0");
+  assert.equal(checkLook({ stubble: { shape: "goatee", density: 0.12345 } }).stubble.density, 0.123, "rounded");
+  for (const bad of [{ shape: "beard" }, { density: 0.5 }, "light", { shape: "light", colour: "red" }])
+    assert.ok(
+      !checkLook({ stubble: bad }).stubble || checkLook({ stubble: bad }).stubble.colour === undefined,
+      `refused: ${JSON.stringify(bad)}`,
+    );
+  assert.equal(STUBBLE.length, 5, "light and heavy stubble, moustache and goatee shadows, a short beard");
 }
 
 // ── Makeup in a look: checked, bounded, and the made-up skins there were opening as their plain skin ──

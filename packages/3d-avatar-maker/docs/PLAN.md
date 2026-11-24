@@ -362,7 +362,6 @@ chest sways a little as the body turns (`src/bust.js`).
   under 0.1 mm), his chest with none as built or muscular, and one at the half-orc's full chest. A GLB keeps
   the bones and a VRM writes the springs.
 
-
 ## Built: animations in the preview
 
 - **The list.** An Animation list under the picture, beside the pose and Face lists, with Pause and Stop.
@@ -403,7 +402,7 @@ chest sways a little as the body turns (`src/bust.js`).
   - talking and the phone call move the mouth;
   - celebrating smiles;
   - surprise and crying show their feelings.
-  Any other Face choice wins.
+    Any other Face choice wins.
 - **Views.** While an animation plays, the Face and Hand views follow the head or the left hand, easing
   after it. Whole body and Feet stay where they are.
 - **Reduced motion.** Nothing moves on its own, as before. An animation plays only when the user picks one,
@@ -421,8 +420,8 @@ chest sways a little as the body turns (`src/bust.js`).
   - the hands never inside the hips at their widest;
   - back exactly at rest when stopped;
   - a GLB, and a VRM mid-crouch, the same as one saved at rest.
-  Contact sheets of posed models rendered in Blender were looked over for broken joints, hands in the body
-  and feet off the floor.
+    Contact sheets of posed models rendered in Blender were looked over for broken joints, hands in the body
+    and feet off the floor.
 
 ## Built: makeup of your own
 
@@ -623,6 +622,72 @@ What it does now:
   to 15 cm higher, at the natural waist (`make_outfit.py` `region_top` of the hips).
 - Every kit `mh_*` piece and every pack piece was refitted. `fit: "helpers"` in `assets/packs.json` fits a
   piece the old way.
+
+## Built: new beards and painted hair on the skin
+
+The beards were blotchy patches with hard ragged edges, pale skin showed through them and in a ring round
+the mouth, and the dwarf's braided beard read as noise. They're remade, and the skin under any hair is now
+painted in the hair's colour.
+
+- **The styles** (looks.js `FACIAL_HAIR`; every id kept, so saved looks and the dwarf preset open as before):
+  short and boxed (`beard-01`), full (`beard-02`), long (`beard-03`), the dwarf's long beard with two braids
+  (`beard-04`), a goatee with a moustache (`beard-05`), a moustache (`moustache-01`), and mutton chops
+  (`beard-06`, new).
+- **Cards fanned along the face** (`make_avatar.py` `Beards`, `Hair.sheet`). Each card is a strip about
+  3 cm wide whose roots run in a row under the skin, its strands lying down the face and lifting off it
+  towards their tips.
+  - **Rows.** Seen from a point inside the chin, each row is the skin at one height, so rows run along
+    the jaw and round under the chin. Along a row the cards overlap by about a third; each row's tips lie
+    over the next row's roots.
+  - **Edges.** Three more rows follow the edges that rows at one height leave in steps: the cheek line
+    and the lips' edges above and below. That closes the ring round the mouth. A card's strands are
+    shorter at its ends and towards the edge of where the style grows, and the cards nearest the edge
+    use the texture's sparse band, so the cheek line is soft.
+  - **Long beards.** From the jaw line down, long locks lie a little way down the face, then hang, turned
+    in towards the middle so the beard narrows to a point. They move with the chin.
+  - **Braids.** The dwarf's braids are three solid strands plaited (each crosses over the middle in
+    turn), with a tie and a tuft, lying on the beard's front.
+  - **The surface hair lies on.** The skin without the mouth's inside. Under the lower lip the mouth's
+    inside was nearer than the chin, and hair pushed off it went into the mouth.
+- **The texture** (`wwavatar.py` `facial_hair_texture`, 1,024 px): bands the full width of the picture, each
+  running on from its right edge into its left, so the cards along a row show no join. There are three bands of short hair
+  (dense, thinner, sparse), one of long hair, a braid's strands and a tie. The strands are drawn in locks,
+  darker at their sides and roots, so a beard shows locks rather than flecks.
+- **Faces.** The beards follow the face keys as before (talking, smiling): each card's column follows the
+  skin at its root, and `keep_clear` keeps hanging hair off the chest.
+- **Size.** The beards have about 30,000 vertices in all, as before (27,000). The models are 72.4 MB
+  (male, from 68.8) and 85.1 MB (female, from 79.0).
+
+### The skin under hair (`src/skin.js`)
+
+- **Masks** (`scripts/build-3d-avatar-maker-masks.mjs`). For each body, three files at 1,024 px,
+  `avatar-<sex>-hair-masks-<n>.png`, with three masks each (`HAIR_MASK_FILES`, `HAIR_MASKS`):
+  - **Facial hair.** One mask for each style: the skin within a few millimetres of its roots and of the
+    hair lying close on it, softened, kept off the lips and the mouth's inside.
+  - **The scalp.** One mask for every hair style: where at least about half of the kit's hair styles lie
+    on the scalp. The styles all cover the crown and differ mostly at the hairline, so one soft mask
+    pulled in from the hairline serves every style, including a pack's, and doesn't need remaking when a
+    style is added.
+  - **Stubble.** A softer, wider version of the short beard's mask.
+- **Painting** (`hairLayers`, `hairTexel`). Under the facial hair worn, and under a hair style while
+  nothing hides the hair, the skin is painted towards the hair's colour (72% under a beard, 60% under a
+  hair style). This uses the makeup's blend, painting over rather than multiplying, so a dark beard on pale
+  skin shows no pale gaps. These layers go on after the lips and before the makeup.
+- **Stubble** (looks.js `STUBBLE`, `stubble: { shape, density, colour }`; none unless chosen). It's offered on
+  the Face tab beside the beards: light or heavy stubble, a moustache or goatee shadow, or a short beard.
+  - **Colour.** Its own, or the hair's (a little darker).
+  - **Density.** From sparse to dense.
+  - **The look of it.** Painted through the masks with a grain of fine hairs. Each hair is three texels
+    down the face, fixed to its place in the skin picture, so stubble reads as short hairs.
+- **Checked** in the regression test:
+  - the hair masks have their channels, smaller styles inside the full beard's, none on the lips;
+  - the blend paints towards the hair's colour as far as the mask says;
+  - denser stubble lays more hairs;
+  - every beard id still opens;
+  - `stubble` is checked and bounded in `checkLook`.
+
+  Contact sheets of every style before and after (brown on pale skin, black on dark, the dwarf, talking and
+  smiling, stubble, the scalp, the female body) are in the hand-over note.
 
 ## Next, in order
 
