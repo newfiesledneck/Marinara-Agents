@@ -53,7 +53,7 @@ wore one opens on its plain skin with that makeup.
 
 ## Wardrobe packs
 
-More clothes come as two separate packages you install from the catalog: 3D Avatar Maker: Clothes (186
+More clothes come as two separate packages you install from the catalog: 3D Avatar Maker: Clothes (194
 garments: dresses, suits, tops, trousers, skirts, underwear, lingerie, swimwear and shoes) and 3D Avatar Maker:
 Accessories (97 pieces: hats, helmets, glasses, masks, jewellery, gloves and socks, horns, wings, tails and
 things to hold or carry, and 14 hair styles). Both are mostly CC BY. They

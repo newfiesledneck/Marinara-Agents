@@ -131,7 +131,7 @@ fitter flagged again on the heavy, muscular body (heavy, muscle, belly and bust 
 - Added to Clothes (CC BY 3.0 or 4.0 as each item's files say, unless CC0):
   - dresses: dress01_cc0 toigo_dress_with_tiered_skirt, toigo_keyhole_neck_dress (CC0); dress02_cc-by
     elvs_double_handkerchief_halter_dress, elvs_frilled_party_dress, elvs_fringe_hippy_dress,
-    elvs_fringe_leather_dress, elvs_goddess_dress5 (fitted with `skin: false`), elvs_halter_dress_knee_length,
+    elvs_fringe_leather_dress, elvs_goddess_dress5, elvs_halter_dress_knee_length,
     _long, _mini and _tiered, elvs_sarong_cover_up (a wrap dress, so a whole outfit), elvs_simple_60s_dress,
     elvs_simple_fashion_dress_1 and _2; dress03_cc-by mindfront_ballet_dress_the_swan, mindfront_f_dress_01,
     _02, _03, _04, _06, _07, _08 and _11, punkduck_black_cocktail_dress, punkduck_figure_skating_dress,
@@ -162,8 +162,7 @@ fitter flagged again on the heavy, muscular body (heavy, muscle, belly and bust 
     punkduck_female_strapless_bodysuit, punkduck_halterneck_romper, punkduck_one_piece_bikini01,
     punkduck_shapewear;
   - shoes: shoes01_cc0 toigo_ballet_flats_with_flowers (CC0); shoes02_ccby elvs_flatshoe_bow1, _gemmed1 and
-    _plain1, elvs_male_flip_flop_sandals1 (hides nothing: the feet show), mindfront_shoes_monk_strap_female
-    (fitted at `clearance: 0.001`), punkduck_cycling_shoes; shoes03_ccby madmanny_tight_leather_boots.
+    _plain1, elvs_male_flip_flop_sandals1 (hides nothing: the feet show), mindfront_shoes_monk_strap_female, punkduck_cycling_shoes; shoes03_ccby madmanny_tight_leather_boots.
 - Added to Accessories: hats03_cc-by and hats04_cc-by elvs_santa_hat, elvs_unisex_chef_hat_1,
   mindfront_fishing_hat_01, mindfront_patrol_cap, punkduck_sun_visor_sports_visor, punkduck_swim_cap,
   mindfront_helmet_kz45, punkduck_bicycle_helmet_time_trial_aero_helmet (its print names the author's own
@@ -192,15 +191,13 @@ fitter flagged again on the heavy, muscular body (heavy, muscle, belly and bust 
   punkduck_teddy_erotic_lingerie, punkduck_french_lingerie_suspender_belt (no slot fits it either), and after
   fitting elvs_bow_front_bra and elvs_bow_bottom_panty (open cups and an open back leave the breasts and
   buttocks bare).
-- Left out for the fitting, not the item (the faults come from `make_mh_clothes.py`'s push off the skin under
-  every shape key and its one clearance for every layer; retry these once the fitting is reworked):
-  - mindfront_f_dress_05, _09 and _10 and punkduck_evening_gown: their floor-length hems run through the flat
-    feet, and pushed off them they break into spikes (refitted with `skin: false`, still spiky);
-  - matcreator_mc-skinsuit_2022: spikes at the feet and skin through all over;
-  - thegreatengineer_galactic_warrior_uniform: its belt and knee bands flare into flaps on a heavier body;
-  - elvs_sporty_tracksuit_hoodie_dress1 and punkduck_wetsuit: their cuffs break into spikes on a heavier body;
-  - mindfront_shoes_monk_strap_male: its own sock shows through the heel, still at 1 mm clearance (the female
-    one is in).
+- Left out for the fitting at first, then added once it was reworked (`docs/PLAN.md` "clothes that keep their
+  shape"): mindfront_f_dress_05, _09 and _10 and punkduck_evening_gown (floor-length hems that broke into
+  spikes at the feet), matcreator_mc-skinsuit_2022 (spikes at the feet), elvs_sporty_tracksuit_hoodie_dress1 and
+  punkduck_wetsuit (cuffs broke into spikes on a heavier body) and mindfront_shoes_monk_strap_male (its sock showed
+  through the heel). thegreatengineer_galactic_warrior_uniform stays out: its belt and knee bands now hold, but on
+  the heavy, muscular build its elbow bands still flare into flat plates. elvs_goddess_dress5 and mindfront_shoes_monk_strap_female no longer need `skin: false` and
+  `clearance: 0.001`.
 - Left out for the item itself, after rendering:
   - joachip_cyborg_suit: a crude low-poly costume with skin through a gap at the back;
   - matcreator_mc-scifi-armor_guardian: only boots and bracers, two slots in one piece, and the toes break up;

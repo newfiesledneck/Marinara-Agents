@@ -580,6 +580,50 @@ The maker's code waits for its 0.1.11 release; the packs that use it are Clothes
   the T-pose and with the head and hands turned. Worn under a vest, a T-shirt, jeans, a sweater and a cap, the
   belly pieces, anklet, necklace, bangle and headset showed no gap in `COVERED_BY`, so it is unchanged.
 
+## Built: clothes that keep their shape
+
+The community clothes looked worse fitted than in their own pictures: a strip torn out of a tiered skirt's
+back, lumpy skirts with jagged hems, leggings and socks showing through what's worn over them. What was wrong,
+found by rendering each piece as MakeHuman places it beside ours (Blender, EEVEE, front, side, back and close):
+
+- **The helpers were guessed.** Most clothes hang on MakeHuman's helper meshes (the tights, the skirt), which
+  our bodies don't have. They were rebuilt from the base mesh's nearest body points, so between the legs a
+  skirt's helper followed one leg or the other: the torn strip, there at rest before any pose.
+- **Every point was pushed on its own.** Wherever cloth sank into the skin, that point and whole faces were
+  lifted, at rest and for each shape key, which left lumps and a crease.
+- **Every piece was pushed off the skin by the same 2.5 mm**, so an inner and an outer layer met in the same
+  place.
+
+What it does now:
+
+- **Fitted as MakeHuman fits it** (`wwmhclo.py` `Fitted.carried`). A piece is fitted to MakeHuman's own version
+  of our body: the same targets on hm08, its helpers moved by them, so it sits exactly where MakeHuman puts it.
+  Then it's carried onto our body (stood in the A-pose and smoothed) by how the body near each point moved.
+- **Weights and keys from the body near it.** Near the skin, the skin under it; hanging off, a wide, even
+  average of the body round it, so a skirt's hem moves as one piece and doesn't split between the legs.
+  Cloth that isn't a sleeve or a glove takes nothing from the arms or hands, and a limb's cloth nothing from
+  the other limb (but within 3 cm of the middle, where a skirt crosses between the legs, it takes both). The
+  moves, weights and keys are then evened out over the cloth a little: between the thighs the body under a
+  point switches legs within a centimetre, which had torn a zigzag crease down a pencil skirt's front.
+  Vertices split at a texture seam count as one, so no lift opens the seam.
+- **Lifted in one swell** (`push_out(smooth=True)`): where cloth still sinks in, the lift spreads and fades over
+  about a dozen rings and is smoothed, at rest and for each key. Faces along the skin's normal (a thick
+  band's rim) and skin on the hands and feet don't call for a lift: the first were pushed again every round
+  and key into flat flaps (the galactic uniform's belt), the second threw a skinsuit's feet into lumps.
+- **Layers tucked when worn** (`src/layers.js`, `avatar.js`). The maker wears pieces from the outermost in and
+  moves each inner layer's points to 1.5 mm under every layer over it, along the skin's normal, fading the move
+  over three edges past its edge. Underwear (the body's styles and any `underwear…` slot) is under everything;
+  at the same layer socks are under trousers and a top is over them. Only what's under cloth moves, so a bra
+  strap still shows at an off-shoulder neckline and briefs under a skirt.
+- **Checked** in the regression test: inner pieces are left nowhere over the pieces worn over them (socks under
+  leggings, leggings under a crop top, jeans under a tee, a top under a jacket), and nothing on the legs or feet
+  is weighted to the arms.
+- **Waists.** A trouser or skirt waist sits where MakeHuman puts it on MakeHuman's version of our body, within
+  2 mm, before and after; it wasn't the fitting. The Blender-made trousers, shorts, leggings and skirts sit 10
+  to 15 cm higher, at the natural waist (`make_outfit.py` `region_top` of the hips).
+- Every kit `mh_*` piece and every pack piece was refitted. `fit: "helpers"` in `assets/packs.json` fits a
+  piece the old way.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -629,6 +673,17 @@ The maker's code waits for its 0.1.11 release; the packs that use it are Clothes
 - Underwear shown under clothes pokes through many clothes until the fitting allows for it, the kit's everyday
   tee, jeans and trousers among them, so the setting starts off for now.
   The suspender belt is a Belt piece, so a skirt doesn't hide it.
+
+- Layers are tucked as the avatar stands. Posed, each layer bends with its own weights, so near a bending
+  joint an inner layer can still come through by a millimetre or two.
+- A tucked layer may sink under the skin where it's under cloth. Under a see-through outer piece (lace) the
+  skin would show there instead of the layer.
+- The Blender-made trousers, shorts, leggings and skirts sit at the natural waist, 10 to 15 cm above where
+  the MakeHuman ones do.
+- On the heavy, muscular build, trouser legs still meet where the thighs press together, as the old fit did.
+- Thick bands round a sleeve can still flare on the heavy build: the galactic warrior uniform's elbow bands
+  do, so it stays out of the Clothes pack.
+- Full skirts hang a little narrower than in MakeHuman's pictures, where the legs stand apart.
 - Drafts live in the browser only.
 - Makeup presets match their old skins' makeup but not every skin's tone: Toigo graded each made-up skin's
   colours, the goth one much paler all over, and a preset paints only the face. An old male made-up look now
