@@ -106,15 +106,17 @@ Both carry the face's moves as shape keys named the way VRM names its expression
 `surprised`. The 3D Avatars agent finds them by those names. The mouth opens on teeth and a tongue, and each
 eye turns on a bone of its own (`eye_l`, `eye_r`). Hair that hangs loose has chains of bones down its locks
 (`hair_back_0` to the tip, one chain for each side of the head it hangs from). Skirts, dresses, robes, coats
-and cloaks have them too below the hips (`cloth_skirt_front_0` and so on), and each breast has a short bone
-under the upper chest (`breast_l`, `breast_r`) that the skin and what's worn over it follow. Standing still,
-all of it rests as it was made.
+and cloaks have them too below the hips (`cloth_skirt_front_0` and so on), and each breast has a bone under
+the middle chest (`breast_l`, `breast_r`) that the skin and what's worn over it follow. Standing still, all
+of it rests as it was made.
 
 - **VRM** (`.vrm`, VRM 1.0) is the avatar format VRoid Studio, VSeeFace and the 3D Avatars agent's **VRM
   model** read. The avatar rests in a T-pose, and the file names its humanoid bones, so any VRM app can pose
   it. Its expressions are bound to the face's keys, and its eyes look about on their bones. Hanging hair,
   hanging clothes, the bust and a tail swing on spring bones. Colliders fitted to the body keep the hair out
-  of the head, neck, shoulders, arms and back, and the clothes out of the hips and legs. The file carries the terms you set under **The VRM's terms** on the
+  of the head, neck, shoulders, arms and back, and the clothes out of the hips and legs, and let the arms and
+  hands push the bust up or aside when they press on it. (In the maker's preview a pressed breast also
+  squashes in a little; a VRM app only moves it.) The file carries the terms you set under **The VRM's terms** on the
   Save tab: your name as the author, who may use the avatar, commercial use, sharing and changes, credit,
   and four uses VRM forbids unless allowed. They start at VRM's most careful choices, and the maker keeps
   yours in this browser for the next avatar. While the avatar wears a CC BY pack piece, the file asks for

@@ -3,7 +3,7 @@
 // saved VRM carries them (exporter.js), and the preview swings them here the way three-vrm (the Engine's VRM
 // model) does, so what the maker shows is what a VRM app shows.
 import { Matrix4, Quaternion, Vector3 } from "three";
-import { tPose, restPose } from "./figure.js";
+import { relaxedPose, tPose, restPose } from "./figure.js";
 
 // Each joint's settings. Stiffness pulls a bone back to how it rests, gravity draws it down, and drag slows
 // it (VRM 1.0's meanings). Both keep their shape at rest and swing a little after a turn of the head or body.
@@ -36,10 +36,11 @@ export const CLOTH_JOINT = {
 };
 /**
  * The bust (bust.js): stiffer and slowed more than cloth, with no weight of its own (it rests shaped as it is),
- * so it sways a few millimetres as the body turns and settles within a second, never wobbling.
+ * so it sways a few millimetres as the body turns and settles within a second, never wobbling. Each breast's
+ * hit radius is its own ball's (bust.js bustRadius), which the arms push.
  */
 export const BUST_JOINT = {
-  hitRadius: 0.01,
+  hitRadius: 0.05,
   stiffness: 1.5,
   gravityPower: 0,
   gravityDir: [0, -1, 0],
@@ -48,16 +49,20 @@ export const BUST_JOINT = {
 export const TAIL_BONES = ["tail_01", "tail_02", "tail_03", "tail_04", "tail_05"];
 const LEG_RADIUS = 0.07; // metres: the legs' colliders, so a swinging tail stays outside the thighs
 const CLEAR = 0.005; // metres a collider stays clear of a joint at rest, so nothing is pushed while still
+const TURN_MOST = 0.35; // radians the arms may turn a breast in the preview; pressed further, it squashes
 
 /**
  * The colliders a body's springs meet: { body: [...] (the hair's), legs: [...] (a tail's), cloth: [...] (the
- * clothes') }. Each is { bone, radius, offset (a point in the bone's own space), tail (one too, for a capsule) }.
- * They're fitted to the body as shaped (`position`, the body's points; `kit`, its file, avatar.js bodyKit), in
- * the bind pose:
+ * clothes'), arms: [...] (the bust's) }. Each is { bone, radius, offset (a point in the bone's own space), tail
+ * (one too, for a capsule) }. They're fitted to the body as shaped (`position`, the body's points; `kit`, its
+ * file, avatar.js bodyKit), in the bind pose:
  * - the head a ball, and the neck, collarbones and upper arms capsules along them;
  * - the hips, waist, chest and back a capsule across the body at each spine bone, as deep as it is there;
  * - for cloth, those of the hips and back again (their own, fitted to the cloth), and the thighs and calves
- *   capsules along them, as thick as the leg is there.
+ *   capsules along them, as thick as the leg is there;
+ * - for the bust, each upper arm, forearm and hand a capsule along it, as thick as half its skin is from its
+ *   bone (so an arm pressing on a breast pushes it about where the skins meet), and fitted in the relaxed
+ *   pose too (`relaxed`), where the arms hang closest to it.
  * Each sits inside the body, so what rests on it isn't pushed.
  */
 export function bodyColliders(kit, position, bones) {
@@ -91,10 +96,10 @@ export function bodyColliders(kit, position, bones) {
   };
   const body = [];
   /** A capsule along a bone, from its joint to the next one's, in a list `into`. */
-  const along = (into, name, next, scale = 0.85) => {
+  const along = (into, name, next, scale = 0.85, share = 0.2) => {
     const [bone, a, b, points] = [bones.get(name), at(name), at(next), by.get(name)];
     if (!bone || !a || !b || !points?.length) return;
-    into.push({ bone, radius: reach(points, a, b) * scale, offset: local(bone, a), tail: local(bone, b) });
+    into.push({ bone, radius: reach(points, a, b, share) * scale, offset: local(bone, a), tail: local(bone, b) });
   };
   // The head: a ball at the middle of the skull, from ear to ear (the face's height round the eyes).
   const head = bones.get("Head");
@@ -154,7 +159,15 @@ export function bodyColliders(kit, position, bones) {
     along(cloth, `calf_${side}`, `foot_${side}`);
   }
   for (const collider of cloth) if (/^(?:thigh|calf)_/u.test(collider.bone.name)) collider.least = 0.5;
-  return { body, legs, cloth };
+  // The bust's: each upper arm, forearm and hand (to the middle finger's second joint).
+  const arms = [];
+  for (const side of ["l", "r"]) {
+    along(arms, `upperarm_${side}`, `lowerarm_${side}`, 1, 0.5);
+    along(arms, `lowerarm_${side}`, `hand_${side}`, 1, 0.5);
+    along(arms, `hand_${side}`, `middle_02_${side}`, 1, 0.5);
+  }
+  for (const collider of arms) collider.relaxed = true;
+  return { body, legs, cloth, arms };
 }
 
 const a = new Vector3();
@@ -176,19 +189,21 @@ function nearestOn(collider, point, out) {
 }
 
 /**
- * The colliders fitted so that none pushes the hair, clothes or tail while nothing moves, in the poses the
- * figure rests in (as built, and the T-pose a VRM rests in): each made a little smaller where a joint rests
- * close to it (by a quarter at most, or its own `least` share), and where a joint rests on one even so (a lock
- * lying on the shoulder), that spring meets it no more. Each spring's `colliders` are what it meets.
+ * The colliders fitted so that none pushes the hair, clothes, tail or bust while nothing moves, in the poses
+ * the figure rests in (as built, and the T-pose a VRM rests in, and for the arms' the relaxed pose the maker
+ * shows): each made a little smaller where a joint rests close to it (by a quarter at most, or its own `least`
+ * share), and where a joint rests on one even so (a lock lying on the shoulder), that spring meets it no more.
+ * Each spring's `colliders` are what it meets.
  */
 export function fitColliders(figure) {
-  const poses = [restPose, tPose];
+  const poses = [restPose, tPose, relaxedPose];
   /** How far each spring's joints are from a collider's surface, at their nearest, in every pose. */
   const gaps = new Map(); // collider → spring → gap
   for (const pose of poses) {
     pose(figure);
     for (const spring of figure.springs)
       for (const collider of spring.colliders) {
+        if (pose === relaxedPose && !collider.relaxed) continue;
         let least = Infinity;
         for (const bone of spring.bones.slice(1)) {
           bone.getWorldPosition(a);
@@ -212,12 +227,63 @@ const initial = new Matrix4();
 const back = new Matrix4();
 const turn = new Quaternion();
 const toward = new Vector3();
+const facing = new Quaternion();
+const pressed = [new Vector3(), new Vector3()]; // (how far a breast is pressed on each side of each axis)
+const size = new Vector3();
+const shift = new Vector3();
+
+/**
+ * A breast (bust.js) squashed where the arms still press into its ball after the spring has turned it (the
+ * maker's preview only: a VRM app turns it alone). Along each of the bone's own axes it is made shorter by as
+ * much as it's pressed in, from the side it's pressed on, and wider the other ways to keep its size; with
+ * nothing pressing, as it rests.
+ */
+function squash(joint, tip) {
+  const { bone, settings, colliders } = joint;
+  pressed[0].set(0, 0, 0);
+  pressed[1].set(0, 0, 0);
+  bone.parent.getWorldQuaternion(facing).multiply(bone.quaternion).invert(); // (the world into the bone's axes)
+  for (const collider of colliders) {
+    nearestOn(collider, tip, d);
+    const out = c.copy(tip).sub(d);
+    const gap = out.length() - collider.radius - settings.hitRadius;
+    if (gap >= 0) continue;
+    out.normalize().multiplyScalar(-gap).applyQuaternion(facing);
+    for (let axis = 0; axis < 3; axis++) {
+      const by = out.getComponent(axis); // (pushed towards + from the - side, or towards - from the + side)
+      pressed[by > 0 ? 0 : 1].setComponent(axis, pressed[by > 0 ? 0 : 1].getComponent(axis) + Math.abs(by));
+    }
+  }
+  const across = settings.hitRadius * 2;
+  shift.set(0, 0, 0);
+  for (let axis = 0; axis < 3; axis++) {
+    const [from, to] = [pressed[0].getComponent(axis), pressed[1].getComponent(axis)];
+    const short = Math.max(0.5, 1 - (from + to) / across);
+    size.setComponent(axis, short);
+    // (It keeps the side opposite the press, or between two presses, where they balance: in world metres from
+    // the ball's middle.)
+    shift.setComponent(axis, from + to ? ((from - to) * settings.hitRadius) / (from + to) : 0);
+  }
+  // (Wider the other ways, about the ball's middle, by as much as it's shorter.)
+  const [x, y, z] = [size.x, size.y, size.z];
+  const grown = [x / Math.sqrt(y * z), y / Math.sqrt(x * z), z / Math.sqrt(x * y)];
+  // In the bone's own space, each axis scaled so the kept point stays: the bone moves by what that leaves.
+  for (let axis = 0; axis < 3; axis++) {
+    const short = size.getComponent(axis);
+    const kept = shift.getComponent(axis) / joint.scale;
+    const middle = joint.child.getComponent(axis);
+    shift.setComponent(axis, middle * (1 - grown[axis]) + kept * (1 - short) * (grown[axis] / short));
+  }
+  bone.scale.set(...grown);
+  bone.position.copy(shift.applyQuaternion(bone.quaternion)).add(joint.restAt);
+}
 
 /**
  * The figure's springs swinging: { step(seconds), reset() }. Call `step` each frame after the pose is set:
  * it turns the spring bones from where their tips were, as three-vrm does (VRM 1.0's springs: the tip carried
  * on by its own motion less the drag, pulled back by stiffness and down by gravity, kept its length, and
- * pushed out of the colliders). `reset` puts them back at rest on the body as it now stands.
+ * pushed out of the colliders). A breast still pressed into after that is squashed (`squash`). `reset` puts
+ * them back at rest on the body as it now stands.
  */
 export function createSprings(figure) {
   const joints = [];
@@ -231,11 +297,14 @@ export function createSprings(figure) {
         bone,
         settings: spring.joint,
         colliders,
+        squashes: !!spring.squash,
+        restAt: bone.position.clone(),
         local: bone.matrix.clone(),
         rest: bone.quaternion.clone(),
         child,
         axis: child.clone().normalize(),
         length: 0,
+        scale: 1, // (world metres to the bone's own units)
         tip: new Vector3(),
         last: new Vector3(),
       });
@@ -247,10 +316,15 @@ export function createSprings(figure) {
     for (const joint of joints) {
       const { bone } = joint;
       bone.quaternion.copy(joint.rest);
+      if (joint.squashes) {
+        bone.scale.setScalar(1);
+        bone.position.copy(joint.restAt);
+      }
       bone.updateMatrixWorld(true);
       joint.tip.copy(joint.child).applyMatrix4(bone.matrixWorld);
       joint.last.copy(joint.tip);
       joint.length = joint.tip.distanceTo(bone.getWorldPosition(a));
+      joint.scale = joint.length / (joint.child.length() || 1);
     }
   }
   function step(seconds) {
@@ -275,8 +349,21 @@ export function createSprings(figure) {
         const out = c.copy(next).sub(d);
         const gap = out.length() - collider.radius - settings.hitRadius;
         if (gap < 0) {
-          next.addScaledVector(out.normalize(), -gap);
+          out.normalize().multiplyScalar(-gap);
+          // (A breast in the preview is pushed only across its bone, which turns it; a push along the bone is
+          // left to `squash` below, where a VRM app slides the ball off sideways, however far it must turn.)
+          if (joint.squashes) out.projectOnPlane(line.copy(next).sub(at).normalize());
+          next.add(out);
           next.sub(at).normalize().multiplyScalar(joint.length).add(at);
+        }
+      }
+      if (joint.squashes) {
+        // (Turned TURN_MOST at most: pressed further, it is squashed instead.)
+        const now = line.copy(next).sub(at).normalize();
+        if (now.angleTo(rest) > TURN_MOST) {
+          const across = offset.copy(now).addScaledVector(rest, -now.dot(rest)).normalize();
+          next.copy(at).addScaledVector(rest, Math.cos(TURN_MOST) * joint.length);
+          next.addScaledVector(across, Math.sin(TURN_MOST) * joint.length);
         }
       }
       joint.last.copy(joint.tip);
@@ -285,6 +372,7 @@ export function createSprings(figure) {
       back.copy(initial).invert();
       turn.setFromUnitVectors(joint.axis, toward.copy(next).applyMatrix4(back).normalize());
       bone.quaternion.copy(joint.rest).multiply(turn);
+      if (joint.squashes) squash(joint, next);
       bone.updateMatrix();
       bone.matrixWorld.multiplyMatrices(parent, bone.matrix);
       for (const child of bone.children) child.updateMatrixWorld(true);
