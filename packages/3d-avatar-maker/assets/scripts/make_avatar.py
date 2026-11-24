@@ -62,9 +62,10 @@ eye pictures, eyebrows and eyelashes: MakeHuman's system assets (CC0), read as d
 - The races' parts, each a mesh of its own beside the body, with its shape keys: tusks-01 and -02 (material
   teeth); horns-01 to -04 (horns: swept back, a ram's curl, nubs, tall), on the Head bone; tail-tiefling
   (skin, drawn with a patch of the back's own skin, on bones tail_01 to tail_05 under the pelvis, swaying in
-  the model's own Idle); beard-01 to -05 (short, full, long, a dwarf's long beard with braids, a moustache
-  with a goatee), moustache-01 and foothair-01 (a halfling's feet) (hair: cards and patches cut out of a
-  near-white texture of strands by an alpha test, glTF MASK, for the game to tint as it tints the hair).
+  the model's own Idle); beard-01 to -06 (short and boxed, full, long, a dwarf's long beard with braids, a
+  moustache with a goatee, mutton chops), moustache-01 and foothair-01 (a halfling's feet) (hair: cards of
+  strands fanned in rows along the face, cut out of a near-white texture of locks by an alpha test, glTF
+  MASK, for the game to tint as it tints the hair; braids are solid tubes).
   The horns and tusks share a small texture of their own.
 """
 
@@ -3673,7 +3674,7 @@ def add_finger_bones(rig, chains, backs):
 #
 # Each a mesh of its own beside the body, for the game to show or leave out, with the body's shape keys (it
 # follows the skin it sits on) and a material of its own to colour: tusks-01 and -02 (`teeth`), horns-01 to
-# -04 (`horns`), tail-tiefling (`skin`, on bones of its own under the pelvis), beard-01 to -05, moustache-01
+# -04 (`horns`), tail-tiefling (`skin`, on bones of its own under the pelvis), beard-01 to -06, moustache-01
 # and foothair-01 (`hair`: cards cut out of a near-white texture of strands, alpha MASK, tinted as the hair
 # is).
 
@@ -3727,6 +3728,9 @@ class Face:
         self.head_bvh = BVHTree.FromPolygons(co.tolist(), self.head_tris.tolist())
         self.outer_tris = skin.tris[self.tri_mat >= 0]
         self.outer_bvh = BVHTree.FromPolygons(co.tolist(), self.outer_tris.tolist())
+        # (The skin without the mouth's inside, for hair to lie on: under the lower lip the mouth's inside is
+        # nearer than the chin, and hair pushed off it went into the mouth.)
+        self.outer = Skin(co, [f for f, hidden in zip(faces, inside) if not hidden], skin.W, {})
 
     def az(self, p):
         """The angle round the head from the front (0) to the back (180), in degrees."""
@@ -3976,23 +3980,24 @@ def sway_tail(rig):
 
 
 class Hair:
-    """Facial hair being made: cards (strips of strands cut out by the texture) grown from roots on the skin
-    along its flow, shingled over each other; under them an undercoat of soft patches of short hair lying on
-    the skin; and solid pieces (a long beard's body, braids). Each card moves as the skin at its root does
-    through the shape keys, each patch with the skin under it."""
+    """Facial hair being made: cards of strands fanned along the face (each a strip a couple of centimetres
+    wide, its roots in a row under the skin, its strands lying down the face and lifting off it towards their
+    tips), laid in rows that overlap like roof tiles, and solid pieces (braids, their ties). A card's
+    strands are its texture's (wwavatar `band`). Each card's column of points moves as the skin at its root
+    does through the shape keys; a solid piece moves as one point does."""
 
     def __init__(self, F, seed):
-        self.F, self.skin = F, F.skin
+        self.F, self.skin = F, F.outer
         self.rng = np.random.default_rng(seed)
         self.co, self.faces, self.uv = [], [], []
         self.anchor = []  # each vertex's own place for following the skin, or its card's root
-        self.anchor2, self.mix = [], []  # another place it follows, and how much (a long beard: its jaw, then its chin)
+        self.anchor2, self.mix = [], []  # another place it follows, and how much (a long beard: its chin)
         self.normal = []  # each vertex's normal: the skin's under it (so the cards are lit as one soft mass)
         self.hang = []  # whether it hangs clear of the face (kept off the chest in every key)
         self.n = 0
-        self.also = []  # other surfaces the cards lie over (a long beard's body)
-        tris = self.skin.tris
-        co = self.skin.co
+        self.outer_mat = F.tri_mat[F.tri_mat >= 0]  # (each of the outer skin's triangles' part)
+        tris = F.skin.tris
+        co = F.skin.co
         a, b, c = (co[tris[:, i]] for i in range(3))
         self.tri_area = np.linalg.norm(np.cross(b - a, c - a), axis=1) / 2
         self.tri_centre = (a + b + c) / 3
@@ -4015,9 +4020,8 @@ class Hair:
         """Points scattered evenly over the skin where `cover` (a field over points, 0..1) is over a half,
         about `spacing` apart (many more are thrown than kept: one too near those already kept is dropped, so
         they leave neither gaps nor clumps): (points, the skin's normals there, cover there)."""
-        skin = self.skin
-        # (Facial hair only where the skin is the head's own: it's all on the head bone, and skin the neck
-        # shares would slide under it when the head turns.)
+        skin = self.F.skin
+        # (Hair only where the skin is the bones' own: skin another bone shares would slide under it.)
         least = 0.9 if tuple(bones) == ("Head",) else 0.3
         on = np.isin(self.F.tri_mat, [PART[part]]) & (skin.W[skin.tris][:, :, [BONE_INDEX[b] for b in bones]].sum(2).min(1) > least)
         on &= cover(self.tri_centre) > 0.5
@@ -4043,105 +4047,24 @@ class Hair:
         return P, N, cover(P)
 
     def clear(self, P, gap):
-        P = self.skin.clear(P, gap)
-        for surface in self.also:
-            P = surface.clear(P, gap)
-        return P
+        return self.skin.clear(P, gap)
 
     def off_skin(self, P):
         """Whether each point lies over the lips or the mouth's inside (where no hair lies)."""
         tri = np.array([self.skin.bvh.find_nearest(Vector(p))[2] for p in P])
-        m = self.F.tri_mat[tri]
-        return (m == PART["lips"]) | (m < 0)
+        return self.outer_mat[tri] == PART["lips"]
 
     def from_lips(self, P):
         """Each point's distance from the lips."""
         lips = self.F.lips
         return np.array([np.sqrt(((lips - p) ** 2).sum(1).min()) for p in P])
 
-    def patches(self, cover, size=0.04, spacing=0.0118, grid=4, flow=None):
-        """The undercoat: soft patches of short hair laid on the skin, overlapping, wherever `cover` is over
-        a third: dense in its middle, thinner towards its edge (the texture's three patches), smaller near the
-        lips so none lies over them. Each a small grid pressed onto the skin, its hair pointing down."""
-        P, N, c = self.roots(lambda p: np.clip(cover(p) + 0.12, 0, 1), spacing)
-        if not len(P):
-            return
-        rng = self.rng
+    def _step(self, P, N, flow, length, lift, steps, hang, free, root_gap, on_face, overhang):
+        """The strands' paths from roots `P` (normals `N`): (points, steps + 1 of them for each root)."""
         n = len(P)
-        tile = np.where(c > 0.72, 0, np.where(c > 0.5, 1, 2))
-        s = np.minimum(size * (0.5 + 0.5 * wa.smoothstep(0.4, 0.95, c)), np.maximum(self.from_lips(P) * 3.0, 0.012)) * rng.uniform(0.85, 1.15, n)
-        d = (flow or Beards.down)(P, N)
-        d = d - N * (d * N).sum(1, keepdims=True)
-        weak = np.linalg.norm(d, axis=1) < 0.3
-        d[weak] = np.array([0.0, -1.0, 0.0]) - N[weak] * (-N[weak, 1])[:, None]
-        d = _unit_rows(d)
-        turn = np.radians(rng.uniform(-18, 18, n))
-        d = d * np.cos(turn)[:, None] + np.cross(N, d) * np.sin(turn)[:, None]
-        side = np.cross(d, N)
-        gap = rng.uniform(0.0006, 0.0011, n)  # (close on the skin: the grid is fine enough not to dip under it)
-        ab = np.linspace(-0.5, 0.5, grid)
-        co = np.zeros((n, grid, grid, 3))
-        for i, b in enumerate(ab):
-            for j, a in enumerate(ab):
-                co[:, i, j] = P + side * (s * a)[:, None] + d * (s * b)[:, None]
-        flat = co.reshape(-1, 3)
-        # (A corner that would lie over the lips is drawn back towards its patch's middle, to the lip's edge.)
-        centre = np.repeat(P, grid * grid, axis=0)
-        over = np.nonzero(self.off_skin(flat))[0]
-        if len(over):
-            lo, hi = np.zeros(len(over)), np.ones(len(over))
-            for _ in range(5):
-                mid = (lo + hi) / 2
-                bad = self.off_skin(centre[over] + (flat[over] - centre[over]) * mid[:, None])
-                hi = np.where(bad, mid, hi)
-                lo = np.where(bad, lo, mid)
-            flat[over] = centre[over] + (flat[over] - centre[over]) * lo[:, None]
-        loc, nrm, _, _ = self.skin.nearest(flat, smooth=True)
-        flat = loc + nrm * np.repeat(gap, grid * grid)[:, None]
-        # (Where the skin is strongly rounded, a chin, a patch's flat cells would dip under it between their
-        # corners and leave holes: such a patch is lifted till the middle of every cell is clear.)
-        cells = flat.reshape(n, grid, grid, 3)
-        mids = ((cells[:, :-1, :-1] + cells[:, 1:, :-1] + cells[:, :-1, 1:] + cells[:, 1:, 1:]) / 4).reshape(-1, 3)
-        at, out, _, _ = self.skin.nearest(mids)
-        dip = np.maximum(0.0003 - ((mids - at) * out).sum(1).reshape(n, -1).min(1), 0.0)
-        flat = flat + nrm * np.repeat(dip, grid * grid)[:, None]
-        faces, uv = [], []
-        for k in range(n):
-            region = f"patch{tile[k]}"
-            for i in range(grid - 1):
-                for j in range(grid - 1):
-                    a0 = k * grid * grid + i * grid + j
-                    faces.append([a0, a0 + 1, a0 + grid + 1, a0 + grid])
-                    u0, u1, v0, v1 = j / (grid - 1), (j + 1) / (grid - 1), 1 - i / (grid - 1), 1 - (i + 1) / (grid - 1)
-                    uv.append([wa.hair_region(region, u0, v0), wa.hair_region(region, u1, v0), wa.hair_region(region, u1, v1), wa.hair_region(region, u0, v1)])
-        self.add(flat, faces, uv, normal=nrm)
-
-    def cards(self, P, N, flow, length, width, lift, steps, locks, hang=(0.0, -0.18, -1.0), free=0.02, spread=14.0, rows=2, root_gap=0.0008, taper=0.75, rigid=False, edge=None, on_face=True):
-        """A card from each root: `length` long and `width` wide (each a number or one per root), stepping
-        along `flow(points, normals)` (lying on the skin), turning to hang (`hang`) past `free` metres or
-        where the skin faces down, lifting to `lift` off the skin by its tip, the roots turned `spread`
-        degrees either way at random. `rows` points across (3: its middle raised, a rounded lock). `edge` (the
-        cover at each root) makes it smaller towards the edge of where it grows; `rigid` is for a card that
-        hangs from something other than the skin (a long beard's body); off the face, `on_face` is False."""
-        n = len(P)
-        if not n:
-            return
-        rng = self.rng
-        length = np.broadcast_to(length, (n,)) * rng.uniform(0.75, 1.15, n)
-        width = np.broadcast_to(width, (n,)) * rng.uniform(0.8, 1.2, n)
-        if edge is not None:
-            # (Shorter and narrower towards the edge of where it grows: `edge` is the cover at each root.)
-            k = wa.smoothstep(0.5, 0.95, edge)
-            length, width = length * (0.45 + 0.55 * k), width * (0.65 + 0.35 * k)
-        lips = on_face and not rigid  # (on the face: narrower by the lips, and never over them)
-        if lips:
-            width = np.minimum(width, np.maximum(self.from_lips(P) * 2.2, 0.004))
-        stopped = np.zeros(n, dtype=bool)
-        lift = np.broadcast_to(lift, (n,)) * rng.uniform(0.6, 1.3, n)
-        hang_dir = _unit(hang)
-        yaw = np.radians(rng.uniform(-spread, spread, n))
+        hang = np.broadcast_to(_unit_rows(np.atleast_2d(np.asarray(hang, dtype=np.float64))), (n, 3))
         pts = [P - N * ROOT_DEPTH]  # (its root under the skin: it comes out of the face, with no gap)
-        dirs, norms = [], []
+        stopped = np.zeros(n, dtype=bool)
         nrm = N
         for i in range(steps):
             p = pts[-1]
@@ -4151,78 +4074,117 @@ class Hair:
             d = d - nrm * (d * nrm).sum(1, keepdims=True)
             flat = np.linalg.norm(d, axis=1, keepdims=True)
             d = d / np.maximum(flat, 1e-9)
-            # (Turned about the skin's normal by its root's own angle.)
-            d = d * np.cos(yaw)[:, None] + np.cross(nrm, d) * np.sin(yaw)[:, None]
             run = length * i / steps
-            h = np.clip(np.maximum((run - free) / 0.02, (0.35 - flat[:, 0]) / 0.25), 0.0, 1.0)[:, None]
-            d = d * (1 - h) + hang_dir * h
-            d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
-            nxt = p + d * (length / steps)[:, None]
+            h = np.clip(np.maximum((run - free) / 0.02, (0.3 - flat[:, 0]) / 0.25), 0.0, 1.0)[:, None]
+            d = _unit_rows(d * (1 - h) + hang * h)
+            step = length / steps
             gap = root_gap + lift * ((i + 1) / steps) ** 1.2
-            nxt = self.clear(nxt, gap)
-            if lips:
-                # (A hair that would lie over the lips is shortened till it doesn't, and ends there: a
-                # moustache's trimmed line.)
-                for part in (0.5, 0.2):
-                    over = np.nonzero(self.off_skin(nxt) & (run < 0.02) & ~stopped)[0]
-                    if not len(over):
-                        break
-                    nxt[over] = self.clear(p[over] + d[over] * (length[over] / steps * part)[:, None], gap[over])
-                stopped |= self.off_skin(nxt) & (run < 0.02)
-                nxt[stopped] = self.clear(p[stopped] + d[stopped] * 0.0004, gap[stopped])
+            nxt = self.clear(p + d * step[:, None], gap)
+            if on_face:
+                # (A strand that would go on over the lips is cut where it reaches them, `overhang` past their
+                # edge: a moustache's trimmed line.)
+                over = np.nonzero(self.off_skin(nxt) & ~stopped & (run < 0.03) & (self.from_lips(nxt) < self.from_lips(P if i == 0 else p)))[0]
+                if len(over):
+                    lo, hi = np.zeros(len(over)), np.ones(len(over))
+                    for _ in range(5):
+                        mid = (lo + hi) / 2
+                        bad = self.off_skin(p[over] + d[over] * (step[over] * mid)[:, None])
+                        hi = np.where(bad, mid, hi)
+                        lo = np.where(bad, lo, mid)
+                    nxt[over] = self.clear(p[over] + d[over] * (step[over] * lo + overhang)[:, None], gap[over])
+                    stopped[over] = True
+                still = stopped.copy()
+                still[over] = False
+                nxt[still] = p[still] + d[still] * 0.0003
             pts.append(nxt)
-            dirs.append(d)
-            norms.append(nrm)
-        dirs.append(dirs[-1])
-        _, last, _, _ = self.skin.nearest(pts[-1], smooth=True)
-        norms.append(last)
-        column = rng.choice(np.concatenate([wa.LOCKS[name] for name in locks]), size=n)
-        cross = np.linspace(-0.5, 0.5, rows)
-        co = np.zeros((n, steps + 1, rows, 3))
-        vn = np.zeros((n, steps + 1, rows, 3))
-        for i in range(steps + 1):
-            nrm, d = norms[i], dirs[i]
-            side = np.cross(d, nrm)
-            weak = np.linalg.norm(side, axis=1) < 0.35
-            if weak.any():
-                # (Where a strand stands straight off the skin, its card faces out from the head's middle.)
-                out = pts[i][weak] - self.F.C
-                out[:, 2] *= 0.3
-                side[weak] = np.cross(d[weak], out / np.linalg.norm(out, axis=1, keepdims=True))
-            side /= np.maximum(np.linalg.norm(side, axis=1, keepdims=True), 1e-9)
-            face_n = np.cross(side, d)
-            w = width * (1 - (1 - taper) * (i / steps) ** 2)
-            lit = N if rigid else nrm
-            for j, x in enumerate(cross):
-                co[:, i, j] = pts[i] + side * (w * x)[:, None] + face_n * ((0.25 - x * x) * 0.5 * w)[:, None] * (rows > 2)
-                vn[:, i, j] = _unit_rows(lit * 0.75 + face_n * 0.25 + side * (x * 0.5))
-        faces, uv = [], []
-        per = (steps + 1) * rows
-        for c in range(n):
-            lock = f"lock{column[c]}"
-            for i in range(steps):
-                for j in range(rows - 1):
-                    a = c * per + i * rows + j
-                    faces.append([a, a + 1, a + rows + 1, a + rows])
-                    u0, u1, va, vb = j / (rows - 1), (j + 1) / (rows - 1), 1 - i / steps, 1 - (i + 1) / steps
-                    uv.append([wa.hair_region(lock, u0, va), wa.hair_region(lock, u1, va), wa.hair_region(lock, u1, vb), wa.hair_region(lock, u0, vb)])
-        if lips:
-            # (Each point of a root on the skin's own curve, under it: a straight root would stand clear of a
-            # rounded chin at its ends.)
-            co[:, 0] = self.F.under_skin(co[:, 0].reshape(-1, 3), ROOT_DEPTH).reshape(n, rows, 3)
-        flat_co = co.reshape(-1, 3)
-        # (Each card moves as its root does through the shape keys: stiff, so it never folds. On the face each
-        # point of its root row follows the skin under itself, so the root stays under the skin in every key.)
-        anchor = np.repeat(P, per, axis=0)
-        if lips:
-            anchor.reshape(n, steps + 1, rows, 3)[:, 0] = co[:, 0]
-        run = np.broadcast_to((np.arange(steps + 1)[None, :] * (length / steps)[:, None])[:, :, None], (n, steps + 1, rows)).reshape(-1)
-        self.add(flat_co, faces, uv, anchor=anchor, hang=np.ones(len(run), dtype=bool) if rigid else run > free + 0.012, normal=vn.reshape(-1, 3))
+        return np.stack(pts, axis=1)
 
-    def solid(self, pts, radii, side, segments=7, squash=1.0, region="solid", v=(1.0, 0.3), anchor=None, tip=True):
-        """A solid piece round a curve (a braid's strand, a tie), drawn with hair that has no gaps."""
+    def sheet(self, P, N, flow, length, lift, steps, band, hang=(0.0, -0.18, -1.0), free=1.0, root_gap=0.0008, on_face=True, overhang=0.0, rigid=False):
+        """A card fanned along a row of roots `P` (in order along the row, a few millimetres apart, normals
+        `N`): its strands step from each root along `flow(points, normals)` (lying on the skin), `length` long
+        (one per root), lifting off the skin to `lift` (one per root) by their tips, turning to hang (`hang`:
+        a direction, or one per root) past `free` metres or where the skin faces down. The texture's `band`
+        runs once across it, from a column chosen at random (the band is seamless), roots at the top."""
+        m = len(P)
+        if m < 2:
+            return
+        rng = self.rng
+        # (The root's depth under the skin added: `length` is what shows.)
+        length = np.broadcast_to(np.asarray(length, dtype=np.float64), (m,)) + (0.0 if rigid else ROOT_DEPTH)
+        lift = np.broadcast_to(np.asarray(lift, dtype=np.float64), (m,)).copy()
+        co = self._step(P, N, flow, length, lift, steps, hang, free, root_gap, on_face and not rigid, overhang)
+        per = steps + 1
+        flat_co = co.reshape(-1, 3)
+        _, vn, _, _ = self.skin.nearest(flat_co, smooth=True)
+        if on_face and not rigid:
+            # (Its roots on the skin's own curve, under it, so they stay under it in every key.)
+            co[:, 0] = self.F.under_skin(co[:, 0], ROOT_DEPTH)
+            flat_co = co.reshape(-1, 3)
+        faces, uv = [], []
+        cells = m - 1
+        shift, mirror = int(rng.integers(cells)), bool(rng.random() < 0.5)
+        for j in range(cells):
+            c = (j + shift) % cells
+            u0, u1 = c / cells, (c + 1) / cells
+            if mirror:
+                u0, u1 = 1 - u0, 1 - u1
+            for i in range(steps):
+                a = j * per + i
+                faces.append([a, a + per, a + per + 1, a + 1])
+                va, vb = 1 - i / steps, 1 - (i + 1) / steps
+                uv.append([wa.band(band, u0, va), wa.band(band, u1, va), wa.band(band, u1, vb), wa.band(band, u0, vb)])
+        anchor = np.repeat(P, per, axis=0)
+        if on_face and not rigid:
+            anchor.reshape(m, per, 3)[:, 0] = co[:, 0]
+        run = (np.arange(per)[None, :] * (length / steps)[:, None]).reshape(-1)
+        self.add(flat_co, faces, uv, anchor=anchor, hang=np.ones(len(run), dtype=bool) if rigid else run > free + 0.012, normal=vn)
+
+    def cards(self, P, N, flow, length, width, lift, steps, bands, hang=(0.0, -0.18, -1.0), free=0.02, spread=14.0, root_gap=0.0008, edge=None, on_face=True):
+        """A narrow card from each root (`width` wide, about its root's flow turned up to `spread` degrees
+        either way): hair scattered rather than fanned in rows (a halfling's feet)."""
+        n = len(P)
+        if not n:
+            return
+        rng = self.rng
+        length = np.broadcast_to(length, (n,)) * rng.uniform(0.75, 1.15, n)
+        width = np.broadcast_to(width, (n,)) * rng.uniform(0.8, 1.2, n)
+        if edge is not None:
+            k = wa.smoothstep(0.5, 0.95, edge)
+            length, width = length * (0.45 + 0.55 * k), width * (0.65 + 0.35 * k)
+        yaw = np.radians(rng.uniform(-spread, spread, n))
+
+        def turned(p, nrm):
+            d = flow(p, nrm)
+            return d * np.cos(yaw)[:, None] + np.cross(nrm, d) * np.sin(yaw)[:, None]
+
+        lift = np.broadcast_to(lift, (n,)) * rng.uniform(0.6, 1.3, n)
+        path = self._step(P, N, turned, length, lift, steps, hang, free, root_gap, on_face, 0.0)
+        pick = rng.integers(len(bands), size=n)
+        for k in range(n):
+            d = np.gradient(path[k], axis=0)
+            side = _unit_rows(np.cross(d, np.broadcast_to(N[k], d.shape)))
+            w = width[k] * np.linspace(1.0, 0.75, steps + 1)[:, None]
+            co = np.stack([path[k] - side * w / 2, path[k] + side * w / 2])  # (2, steps + 1, 3)
+            u0 = rng.uniform(0, 0.8)
+            faces = [[i, steps + 1 + i, steps + 2 + i, i + 1] for i in range(steps)]
+            band = bands[pick[k]]
+            uv = [[wa.band(band, u0, 1 - i / steps), wa.band(band, u0 + 0.2, 1 - i / steps), wa.band(band, u0 + 0.2, 1 - (i + 1) / steps), wa.band(band, u0, 1 - (i + 1) / steps)] for i in range(steps)]
+            flat = co.reshape(-1, 3)
+            _, vn, _, _ = self.skin.nearest(flat, smooth=True)
+            self.add(flat, faces, uv, anchor=np.repeat(P[k : k + 1], len(flat), axis=0), normal=vn)
+
+    def solid(self, pts, radii, side, segments=7, squash=1.0, band="braid", tile=0.025, anchor=None, tip=True):
+        """A solid piece round a curve (a braid's strand, a tie), its texture's band running along it once
+        every `tile` metres (in whole steps of the curve)."""
         co, faces, uv = wa.tube(pts, radii, side, segments=segments, squash=squash, tip=tip)
-        fuv = [[wa.hair_region(region, a, v[0] + (v[1] - v[0]) * b) for a, b in c] for c in uv]
+        n = len(pts)
+        spacing = np.linalg.norm(np.diff(pts, axis=0), axis=1).mean()
+        k = max(1, int(round(tile / max(spacing, 1e-6))))
+        fuv = []
+        for f, c in zip(faces, uv):
+            i = int(round(min(b for _, b in c) * (n - 1)))
+            u0 = (i % k) / k
+            fuv.append([wa.band(band, u0 + (round(b * (n - 1)) - i) / k, 0.05 + 0.9 * a) for a, b in c])
         self.add(co, faces, fuv, anchor=np.repeat([anchor if anchor is not None else pts[0]], len(co), axis=0), hang=True)
 
     def part(self, key_names, head=True):
@@ -4251,8 +4213,13 @@ class Hair:
 
 
 class Beards:
-    """The facial hair's shapes on this face: where each grows (fields over the skin, 0..1), how the hair
-    lies, and each style built from them."""
+    """The facial hair's shapes on this face: where each grows (fields over the skin: a distance in metres
+    inside its edge, negative outside), how the hair lies, and each style built from them.
+
+    A style is cards fanned in rows across where it grows. The rows are found from a point inside the chin
+    (`O`), looking out: each row is the skin seen at one height from there, so the rows run along the jaw
+    and round under the chin, the way a beard's hair lies in layers. Along a row the cards overlap by about a
+    third, the rows by about half a card's length, each row's tips over the next row's roots."""
 
     def __init__(self, F):
         self.F = F
@@ -4260,220 +4227,346 @@ class Beards:
         mz = f.mouth[2]
         self.top = lambda az: np.interp(az, [0, 10, 20, 32, 48, 64, 78, 92], [f.sub[2] - 0.002, f.sub[2] - 0.003, mz + 0.017, mz + 0.011, mz + 0.015, mz + 0.032, f.ear[2] - 0.006, f.ear[2] + 0.002])
         self.bottom = lambda az: np.interp(az, [0, 30, 55, 75, 95], [f.menton[2] - 0.04, f.menton[2] - 0.04, f.menton[2] - 0.027, f.menton[2] - 0.002, f.menton[2] + 0.024])
+        self.O = np.array([0.0, f.menton[1] + 0.03, f.menton[2] + 0.03])  # (inside the chin, under the mouth's floor)
+        self.outer_mat = f.tri_mat[f.tri_mat >= 0]
 
-    def full(self, p, low=0.0, high=0.0):
+    # ── Where each grows ──
+
+    def full_d(self, p, low=0.0, high=0.0):
         """A full beard: under a line from the nose's base round the mouth's corner up to the ear, down to a
         line under the jaw (`high` lowers its cheek line, `low` raises its neck line)."""
         az = self.F.az(p)
         d = np.minimum(self.top(az) - high * wa.smoothstep(24, 40, az) - p[:, 2], (p[:, 2] - self.bottom(az) - low) * 2.0)
-        d = np.minimum(d, (88 - az) * 0.0012)
-        return np.clip(0.5 + d / 0.006, 0, 1)
+        return np.minimum(d, (101 - az) * 0.0012)
 
-    def moustache(self, p, reach=0.012):
+    def moustache_d(self, p, reach=0.012):
         f = self.F
         x = np.abs(p[:, 0])
         top = np.interp(x, [0, 0.4 * f.lip_half, f.lip_half, f.lip_half + reach], [f.sub[2] - 0.001, f.sub[2] - 0.002, f.mouth[2] + 0.013, f.mouth[2] + 0.004])
         d = np.minimum(np.minimum(top - p[:, 2], f.lip_half + reach - x), p[:, 2] - (f.mouth[2] - 0.004 - 0.02 * wa.smoothstep(f.lip_half * 0.9, f.lip_half + reach, x)))
-        d = np.minimum(d, (f.C[1] - 0.045) - p[:, 1])
-        return np.clip(0.5 + d / 0.004, 0, 1)
+        return np.minimum(d, (f.C[1] - 0.045) - p[:, 1])
 
-    def goatee(self, p):
+    def goatee_d(self, p):
+        """A goatee: the chin under the lower lip, joined round the mouth's corners to a moustache."""
         f = self.F
         x = np.abs(p[:, 0])
         mz = f.mouth[2]
-        under_lip = mz - 0.012
-        half = np.interp(p[:, 2], [f.menton[2] - 0.03, f.chin[2], under_lip], [f.lip_half * 0.75, f.lip_half * 0.98, f.lip_half * 0.92])
+        under_lip = mz - 0.002
+        half = np.interp(p[:, 2], [f.menton[2] - 0.03, f.chin[2], under_lip], [f.lip_half * 0.75, f.lip_half * 1.0, f.lip_half * 0.95])
         chin = np.minimum(np.minimum(half - x, under_lip - p[:, 2]), p[:, 2] - (f.menton[2] - 0.026))
-        link = np.minimum(np.minimum(x - (f.lip_half - 0.001), f.lip_half + 0.013 - x), np.minimum(mz + 0.01 - p[:, 2], p[:, 2] - (f.chin[2] - 0.005)))
+        link = np.minimum(np.minimum(x - (f.lip_half - 0.002), f.lip_half + 0.011 - x), np.minimum(mz + 0.01 - p[:, 2], p[:, 2] - (f.chin[2] - 0.004)))
         d = np.maximum(chin, link)
-        d = np.minimum(d, (f.C[1] - 0.03) - p[:, 1])
-        return np.clip(0.5 + d / 0.004, 0, 1)
+        return np.minimum(d, (f.C[1] - 0.03) - p[:, 1])
+
+    def chops_d(self, p):
+        """Mutton chops: down the cheeks from the ear onto the jaw, the chin and lips bare."""
+        az = self.F.az(p)
+        return np.minimum(self.full_d(p, high=-0.008), (az - 42) * 0.0011)
 
     @staticmethod
-    def down(p, n):
-        return np.broadcast_to(np.array([0.0, -0.1, -1.0]), p.shape).copy()
+    def cover(d):
+        return np.clip(0.5 + d / 0.006, 0, 1)
+
+    # ── How the hair lies ──
+
+    def down(self, p, n):
+        """Down the face away from the chin's middle: down the cheeks, forward a little towards the chin,
+        under the chin back towards the neck."""
+        q = p - self.O
+        az = np.arctan2(q[:, 0], -q[:, 1])
+        el = np.arctan2(q[:, 2], np.hypot(q[:, 0], q[:, 1]))
+        d = np.stack([np.sin(az) * np.sin(el), -np.cos(az) * np.sin(el), -np.cos(el)], axis=1)
+        return d + np.array([0.0, 0.0, -0.35]) * (el > 0)[:, None]
 
     def outward(self, p, n):
-        """A moustache's lie: from under the nose out along the lip and a little down."""
-        d = np.stack([np.sign(p[:, 0]) * (0.25 + 0.75 * wa.smoothstep(0.0, 0.006, np.abs(p[:, 0]))), np.full(len(p), 0.1), np.full(len(p), -0.42)], axis=1)
-        return d
+        """A moustache's lie: from under the nose out along the lip and down."""
+        x = np.abs(p[:, 0])
+        side = np.sign(p[:, 0]) * (0.2 + 0.6 * wa.smoothstep(0.0, self.F.lip_half, x))
+        return np.stack([side, np.full(len(p), 0.08), np.full(len(p), -0.9)], axis=1)
 
-    def make(self, key_names):
+    # ── Rows of cards ──
+
+    def seen(self, az, el):
+        """The skin seen from `O` (degrees round from the front towards the body's left, and up from level):
+        (points, smoothed normals, which are on the face's own skin: not the lips, not skin the neck shares)."""
+        F = self.F
+        a, e = np.radians(az), np.radians(el)
+        dirs = np.stack([np.sin(a) * np.cos(e), -np.cos(a) * np.cos(e), np.sin(e)], axis=1)
+        P = np.zeros((len(dirs), 3))
+        ok = np.zeros(len(dirs), dtype=bool)
+        for i, d in enumerate(dirs):
+            loc, _, k, _ = F.outer_bvh.ray_cast(Vector(self.O), Vector(d), 0.3)
+            if loc is not None:
+                P[i] = loc
+                ok[i] = self.outer_mat[k] == PART["skin"]
+        if ok.any():
+            _, N, tv, bary = F.skin.nearest(P[ok], smooth=True)
+            head = (F.skin.W[tv, BONE_INDEX["Head"]] * bary).sum(1)
+            Nn = np.zeros_like(P)
+            Nn[ok] = N
+            good = ok.copy()
+            good[ok] = head > 0.9
+            return P, Nn, good
+        return P, np.zeros_like(P), ok
+
+    def grid(self):
+        """The skin seen from `O` over a grid of directions, worked out once: (az, el (degrees), points
+        (el, az, 3), what each is: 0 nothing, 1 the face's own skin, 2 the lips, 3 skin the neck shares)."""
+        if getattr(self, "_grid", None) is None:
+            F = self.F
+            az = np.arange(-179.5, 179.51, 0.5)
+            el = np.arange(-85.0, 85.01, 0.5)
+            A, E = np.meshgrid(np.radians(az), np.radians(el))
+            dirs = np.stack([np.sin(A) * np.cos(E), -np.cos(A) * np.cos(E), np.sin(E)], axis=-1).reshape(-1, 3)
+            P = np.zeros_like(dirs)
+            kind = np.zeros(len(dirs), dtype=np.int8)
+            head = F.skin.W[F.outer_tris, BONE_INDEX["Head"]].mean(1)
+            O = Vector(self.O)
+            for i, d in enumerate(dirs):
+                loc, _, k, _ = F.outer_bvh.ray_cast(O, Vector(d), 0.3)
+                if loc is not None:
+                    P[i] = loc
+                    m = self.outer_mat[k]
+                    kind[i] = 2 if m == PART["lips"] else (0 if m != PART["skin"] else (1 if head[k] > 0.9 else 3))
+            self._grid = (az, el, P.reshape(len(el), len(az), 3), kind.reshape(len(el), len(az)))
+        return self._grid
+
+    def rows(self, h, field, spacing, width, make, el_range=(-80, 84), seed_shift=0.0):
+        """Cards in rows over where `field` grows (its distance inside its edge), rows `spacing` apart and
+        cards `width` wide, top row first. Besides the rows seen at one height from `O`, a row follows each
+        edge that would otherwise be left in steps: the top of where it grows (its cheek line) and the lips'
+        edges above and below. `make(P, N, depth, t)` lays a card on its roots (their distance inside the
+        edge, and where they are along the card, 0..1)."""
+        rng = h.rng
+        az, el, P, kind = self.grid()
+        depth = np.where(kind == 1, field(P.reshape(-1, 3)).reshape(kind.shape), -1.0)
+        inside = depth > -0.0005
+        runs = []  # (az, el) along each run
+        e = el_range[1]
+        while e > el_range[0]:
+            i = int(round((e - el[0]) / 0.5))
+            on = np.nonzero(inside[i])[0]
+            if len(on):
+                for run in np.split(on, np.nonzero(np.diff(on) > 1)[0] + 1):
+                    runs.append((az[run], np.full(len(run), el[i])))
+            r = np.linalg.norm(P[i][kind[i] == 1] - self.O, axis=1)
+            e -= np.degrees(spacing / max(np.median(r) if len(r) else 0.05, 0.02))
+        lo, hi = int(round((el_range[0] - el[0]) / 0.5)), int(round((el_range[1] - el[0]) / 0.5))
+        edges = {"top": [], "under lips": [], "over lips": []}
+        for j in range(len(az)):
+            column = inside[lo : hi + 1, j]
+            if column.any():
+                edges["top"].append((j, lo + np.nonzero(column)[0].max()))
+            lips = np.nonzero(kind[:, j] == 2)[0]
+            if len(lips):
+                for name, i in (("under lips", lips.min() - 2), ("over lips", lips.max() + 2)):
+                    if lo <= i <= hi and inside[i, j]:
+                        edges[name].append((j, i))
+        for found in edges.values():
+            if not found:
+                continue
+            found = np.array(found)
+            breaks = np.nonzero((np.diff(found[:, 0]) > 1) | (np.abs(np.diff(found[:, 1])) > 6))[0] + 1
+            for part in np.split(found, breaks):
+                runs.append((az[part[:, 0]], el[part[:, 1]]))
+        count = 0
+        for n, (raz, rel) in enumerate(runs):
+            if len(raz) < 3:
+                continue
+            pts = P[((rel - el[0]) / 0.5).round().astype(int), ((raz - az[0]) / 0.5).round().astype(int)]
+            s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))])
+            if s[-1] < width * 0.25:
+                continue
+            stride = width * 0.64
+            start = -rng.uniform(0.2, 0.8) * stride - ((seed_shift + 0.5 * n) % 1.0) * stride
+            while start < s[-1]:
+                a0, a1 = max(start, 0.0), min(start + width, s[-1])
+                if a1 - a0 > width * 0.3:
+                    cols = max(3, int(round((a1 - a0) / width * 3)) + 1)
+                    along = np.linspace(a0, a1, cols)
+                    Pc, Nc, okc = self.seen(np.interp(along, s, raz), np.interp(along, s, rel))
+                    keep = okc & (field(Pc) > -0.001)
+                    if keep.sum() >= 3:
+                        make(Pc[keep], Nc[keep], field(Pc[keep]), ((along - start) / width)[keep])
+                        count += 1
+                start += stride * rng.uniform(0.85, 1.15)
+        return count
+
+    def layer(self, h, field, spacing, width, length, lift, steps=2, flow=None, bands=None, hang=None, free=1.0, overhang=0.0, el_range=(-80, 84), seed_shift=0.0):
+        """One layer of a style: cards in rows (`rows`), each strand `length(P)` long and lifting `lift`
+        times that off the skin. Towards the edge of where it grows the strands are shorter and the cards
+        thinner (`bands`: the texture's band for a card by its roots' least distance inside the edge, sparse
+        nearest the edge); a card's ends are shorter than its middle, so its outline is a lock's."""
+        bands = bands or (("short2", 0.0025), ("short1", 0.006), ("short0", 1.0))
+        flow = flow or self.down
+
+        def make(P, N, depth, t):
+            edge = wa.smoothstep(-0.001, 0.009, depth)
+            shape = 0.6 + 0.4 * np.sin(np.pi * np.clip(t, 0, 1)) ** 0.5
+            L = length(P) * (0.45 + 0.55 * edge) * shape * h.rng.uniform(0.85, 1.12)
+            band = next(name for name, most in bands if depth.min() + 0.002 < most)
+            way = hang(P) if hang is not None else (0.0, -0.18, -1.0)
+            h.sheet(P, N, flow, L, L * lift, steps, band, hang=way, free=free, overhang=overhang)
+
+        return self.rows(h, field, spacing, width, make, el_range=el_range, seed_shift=seed_shift)
+
+    def chin(self, P, below=0.005, side=(70, 30)):
+        """How much each point is on the chin (1) rather than the cheeks (0)."""
+        F = self.F
+        return wa.smoothstep(F.mouth[2] + below, F.chin[2] - 0.005, P[:, 2]) * wa.smoothstep(side[0], side[1], F.az(P))
+
+    def make(self, key_names, only=None):
         F = self.F
         out = []
-
-        def start(seed):
-            return Hair(F, seed)
-
-        def moustache(h, spacing, length, width, lift, reach=0.012, locks=("dense",), steps=3):
-            cover = lambda p: self.moustache(p, reach)  # noqa: E731
-            P, N, c = h.roots(cover, spacing)
-            # (None from the nose's wings, whose skin faces the way the hair lies: it would stand straight off.)
-            lies = np.abs((_unit_rows(self.outward(P, N)) * N).sum(1)) < 0.7
-            P, N, c = P[lies], N[lies], c[lies]
-            x = np.abs(P[:, 0]) / F.lip_half
-            h.cards(P, N, self.outward, length * (0.65 + 0.5 * np.clip(x, 0, 1.2)), width, lift, steps, locks, hang=(0.0, -0.1, -1.0), free=length * 1.2, spread=9.0, edge=c)
-
-        both = lambda p: np.maximum(self.full(p), self.moustache(p))  # noqa: E731
+        full = self.full_d
+        both = lambda p: np.maximum(full(p), self.moustache_d(p))  # noqa: E731
         # (Shorter up the cheek towards the ear, where a beard meets the hair's sideburn.)
-        sideburn = lambda p: 1 - 0.55 * wa.smoothstep(52, 80, F.az(p))  # noqa: E731
+        sideburn = lambda p: 1 - 0.5 * wa.smoothstep(52, 82, F.az(p))  # noqa: E731
 
-        # 01: short, close to the face (a week or two's growth).
-        h = start(11)
-        h.patches(both, spacing=0.0108)
-        h.patches(self.moustache, size=0.016, spacing=0.0065)
-        P, N, c = h.roots(both, 0.0115)
-        h.cards(P, N, self.down, 0.011, 0.012, 0.0018, 2, ("tuft", "wispy"), free=1.0, spread=28.0, taper=0.9, edge=c)
-        out.append(("beard-01", h.part(key_names)))
+        def moustache(h, length, lift=0.22, reach=0.012, droop=0.0, steps=3, overhang=0.0015):
+            """A moustache: rows along the upper lip, the hair lying out from under the nose and down over
+            the lip's edge, longer towards its ends (`droop`: its ends hang on past the mouth's corners)."""
+            x = lambda p: np.clip(np.abs(p[:, 0]) / F.lip_half, 0, 1.3)  # noqa: E731
+            self.layer(h, lambda p: self.moustache_d(p, reach), 0.0034, 0.02, lambda p: length * (0.75 + 0.45 * x(p)) + droop * wa.smoothstep(0.7, 1.2, x(p)), lift, steps=steps, flow=self.outward, free=0.012 + length, overhang=overhang, hang=lambda p: np.broadcast_to([0.0, -0.05, -1.0], p.shape), el_range=(-10, 75))
+
+        def style(name, seed, build):
+            if only and name not in only:
+                return
+            h = Hair(F, seed)
+            build(h)
+            out.append((name, h.part(key_names)))
+
+        # 01: short and boxed, close to the face (a few weeks' growth), its lines kept neat.
+        def short(h):
+            self.layer(h, both, 0.0034, 0.03, lambda p: 0.009 + 0.003 * self.chin(p), 0.25, steps=2)
 
         # 02: a full beard, trimmed: longer on the chin than on the cheeks, its moustache joined to it.
-        h = start(12)
-        h.patches(both)
-        h.patches(self.moustache, size=0.016, spacing=0.0065)
-        P, N, c = h.roots(self.full, 0.0098)
-        chin = wa.smoothstep(F.mouth[2] + 0.005, F.chin[2] - 0.005, P[:, 2]) * wa.smoothstep(70, 30, F.az(P))
-        h.cards(P, N, self.down, (0.016 + 0.02 * chin) * sideburn(P), 0.016, 0.0035 + 0.004 * chin, 3, ("dense", "coarse", "tuft"), free=0.02, spread=18.0, edge=c)
-        moustache(h, 0.0052, 0.016, 0.0095, 0.0025)
-        out.append(("beard-02", h.part(key_names)))
+        def full_beard(h):
+            length = lambda p: (0.014 + 0.02 * self.chin(p)) * sideburn(p)  # noqa: E731
+            self.layer(h, full, 0.0055, 0.03, length, 0.24, steps=3)
+            # (A second layer over the chin, lifted further: the beard's fullness there.)
+            self.layer(h, lambda p: np.minimum(full(p) - 0.003, (55 - F.az(p)) * 0.001), 0.01, 0.03, lambda p: length(p) * 1.1, 0.4, steps=3, seed_shift=0.5, bands=(("short1", 0.004), ("short0", 1.0)))
+            moustache(h, 0.014)
 
         # 03: a long beard, to a point on the chest.
-        h = start(13)
-        h.patches(both)
-        h.patches(self.moustache, size=0.016, spacing=0.0065)
-        self.long(h, length=0.17, seed_spacing=0.0115)
-        moustache(h, 0.006, 0.024, 0.012, 0.003, reach=0.016)
-        out.append(("beard-03", h.part(key_names)))
+        def long_beard(h):
+            self.long(h, 0.17, bushy=False)
+            moustache(h, 0.018, reach=0.016, droop=0.008)
 
         # 04: a dwarf's: long, broad and bushy, a braid hanging at either side of the mouth, a big moustache.
-        h = start(14)
-        h.patches(both)
-        h.patches(self.moustache, size=0.016, spacing=0.0065)
-        hull = self.long(h, length=0.215, seed_spacing=0.0115, high=-0.004, bushy=True)
-        self.braids(h, hull)
-        moustache(h, 0.006, 0.04, 0.013, 0.004, reach=0.02, locks=("dense", "coarse"), steps=4)
-        out.append(("beard-04", h.part(key_names)))
+        def dwarf(h):
+            self.long(h, 0.215, bushy=True)
+            moustache(h, 0.024, lift=0.3, reach=0.02, droop=0.03, steps=4, overhang=0.003)
+            self.braids(h)
 
         # 05: a moustache with a goatee, joined round the mouth.
-        h = start(15)
-        both5 = lambda p: np.maximum(self.goatee(p), self.moustache(p))  # noqa: E731
-        h.patches(both5, size=0.022, spacing=0.009)
-        P, N, c = h.roots(self.goatee, 0.0065)
-        chin = wa.smoothstep(F.chin[2] + 0.012, F.chin[2] - 0.006, P[:, 2])
-        h.cards(P, N, self.down, 0.012 + 0.02 * chin, 0.013, 0.002 + 0.004 * chin, 3, ("dense", "tuft"), free=0.016, spread=12.0, edge=c)
-        moustache(h, 0.0052, 0.016, 0.0095, 0.0022)
-        out.append(("beard-05", h.part(key_names)))
+        def goatee(h):
+            self.layer(h, self.goatee_d, 0.0038, 0.022, lambda p: 0.011 + 0.018 * self.chin(p, below=-0.004, side=(60, 20)), 0.25, steps=3)
+            moustache(h, 0.013)
 
         # A moustache alone: full, its ends a little past the mouth's corners.
-        h = start(16)
-        h.patches(lambda p: self.moustache(p, 0.012), size=0.018, spacing=0.008, flow=self.outward)
-        moustache(h, 0.0048, 0.022, 0.0095, 0.003, reach=0.015)
-        out.append(("moustache-01", h.part(key_names)))
+        def moustache_only(h):
+            moustache(h, 0.017, reach=0.015)
+
+        # 06: mutton chops: broad sideburns down the cheeks to the jaw, the chin bare.
+        def chops(h):
+            self.layer(h, self.chops_d, 0.0038, 0.03, lambda p: 0.015 * sideburn(p) + 0.004, 0.28, steps=3)
+
+        style("beard-01", 11, short)
+        style("beard-02", 12, full_beard)
+        style("beard-03", 13, long_beard)
+        style("beard-04", 14, dwarf)
+        style("beard-05", 15, goatee)
+        style("moustache-01", 16, moustache_only)
+        style("beard-06", 17, chops)
         for name, part in out:
             log(f"{name}: {len(part.co)} vertices")
         return out
 
-    def long(self, h, length, seed_spacing, high=0.0, bushy=False):
-        """A long beard on `h`: cards over the cheeks and jaw, then its body hanging from the jaw (a shell
-        of solid hair, open behind, narrowing to a point `length` under the chin) with long locks down it."""
+    def long(self, h, length, bushy=False):
+        """A long beard: a full beard over the cheeks and chin, and from its lower rows long locks hanging
+        down the front, gathering to a point `length` under the chin (a bushy one broader, its point blunt)."""
         F = self.F
-        cover = lambda p: self.full(p, high=high)  # noqa: E731
-        P, N, c = h.roots(cover, seed_spacing)
-        chin = wa.smoothstep(F.mouth[2] + 0.005, F.chin[2] - 0.005, P[:, 2]) * wa.smoothstep(75, 35, F.az(P))
-        side = 1 - 0.5 * wa.smoothstep(55, 82, F.az(P))
-        h.cards(P, N, self.down, (0.02 + 0.045 * chin + (0.01 if bushy else 0.0)) * side, 0.019, 0.005 + 0.006 * chin, 3, ("dense", "coarse") if not bushy else ("coarse", "dense", "curly"), free=0.022, spread=20.0 if bushy else 15.0, edge=c)
-        # Its body: rings round a line from inside the chin down and a little forward. The top ring is the
-        # jaw's own outline, just under the skin (found from inside the chin, looking out level all round), so
-        # no gap shows between it and the face from any side; each ring below is that outline again, wider for
-        # a while (a bushy beard much wider), then narrowing to a point, in lobes like thick locks lying side
-        # by side. Lower down it hangs clear of the neck and chest.
-        rows, cols, wrap = 13, 13, math.radians(118)
-        c0 = np.array([0.0, F.menton[1] + 0.03, F.menton[2] + 0.03])  # (inside the chin, under the mouth's floor)
-        hang = _unit([0.0, -0.16, -1.0])
-        s = np.linspace(0, 1, rows)
-        theta = np.linspace(-wrap, wrap, cols)
-        outline = np.zeros((cols, 3))
-        for j, th in enumerate(theta):
-            way = np.array([math.sin(th), -math.cos(th), 0.0])
-            loc, _, _, _ = F.outer_bvh.ray_cast(Vector(c0), Vector(way), 0.3)
-            outline[j] = (F.under_skin([np.array(loc)], ROOT_DEPTH)[0] - c0) if loc is not None else way * 0.04
-        reach = np.linalg.norm(outline, axis=1)
-        log(f"a long beard's body: the jaw's outline {reach.min() * 100:.1f} to {reach.max() * 100:.1f} cm from its middle")
-        swell = np.sin(np.pi * np.minimum(s / 0.55, 1.0))
-        girth = (1 + (0.3 if bushy else 0.16) * swell) * (1 - s**2.4) ** 0.75 + 0.04 * s
-        wide = 1 + (0.45 if bushy else 0.0) * swell  # (a bushy beard spreads sideways)
-        lobes = 1 + (0.07 if bushy else 0.05) * np.sin(theta[None, :] * 5.2 + 1.3 * np.sin(s[:, None] * 4.0)) * wa.smoothstep(0.05, 0.3, s)[:, None]
-        centres = c0 + (s * length)[:, None] * hang
-        co = centres[:, None, :] + outline[None] * (girth[:, None] * lobes)[:, :, None] * np.stack([wide, np.ones(rows), np.ones(rows)], axis=1)[:, None, :]
-        co = co.reshape(-1, 3)
-        gap = np.repeat(0.002 + 0.006 * wa.smoothstep(0.1, 0.4, s), cols)
-        co[cols:] = h.skin.clear(co[cols:], gap[cols:])
-        faces, uv = [], []
-        for i in range(rows - 1):
-            for j in range(cols - 1):
-                a = i * cols + j
-                faces.append([a, a + cols, a + cols + 1, a + 1])
-                uv.append([wa.hair_region("solid", j / (cols - 1), 1 - s[i]), wa.hair_region("solid", j / (cols - 1), 1 - s[i + 1]), wa.hair_region("solid", (j + 1) / (cols - 1), 1 - s[i + 1]), wa.hair_region("solid", (j + 1) / (cols - 1), 1 - s[i])])
-        hull = Skin(co, faces, None, {})
-        if (hull.vn[cols // 2] @ np.array([0.0, -1.0, 0.0])) < 0:
-            hull.vn, hull.sn = -hull.vn, -hull.sn
-        # (Through the shape keys its top moves with the jaw's skin, so it stays sunk in a wider or narrower
-        # jaw; the rest moves as the chin does.)
-        stiff = lambda depth: wa.smoothstep(0.08, 0.4, depth)  # noqa: E731
-        chin_point = lambda count: np.repeat([F.menton], count, axis=0)  # noqa: E731
-        h.add(co, faces, uv, hang=np.repeat(s > 0.25, cols), normal=hull.sn, anchor2=chin_point(len(co)), mix=np.repeat(stiff(s), cols))
-        h.also.append(hull)
-        # Long locks down its body, from all over it, the lower ones running past its end.
-        tris = hull.tris
-        a, b, c_ = (co[tris[:, i]] for i in range(3))
-        area = np.linalg.norm(np.cross(b - a, c_ - a), axis=1) / 2
-        count = int(area.sum() / (0.015 if bushy else 0.016) ** 2)
-        pick = h.rng.choice(len(tris), size=count, p=area / area.sum())
-        r1, r2 = np.sqrt(h.rng.random(count)), h.rng.random(count)
-        bary = np.stack([1 - r1, r1 * (1 - r2), r1 * r2], axis=1)
-        P = (co[tris[pick]] * bary[:, :, None]).sum(1)
-        N = (hull.sn[tris[pick]] * bary[:, :, None]).sum(1)
-        N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9)
-        depth_down = np.clip(((P - c0) @ hang) / length, 0, 1)
-        flow = lambda p, n: np.broadcast_to(hang, p.shape).copy()  # noqa: E731
-        h.cards(P + N * 0.001, N, flow, 0.05 + 0.035 * (1 - depth_down) + (0.012 if bushy else 0.0), 0.028, 0.004, 3, ("dense", "coarse") if not bushy else ("coarse", "curly", "dense"), free=0.0, spread=9.0 if not bushy else 14.0, rows=2, rigid=True, hang=tuple(hang))
-        per = len(h.anchor[-1]) // len(P)
-        h.anchor2[-1], h.mix[-1] = chin_point(len(h.anchor[-1])), np.repeat(stiff(depth_down), per)
-        return dict(c0=c0, hang=hang, length=length, surface=hull)
+        full = lambda p: self.full_d(p, high=-0.004 if bushy else 0.0)  # noqa: E731
+        sideburn = lambda p: 1 - 0.45 * wa.smoothstep(55, 85, F.az(p))  # noqa: E731
+        self.layer(h, full, 0.006, 0.03, lambda p: (0.018 + 0.016 * self.chin(p)) * sideburn(p) + (0.006 if bushy else 0.0), 0.3 if bushy else 0.24, steps=2)
+        # The locks: from the jaw's line down (where the skin turns under), each strand lying a little way
+        # down the face before it hangs, the hang turned in towards the middle so the beard narrows to its point.
+        low = lambda p: np.minimum(full(p), (self.top(F.az(p)) - 0.012 - p[:, 2]))  # noqa: E731
+        wide = 0.55 if bushy else 0.82  # (how far in the sides are drawn by the tip)
 
-    def braids(self, h, hull):
+        def hang(p):
+            x = p[:, 0]
+            L = length * (1 - 0.55 * wa.smoothstep(0, 85, F.az(p)))
+            return _unit_rows(np.stack([-x * wide / np.maximum(L, 0.05), np.full(len(p), -0.14 if not bushy else -0.2), -np.ones(len(p))], axis=1))
+
+        def strands(p):
+            return length * (1 - 0.55 * wa.smoothstep(0, 85, F.az(p))) * (1 + (0.25 if bushy else 0.1) * (1 - self.chin(p)))
+
+        bands = (("long", 1.0),)
+        for layer, (spacing, lift, shift) in enumerate(((0.009, 0.12, 0.0), (0.011, 0.26 if bushy else 0.16, 0.5))):
+            self.layer(h, lambda p, k=layer: low(p) - 0.002 * k, spacing, 0.04, strands, lift, steps=5, bands=bands, hang=hang, free=0.012 + 0.006 * layer, seed_shift=shift)
+        # (The hanging locks move with the chin, not with each bit of skin they grow from.)
+        stiff = lambda depth: wa.smoothstep(0.03, 0.12, depth)  # noqa: E731
+        for i in range(len(h.co)):
+            moved = np.linalg.norm(h.co[i] - h.anchor[i], axis=1)
+            h.anchor2[i] = np.repeat([F.menton], len(h.co[i]), axis=0)
+            h.mix[i] = stiff(moved)
+
+    def front_of(self, h, P, margin):
+        """Points `P` brought in front of the hair made so far (the beard's outside, where nearby hair lies)."""
+        co = np.concatenate(h.co)
+        out = P.copy()
+        for i, p in enumerate(P):
+            near = (np.abs(co[:, 0] - p[0]) < 0.012) & (np.abs(co[:, 2] - p[2]) < 0.012)
+            if near.any():
+                out[i, 1] = min(p[1], co[near, 1].min() - margin)
+        return out
+
+    def braids(self, h):
         """Two braids, one hanging from either side of the mouth down the beard's front: three strands
         plaited, tied near the end, a tuft under the tie."""
         F = self.F
         for sign in (1.0, -1.0):
-            x = sign * (F.lip_half + 0.004)
-            top = F.front(x, F.mouth[2] - 0.022)
-            n = 26
-            length = hull["length"] * 0.72
-            line = top + np.array([0.0, 2 * ROOT_DEPTH, 0.0]) + np.linspace(0, 1, n)[:, None] * length * _unit([sign * 0.1, -0.12, -1.0])
-            # (Its first points stay where they are, under the skin beside the mouth; the rest lies on the beard.)
-            out = wa.smoothstep(0.0, 0.12, np.linspace(0, 1, n))[:, None]
-            line = line * (1 - out) + h.clear(line, np.full(n, 0.011)) * out
-            for _ in range(8):
+            x = sign * (F.lip_half + 0.003)
+            top = F.front(x, F.mouth[2] - 0.016)
+            n = 48
+            length = 0.15
+            s = np.linspace(0, 1, n)
+            line = top + np.array([0.0, 2 * ROOT_DEPTH, 0.0]) + s[:, None] * length * _unit([sign * 0.06, -0.1, -1.0])
+            # (Its first points stay where they are, beside the mouth; the rest lies on the beard's front.)
+            lying = self.front_of(h, line, 0.004)
+            out = wa.smoothstep(0.0, 0.1, s)[:, None]
+            line = line * (1 - out) + lying * out
+            for _ in range(20):
                 line[1:-1] = line[1:-1] * 0.5 + (line[:-2] + line[2:]) * 0.25
             T, S, N = wa.frames(line, [1.0, 0.0, 0.0])
-            s = np.linspace(0, 1, n)
-            phase = 2 * np.pi * s * length / 0.05
-            amp = 0.0052 * (1 - 0.25 * s)
+            # Three strands, each crossing over the middle in turn: across the braid and back, and over and
+            # under, twice as often.
+            pitch = 0.034
+            phase = 2 * np.pi * s * length / pitch
+            amp = 0.0056 * (1 - 0.3 * s)
+            r = 0.0044 * (1 - 0.3 * s)
+            end = int(n * 0.86)
             for i in range(3):
                 a = phase + 2 * np.pi * i / 3
-                strand = line + S * (amp * np.sin(a))[:, None] + N * (0.6 * amp * np.sin(2 * a))[:, None]
-                h.solid(strand[: int(n * 0.9)], 0.0056 * (1 - 0.25 * s[: int(n * 0.9)]), [1.0, 0.0, 0.0], segments=6, v=(1.0, 0.35), anchor=top, tip=False)
-            at = int(n * 0.86)
-            h.solid(line[at : at + 3], np.full(3, 0.0088), [1.0, 0.0, 0.0], segments=9, region="tie", v=(1.0, 0.0), anchor=top, tip=False)
-            # The tuft under the tie.
-            m = 7
-            ang = h.rng.uniform(0, 2 * np.pi, m)
-            P = line[at + 2] + S[at + 2] * (0.004 * np.cos(ang))[:, None] + N[at + 2] * (0.004 * np.sin(ang))[:, None]
-            Nn = S[at + 2] * np.cos(ang)[:, None] + N[at + 2] * np.sin(ang)[:, None]
-            flow = lambda p, nn, d=T[at + 2]: np.broadcast_to(d, p.shape).copy()  # noqa: E731
-            before = len(h.anchor)
-            h.cards(P, Nn, flow, 0.04, 0.012, 0.002, 3, ("tuft", "wispy"), free=0.0, spread=6.0, rigid=True, hang=tuple(T[at + 2]))
-            h.anchor[before] = np.repeat([top], len(h.anchor[before]), axis=0)
+                strand = line + S * (amp * np.sin(a))[:, None] - N * (0.45 * amp * np.sin(2 * a) + 0.002)[:, None]
+                h.solid(strand[: end + 2], r[: end + 2], [1.0, 0.0, 0.0], segments=6, squash=0.72, anchor=top, tip=False, tile=0.02)
+            # The tie, and a tuft under it.
+            h.solid(line[end - 1 : end + 3], np.full(4, 0.0078), [1.0, 0.0, 0.0], segments=10, band="tie", anchor=top, tip=False, tile=0.05)
+            at = end + 2
+            m = 6
+            ang = np.linspace(0, 2 * np.pi, m, endpoint=False) + h.rng.uniform(0, 1)
+            for k in range(m):
+                way = S[at] * np.cos(ang[k]) + N[at] * np.sin(ang[k])
+                cols = 3
+                P = line[at] + way * 0.003 + np.outer(np.linspace(-1, 1, cols), np.cross(T[at], way)) * 0.004
+                Nn = np.repeat([way], cols, axis=0)
+                flow = lambda p, nn, d=T[at] + way * 0.25: np.broadcast_to(d, p.shape).copy()  # noqa: E731
+                before = len(h.anchor)
+                h.sheet(P, Nn, flow, np.full(cols, 0.03), np.zeros(cols), 3, "long", hang=tuple(T[at]), free=1.0, rigid=True)
+                if len(h.anchor) > before:
+                    h.anchor[before] = np.repeat([top], len(h.anchor[before]), axis=0)
 
 
 def foot_hair(F, key_names):
@@ -4498,7 +4591,7 @@ def foot_hair(F, key_names):
     flow = lambda p, n: np.broadcast_to(np.array([0.0, -1.0, -0.1]), p.shape).copy()  # noqa: E731
     P, N, c = h.roots(cover, 0.0105, bones=bones)
     P, N, c = P[N[:, 2] > 0.35], N[N[:, 2] > 0.35], c[N[:, 2] > 0.35]
-    h.cards(P, N, flow, 0.024, 0.0125, 0.0022, 3, ("wispy", "dense", "wispy"), free=1.0, spread=26.0, edge=c, on_face=False)
+    h.cards(P, N, flow, 0.024, 0.0125, 0.0022, 3, ("short1", "short0", "short1"), free=1.0, spread=26.0, edge=c, on_face=False)
     part = h.part(key_names, head=False)
     log(f"foothair-01: {len(part.co)} vertices")
     return [("foothair-01", part)]

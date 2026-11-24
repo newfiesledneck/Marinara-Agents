@@ -200,6 +200,101 @@ for (const body of ["male", "female"]) {
   assert.deepEqual([...texels.subarray(4, 7)], [228, 50, 25], "half blush is half way to its colour");
   assert.deepEqual([...texels.subarray(8, 11)], [200, 100, 50], "no eyeshadow leaves the skin");
   assert.deepEqual(makeupLayers({}), [null, null, null], "no makeup, nothing to paint");
+
+  // The hair masks: each body's three files, half the skin picture's size, every mask HAIR_MASKS names
+  // there (each facial hair style's ground, the scalp, stubble's full beard), none on the lips, and the
+  // smaller styles inside the full beard's ground.
+  const { HAIR_MASKS, HAIR_MASK_FILES, STUBBLE_SHAPES, hairLayers, hairTexel } =
+    await import("../packages/3d-avatar-maker/src/skin.js");
+  for (const body of ["male", "female"]) {
+    const files = await Promise.all(HAIR_MASK_FILES.map((_, n) => maskOf(`avatar-${body}-hair-masks-${n}.png`)));
+    const count = {};
+    for (const [name, [file, channel]] of Object.entries(HAIR_MASKS)) {
+      const { width, at } = files[file];
+      assert.equal(width, 1024, `${body}: the hair masks are 1024 across`);
+      let full = 0;
+      for (let y = 0; y < width; y++)
+        for (let x = 0; x < width; x++) {
+          const value = at(x, y, channel);
+          if (value > 128) full++;
+          if (value && lipsAt[body](x * 2, y * 2, 1) > 128 && name !== "scalp")
+            assert.ok(value < 64, `${body}: ${name} keeps off the lips (${x}, ${y})`);
+        }
+      count[name] = full;
+      assert.ok(full > 200, `${body}: the ${name} mask has its ground (${full} texels)`);
+    }
+    assert.ok(count["moustache-01"] < count["beard-05"], `${body}: a moustache grows on less than a goatee`);
+    assert.ok(count["beard-05"] < count["beard-02"], `${body}: a goatee on less than a full beard`);
+    assert.ok(count["beard-06"] < count["beard-02"], `${body}: mutton chops on less than a full beard`);
+    assert.ok(count.scalp > count["beard-02"], `${body}: the scalp's mask is bigger than a beard's`);
+  }
+  // Under hair, the skin goes towards the hair's colour as far as the mask says; stubble adds fine hairs.
+  const under = hairLayers({ facialHair: "beard-02", scalp: true, hair: 0x402010 });
+  assert.deepEqual(
+    under.map((layer) => layer.mask),
+    [HAIR_MASKS.scalp, HAIR_MASKS["beard-02"]],
+    "a hair style and a beard: the scalp's mask and the beard's",
+  );
+  const skinTexel = () => new Uint8ClampedArray([220, 180, 160, 255]);
+  const beardOnly = under.filter((layer) => layer.mask === HAIR_MASKS["beard-02"]);
+  const shaded = skinTexel();
+  hairTexel(shaded, 0, beardOnly, [0, 255, 0], 0, 10, 10, 2048);
+  assert.ok(shaded[0] < 120 && shaded[0] > 0x40, `under a beard the skin is near the hair's colour (${shaded[0]})`);
+  const bare = skinTexel();
+  hairTexel(bare, 0, beardOnly, [0, 0, 0], 0, 10, 10, 2048);
+  assert.deepEqual([...bare.subarray(0, 3)], [220, 180, 160], "outside the mask the skin is as it was");
+  assert.deepEqual(hairLayers({ facialHair: "none", scalp: false, hair: 0x402010 }), [], "no hair, nothing to paint");
+  assert.deepEqual(
+    STUBBLE_SHAPES.map(([shape]) => shape),
+    looks.STUBBLE.map(([shape]) => shape),
+    "the skin paints every stubble shape the look offers",
+  );
+  for (const [, mask] of STUBBLE_SHAPES) assert.ok(HAIR_MASKS[mask], `stubble's mask ${mask} is a hair mask`);
+  // Stubble: some texels are fine hairs, darker than the shadow between them, and denser stubble has more.
+  const hairsAt = (density) => {
+    const [layer] = hairLayers({ facialHair: "none", hair: 0x201008, stubble: { shape: "heavy", density } });
+    let hairs = 0;
+    for (let x = 0; x < 400; x++) {
+      const texel = skinTexel();
+      hairTexel(texel, 0, [layer], [0, 0, 255], 0, x, 7, 2048);
+      if (texel[0] < 120) hairs++;
+    }
+    return hairs;
+  };
+  assert.ok(
+    hairsAt(1) > hairsAt(0.3) && hairsAt(0.3) > 0,
+    `denser stubble, more hairs (${hairsAt(1)}, ${hairsAt(0.3)})`,
+  );
+}
+
+// ── Facial hair and stubble in a look ──
+{
+  const { FACIAL_HAIR, STUBBLE, STUBBLE_DENSITY } = looks;
+  // Every style id there has been still opens, the race presets' among them.
+  for (const id of ["beard-01", "beard-02", "beard-03", "beard-04", "beard-05", "moustache-01", "beard-06"])
+    assert.equal(checkLook({ facialHair: id }).facialHair, id, `${id} opens`);
+  assert.ok(
+    FACIAL_HAIR.some(([id]) => id === racePreset("dwarf", "male").facialHair),
+    "the dwarf's beard is offered",
+  );
+  assert.equal(checkLook({ facialHair: "beard-99" }).facialHair, undefined, "an unknown style is left out");
+  // Stubble: none unless chosen, one of its shapes, its density within 0 and 1 (missing: the usual), a colour
+  // of its own or none.
+  assert.equal(checkLook({ body: "male" }).stubble, undefined, "no stubble unless chosen");
+  assert.deepEqual(checkLook({ stubble: { shape: "light" } }).stubble, { shape: "light", density: STUBBLE_DENSITY });
+  assert.deepEqual(checkLook({ stubble: { shape: "heavy", density: 3, colour: 0x111111 } }).stubble, {
+    shape: "heavy",
+    density: 1,
+    colour: 0x111111,
+  });
+  assert.equal(checkLook({ stubble: { shape: "short", density: -2 } }).stubble.density, 0, "density at least 0");
+  assert.equal(checkLook({ stubble: { shape: "goatee", density: 0.12345 } }).stubble.density, 0.123, "rounded");
+  for (const bad of [{ shape: "beard" }, { density: 0.5 }, "light", { shape: "light", colour: "red" }])
+    assert.ok(
+      !checkLook({ stubble: bad }).stubble || checkLook({ stubble: bad }).stubble.colour === undefined,
+      `refused: ${JSON.stringify(bad)}`,
+    );
+  assert.equal(STUBBLE.length, 5, "light and heavy stubble, moustache and goatee shadows, a short beard");
 }
 
 // ── Makeup in a look: checked, bounded, and the made-up skins there were opening as their plain skin ──
@@ -575,7 +670,7 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
       );
     if (name === "dress") {
       // (The dress's chains, with capsules on the thighs and calves among the colliders they meet.)
-      const { springs, colliders } = json.extensions.VRMC_springBone;
+      const { springs, colliders, colliderGroups } = json.extensions.VRMC_springBone;
       assert.ok(
         springs.filter((spring) => spring.name.startsWith("Dress (")).length >= 3,
         "the dress hangs on springs",
@@ -586,6 +681,20 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
         ["Bust (left)", "Bust (right)"].every((bust) => springs.some((spring) => spring.name === bust)),
         "and her bust on springs too",
       );
+      // (Each breast's ball, as big as the figure's, meets capsules on both arms and hands.)
+      for (const name of ["Bust (left)", "Bust (right)"]) {
+        const spring = springs.find((one) => one.name === name);
+        const own = figure.springs.find((one) => one.name === name);
+        assert.equal(spring.joints[0].hitRadius, own.joint.hitRadius, `${name}: its ball's size in the VRM`);
+        const met = (spring.colliderGroups ?? []).flatMap((group) => colliderGroups[group].colliders);
+        const bones = met.map((at) => json.nodes[colliders[at].node].name);
+        for (const bone of ["upperarm_l", "lowerarm_l", "hand_l", "upperarm_r", "lowerarm_r", "hand_r"])
+          assert.ok(bones.includes(bone), `${name} meets ${bone}'s collider in the VRM`);
+        assert.ok(
+          met.every((at) => colliders[at].shape.capsule),
+          `${name}'s colliders are capsules`,
+        );
+      }
     }
     assert.deepEqual(lookInGlb(saved.bytes), { name: `Saved ${name}`, look }, `${name}: the look comes back out`);
 
@@ -633,6 +742,12 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
         moved < (name === "tiefling" ? 0.1 : 0.03),
         `${name}: its springs keep their shape at rest (${moved.toFixed(3)} m)`,
       );
+      // (The bust, its balls clear of the arms' capsules in the T-pose, stays exactly where it rests.)
+      figure.springs.forEach((spring, i) => {
+        if (!spring.name.startsWith("Bust (")) return;
+        const off = ends[i].getWorldPosition(new Vector3()).distanceTo(start[i]);
+        assert.ok(off < 0.0005, `${name}: three-vrm holds ${spring.name} at rest (${(off * 1000).toFixed(2)} mm)`);
+      });
     }
     // The face: VRM's expressions bound to its keys, and the eyes on their bones, turned to look.
     for (const key of FACE_MOVES)
@@ -986,9 +1101,9 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
 
   // ── A bust that moves: a spring bone in each breast, and what's worn over it moving with it (bust.js) ──
   {
-    const { BUST_JOINT, createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
+    const { createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
     const { movingPose } = await import("../packages/3d-avatar-maker/src/figure.js");
-    const bustOf = (figure) => figure.springs.filter((spring) => spring.joint === BUST_JOINT);
+    const bustOf = (figure) => figure.springs.filter((spring) => spring.name.startsWith("Bust ("));
     const build = (body, shape = {}, clothes = []) =>
       createAvatar(
         startOf(body, { shape: { ...startOf(body).shape, ...shape }, clothes, hair: "none" }),
@@ -1099,6 +1214,145 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
         moving.step(1 / 60);
       }
       assert.ok(furthest(tips(), rest) < 0.0005, `${label}: and settles within a second`);
+
+      // The arms press on it: each breast meets capsules on both upper arms, forearms and hands, and none holds
+      // its ball at rest, as built, in the T-pose or with the arms hanging relaxed.
+      for (const spring of springs) {
+        const met = new Set(spring.colliders.map((collider) => collider.bone.name));
+        for (const bone of ["upperarm", "lowerarm", "hand"].flatMap((name) => [`${name}_l`, `${name}_r`]))
+          assert.ok(met.has(bone), `${label}: ${spring.name} meets ${bone}'s collider`);
+      }
+      for (const pose of [restPose, tPose, (one) => relaxedPose(one, 0)]) {
+        pose(figure);
+        for (const spring of springs)
+          for (const collider of spring.colliders) {
+            const at = spring.bones[1].getWorldPosition(new Vector3());
+            const start = collider.offset.clone().applyMatrix4(collider.bone.matrixWorld);
+            const line = collider.tail.clone().applyMatrix4(collider.bone.matrixWorld).sub(start);
+            const t = Math.max(0, Math.min(1, at.clone().sub(start).dot(line) / line.lengthSq()));
+            const gap = at.distanceTo(start.addScaledVector(line, t)) - collider.radius - spring.joint.hitRadius;
+            assert.ok(gap > 0, `${label}: ${spring.name} rests clear of ${collider.bone.name}'s collider`);
+          }
+      }
+      // Arms folded (motions.js), on the same body bare (the skin under a top isn't drawn): the bust is pushed
+      // and the forearms stay outside its skin; the hands, tucked against its outer side, go less deep into it
+      // than with the bust left as it rests. Lowered again, it settles.
+      {
+        const bare = await build("female", shape);
+        const body = bare.meshes.find((mesh) => mesh.name === "body");
+        const breasts = bustOf(bare);
+        const own = breasts.flatMap((spring) => spring.bones);
+        const ends = () => breasts.map((spring) => spring.bones[1].getWorldPosition(new Vector3()));
+        const isBust = new Set(body.skeleton.bones.flatMap((bone, i) => (bone.name.startsWith("breast_") ? [i] : [])));
+        const armOf = (name) =>
+          /^upperarm_/u.test(name)
+            ? "upper"
+            : /^lowerarm_/u.test(name)
+              ? "fore"
+              : /^(?:hand|index|middle|ring|pinky|thumb)_/u.test(name)
+                ? "hand"
+                : null;
+        const { position, normal, skinIndex: index, skinWeight: weight } = body.geometry.attributes;
+        const breastPoints = [];
+        const armPoints = [];
+        for (const v of new Set(body.geometry.index.array)) {
+          let [onBust, most] = [0, 0];
+          for (let c = 0; c < 4; c++) {
+            if (isBust.has(index.getComponent(v, c))) onBust += weight.getComponent(v, c);
+            if (weight.getComponent(v, c) > weight.getComponent(v, most)) most = c;
+          }
+          if (onBust > 0.45) breastPoints.push(v);
+          const part = armOf(body.skeleton.bones[index.getComponent(v, most)].name);
+          if (part) armPoints.push([v, part]);
+        }
+        const placed = (v, out, along = 0) =>
+          body
+            .applyBoneTransform(
+              v,
+              out.fromBufferAttribute(position, v).addScaledVector(new Vector3().fromBufferAttribute(normal, v), along),
+            )
+            .applyMatrix4(body.matrixWorld);
+        /** How deep each part of the arms is under the breasts' skin at its deepest, as the body stands now. */
+        const under = () => {
+          bare.root.updateMatrixWorld(true);
+          const faces = breastPoints.map((v) => {
+            const at = placed(v, new Vector3());
+            return [at, placed(v, new Vector3(), 0.01).sub(at).normalize()];
+          });
+          const most = { upper: 0, fore: 0, hand: 0 };
+          const a = new Vector3();
+          for (const [v, part] of armPoints) {
+            placed(v, a);
+            let [best, gap] = [null, 0.04 ** 2];
+            for (const face of faces) {
+              const d = face[0].distanceToSquared(a);
+              if (d < gap) [best, gap] = [face, d];
+            }
+            if (best) most[part] = Math.max(most[part], -a.sub(best[0]).dot(best[1]));
+          }
+          return most;
+        };
+        const { createMotionPlayer } = await import("../packages/3d-avatar-maker/src/motions.js");
+        const player = createMotionPlayer();
+        relaxedPose(bare, 0);
+        const pressing = createSprings(bare);
+        const resting = ends();
+        player.play(bare, "fold-arms");
+        const deepest = { pushed: { upper: 0, fore: 0, hand: 0 }, resting: { upper: 0, fore: 0, hand: 0 } };
+        let pushed = 0;
+        for (let f = 1; f <= 150; f++) {
+          player.step(bare, 1 / 60, () => relaxedPose(bare, 0));
+          pressing.step(1 / 60);
+          if (f % 10) continue;
+          const now = ends();
+          const mostNow = under();
+          const held = own.map((bone) => [bone.quaternion.clone(), bone.position.clone(), bone.scale.clone()]);
+          for (const bone of own) {
+            bone.quaternion.copy(bare.rest.get(bone.name));
+            bone.position.copy(bare.restAt.get(bone.name));
+            bone.scale.setScalar(1);
+          }
+          bare.root.updateMatrixWorld(true);
+          pushed = Math.max(pushed, furthest(now, ends()));
+          const mostResting = under();
+          own.forEach((bone, i) => {
+            bone.quaternion.copy(held[i][0]);
+            bone.position.copy(held[i][1]);
+            bone.scale.copy(held[i][2]);
+          });
+          bare.root.updateMatrixWorld(true);
+          for (const part of ["upper", "fore", "hand"]) {
+            deepest.pushed[part] = Math.max(deepest.pushed[part], mostNow[part]);
+            deepest.resting[part] = Math.max(deepest.resting[part], mostResting[part]);
+          }
+        }
+        const mm = (x) => (x * 1000).toFixed(1);
+        assert.ok(pushed > 0.005, `${label}: folded arms push the bust (${mm(pushed)} mm)`);
+        // (Within a centimetre: one ball under each breast's skin can't fill a large one's sides, so where an arm
+        // presses beyond it, the skin it meets gives way only as the ball does.)
+        assert.ok(
+          deepest.pushed.fore < 0.01 && deepest.pushed.fore <= deepest.resting.fore / 2 + 0.001,
+          `${label}: the forearms stay outside it (${mm(deepest.pushed.fore)} mm; ${mm(deepest.resting.fore)} unpushed)`,
+        );
+        assert.ok(
+          deepest.pushed.hand < deepest.resting.hand - 0.002,
+          `${label}: the hands go less deep into it (${mm(deepest.pushed.hand)} mm; ${mm(deepest.resting.hand)} unpushed)`,
+        );
+        player.stop(bare);
+        for (let f = 0; f < 90; f++) {
+          player.step(bare, 1 / 60, () => relaxedPose(bare, 0));
+          pressing.step(1 / 60);
+        }
+        assert.ok(furthest(ends(), resting) < 0.0005, `${label}: and settles once they're lowered`);
+        assert.ok(
+          own.every(
+            (bone) => Math.abs(bone.scale.x - 1) + Math.abs(bone.scale.y - 1) + Math.abs(bone.scale.z - 1) < 1e-6,
+          ),
+          `${label}: unsquashed`,
+        );
+        bare.dispose();
+      }
+      restPose(figure);
       // A GLB keeps the bones and their weights.
       for (const mesh of figure.meshes) for (const material of [mesh.material].flat()) material.map = null;
       const { json } = readGlb((await exportGlb(figure, { look: {} })).bytes);
@@ -1488,12 +1742,8 @@ for (const figure of Object.values(made)) figure.dispose();
   const off = await made({ ...skirt, underwear: { bottom: "briefs", underClothes: false } });
   assert.ok(on.briefs > 0, "the body's briefs show under a skirt with underwear shown under clothes");
   assert.equal(off.briefs, 0, "and are hidden under it with that off");
-  // (Off until the clothes are fitted around underwear: avatar.js UNDER_CLOTHES.)
-  assert.equal(
-    (await made({ ...skirt, underwear: { bottom: "briefs" } })).briefs,
-    0,
-    "hidden where a look doesn't say",
-  );
+  // (Shown where a look doesn't say: avatar.js UNDER_CLOTHES.)
+  assert.ok((await made({ ...skirt, underwear: { bottom: "briefs" } })).briefs > 0, "shown where a look doesn't say");
   assert.equal(
     (await made({ clothes: ["one_piece_swimsuit"], underwear: { bottom: "briefs", underClothes: true } })).briefs,
     0,
@@ -1512,6 +1762,79 @@ for (const figure of Object.values(made)) figure.dispose();
     reds.some((value) => Math.abs(value - red) < 1e-4),
     `the pack's bra takes the underwear's colour (${reds.join(", ")} for ${red})`,
   );
+}
+
+// ── Clothes keep their layers, and what's worn on the legs never follows the arms ──
+{
+  const { depthOf, LAYER_GAP, surfaceOf, tuckUnder } = await import("../packages/3d-avatar-maker/src/layers.js");
+  assert.ok(depthOf("underwear_top", 1) < depthOf("socks", 1), "underwear is under everything");
+  assert.ok(depthOf("socks", 1) < depthOf("legs", 1) && depthOf("legs", 1) < depthOf("top", 1), "socks, legs, a top");
+  assert.ok(depthOf("top", 1) < depthOf("over", 2), "a jacket over the shirt");
+  // An inner point just over an outer surface goes LAYER_GAP under it; one far under it, or past its edge, stays.
+  {
+    const outer = surfaceOf(new Float32Array([-1, -1, 0.01, 1, -1, 0.01, 0, 1, 0.01]), new Uint32Array([0, 1, 2]));
+    const points = new Float32Array([0, 0, 0.012, 0, 0, -0.05, 0.9, 0.9, 0.012]);
+    const near = { ids: new Uint32Array(3), shares: new Float32Array([1, 1, 1]) };
+    assert.equal(tuckUnder(points, 0, 3, near, 1, new Float32Array([0, 0, 1]), [outer]), 1, "one point moved");
+    assert.ok(Math.abs(points[2] - (0.01 - LAYER_GAP)) < 1e-6, "tucked to the gap under the surface");
+    assert.ok(Math.abs(points[5] + 0.05) < 1e-6, "a point well under it stays");
+    assert.ok(Math.abs(points[8] - 0.012) < 1e-6, "a point past its edge stays");
+  }
+  // Worn together, no point of an inner piece is left over the piece worn over it (along the skin's normals,
+  // as the maker tucks it: looked for again, nothing more moves).
+  const { nearestSkin } = await import("../packages/3d-avatar-maker/src/avatar.js");
+  const pieceMeshes = (figure) => new Map(figure.meshes.map((mesh) => [mesh.userData.piece, mesh]));
+  for (const [body, inner, outer] of [
+    ["female", "joepal_crude_high_socks", "mh_female_leggings"],
+    ["female", "mh_female_leggings", "punkduck_high_neck_crop_top"],
+    ["male", "mh_jeans", "mh_tee"],
+    ["female", "punkduck_v_neck_top", "elvs_hooded_sweat_jacket1"],
+  ]) {
+    const figure = await createAvatar(startOf(body, { clothes: [inner, outer] }), "Test", "auto");
+    const meshes = pieceMeshes(figure);
+    assert.ok(meshes.has(inner) && meshes.has(outer), `${inner} under ${outer}: both worn`);
+    const { geometry: under } = meshes.get(inner);
+    const { geometry: over } = meshes.get(outer);
+    const points = under.attributes.position.array.slice();
+    const count = points.length / 3;
+    const skin = figure.meshes.find((mesh) => mesh.name === "body").geometry.attributes.normal.array;
+    const surface = surfaceOf(over.attributes.position.array, over.index.array);
+    tuckUnder(points, 0, count, nearestSkin(figure.kit, points), 4, skin, [surface]);
+    const was = under.attributes.position.array;
+    let left = 0; // (moved again by more than a fifth of a millimetre)
+    for (let v = 0; v < count; v++)
+      if (
+        Math.hypot(points[v * 3] - was[v * 3], points[v * 3 + 1] - was[v * 3 + 1], points[v * 3 + 2] - was[v * 3 + 2]) >
+        2e-4
+      )
+        left++;
+    assert.ok(left <= count * 0.01, `${inner} under ${outer}: ${left} of ${count} points left over it`);
+    figure.dispose();
+  }
+  // A piece on the legs or feet takes no weight from the arms or hands below the chest (they hang beside a
+  // skirt in the A-pose, and would drag it when lowered). (Above it, overalls' straps rest on the shoulders.)
+  const ARM_BONE = /^(?:upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)_/u;
+  for (const body of ["male", "female"]) {
+    const { clothes } = await avatarChoices(body);
+    for (const { piece } of clothes.filter(({ piece }) => ["legs", "feet", "socks"].includes(looks.SLOT_OF[piece]))) {
+      const figure = await createAvatar(startOf(body, { clothes: [piece] }), "Test", "auto");
+      const mesh = pieceMeshes(figure).get(piece);
+      if (mesh) {
+        const { position, skinIndex, skinWeight } = mesh.geometry.attributes;
+        const chest = mesh.skeleton.bones.findIndex((bone) => bone.name === "spine_02");
+        const below = chest < 0 ? Infinity : mesh.skeleton.boneInverses[chest].clone().invert().elements[13];
+        let worst = 0;
+        for (let i = 0; i < skinIndex.array.length; i++)
+          if (
+            position.array[(i >> 2) * 3 + 1] < below &&
+            ARM_BONE.test(mesh.skeleton.bones[skinIndex.array[i]]?.name ?? "")
+          )
+            worst = Math.max(worst, skinWeight.array[i]);
+        assert.ok(worst < 0.01, `${body} ${piece}: no weight on the arms (${worst.toFixed(3)})`);
+      }
+      figure.dispose();
+    }
+  }
 }
 
 // ── Bone-fixed pieces, a pack's hair styles, and looks that outlast an uninstalled pack ──

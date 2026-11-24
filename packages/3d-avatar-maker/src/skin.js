@@ -1,9 +1,11 @@
 // The skin picture each avatar wears, painted for it: the skin picture (or the body's own shading picture,
 // coloured in the skin colour of one's own), with
 // - the lips coloured through the body's paint mask (kit/avatar/avatar-<sex>-masks.png: green is the lips);
+// - the skin under hair tinted in the hair's colour, and stubble, through the body's hair masks
+//   (kit/avatar/avatar-<sex>-hair-masks-<n>.png: HAIR_MASKS);
 // - makeup on, through the makeup mask (kit/avatar/avatar-makeup-masks.png, one for both bodies: red the
 //   eyeshadow, green the eyeliner, blue the blush).
-// Both masks are made by scripts/build-3d-avatar-maker-masks.mjs. Painting through a mask gives the lips and
+// The masks are made by scripts/build-3d-avatar-maker-masks.mjs. Painting through a mask gives the lips and
 // makeup a clean edge; colouring the lips' faces followed the mesh's faces. (The nails are shells of their
 // own, coloured by vertex, so they have nothing to paint here.)
 //
@@ -58,6 +60,94 @@ export function makeupTexel(data, i, layers, masks, j) {
     const layer = layers[k];
     const share = layer ? (layer[3] * masks[j * 3 + MAKEUP_ORDER[k][1]]) / 255 : 0;
     if (share) for (let c = 0; c < 3; c++) data[i + c] += (layer[c] - data[i + c]) * share;
+  }
+}
+
+// ── Hair on the skin ──────────────────────────────────────────────────────────
+// Facial hair and a hair style are cards cut out of a strand picture, and the skin shows between them. Under
+// each, the skin is painted towards the hair's colour (a shaved shadow), so a gap reads as hair, not as pale
+// skin under a dark beard. Stubble is painted the same way, with a grain of fine hairs in it. These layers go
+// on after the lips and before the makeup, with the makeup's blend (painting over, `makeupTexel`).
+
+/** The hair masks' files, each three channels (red, green, blue): which mask is in which. */
+export const HAIR_MASK_FILES = [
+  ["beard-01", "beard-02", "beard-03"],
+  ["beard-04", "beard-05", "moustache-01"],
+  ["beard-06", "scalp", "stubble"],
+];
+/** Each hair mask by name: [its file (avatar-<sex>-hair-masks-<file>.png), its channel]. */
+export const HAIR_MASKS = Object.fromEntries(
+  HAIR_MASK_FILES.flatMap((names, file) => names.map((name, channel) => [name, [file, channel]])),
+);
+/** How far the skin under facial hair and under a hair style goes towards the hair's colour, at most. */
+export const UNDER_HAIR = { beard: 0.72, scalp: 0.6 };
+/**
+ * The stubble's shapes (looks.js STUBBLE): [value, the mask it's painted through, how much of the hair's colour
+ * the skin takes all over, how many fine hairs there are (0..1, at full density)].
+ */
+export const STUBBLE_SHAPES = [
+  ["light", "stubble", 0.1, 0.22],
+  ["heavy", "stubble", 0.3, 0.6],
+  ["moustache", "moustache-01", 0.3, 0.6],
+  ["goatee", "beard-05", 0.3, 0.6],
+  ["short", "beard-01", 0.5, 0.85],
+];
+
+/**
+ * The hair layers for a look: [{ mask: [file, channel], colour: [r, g, b], amount, grain }], in the order
+ * they go on. `facialHair` (a style, or "none"), `scalp` (whether a hair style is worn and shown), `hair` (the
+ * hair's colour), `stubble` (looks.js: { shape, colour, density }, or undefined).
+ */
+export function hairLayers({ facialHair, scalp, hair, stubble }) {
+  const layers = [];
+  const tint = channels(hair ?? WHITE);
+  if (scalp) layers.push({ mask: HAIR_MASKS.scalp, colour: tint, amount: UNDER_HAIR.scalp, grain: 0 });
+  const shape = STUBBLE_SHAPES.find(([value]) => value === stubble?.shape);
+  if (shape) {
+    const density = Math.min(1, Math.max(0, stubble.density ?? 1));
+    // (Stubble a little darker than the hair it is: short hairs and their shadow.)
+    const colour = channels(stubble.colour ?? hair ?? WHITE).map((c) => c * 0.85);
+    layers.push({
+      mask: HAIR_MASKS[shape[1]],
+      colour,
+      amount: shape[2] * (0.4 + 0.6 * density),
+      grain: shape[3] * density,
+    });
+  }
+  if (HAIR_MASKS[facialHair])
+    layers.push({ mask: HAIR_MASKS[facialHair], colour: tint, amount: UNDER_HAIR.beard, grain: 0 });
+  return layers;
+}
+
+/** A texel's grain (0..1): fixed for its place in the skin picture at 2048 texels, whatever size is painted. */
+function grainAt(x, y) {
+  let h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/**
+ * Texel `i` of `data` (RGBA bytes, at (`x`, `y`) in a picture `size` across) with `layers` (hairLayers, those in
+ * one mask file) painted over it as far as each one's amount times its mask there says (`masks`, RGB bytes,
+ * texel `j`). A layer with grain also lays fine hairs: a texel is one where its grain is under the grain
+ * times the mask, and a hair is three texels long, so the stubble reads as hair, not a smear.
+ */
+export function hairTexel(data, i, layers, masks, j, x, y, size) {
+  const gx = Math.floor((x * 2048) / size);
+  const gy = Math.floor((y * 2048) / size);
+  for (const layer of layers) {
+    const m = masks[j * 3 + layer.mask[1]] / 255;
+    if (!m) continue;
+    let share = layer.amount * m;
+    if (layer.grain) {
+      const g = layer.grain * m;
+      // (A hair is three texels along x: in MakeHuman's layout the face lies on its side, its chin to the right,
+      // so that is down the face.)
+      const k = g * 0.32;
+      if (grainAt(gx, gy) < k || grainAt(gx - 1, gy) < k || grainAt(gx - 2, gy) < k)
+        share = Math.min(1, share + 0.55 * m);
+    }
+    for (let c = 0; c < 3; c++) data[i + c] += (layer.colour[c] - data[i + c]) * share;
   }
 }
 
@@ -120,13 +210,15 @@ const KEPT = 3;
 /**
  * The skin picture for one avatar, painted: `base` is the picture to start from (a skin picture, or the
  * body's own shading picture), `skin` a colour to multiply it all by (a skin colour of one's own, else
- * white), `lips` the lips' colour (white: the picture's own), `makeup` the look's makeup (looks.js). Returns a
- * texture, or null when nothing needs painting or the browser can't (the builder then colours by vertex).
+ * white), `lips` the lips' colour (white: the picture's own), `makeup` the look's makeup (looks.js), and the
+ * hair on the skin (hairLayers): `facialHair`, `scalp`, `hair`, `stubble`. Returns a texture, or null when
+ * nothing needs painting or the browser can't (the builder then colours by vertex).
  */
-export async function paintedSkin({ sex, base, skin = WHITE, lips = WHITE, makeup = {} }) {
+export async function paintedSkin({ sex, base, skin = WHITE, lips = WHITE, makeup = {}, ...onSkin }) {
   const layers = makeupLayers(makeup);
-  if (!canPaint() || (skin === WHITE && lips === WHITE && !layers.some(Boolean))) return null;
-  const key = [sex, base, skin, lips, JSON.stringify(layers)].join("|");
+  const hair = hairLayers(onSkin);
+  if (!canPaint() || (skin === WHITE && lips === WHITE && !layers.some(Boolean) && !hair.length)) return null;
+  const key = [sex, base, skin, lips, JSON.stringify(layers), JSON.stringify(hair)].join("|");
   if (painted.has(key)) {
     const texture = painted.get(key);
     painted.delete(key);
@@ -165,6 +257,22 @@ export async function paintedSkin({ sex, base, skin = WHITE, lips = WHITE, makeu
         );
     context.putImageData(tile, x, y);
   });
+  // The hair on the skin, a mask file at a time.
+  for (const [file] of HAIR_MASK_FILES.entries()) {
+    const here = hair.filter((layer) => layer.mask[0] === file);
+    if (!here.length) continue;
+    // (All three channels' squares: the mask is read once for every look.)
+    const hairMask = await maskOf(`avatar-${sex}-hair-masks-${file}.png`, size, [0, 1, 2]);
+    hairMask?.tiles.forEach(({ x, y }) => {
+      const tile = context.getImageData(x, y, TILE, TILE);
+      for (let row = 0; row < TILE; row++)
+        for (let column = 0; column < TILE; column++) {
+          const j = (y + row) * size + x + column;
+          hairTexel(tile.data, (row * TILE + column) * 4, here, hairMask.rgb, j, x + column, y + row, size);
+        }
+      context.putImageData(tile, x, y);
+    });
+  }
   // The makeup, over all that.
   makeupMask?.tiles.forEach(({ x, y }) => {
     const tile = context.getImageData(x, y, TILE, TILE);

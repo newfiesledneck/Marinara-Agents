@@ -26,6 +26,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.13",
+          "date": "2026-11-23",
+          "notes": "- Clothes keep the shape they have in their own pictures: fitted where MakeHuman places them, skirts hang whole with no strip pulled out or seam between the legs, and pieces no longer follow the arms unless they cover them. Each layer is worn just over the one under it, so leggings and socks stop showing through.\n- **Show underwear under clothes** now starts on.\n- Rebuilt beards and moustache, a new mutton chops style, and stubble painted on the skin in five shapes with its own colour and density. The skin under a beard or hair is shaded in the hair's colour.\n- Arms push the bust: folded or crossed arms lift or press it, and it moulds round a hand in the preview.",
+          "highlight": false
+        },
+        {
           "version": "0.1.12",
           "date": "2026-11-23",
           "notes": "- The Brow and On the back places say what they hold now that the Accessories pack fills them: face piercings and a head mirror, and wings or a guitar on its strap. Install Accessories 0.2.03 for jewellery, horns and antlers, wings, tails, and things to hold or carry.",
@@ -108,6 +114,12 @@
     "3d-avatar-maker-wardrobe-accessories": {
       "versions": [
         {
+          "version": "0.2.04",
+          "date": "2026-11-23",
+          "notes": "- Every piece is fitted again, placed as MakeHuman places it, so socks, gloves, hats and jewellery keep the shape they have in their own pictures.",
+          "highlight": false
+        },
+        {
           "version": "0.2.03",
           "date": "2026-11-23",
           "notes": "- 50 new pieces for the slots 3D Avatar Maker 0.1.10 added. Jewellery: four bracelets and bangles, five anklets, four necklaces and a spiked collar, three pairs of earrings, ear and face piercings, and four for the belly. Six kinds of horns and antlers, seven pairs of wings and two tails. Things to hold or carry: a sword, a microphone, a tennis racket, a shopping bag, a shoulder bag, a sling purse and an electric guitar. Also a headset, a head mirror, a stethoscope and two tactical vests.\n- Horns, wings, tails, held things, earrings and the solid bracelets and anklets are fixed to one bone, so they keep their shape as the avatar moves.",
@@ -147,6 +159,12 @@
     },
     "3d-avatar-maker-wardrobe-clothes": {
       "versions": [
+        {
+          "version": "0.1.03",
+          "date": "2026-11-23",
+          "notes": "- Every piece is fitted again, closer to how it looks in its own picture: placed as MakeHuman places it, it keeps its shape on the maker's bodies. Skirts and dresses hang smooth and whole, with no strip pulled out at the back and no split between the legs, and the lumps and jagged hems are gone.\n- Pieces no longer follow the arms unless they cover them, so a skirt isn't dragged when the arms come down.\n- 8 more pieces that the first fitting couldn't place cleanly: four floor-length gowns, a skinsuit, a tracksuit hoodie dress, a wetsuit and men's monk-strap shoes.",
+          "highlight": false
+        },
         {
           "version": "0.1.02",
           "date": "2026-11-23",

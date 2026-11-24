@@ -1004,6 +1004,7 @@
    ],
    "layer": 2,
    "hides": [
+    "forearms",
     "underwear-top"
    ],
    "parts": {
@@ -1105,7 +1106,6 @@
    "layer": 1,
    "hides": [
     "upperarms",
-    "forearms",
     "underwear-top"
    ],
    "parts": {
@@ -1412,7 +1412,6 @@
    ],
    "layer": 1,
    "hides": [
-    "hips",
     "underwear-bottom"
    ],
    "parts": {
@@ -1542,7 +1541,6 @@
    ],
    "layer": 2,
    "hides": [
-    "hips",
     "underwear-top",
     "underwear-bottom"
    ],
@@ -1587,6 +1585,35 @@
    "source": "http://www.makehumancommunity.org/node/1517",
    "credit": "\"elvs_simple_fashion_dress_2\" by Elvaerwyn (http://www.makehumancommunity.org/node/1517), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "elvs_sporty_tracksuit_hoodie_dress1": {
+   "label": "Tracksuit hoodie dress",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "forearms",
+    "hips",
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Elvaerwyn",
+   "source": "http://www.makehumancommunity.org/node/2440",
+   "credit": "\"elvs_sporty_tracksuit_hoodie_dress1\" by Elvaerwyn (http://www.makehumancommunity.org/node/2440), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.25
+  },
   "elvs_swimwear_micro_shorts": {
    "label": "Swim shorts, gathered",
    "slot": "underwear_bottom",
@@ -1618,6 +1645,7 @@
    ],
    "layer": 1,
    "hides": [
+    "hips",
     "underwear-top",
     "underwear-bottom"
    ],
@@ -1737,6 +1765,46 @@
    "source": "http://www.makehumancommunity.org/node/1448",
    "credit": "\"madmanny_tight_leather_boots\" by madmanny (http://www.makehumancommunity.org/node/1448), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "matcreator_mc_skinsuit_2022": {
+   "label": "Skinsuit",
+   "slot": "body",
+   "bodies": [
+    "male",
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "torso",
+    "upperarms",
+    "forearms",
+    "hips",
+    "thighs",
+    "calves",
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "male": [
+     [
+      "cloth",
+      16777215
+     ]
+    ],
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC0-1.0",
+   "author": "MatCreator",
+   "source": "http://www.makehumancommunity.org/node/2991",
+   "credit": null,
+   "noUnderwear": true
+  },
   "mindfront_ballet_dress_the_swan": {
    "label": "Ballet dress",
    "slot": "body",
@@ -1799,6 +1867,7 @@
    ],
    "layer": 2,
    "hides": [
+    "forearms",
     "underwear-top"
    ],
    "parts": {
@@ -1920,6 +1989,34 @@
    "source": "http://www.makehumancommunity.org/node/386",
    "credit": "\"mindfront_f_dress_04\" by Mindfront (http://www.makehumancommunity.org/node/386), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "mindfront_f_dress_05": {
+   "label": "Gown with open sleeves",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "hips",
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Mindfront",
+   "source": "http://www.makehumancommunity.org/node/1234",
+   "credit": "\"mindfront_f_dress_05\" by Mindfront (http://www.makehumancommunity.org/node/1234), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
+  },
   "mindfront_f_dress_06": {
    "label": "Halter dress, teal",
    "slot": "body",
@@ -2000,6 +2097,61 @@
    "author": "Mindfront",
    "source": "http://www.makehumancommunity.org/node/1422",
    "credit": "\"mindfront_f_dress_08\" by Mindfront (http://www.makehumancommunity.org/node/1422), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "mindfront_f_dress_09": {
+   "label": "Long black gown",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "forearms",
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Mindfront",
+   "source": "http://www.makehumancommunity.org/node/1424",
+   "credit": "\"mindfront_f_dress_09\" by Mindfront (http://www.makehumancommunity.org/node/1424), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
+  },
+  "mindfront_f_dress_10": {
+   "label": "Gown with slits and gloves",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Mindfront",
+   "source": "http://www.makehumancommunity.org/node/1426",
+   "credit": "\"mindfront_f_dress_10\" by Mindfront (http://www.makehumancommunity.org/node/1426), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
   },
   "mindfront_f_dress_11": {
    "label": "Checked dress, half sleeves",
@@ -2088,6 +2240,7 @@
    ],
    "layer": 1,
    "hides": [
+    "torso",
     "upperarms",
     "forearms",
     "underwear-top"
@@ -2155,6 +2308,7 @@
    ],
    "layer": 1,
    "hides": [
+    "forearms",
     "underwear-top"
    ],
    "parts": {
@@ -2182,7 +2336,6 @@
    "hides": [
     "torso",
     "upperarms",
-    "forearms",
     "hips",
     "thighs",
     "underwear-top",
@@ -2406,6 +2559,31 @@
    "author": "Mindfront",
    "source": "http://www.makehumancommunity.org/node/621",
    "credit": "\"mindfront_shoes_monk_strap_female\" by Mindfront (http://www.makehumancommunity.org/node/621), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
+  },
+  "mindfront_shoes_monk_strap_male": {
+   "label": "Monk-strap shoes",
+   "slot": "feet",
+   "bodies": [
+    "male"
+   ],
+   "layer": 2,
+   "hides": [
+    "feet"
+   ],
+   "parts": {
+    "male": [
+     [
+      "shoe",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/feet.pack.png",
+   "licence": "CC-BY-4.0",
+   "author": "Mindfront",
+   "source": "http://www.makehumancommunity.org/node/622",
+   "credit": "\"mindfront_shoes_monk_strap_male\" by Mindfront (http://www.makehumancommunity.org/node/622), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
   "mindfront_shoes_oxford_female": {
    "label": "Oxford shoes",
@@ -2818,6 +2996,33 @@
    "source": "http://www.makehumancommunity.org/node/669",
    "credit": "\"punkduck_cycling_shoes\" by punkduck (http://www.makehumancommunity.org/node/669), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "punkduck_evening_gown": {
+   "label": "Evening gown",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 2,
+   "hides": [
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/806",
+   "credit": "\"punkduck_evening_gown\" by punkduck (http://www.makehumancommunity.org/node/806), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "hang": 0.15
+  },
   "punkduck_female_short_jeans": {
    "label": "Denim shorts",
    "slot": "legs",
@@ -2851,6 +3056,7 @@
    ],
    "layer": 1,
    "hides": [
+    "hips",
     "underwear-top",
     "underwear-bottom"
    ],
@@ -3231,6 +3437,7 @@
    ],
    "layer": 2,
    "hides": [
+    "torso",
     "upperarms",
     "underwear-top",
     "underwear-bottom"
@@ -3849,6 +4056,38 @@
    "source": "http://www.makehumancommunity.org/node/419",
    "credit": "\"punkduck_v_neck_top\" by punkduck (http://www.makehumancommunity.org/node/419), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan"
   },
+  "punkduck_wetsuit": {
+   "label": "Wetsuit",
+   "slot": "body",
+   "bodies": [
+    "female"
+   ],
+   "layer": 1,
+   "hides": [
+    "torso",
+    "upperarms",
+    "forearms",
+    "hips",
+    "thighs",
+    "underwear-top",
+    "underwear-bottom"
+   ],
+   "parts": {
+    "female": [
+     [
+      "cloth",
+      16777215
+     ]
+    ]
+   },
+   "variants": [],
+   "bundle": "wardrobe/body.pack.png",
+   "licence": "CC-BY-3.0",
+   "author": "punkduck",
+   "source": "http://www.makehumancommunity.org/node/662",
+   "credit": "\"punkduck_wetsuit\" by punkduck (http://www.makehumancommunity.org/node/662), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), fitted to 3D Avatar Maker's bodies by ThatOneCan",
+   "noUnderwear": true
+  },
   "punkduck_winter_boots": {
    "label": "Winter boots",
    "slot": "feet",
@@ -4184,6 +4423,7 @@
    ],
    "layer": 2,
    "hides": [
+    "hips",
     "underwear-top",
     "underwear-bottom"
    ],
@@ -4241,6 +4481,7 @@
    "hides": [
     "torso",
     "upperarms",
+    "forearms",
     "hips",
     "thighs",
     "calves",
@@ -4507,6 +4748,8 @@
    ],
    "layer": 2,
    "hides": [
+    "torso",
+    "upperarms",
     "forearms",
     "hips",
     "thighs",
@@ -4536,6 +4779,8 @@
    ],
    "layer": 2,
    "hides": [
+    "torso",
+    "upperarms",
     "forearms",
     "hips",
     "thighs",
@@ -4668,6 +4913,7 @@
    ],
    "layer": 2,
    "hides": [
+    "forearms",
     "hips",
     "thighs",
     "underwear-top",

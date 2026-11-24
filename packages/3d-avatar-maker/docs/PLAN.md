@@ -339,29 +339,85 @@ pose are in the hand-over note.
 
 ## Built: a bust that moves
 
-At the same time, and on the same springs: each breast has a short spring bone, as VRoid models do, so the
-chest sways a little as the body turns (`src/bust.js`).
+At the same time, and on the same springs: each breast has a spring bone, as VRoid models do, so the chest
+sways a little as the body turns (`src/bust.js`), and since then the arms push it.
 
 - **Who gets it.** Her body always. His only when his chest stands out in front of the breastbone as far as
   her bust does at its flattest (`BUST.least`, 1.6 cm). His chest is 0.8 cm as built and 1.3 cm at the
   fullest Chest slider. The half-orc slider with a full chest reaches 1.8 cm and gets one; no other slider
   mix tried did.
-- **The bones.** `breast_l` and `breast_r` under the upper chest, from 7 cm inside each breast to its front,
-  each with a tip there, placed from the body as shaped.
-- **Weights.** Round each front, a share of a point's upper-chest weight goes onto its side's bone: all of it
-  within 3 cm, none past 8.5 cm, eased between. Only the upper chest's weight moves, as it is the bones'
-  parent, so with the bust at rest the body bends exactly as before. A point with four weights already
-  gives up its smallest only if that's under 0.05; dropping more made a T-shirt sink 6 mm into the skin as
-  the arms moved.
+- **The bones.** `breast_l` and `breast_r` under the middle chest (`spine_02`), placed from the body as
+  shaped. Each runs from 10 cm behind the middle of its breast's ball (below) to that middle, with a tip
+  there. Each bone's own y axis points along it, so the preview can squash it along its own axes.
+- **Weights.** Round each front, a share of a point's middle and upper chest weight (`spine_02` and
+  `spine_03`) goes onto its side's bone: all of it within 3 cm, none past 8.5 cm, eased between, and eased
+  out over the last 2 cm of the 7 cm behind the front. Before the arms could push it, only the upper chest's
+  weight moved, which is a quarter of the breast's weight, so a pushed bone moved the skin a quarter as far.
+  The middle chest is the bones' parent and carries most of the rest. With the bust at rest the body bends
+  as before, except that the upper chest's share now turns with the middle chest when the two turn apart.
+- **Room for the bone.** A point with four weights already gives up its smallest if that's under 0.05.
+  Dropping more made a T-shirt sink 6 mm into the skin as the arms moved. If its smallest is larger, its two
+  chest weights merge into one place and the bone takes the other. Before, such a point kept its weights.
+  That was a third of the points in the middle of the share, and they tore from the rest once the bust was
+  pushed a few centimetres.
 - **Clothes follow.** Every piece but hair and bone-fixed pieces takes the share of the skin nearest it, so
   a top and the breast under it move together.
-- **Settings** (`BUST_JOINT`). Stiffness 1.5, no gravity (it rests as shaped), drag 0.45, and no colliders,
-  so the arms never push it. It sways about 2 mm in the Moving pose and settles within a second.
-- **Checked** in the regression test: rest exact on the skin and the top with whole weights, a few
-  millimetres of sway, settling, a T-shirt and a dress staying outside the skin as it sways (the bust adds
-  under 0.1 mm), his chest with none as built or muscular, and one at the half-orc's full chest. A GLB keeps
-  the bones and a VRM writes the springs.
+- **Settings** (`BUST_JOINT`). Stiffness 1.5, no gravity (it rests as shaped), drag 0.45. It sways about
+  2 mm in the Moving pose (1.7 mm at Chest -0.5, 2.3 mm at Chest 1) and settles within a second, as before.
 
+### The arms push it
+
+Before, the bust met no colliders, so folded arms went into a large bust.
+
+- **The ball** (`bust.js` `ballIn`). Each breast's spring tip has a hit radius: the ball the arms press on.
+  It is fitted to the body as shaped. Of the balls round and behind the breast's front (a 1 cm grid, then a
+  3 mm one about the best), each as big as reaches the nearest skin within 14 cm, it takes the one that
+  leaves least room under the breast's own skin. The ball is under the skin everywhere, touching it at its
+  nearest point: 3.3 cm at Chest -0.5, 3.7 cm as built and 5.4 cm at Chest 1. A first try with a larger
+  ball, fitted as a dome over the chest, stood out of the skin below the breast. A forearm under it
+  then turned the breast 50 degrees.
+- **The colliders** (`springs.js` `bodyColliders`, `arms`). A capsule along each upper arm, forearm and hand
+  (to the middle finger's second joint), as thick as half the skin is from the bone. They are fitted as the
+  others are, and also in the relaxed pose, where the arms hang closest to the bust. None holds a ball at
+  rest, as built, in the T-pose or relaxed.
+- **What a VRM app does.** It runs the spring as written: the ball is pushed out of a capsule and the bone
+  turns to follow it. So an arm under the bust pushes it up, and one at its side pushes it in towards the
+  other. A press from the front, along the bone, slides the ball off sideways however far it must turn.
+- **What the preview adds** (`springs.js` `squash`). An arm's push turns the breast only across its bone;
+  the part of the push along the bone is left. The turn is held to 20 degrees (`TURN_MOST`). What still
+  presses into the ball after that squashes the bone along its own axes: shorter by as much as it's pressed,
+  from the side it's pressed on, and wider the other ways to keep its size (to half its length at most).
+  So a hand on the chest flattens the breast under it, and it bulges round the palm. `figure.js` `restPose`
+  puts the size back, so a file saved mid-animation is the same as one saved at rest.
+- **Limits.** One ball can't fill the sides of a large breast. A hand tucked against its outer side (the
+  arms-folded clip's) still goes 12 mm in as built and 24 to 29 mm at Chest 1, from 17 and 37 to 40 mm
+  unpushed. The breast's sides move only as far as the ball does. Giving each breast more joints would need
+  more weight places than the body's points have free.
+
+Measured in Node over the arms-folded clip, from the arms' skin to the breasts' skin (points at least half
+on the bust):
+
+| Bust | Forearm in | Hand in | Ball pushed |
+| --- | --- | --- | --- |
+| As built | 0 mm (0 unpushed) | 12 mm (17) | 1.3 cm |
+| Chest 1 | 4 mm | 24 mm (37) | 3.6 cm |
+| Chest 1, high, pointed | 9 mm (26) | 29 mm (40) | 6.1 cm |
+
+The regression test checks the same two busts as before:
+
+- rest exact on the skin and the top, with whole weights;
+- a few millimetres of sway, then settling;
+- a T-shirt and a dress staying outside the skin as the bust sways;
+- every breast meeting both arms' and hands' capsules, and none holding its ball at rest, in the T-pose or
+  relaxed;
+- in the arms-folded clip, on the same body bare: the bust pushed, the forearms within a centimetre of the
+  breast's skin and at most half as deep as unpushed, and the hands less deep than unpushed;
+- settled and unsquashed once the arms are lowered.
+
+His chest has no bust as built or muscular, and one at the half-orc's full chest. A GLB keeps the bones. A
+VRM writes each breast's hit radius and its group of arm capsules, and three-vrm holds the bust at rest
+within 0.5 mm. Renders of arms folded under the bust, the arms-folded clip and a hand on the chest, before
+and after, are in the hand-over note.
 
 ## Built: animations in the preview
 
@@ -403,7 +459,7 @@ chest sways a little as the body turns (`src/bust.js`).
   - talking and the phone call move the mouth;
   - celebrating smiles;
   - surprise and crying show their feelings.
-  Any other Face choice wins.
+    Any other Face choice wins.
 - **Views.** While an animation plays, the Face and Hand views follow the head or the left hand, easing
   after it. Whole body and Feet stay where they are.
 - **Reduced motion.** Nothing moves on its own, as before. An animation plays only when the user picks one,
@@ -421,8 +477,8 @@ chest sways a little as the body turns (`src/bust.js`).
   - the hands never inside the hips at their widest;
   - back exactly at rest when stopped;
   - a GLB, and a VRM mid-crouch, the same as one saved at rest.
-  Contact sheets of posed models rendered in Blender were looked over for broken joints, hands in the body
-  and feet off the floor.
+    Contact sheets of posed models rendered in Blender were looked over for broken joints, hands in the body
+    and feet off the floor.
 
 ## Built: makeup of your own
 
@@ -497,7 +553,7 @@ The maker's code waits for its 0.1.11 release; the packs that use it are Clothes
   `fromPacks` names its pack. It isn't drawn meanwhile; the preview note and the Underwear group say so, and the
   group can take it out of the look. `wornLook` makes it none in a saved file, as it's drawn. A saved file
   credits CC BY underwear (`packCredits`).
-- **Underwear under clothes.** `underwear.underClothes`, off unless a look says otherwise for now (avatar.js `UNDER_CLOTHES`; to be on once the refit clears underwear), the control "Show
+- **Underwear under clothes.** `underwear.underClothes`, on unless a look says otherwise (avatar.js `UNDER_CLOTHES`; off until the refit and layering landed, in 0.1.13), the control "Show
   underwear under clothes":
   - On: the body's own underwear stays drawn under every region a piece hides, and the hide words
     `underwear`, `underwear-top` and `underwear-bottom` no longer hide it; a pack's underwear is worn under
@@ -580,6 +636,116 @@ The maker's code waits for its 0.1.11 release; the packs that use it are Clothes
   the T-pose and with the head and hands turned. Worn under a vest, a T-shirt, jeans, a sweater and a cap, the
   belly pieces, anklet, necklace, bangle and headset showed no gap in `COVERED_BY`, so it is unchanged.
 
+## Built: clothes that keep their shape
+
+The community clothes looked worse fitted than in their own pictures: a strip torn out of a tiered skirt's
+back, lumpy skirts with jagged hems, leggings and socks showing through what's worn over them. What was wrong,
+found by rendering each piece as MakeHuman places it beside ours (Blender, EEVEE, front, side, back and close):
+
+- **The helpers were guessed.** Most clothes hang on MakeHuman's helper meshes (the tights, the skirt), which
+  our bodies don't have. They were rebuilt from the base mesh's nearest body points, so between the legs a
+  skirt's helper followed one leg or the other: the torn strip, there at rest before any pose.
+- **Every point was pushed on its own.** Wherever cloth sank into the skin, that point and whole faces were
+  lifted, at rest and for each shape key, which left lumps and a crease.
+- **Every piece was pushed off the skin by the same 2.5 mm**, so an inner and an outer layer met in the same
+  place.
+
+What it does now:
+
+- **Fitted as MakeHuman fits it** (`wwmhclo.py` `Fitted.carried`). A piece is fitted to MakeHuman's own version
+  of our body: the same targets on hm08, its helpers moved by them, so it sits exactly where MakeHuman puts it.
+  Then it's carried onto our body (stood in the A-pose and smoothed) by how the body near each point moved.
+- **Weights and keys from the body near it.** Near the skin, the skin under it; hanging off, a wide, even
+  average of the body round it, so a skirt's hem moves as one piece and doesn't split between the legs.
+  Cloth that isn't a sleeve or a glove takes nothing from the arms or hands, and a limb's cloth nothing from
+  the other limb (but within 3 cm of the middle, where a skirt crosses between the legs, it takes both). The
+  moves, weights and keys are then evened out over the cloth a little: between the thighs the body under a
+  point switches legs within a centimetre, which had torn a zigzag crease down a pencil skirt's front.
+  Vertices split at a texture seam count as one, so no lift opens the seam.
+- **Lifted in one swell** (`push_out(smooth=True)`): where cloth still sinks in, the lift spreads and fades over
+  about a dozen rings and is smoothed, at rest and for each key. Faces along the skin's normal (a thick
+  band's rim) and skin on the hands and feet don't call for a lift: the first were pushed again every round
+  and key into flat flaps (the galactic uniform's belt), the second threw a skinsuit's feet into lumps.
+- **Layers tucked when worn** (`src/layers.js`, `avatar.js`). The maker wears pieces from the outermost in and
+  moves each inner layer's points to 1.5 mm under every layer over it, along the skin's normal, fading the move
+  over three edges past its edge. Underwear (the body's styles and any `underwear…` slot) is under everything;
+  at the same layer socks are under trousers and a top is over them. Only what's under cloth moves, so a bra
+  strap still shows at an off-shoulder neckline and briefs under a skirt.
+- **Checked** in the regression test: inner pieces are left nowhere over the pieces worn over them (socks under
+  leggings, leggings under a crop top, jeans under a tee, a top under a jacket), and nothing on the legs or feet
+  is weighted to the arms.
+- **Waists.** A trouser or skirt waist sits where MakeHuman puts it on MakeHuman's version of our body, within
+  2 mm, before and after; it wasn't the fitting. The Blender-made trousers, shorts, leggings and skirts sit 10
+  to 15 cm higher, at the natural waist (`make_outfit.py` `region_top` of the hips).
+- Every kit `mh_*` piece and every pack piece was refitted. `fit: "helpers"` in `assets/packs.json` fits a
+  piece the old way.
+
+## Built: new beards and painted hair on the skin
+
+The beards were blotchy patches with hard ragged edges, pale skin showed through them and in a ring round
+the mouth, and the dwarf's braided beard read as noise. They're remade, and the skin under any hair is now
+painted in the hair's colour.
+
+- **The styles** (looks.js `FACIAL_HAIR`; every id kept, so saved looks and the dwarf preset open as before):
+  short and boxed (`beard-01`), full (`beard-02`), long (`beard-03`), the dwarf's long beard with two braids
+  (`beard-04`), a goatee with a moustache (`beard-05`), a moustache (`moustache-01`), and mutton chops
+  (`beard-06`, new).
+- **Cards fanned along the face** (`make_avatar.py` `Beards`, `Hair.sheet`). Each card is a strip about
+  3 cm wide whose roots run in a row under the skin, its strands lying down the face and lifting off it
+  towards their tips.
+  - **Rows.** Seen from a point inside the chin, each row is the skin at one height, so rows run along
+    the jaw and round under the chin. Along a row the cards overlap by about a third; each row's tips lie
+    over the next row's roots.
+  - **Edges.** Three more rows follow the edges that rows at one height leave in steps: the cheek line
+    and the lips' edges above and below. That closes the ring round the mouth. A card's strands are
+    shorter at its ends and towards the edge of where the style grows, and the cards nearest the edge
+    use the texture's sparse band, so the cheek line is soft.
+  - **Long beards.** From the jaw line down, long locks lie a little way down the face, then hang, turned
+    in towards the middle so the beard narrows to a point. They move with the chin.
+  - **Braids.** The dwarf's braids are three solid strands plaited (each crosses over the middle in
+    turn), with a tie and a tuft, lying on the beard's front.
+  - **The surface hair lies on.** The skin without the mouth's inside. Under the lower lip the mouth's
+    inside was nearer than the chin, and hair pushed off it went into the mouth.
+- **The texture** (`wwavatar.py` `facial_hair_texture`, 1,024 px): bands the full width of the picture, each
+  running on from its right edge into its left, so the cards along a row show no join. There are three bands of short hair
+  (dense, thinner, sparse), one of long hair, a braid's strands and a tie. The strands are drawn in locks,
+  darker at their sides and roots, so a beard shows locks rather than flecks.
+- **Faces.** The beards follow the face keys as before (talking, smiling): each card's column follows the
+  skin at its root, and `keep_clear` keeps hanging hair off the chest.
+- **Size.** The beards have about 30,000 vertices in all, as before (27,000). The models are 72.4 MB
+  (male, from 68.8) and 85.1 MB (female, from 79.0).
+
+### The skin under hair (`src/skin.js`)
+
+- **Masks** (`scripts/build-3d-avatar-maker-masks.mjs`). For each body, three files at 1,024 px,
+  `avatar-<sex>-hair-masks-<n>.png`, with three masks each (`HAIR_MASK_FILES`, `HAIR_MASKS`):
+  - **Facial hair.** One mask for each style: the skin within a few millimetres of its roots and of the
+    hair lying close on it, softened, kept off the lips and the mouth's inside.
+  - **The scalp.** One mask for every hair style: where at least about half of the kit's hair styles lie
+    on the scalp. The styles all cover the crown and differ mostly at the hairline, so one soft mask
+    pulled in from the hairline serves every style, including a pack's, and doesn't need remaking when a
+    style is added.
+  - **Stubble.** A softer, wider version of the short beard's mask.
+- **Painting** (`hairLayers`, `hairTexel`). Under the facial hair worn, and under a hair style while
+  nothing hides the hair, the skin is painted towards the hair's colour (72% under a beard, 60% under a
+  hair style). This uses the makeup's blend, painting over rather than multiplying, so a dark beard on pale
+  skin shows no pale gaps. These layers go on after the lips and before the makeup.
+- **Stubble** (looks.js `STUBBLE`, `stubble: { shape, density, colour }`; none unless chosen). It's offered on
+  the Face tab beside the beards: light or heavy stubble, a moustache or goatee shadow, or a short beard.
+  - **Colour.** Its own, or the hair's (a little darker).
+  - **Density.** From sparse to dense.
+  - **The look of it.** Painted through the masks with a grain of fine hairs. Each hair is three texels
+    down the face, fixed to its place in the skin picture, so stubble reads as short hairs.
+- **Checked** in the regression test:
+  - the hair masks have their channels, smaller styles inside the full beard's, none on the lips;
+  - the blend paints towards the hair's colour as far as the mask says;
+  - denser stubble lays more hairs;
+  - every beard id still opens;
+  - `stubble` is checked and bounded in `checkLook`.
+
+  Contact sheets of every style before and after (brown on pale skin, black on dark, the dwarf, talking and
+  smiling, stubble, the scalp, the female body) are in the hand-over note.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -627,8 +793,19 @@ The maker's code waits for its 0.1.11 release; the packs that use it are Clothes
   hair trails out as the body turns, sits or crouches, as its springs are soft. The seat, the phone and the
   cup the clips mime aren't shown, and the clips' fingers can close on nothing.
 - Underwear shown under clothes pokes through many clothes until the fitting allows for it, the kit's everyday
-  tee, jeans and trousers among them, so the setting starts off for now.
+  tee, jeans and trousers among them, which is why the setting started off until 0.1.13.
   The suspender belt is a Belt piece, so a skirt doesn't hide it.
+
+- Layers are tucked as the avatar stands. Posed, each layer bends with its own weights, so near a bending
+  joint an inner layer can still come through by a millimetre or two.
+- A tucked layer may sink under the skin where it's under cloth. Under a see-through outer piece (lace) the
+  skin would show there instead of the layer.
+- The Blender-made trousers, shorts, leggings and skirts sit at the natural waist, 10 to 15 cm above where
+  the MakeHuman ones do.
+- On the heavy, muscular build, trouser legs still meet where the thighs press together, as the old fit did.
+- Thick bands round a sleeve can still flare on the heavy build: the galactic warrior uniform's elbow bands
+  do, so it stays out of the Clothes pack.
+- Full skirts hang a little narrower than in MakeHuman's pictures, where the legs stand apart.
 - Drafts live in the browser only.
 - Makeup presets match their old skins' makeup but not every skin's tone: Toigo graded each made-up skin's
   colours, the goth one much paler all over, and a preset paints only the face. An old male made-up look now

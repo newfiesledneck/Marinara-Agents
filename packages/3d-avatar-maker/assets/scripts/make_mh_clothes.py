@@ -12,11 +12,17 @@ community pack bodyparts04_cc0 (`pack:` items, read from `wwavatar.extracted_dir
 its outer surface lifted to just off the skin (its underside stays tucked under it), on the fingers' bones,
 one plain colour the maker tints.
 
-How (`wwmhclo.py`): each suit is fitted through its .mhclo (its vertices follow MakeHuman's base mesh,
-mostly through its tights helper), so it sits on our body as the artist fitted it, takes the bone weights
-of the skin under it (or, hanging further off, of the vertices it follows), and every shape key of the body is carried onto it (fitted again
-with that key at 1). A suit is split into its pieces (top and legs, shoes and socks) by its separate
-parts; then each piece is lifted off the skin wherever it would sink in (at rest and with each key at 1).
+How (`wwmhclo.py` `Fitted.carried`): each suit is fitted through its .mhclo to MakeHuman's own version of our
+body (the same targets, its helpers moved by them), so it sits exactly as MakeHuman would place it, then
+carried onto our body (stood in our rest pose and smoothed) by how the body near each point moved. Its bone
+weights and every shape key of the body come from the body near it the same way: near the skin, the skin
+right under it; hanging off, a wide, even average of the body round it, so a skirt keeps its shape and never
+splits between the legs. Cloth off the arms takes nothing from the arms (the hands hang beside a skirt in the
+A-pose), and a limb's cloth nothing from the other limb. A suit is split into its pieces (top and legs, shoes
+and socks) by its separate parts; then each piece is lifted off the skin wherever it would sink in (at rest and
+with each key at 1), by one smooth swell rather than a push at each point, which left lumps. Pieces aren't
+kept off each other or off the underwear here: the maker tucks inner layers under outer ones when they're
+worn (src/layers.js). `fit: "helpers"` fits a piece the old way, on helpers rebuilt on our body.
 
 Textures, 1024 px: a piece that reads as plain cloth (tees, jeans, trousers, shorts, skirt, leggings,
 overalls, hats) gets a near-white greyscale copy of the pack's texture (its luminance over that of its
@@ -240,14 +246,17 @@ def safe_hides(fitted, body, hides, rings=6):
 _fits = {}
 
 
-def fitted_source(src, body):
-    key = (src, body.sex)
+def fitted_source(src, body, how="carried"):
+    key = (src, body.sex, how)
     if key not in _fits:
         kind = "clothes"
         # (Only the body's own keys, not the face and body sliders' `<slider>.lo`/`.hi`: the maker carries
         # those onto clothes from the skin at run time, src/avatar.js `carried`.)
         keys = [k for k in body.key_names if "." not in k]
-        _fits[key] = mc.Fitted(mc.Proxy(kind, src), body, keys)
+        proxy = mc.Proxy(kind, src)
+        # `carried`: fitted to MakeHuman's own version of the body and carried onto ours (wwmhclo
+        # Fitted.carried); `helpers`: fitted to MakeHuman's helpers rebuilt on our body, each key fitted again.
+        _fits[key] = mc.Fitted.carried(proxy, body, keys) if how == "carried" else mc.Fitted(proxy, body, keys)
     return _fits[key]
 
 
@@ -270,7 +279,8 @@ def make(name, bodies):
     hides_by_sex = {}
     for sex in spec["sexes"]:
         body = bodies[sex]
-        whole = fitted_source(spec["src"], body)
+        how = spec.get("fit", "carried")
+        whole = fitted_source(spec["src"], body, how)
         parts = split(whole, spec.get("split", "mesh"), body)
         take = list(parts) if spec["take"] == "all" else spec["take"] if isinstance(spec["take"], list) else [spec["take"]]
         faces = sorted(f for t in take for f in parts[t])
@@ -283,15 +293,21 @@ def make(name, bodies):
         configs = {k: {k: 1.0} for k in piece.key_names}
         lift = outer(piece, body) if spec.get("lift") == "outer" else None
         before = piece.clipping({}, mask=lift)
-        # (Kept outside the underwear it doesn't hide, and the skin kept under its faces as well as its vertices.)
-        under = [u for u in body.under if not hidden_under(u, spec["hides"])] if spec.get("under", True) else []
-        report = piece.push_out(spec.get("clearance", CLEARANCE), configs, mask=lift, under=under, skin=spec.get("skin", True))
-        # Cloth close to the skin takes the weights of the skin right under it, not those MakeHuman's helper
-        # spreads over both legs at the crotch (which let the back thigh come through when walking); cloth
-        # hanging further off keeps the fitted weights, smoother.
-        skin_w, dist = body.skin_weights(piece.co)
-        near = 1 - mc.smoothstep(0.015, 0.04, dist)
-        piece.W = piece.W * (1 - near[:, None]) + skin_w * near[:, None]
+        if how == "carried":
+            # Kept off the skin (under its faces as well as its vertices) by one smooth swell where it sinks in.
+            # Not off the underwear: the maker draws underwear and inner layers under outer ones at run time
+            # (src/layers.js `tuckUnder`), as it does a shirt under a jacket.
+            report = piece.push_out(spec.get("clearance", CLEARANCE), configs, mask=lift, skin=spec.get("skin", True), smooth=True)
+        else:
+            # (Kept outside the underwear it doesn't hide, and the skin kept under its faces as well as its vertices.)
+            under = [u for u in body.under if not hidden_under(u, spec["hides"])] if spec.get("under", True) else []
+            report = piece.push_out(spec.get("clearance", CLEARANCE), configs, mask=lift, under=under, skin=spec.get("skin", True))
+            # Cloth close to the skin takes the weights of the skin right under it, not those MakeHuman's helper
+            # spreads over both legs at the crotch (which let the back thigh come through when walking); cloth
+            # hanging further off keeps the fitted weights, smoother.
+            skin_w, dist = body.skin_weights(piece.co)
+            near = 1 - mc.smoothstep(0.015, 0.04, dist)
+            piece.W = piece.W * (1 - near[:, None]) + skin_w * near[:, None]
         piece.limit_weights(4)
         combo = {"heavy": 1.0, "muscle": 1.0, "belly": 1.0, ("bust" if sex == "female" else "chest"): 1.0}
         after = {k: piece.clipping(v, depth=0.0005, mask=lift) for k, v in [("rest", {})] + list(configs.items())}

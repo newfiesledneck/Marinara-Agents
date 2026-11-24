@@ -10,7 +10,7 @@
   },
   "id": "3d-avatar-maker",
   "name": "3D Avatar Maker",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
   "engine": {
     "min": "2.4.6",
@@ -38,6 +38,9 @@
       "paths": [
         "kit/avatar/avatar-eyes.webp",
         "kit/avatar/avatar-female-6.webp",
+        "kit/avatar/avatar-female-hair-masks-0.png",
+        "kit/avatar/avatar-female-hair-masks-1.png",
+        "kit/avatar/avatar-female-hair-masks-2.png",
         "kit/avatar/avatar-female-masks.png",
         "kit/avatar/avatar-female-skin-bronze.webp",
         "kit/avatar/avatar-female-skin-creamy.webp",
@@ -70,6 +73,9 @@
         "kit/avatar/avatar-male-4.webp",
         "kit/avatar/avatar-male-5.webp",
         "kit/avatar/avatar-male-6.webp",
+        "kit/avatar/avatar-male-hair-masks-0.png",
+        "kit/avatar/avatar-male-hair-masks-1.png",
+        "kit/avatar/avatar-male-hair-masks-2.png",
         "kit/avatar/avatar-male-masks.png",
         "kit/avatar/avatar-male-skin-aksel.webp",
         "kit/avatar/avatar-male-skin-bronze.webp",
@@ -108,8 +114,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "d8946b72f64ee90ee0681de982d42da2a608c13a5245778bf6def452dfcba7ea",
-      "bytes": 1260330
+      "sha256": "9744deab8cc04c67007aafdbc5a42711f0914fa082e584ef9960c4293aba0278",
+      "bytes": 1269545
     },
     {
       "path": "3d-avatar-maker-icon.webp",
@@ -125,6 +131,21 @@
       "path": "kit/avatar/avatar-female-6.webp",
       "sha256": "811eb0a68f84cca0577f5220d805089776deec58e9726aaac741316064c297db",
       "bytes": 293766
+    },
+    {
+      "path": "kit/avatar/avatar-female-hair-masks-0.png",
+      "sha256": "1c1e60f153f3bdbf34bde3d30fda6bca580ee39cc4cadb0f8146886ffc575bae",
+      "bytes": 33379
+    },
+    {
+      "path": "kit/avatar/avatar-female-hair-masks-1.png",
+      "sha256": "0b57472f8badd7cbde3229f3c4e7c14926e798f44cc90badc169f01744d5d10a",
+      "bytes": 42514
+    },
+    {
+      "path": "kit/avatar/avatar-female-hair-masks-2.png",
+      "sha256": "9e4689c9c513cdc40b349ccabf550b20711034e8e610181fb37b80810d00bc1e",
+      "bytes": 127633
     },
     {
       "path": "kit/avatar/avatar-female-masks.png",
@@ -223,8 +244,8 @@
     },
     {
       "path": "kit/avatar/avatar-female.pack.png",
-      "sha256": "e3df74877f57062a54db34a07c1b91c07fd0c7101158a97fbf460d7cd598543f",
-      "bytes": 8665795
+      "sha256": "e75db9f2a1781e9d4e698da3ad8752743b1202020cb8e833917e02c64587dfd4",
+      "bytes": 9269843
     },
     {
       "path": "kit/avatar/avatar-female.webp",
@@ -233,8 +254,8 @@
     },
     {
       "path": "kit/avatar/avatar-hair-bobs.pack.png",
-      "sha256": "e8676815ccb57edc64defb8a57ec892e2ee72233be0797107d60aad0fbf69dbd",
-      "bytes": 4834479
+      "sha256": "06602086de27b0cdbd665bb0fb1cf399a50acc1a8b8172dccecc826c1b0babae",
+      "bytes": 4834081
     },
     {
       "path": "kit/avatar/avatar-hair-index.json",
@@ -243,13 +264,13 @@
     },
     {
       "path": "kit/avatar/avatar-hair-long.pack.png",
-      "sha256": "62f1b6af13f993fa3848e0cc2a3a39a7e565b7bbc57a8c6e08957a984a763115",
-      "bytes": 2759898
+      "sha256": "b173f68f2477cce955906b09b32b33f209eb1b52deb290e8bb26debe8544bf20",
+      "bytes": 2759310
     },
     {
       "path": "kit/avatar/avatar-hair-short.pack.png",
-      "sha256": "63fa38204479f61e092fb818af9f940e11df13c4d181877c7110aad789b882be",
-      "bytes": 2114904
+      "sha256": "980c90e644d065cf885a69246cf61ea009e3cd2d498adb281cfd616701774822",
+      "bytes": 2114170
     },
     {
       "path": "kit/avatar/avatar-makeup-masks.png",
@@ -268,8 +289,8 @@
     },
     {
       "path": "kit/avatar/avatar-male-3.webp",
-      "sha256": "7de46d07b6ef4208db4291119ef36d0dbdcb3a384d6c5f16581c6b9166dbb98b",
-      "bytes": 561922
+      "sha256": "3b68bf3311e7220410d124e96ff58cbdb02dc28669cb36fc86cb82cbe5d7cc90",
+      "bytes": 187070
     },
     {
       "path": "kit/avatar/avatar-male-4.webp",
@@ -285,6 +306,21 @@
       "path": "kit/avatar/avatar-male-6.webp",
       "sha256": "e8ef5283d1b416f2800ae4c134d23fb422c099bf4b74c5e06d27f4c9a6b5c153",
       "bytes": 169836
+    },
+    {
+      "path": "kit/avatar/avatar-male-hair-masks-0.png",
+      "sha256": "d8a518be796017ac577b61fd4f6b37595475e27af02f91456c73e2edaeadb9bd",
+      "bytes": 35416
+    },
+    {
+      "path": "kit/avatar/avatar-male-hair-masks-1.png",
+      "sha256": "6c159068883e75b012ea34f107057481f15b1c6b3cf6771b02e2ec33dd3559f4",
+      "bytes": 36902
+    },
+    {
+      "path": "kit/avatar/avatar-male-hair-masks-2.png",
+      "sha256": "275c2be553b7cedec8a43f54fbfbc7de43e4c33054424a0f23e46ed3f0891bf0",
+      "bytes": 117763
     },
     {
       "path": "kit/avatar/avatar-male-masks.png",
@@ -368,8 +404,8 @@
     },
     {
       "path": "kit/avatar/avatar-male.pack.png",
-      "sha256": "9abf60e289b68b623391709adf00869291f779d3f47d2ef737563ab77a271cec",
-      "bytes": 6681623
+      "sha256": "4cdc882439c8cb8cae650afa5e895fea2353cb9d4529872ce4322fac9e56f172",
+      "bytes": 6942889
     },
     {
       "path": "kit/avatar/avatar-male.webp",
@@ -378,33 +414,33 @@
     },
     {
       "path": "kit/wardrobe/avatar-outfits-accessories.pack.png",
-      "sha256": "1ff48dee5a4931477df65f072dcc16ed9373556cfa24d7ed89a969b28ae08feb",
-      "bytes": 876011
+      "sha256": "69b3c7921700898749716f290d76bf6670d95739d5416df55bcccc33fa131992",
+      "bytes": 875829
     },
     {
       "path": "kit/wardrobe/avatar-outfits-armour.pack.png",
-      "sha256": "7782fb0564995ceb814bd3f9a0fe6f853597071c6f87262b61f9f6c77314e72e",
-      "bytes": 4737349
+      "sha256": "01f60ff392d4fc0713a2329e96e76bc8e131980e30e3f65c02413a99185cf921",
+      "bytes": 4736045
     },
     {
       "path": "kit/wardrobe/avatar-outfits-body.pack.png",
-      "sha256": "e7d36552e7f6df582933b9088609dc4b4fccd6ea49f711a875f81f6d4502b53d",
-      "bytes": 3416751
+      "sha256": "721f62d56a96d28026702934c52d57f76cb2c27cf9922ae0140add6716ae7855",
+      "bytes": 3501177
     },
     {
       "path": "kit/wardrobe/avatar-outfits-feet.pack.png",
-      "sha256": "7aa2011fec36f1440b07f72ac3791ed01dae4e46a407eb76db9d06e26956f53c",
-      "bytes": 2785660
+      "sha256": "ca6a9ea63ee58a39c295fafb37d96dde0bbe7a8ff67c15573b6dccea5aa1d9a6",
+      "bytes": 3287756
     },
     {
       "path": "kit/wardrobe/avatar-outfits-hands.pack.png",
-      "sha256": "3503186beb408171eb39f55c9eac37b2b7c4a6362eef1da3e8df184bbec3e7cc",
-      "bytes": 1208700
+      "sha256": "1fb7c6e8963d3d052a46ea652718cacb3c27c467a03401f0f478a6dbc835fa19",
+      "bytes": 1209341
     },
     {
       "path": "kit/wardrobe/avatar-outfits-head.pack.png",
-      "sha256": "b5310f22ed9f0c85e172ab29516780ea4982330f8597d722182b8248c8109721",
-      "bytes": 1040972
+      "sha256": "d1aebfd98b634a6d646eedece36f091a9c5e0dd705515a8b81f10e49882c7d53",
+      "bytes": 1086477
     },
     {
       "path": "kit/wardrobe/avatar-outfits-index.json",
@@ -413,13 +449,13 @@
     },
     {
       "path": "kit/wardrobe/avatar-outfits-legs.pack.png",
-      "sha256": "24a85572e27f493d3ad6662e1d8f4099f8092ecbff1121400f929b16080ce5ca",
-      "bytes": 4412007
+      "sha256": "10d35a4c6755578b59bed3a41efb7d1bb95ed71a1ea6fb902b693b29a6e1f65b",
+      "bytes": 4711734
     },
     {
       "path": "kit/wardrobe/avatar-outfits-tops.pack.png",
-      "sha256": "5166be0ef9c2fa5216f2296273e5a47014a6b1ae01aa2b3cc278ba441a27698f",
-      "bytes": 6332911
+      "sha256": "96efb20c432168bc2f5d99c6eb27e9cb24f5c310c9fbc4064b97bf23a4d5178b",
+      "bytes": 6918866
     }
   ],
   "permissions": [

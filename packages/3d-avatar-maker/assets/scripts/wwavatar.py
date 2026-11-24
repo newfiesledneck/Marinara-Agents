@@ -735,63 +735,70 @@ class _Strands:
         return np.clip(grey, 0, 1), np.clip(self.a, 0, 1)
 
 
-def _lock(rng, w, h, n, tips, wave, clump, width=(1.0, 1.7), bright=(0.5, 1.0), curl=0.0):
-    """A lock of `n` strands down a column: roots across the top (fading in), tips ragged between `tips`
-    (fractions of the height), waving by `wave` pixels, gathered towards `clump` points at their tips;
-    `curl` coils each strand tightly (a coarse beard)."""
-    st = _Strands(w, h)
-    centres = rng.uniform(0.2, 0.8, max(clump, 1)) * w
-    order = []
-    for _ in range(n):
-        u = rng.beta(2.3, 2.3)
-        # (Strands at a lock's sides end sooner, so a card's outline is a lock's, not a strip's.)
-        reach = 1 - 0.45 * abs(2 * u - 1) ** 1.5 * rng.uniform(0.3, 1.0)
-        order.append((rng.uniform(*bright), 4 + u * (w - 8), rng.uniform(-0.01, 0.12) * h, rng.uniform(*tips) * reach * h))
-    order.sort()
-    for g, x0, y0, y1 in order:
-        ys = np.arange(int(y0), int(y1))
-        if len(ys) < 4:
-            continue
-        t = (ys - y0) / max(1.0, y1 - y0)
-        c = centres[np.argmin(np.abs(centres - x0))] + rng.normal(0, 2.0)
-        k = (0.55 if clump else 0.0) * rng.uniform(0.4, 1.0)
-        xs = x0 * (1 - k * t * t) + c * k * t * t + rng.uniform(-6, 6) * t
-        xs = xs + rng.uniform(0.4, 1.0) * wave * np.sin(2 * np.pi * ys / rng.uniform(70, 150) + rng.uniform(0, 6.3))
-        if curl:
-            lam = rng.uniform(26, 44)
-            ph = rng.uniform(0, 6.3)
-            xs = xs + curl * rng.uniform(0.6, 1.0) * np.sin(2 * np.pi * ys / lam + ph)
-            g = g * (0.8 + 0.2 * np.abs(np.sin(2 * np.pi * ys / lam + ph)))
-        tip = np.clip((t - 0.7) / 0.3, 0, 1)
-        a = rng.uniform(0.8, 0.97) * (1 - tip**1.4) * np.clip((ys - y0) / (0.05 * h), 0, 1)
-        gg = g * (1 + 0.06 * np.sin(ys / rng.uniform(12, 36) + rng.uniform(0, 6)))
-        st.stroke(ys, xs, rng.uniform(*width) * (1 - 0.5 * tip), a, gg)
-    return st.result()
-
-
-# The facial hair's texture (1,024 px, rows from the top): eight columns of locks (128 by 560 px each, roots
-# at the top); under them three patches of short hair lying close (dense, thinner, sparse: each fades out
-# towards its edges, so patches laid over each other on the skin make an even undercoat with a soft edge),
-# hair with no gaps (a braid's strands, a long beard's body; its last fifth ragged) and a tie.
+# The facial hair's texture (1,024 px, rows from the top): bands the full width of the picture, each one
+# seamless from its right edge round to its left, so a card along the jaw can run its strands on round the
+# face with no seam (a card goes from u 0 to 1 and the next one on from 0 again):
+# - three bands of short hair, its roots along the top and its tips ragged along the bottom: dense (a solid
+#   wash of hair under the roots' half, so it stays whole when drawn small), thinner, and sparse (a soft edge
+#   to a beard: its cheek line);
+# - a band of long hair (a long beard's hanging locks): strands the band's height, gathering into locks at
+#   their tips;
+# - a braid's strands, running along the band (along the braid), with no gaps;
+# - a tie.
+# Strands are near white for the hair's colour to tint, a little darker at the root, and only a little
+# different from each other, so a beard reads as one colour of hair, not flecks.
 HAIR_SIZE = 1024
-HAIR_REGIONS = {
-    **{f"lock{i}": (i * 128, 0, 128, 560) for i in range(8)},
-    "patch0": (0, 560, 256, 256),
-    "patch1": (256, 560, 256, 256),
-    "patch2": (512, 560, 256, 256),
-    "solid": (768, 560, 256, 464),
-    "tie": (0, 816, 128, 64),
+HAIR_PAD = 2
+HAIR_BANDS = {
+    "short0": (0, 150),
+    "short1": (152, 150),
+    "short2": (304, 150),
+    "long": (456, 400),
+    "braid": (858, 128),
+    "tie": (988, 34),
 }
-# (Which locks suit what: straight and dense, coarse and wavy, coiled, wispy, short tufts.)
-LOCKS = {"dense": (0, 1, 2), "coarse": (3, 4), "curly": (5,), "wispy": (6,), "tuft": (7,)}
 
 
-def hair_region(name, u, v):
-    """A place in one of the texture's regions as texture coordinates: u across (0..1), v from its bottom (0:
-    a lock's tips) to its top (1: its roots)."""
-    x, y, w, h = HAIR_REGIONS[name]
-    pad = 2.0
-    return ((x + pad + u * (w - 2 * pad)) / HAIR_SIZE, 1 - (y + pad + (1 - v) * (h - 2 * pad)) / HAIR_SIZE)
+def band(name, u, v):
+    """A place in one of the texture's bands as texture coordinates: u along it (0..1, once across the picture),
+    v from its bottom (0: the tips) to its top (1: the roots)."""
+    y, h = HAIR_BANDS[name]
+    return (u, 1 - (y + HAIR_PAD + (1 - v) * (h - 2 * HAIR_PAD)) / HAIR_SIZE)
+
+
+def _locks(rng, w, h, count, under, reach=(0.6, 1.0), lean=10.0, size=(22, 40), roots=(-0.04, 0.08), per=34, wave=0.0):
+    """A band of locks hanging from its top edge, seamless across: `count` locks, each `size` pixels across
+    at its root (half of it either side), its strands drawing together to its tip, which ends between `reach`
+    of the height (ragged tips), leaning by about `lean` pixels; its roots between `roots` of the height
+    (lower: a softer edge). A lock is darker at its sides, so locks lying over each other read as locks.
+    `under` (0..1) is the share of the height a wash of darker hair fills under them (solid at the top,
+    fading out), so a dense band stays whole when drawn small."""
+    st = _Strands(w, h, wrap=True)
+    locks = []
+    for _ in range(count):
+        y0 = rng.uniform(*roots) * h
+        locks.append((rng.uniform(0.74, 1.0), rng.uniform(0, w), y0, y0 + rng.uniform(*reach) * (h - y0), rng.uniform(*size) / 2, rng.normal(0, lean)))
+    locks.sort()  # (the brighter drawn last, over the darker: light catching the outermost hair)
+    for g, c, y0, y1, half, dx in locks:
+        phase = rng.uniform(0, 6.3)
+        for _ in range(per):
+            u = rng.uniform(-1, 1)
+            start = y0 + abs(u) * 0.08 * h * rng.uniform(0, 1)
+            end = y0 + (y1 - y0) * (1 - 0.3 * abs(u) ** 1.5) * rng.uniform(0.85, 1.0)
+            ys = np.arange(max(0, int(start)), int(end))
+            if len(ys) < 4:
+                continue
+            t = np.clip((ys - y0) / max(1.0, y1 - y0), 0, 1)
+            xs = c + u * half * (1 - 0.45 * t**1.2) + dx * t + rng.normal(0, 1.2) * t
+            if wave:
+                xs = xs + wave * np.sin(2 * np.pi * ys / 130 + phase)
+            tip = np.clip((t - 0.72) / 0.28, 0, 1)
+            grey = g * (1 - 0.22 * u * u) * (0.8 + 0.2 * t)  # (darker at its sides and its root)
+            st.stroke(ys, xs, rng.uniform(1.4, 2.2) * (1 - 0.4 * tip), 0.95 * (1 - tip**1.5), grey)
+    if under:
+        ramp = np.clip(1 - (np.arange(h) / h) / under, 0, 1) ** 0.7
+        st.under(np.broadcast_to(ramp[:, None] * 0.96, (h, w)), 0.58)
+    return st.result()
 
 
 def facial_hair_texture(seed=7):
@@ -799,57 +806,35 @@ def facial_hair_texture(seed=7):
     strands for the game to tint, cut out by alpha."""
     rng = np.random.default_rng(seed)
     S = HAIR_SIZE
-    grey = np.full((S, S), 0.6)
+    grey = np.full((S, S), 0.8)
     alpha = np.zeros((S, S))
 
     def put(name, ga):
-        x, y, w, h = HAIR_REGIONS[name]
-        grey[y : y + h, x : x + w], alpha[y : y + h, x : x + w] = ga
+        y, h = HAIR_BANDS[name]
+        g, a = ga
+        grey[y + HAIR_PAD : y + h - HAIR_PAD] = g[HAIR_PAD : h - HAIR_PAD]
+        alpha[y + HAIR_PAD : y + h - HAIR_PAD] = a[HAIR_PAD : h - HAIR_PAD]
 
-    for i in LOCKS["dense"]:
-        put(f"lock{i}", _lock(rng, 128, 560, 100, (0.55, 1.0), 2.5, 3, width=(1.1, 1.8)))
-    for i in LOCKS["coarse"]:
-        put(f"lock{i}", _lock(rng, 128, 560, 84, (0.5, 1.0), 6.0, 2, width=(1.2, 2.0)))
-    for i in LOCKS["curly"]:
-        put(f"lock{i}", _lock(rng, 128, 560, 70, (0.55, 1.0), 2.0, 0, width=(1.2, 1.9), curl=8.0))
-    for i in LOCKS["wispy"]:
-        put(f"lock{i}", _lock(rng, 128, 560, 40, (0.45, 1.0), 4.0, 2))
-    for i in LOCKS["tuft"]:
-        put(f"lock{i}", _lock(rng, 128, 560, 76, (0.35, 0.95), 3.5, 0, width=(1.3, 2.1)))
-    # The undercoat's patches: short hairs lying close, pointing down, thinning out towards the patch's edges.
-    for i, count in enumerate((3000, 1900, 1000)):
-        x, y, w, h = HAIR_REGIONS[f"patch{i}"]
-        st = _Strands(w, h)
-        done = 0
-        while done < count:
-            x0, y0 = rng.uniform(0, w), rng.uniform(0, h)
-            r = max(abs(x0 / w - 0.5), abs(y0 / h - 0.5)) * 2 * 0.6 + np.hypot(x0 / w - 0.5, y0 / h - 0.5) * 2 * 0.4
-            if rng.random() > np.clip((1.02 - r) / 0.45, 0, 1) ** 1.3:
-                continue
-            done += 1
-            n = int(rng.uniform(14, 36))
-            ys = np.arange(int(y0) - n // 2, int(y0) - n // 2 + n)
-            t = np.linspace(0, 1, n)
-            xs = x0 + rng.uniform(-6, 6) * (t - 0.5) + rng.uniform(0, 1.5) * np.sin(t * rng.uniform(2, 6))
-            keep = (ys > 3) & (ys < h - 3) & (xs > 3) & (xs < w - 3)
-            st.stroke(ys[keep], xs[keep], rng.uniform(1.0, 1.7), (0.92 * np.sin(np.pi * np.clip(t * 1.1, 0, 1)) ** 0.6)[keep], rng.uniform(0.45, 0.95))
-        put(f"patch{i}", st.result())
-    # Hair with no gaps, its ends ragged.
-    x, y, w, h = HAIR_REGIONS["solid"]
-    st = _Strands(w, h, wrap=True)
-    for _ in range(900):
-        x0 = rng.uniform(0, w)
-        y1 = h * (1.0 if rng.random() < 0.55 else rng.uniform(0.8, 1.0))
-        ys = np.arange(0, int(y1))
-        t = ys / h
-        xs = x0 + rng.uniform(-7, 7) * t + rng.uniform(0.4, 1.6) * np.sin(ys / rng.uniform(30, 90) + rng.uniform(0, 6))
-        tip = np.clip((ys - (y1 - 30)) / 30, 0, 1)
-        st.stroke(ys, xs, rng.uniform(1.0, 1.6), 0.92 * (1 - tip**1.5), rng.uniform(0.45, 1.0) * (1 + 0.07 * np.sin(ys / rng.uniform(10, 30))))
-    st.under(np.broadcast_to((np.arange(h)[:, None] < h * 0.8) * 1.0, (h, w)), 0.34)
-    put("solid", st.result())
-    x, y, w, h = HAIR_REGIONS["tie"]
+    put("short0", _locks(rng, S, 150, 70, 0.5, reach=(0.7, 1.0), size=(50, 100), per=60))
+    put("short1", _locks(rng, S, 150, 44, 0.25, reach=(0.6, 1.0), size=(40, 80), per=48))
+    put("short2", _locks(rng, S, 150, 34, 0.0, reach=(0.5, 1.0), size=(20, 44), roots=(0.0, 0.45), per=24, lean=14.0))
+    put("long", _locks(rng, S, 400, 50, 0.6, reach=(0.7, 1.0), size=(50, 100), lean=6.0, per=110, wave=3.0))
+    # A braid's strands: along the band, side by side with no gaps, a little darker towards its edges (where
+    # one strand of the braid goes under the next).
+    h = HAIR_BANDS["braid"][1]
+    st = _Strands(h, S)  # (drawn standing up, then turned to run along the band)
+    for _ in range(420):
+        x0 = rng.uniform(0, h)
+        ys = np.arange(0, S)
+        xs = x0 + rng.uniform(0.6, 2.0) * np.sin(2 * np.pi * ys / S * rng.integers(1, 4) + rng.uniform(0, 6.3))
+        st.stroke(ys, xs, rng.uniform(1.4, 2.2), 0.95, rng.uniform(0.62, 0.9) * (1 + 0.04 * np.sin(ys / rng.uniform(12, 40))))
+    st.under(np.ones((S, h)), 0.58)
+    g, a = st.result()
+    across = np.abs(np.linspace(-1, 1, h))
+    put("braid", ((g * (1 - 0.45 * across[None, :] ** 2)).T, np.ones((h, S))))
+    y, h = HAIR_BANDS["tie"]
     yy = np.linspace(-1, 1, h)[:, None]
-    put("tie", (np.broadcast_to(0.34 + 0.3 * (1 - yy**2) + 0.05 * np.sin(np.arange(w)[None, :] / 2.5), (h, w)), np.ones((h, w))))
+    put("tie", (np.broadcast_to(0.3 + 0.22 * (1 - yy**2) + 0.04 * np.sin(np.arange(S)[None, :] / 2.5), (h, S)), np.ones((h, S))))
     rgba = np.stack([grey, grey, grey, alpha], axis=2)
     return rgba[::-1].copy()
 

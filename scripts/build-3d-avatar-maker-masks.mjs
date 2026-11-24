@@ -3,6 +3,9 @@
 //   the lips: avatar-<sex>-masks.png;
 // - where makeup goes (red the eyeshadow, green the eyeliner, blue the blush), found in the community packs'
 //   made-up skins: avatar-makeup-masks.png, one for both bodies (they share the skin's layout).
+// - for each body, where each facial hair style grows, where hair styles lie on the scalp, and stubble's full
+//   beard, so the skin under hair can be painted in its colour: avatar-<sex>-hair-masks-<n>.png (src/skin.js
+//   HAIR_MASKS says which mask is in which file and channel).
 // Written to packages/3d-avatar-maker/kit/avatar.
 //
 //   node scripts/build-3d-avatar-maker-masks.mjs
@@ -498,4 +501,165 @@ else {
   }
   const bytes = writePng(join(KIT, "avatar-makeup-masks.png"), MASK_SIZE, MASK_SIZE, rgb);
   console.log(`avatar-makeup-masks.png: ${bytes} bytes`);
+}
+
+// ── Hair: where facial hair grows and where a hair style lies, so the skin under it is painted ──────────
+// For each body, the skin under each facial hair style (its cards' roots and the hair lying close on the
+// skin), under a hair style (where most of the kit's hair styles lie on the scalp: one soft mask for every
+// style, as they all cover the crown and differ mainly at the hairline), and a softer full-beard shape for
+// stubble. Written as avatar-<sex>-hair-masks-<n>.png, three channels each, at half the skin picture's size
+// (they're soft); src/skin.js HAIR_MASKS says which file and channel each is in.
+const { HAIR_MASKS, HAIR_MASK_FILES } = await import(
+  pathToFileURL(join(ROOT, "packages/3d-avatar-maker/src/skin.js")).href
+);
+export const HAIR_MASK_SIZE = 1024;
+
+/** A hash of points (`position`, three numbers each) into cells `cell` metres across. */
+function cells(position, cell) {
+  const map = new Map();
+  for (let i = 0; i < position.length / 3; i++) {
+    const key = [0, 1, 2].map((c) => Math.floor(position[i * 3 + c] / cell)).join(",");
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(i);
+  }
+  return {
+    near(x, y, z) {
+      const out = [];
+      const [cx, cy, cz] = [x, y, z].map((v) => Math.floor(v / cell));
+      for (let dx = -1; dx <= 1; dx++)
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dz = -1; dz <= 1; dz++)
+            for (const i of map.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) out.push(i);
+      return out;
+    },
+  };
+}
+
+/**
+ * How much each skin vertex is under hair: the points of `hair` (positions) that lie on the skin or close over
+ * it (no further out than `close` metres along the skin's normal, and no deeper in than a root), each covering
+ * the skin round it, all of it within `inner` metres and fading out by `outer`.
+ */
+function coverage(skin, grid, hair, close, inner, outer) {
+  const out = new Float32Array(skin.position.length / 3);
+  const p = skin.position;
+  const n = skin.normal;
+  for (let h = 0; h < hair.length / 3; h++) {
+    const [x, y, z] = [hair[h * 3], hair[h * 3 + 1], hair[h * 3 + 2]];
+    let best = -1;
+    let bestD = Infinity;
+    const near = grid.near(x, y, z);
+    for (const i of near) {
+      const d = (p[i * 3] - x) ** 2 + (p[i * 3 + 1] - y) ** 2 + (p[i * 3 + 2] - z) ** 2;
+      if (d < bestD) [best, bestD] = [i, d];
+    }
+    if (best < 0 || Math.sqrt(bestD) > close + 0.006) continue;
+    const out_ =
+      (x - p[best * 3]) * n[best * 3] +
+      (y - p[best * 3 + 1]) * n[best * 3 + 1] +
+      (z - p[best * 3 + 2]) * n[best * 3 + 2];
+    if (out_ > close || out_ < -0.006) continue;
+    for (const i of near) {
+      // (Only skin facing the way the skin under the hair does: not the mouth's inside, just behind the lips.)
+      if (n[i * 3] * n[best * 3] + n[i * 3 + 1] * n[best * 3 + 1] + n[i * 3 + 2] * n[best * 3 + 2] < 0.3) continue;
+      const d = Math.sqrt((p[i * 3] - x) ** 2 + (p[i * 3 + 1] - y) ** 2 + (p[i * 3 + 2] - z) ** 2);
+      const t = Math.min(1, Math.max(0, (outer - d) / (outer - inner)));
+      out[i] = Math.max(out[i], t * t * (3 - 2 * t));
+    }
+  }
+  return out;
+}
+
+/** Values at the skin's vertices drawn into the skin picture's layout (MASK_SIZE), softened by `radius` texels. */
+function drawn(skin, values, radius) {
+  const out = new Float32Array(MASK_SIZE * MASK_SIZE);
+  const uv = skin.uv;
+  for (let t = 0; t < skin.index.length; t += 3) {
+    const ids = [skin.index[t], skin.index[t + 1], skin.index[t + 2]];
+    const v = ids.map((id) => values[id]);
+    if (!v[0] && !v[1] && !v[2]) continue;
+    // (Not the inside of the mouth: the made-up squares at the picture's top and MakeHuman's own place for
+    // the lips' inside, at its bottom right. Skin there is next to the lips but only shows in an open mouth.)
+    if (ids.every((id) => uv[id * 2 + 1] < 0.08 || (uv[id * 2] > 0.72 && uv[id * 2 + 1] > 0.82))) continue;
+    rasterise(
+      ...ids.map((id) => [uv[id * 2] * MASK_SIZE, uv[id * 2 + 1] * MASK_SIZE]),
+      (x, y, w0, w1, w2) =>
+        (out[y * MASK_SIZE + x] = Math.max(out[y * MASK_SIZE + x], v[0] * w0 + v[1] * w1 + v[2] * w2)),
+    );
+  }
+  soften(out, radius);
+  return out;
+}
+
+const positionsOf = (mesh) => geometryOf(mesh).attributes.position.array;
+
+for (const sex of ["male", "female"]) {
+  const file = await unpack(readFileSync(join(KIT, `avatar-${sex}.pack.png`)));
+  const skin = decoded(file.meshes.find((mesh) => mesh.part === "skin" && !mesh.piece));
+  const grid = cells(skin.position, 0.01);
+  const masks = {};
+  for (const mesh of file.meshes.filter((m) => /^(?:beard|moustache)-\d+$/u.test(m.piece ?? ""))) {
+    // (Its roots and the hair lying within 3 mm of the skin; a long beard's hanging locks are further out.)
+    masks[mesh.piece] = drawn(skin, coverage(skin, grid, positionsOf(mesh), 0.003, 0.004, 0.008), 4);
+    // (None on the lips, which are coloured by their own mask.)
+    for (let i = 0; i < masks[mesh.piece].length; i++) masks[mesh.piece][i] *= 1 - Math.min(1, lipsOf[sex][i] * 4);
+  }
+  // Stubble's full beard: the short beard's ground, wider and softer at its edge.
+  if (masks["beard-01"])
+    masks.stubble = drawn(
+      skin,
+      coverage(skin, grid, positionsOf(file.meshes.find((m) => m.piece === "beard-01")), 0.003, 0.002, 0.011),
+      8,
+    ).map((value, i) => value * (1 - Math.min(1, lipsOf[sex][i] * 4)));
+  // The scalp: where at least half of this body's kit hair styles lie on it.
+  const index = JSON.parse(readFileSync(join(KIT, "avatar-hair-index.json"), "utf8"));
+  const bundles = new Map();
+  const share = new Float32Array(skin.position.length / 3);
+  let styles = 0;
+  for (const [style, entry] of Object.entries(index)) {
+    if (!entry.bodies?.includes(sex)) continue;
+    if (!bundles.has(entry.bundle))
+      bundles.set(entry.bundle, await unpack(readFileSync(join(KIT, `${entry.bundle}.pack.png`))));
+    const part = bundles.get(entry.bundle).styles?.[style]?.[sex];
+    if (!part) continue;
+    const covered = coverage(
+      skin,
+      grid,
+      part.meshes.map(positionsOf).reduce((a, b) => Float32Array.from([...a, ...b])),
+      0.01,
+      0.01,
+      0.02,
+    );
+    for (let i = 0; i < share.length; i++) share[i] += covered[i];
+    styles++;
+  }
+  for (let i = 0; i < share.length; i++) {
+    const t = Math.min(1, Math.max(0, (share[i] / Math.max(styles, 1) - 0.45) / 0.35));
+    share[i] = t * t * (3 - 2 * t);
+  }
+  masks.scalp = drawn(skin, share, 12);
+  HAIR_MASK_FILES.forEach((names, n) => {
+    const rgb = Buffer.alloc(HAIR_MASK_SIZE * HAIR_MASK_SIZE * 3);
+    names.forEach((name, c) => {
+      const mask = masks[name];
+      if (!mask) return;
+      // (Half the size: each texel the mean of four.)
+      for (let y = 0; y < HAIR_MASK_SIZE; y++)
+        for (let x = 0; x < HAIR_MASK_SIZE; x++) {
+          const i = y * 2 * MASK_SIZE + x * 2;
+          const v = (mask[i] + mask[i + 1] + mask[i + MASK_SIZE] + mask[i + MASK_SIZE + 1]) / 4;
+          rgb[(y * HAIR_MASK_SIZE + x) * 3 + c] = Math.round(Math.min(1, v) * 255);
+        }
+    });
+    const bytes = writePng(join(KIT, `avatar-${sex}-hair-masks-${n}.png`), HAIR_MASK_SIZE, HAIR_MASK_SIZE, rgb);
+    console.log(
+      `avatar-${sex}-hair-masks-${n}.png (${names.join(", ")}): ${bytes} bytes; ${styles} hair styles for the scalp`,
+    );
+  });
+  if (Object.keys(HAIR_MASKS).some((name) => !masks[name]))
+    console.log(
+      `avatar-${sex}: no mask for ${Object.keys(HAIR_MASKS)
+        .filter((name) => !masks[name])
+        .join(", ")}`,
+    );
 }

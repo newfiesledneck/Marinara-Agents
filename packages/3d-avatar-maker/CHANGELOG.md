@@ -1,5 +1,12 @@
 # 3D Avatar Maker release notes
 
+## 0.1.13 — 2026-11-23
+
+- Clothes keep the shape they have in their own pictures: fitted where MakeHuman places them, skirts hang whole with no strip pulled out or seam between the legs, and pieces no longer follow the arms unless they cover them. Each layer is worn just over the one under it, so leggings and socks stop showing through.
+- **Show underwear under clothes** now starts on.
+- Rebuilt beards and moustache, a new mutton chops style, and stubble painted on the skin in five shapes with its own colour and density. The skin under a beard or hair is shaded in the hair's colour.
+- Arms push the bust: folded or crossed arms lift or press it, and it moulds round a hand in the preview.
+
 ## 0.1.12 — 2026-11-23
 
 - The Brow and On the back places say what they hold now that the Accessories pack fills them: face piercings and a head mirror, and wings or a guitar on its strap. Install Accessories 0.2.03 for jewellery, horns and antlers, wings, tails, and things to hold or carry.

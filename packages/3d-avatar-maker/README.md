@@ -39,13 +39,16 @@ file you save, and you import that file yourself.
 | --- | --- |
 | Start | A ready-made look to begin from, a new male or female avatar, or a style (semi-real, or anime proportions) |
 | Body | Body, age, height; a race preset (human, dwarf, halfling, gnome, elf, half-elf, half-orc, tiefling) and six race sliders to mix; eight build sliders; arms, legs, torso and hips, and her bust in detail; arm and leg length, head size |
-| Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (66 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: beards, tusks, horns, a tail |
+| Face | The face's overall shape with face-outline presets; eyes, brows, nose, mouth, jaw and chin, cheeks, ears, and forehead and head in detail (66 sliders), each part with ready-made shapes; brow and lash style; accessories anyone can wear: six beards, a moustache, stubble painted on the skin in five shapes with its own colour and density, tusks, horns, a tail |
 | Skin and eyes | 24 skin pictures (MakeHuman's nine in three ages, and 15 more) or a colour of your own; makeup on any skin: eyeshadow, eyeliner, blush and lipstick, each in a colour and strength of your own, or one of seven ready-made looks; 24 pictured eyes or a colour; nail length, toenails and nail colour |
 | Hair | 20 styles in any colour, and any styles a wardrobe pack adds (the Accessories pack has 14). Long, ponytail, braid and every bob swing as the avatar moves, and so do a pack's long styles |
 | Clothes | Underwear (a top and a bottom, shown under clothes or hidden by them, as you choose), ready-made outfits, and 78 pieces of clothing and armour worn one to a place, each part in its own colour, plus what any wardrobe packs you install add. Skirts, dresses, the gown and robe, the long coat, the cloak, the tunic's tails, the loincloth and the apron hang from the hips and swing as one piece, out of the legs' way; trousers, leggings and shorts follow each leg. Glasses, a face mask, earrings, rings and socks have places of their own, which the Accessories pack fills. Horns or antlers, a necklace, the wrists, the belly, the ankles, a tail, the back (wings, a guitar on its strap), the hip and each hand have places of their own too, which the Accessories pack fills as well. Something held in a hand and horns are fixed to the hand or head, so they move with it and never bend |
 
-Every slider's middle is the body's own shape, and each control says what it changes. Makeup starts at
-none.
+Every slider's middle is the body's own shape, and each control says what it changes. Makeup and stubble
+start at none.
+
+Under a beard, a moustache or a hair style, the skin is painted towards the hair's colour, so the skin
+showing between the strands reads as hair: a dark beard on pale skin shows no pale gaps.
 
 The skins that came with makeup painted on are gone from the skin list; their makeup is a ready-made look
 you can put on any skin (Natural, Classic, Violet, Bronzed, Eyeliner, Goth, Dark eyes). A look or draft that
@@ -53,7 +56,7 @@ wore one opens on its plain skin with that makeup.
 
 ## Wardrobe packs
 
-More clothes come as two separate packages you install from the catalog: 3D Avatar Maker: Clothes (186
+More clothes come as two separate packages you install from the catalog: 3D Avatar Maker: Clothes (194
 garments: dresses, suits, tops, trousers, skirts, underwear, lingerie, swimwear and shoes) and 3D Avatar Maker:
 Accessories (97 pieces: hats, helmets, glasses, masks, jewellery, gloves and socks, horns, wings, tails and
 things to hold or carry, and 14 hair styles). Both are mostly CC BY. They
@@ -76,10 +79,10 @@ or GLB has only what's worn.
 ## Underwear under clothes
 
 Underwear is always the innermost layer. With **Show underwear under clothes** on (the Underwear group on the
-Clothes tab; off until the clothes are fitted around underwear, then on unless you turn it off), it stays on under everything, so a bra strap shows at an open neckline or
-off the shoulder and briefs show under a skirt. Clothes still hide the skin they cover. Clothes aren't fitted
-around underwear yet, so it pokes through many of them, the everyday tee and jeans among them; turn the setting
-off and clothes hide the underwear they cover, as they did before. A swimsuit, bodysuit, shapewear, a teddy or swimming trunks are
+Clothes tab; on unless you turn it off), it stays on under everything, so a bra strap shows at an open neckline or
+off the shoulder and briefs show under a skirt. Clothes still hide the skin they cover, and each is worn
+just over what's under it, so underwear stays under them; a speck can still show where two layers meet at
+a shallow angle. Turn the setting off and clothes hide the underwear they cover, as they did before. A swimsuit, bodysuit, shapewear, a teddy or swimming trunks are
 worn on bare skin, so the underwear they cover is left off under them either way. The setting is part of the look,
 so a saved avatar keeps it.
 
@@ -103,15 +106,17 @@ Both carry the face's moves as shape keys named the way VRM names its expression
 `surprised`. The 3D Avatars agent finds them by those names. The mouth opens on teeth and a tongue, and each
 eye turns on a bone of its own (`eye_l`, `eye_r`). Hair that hangs loose has chains of bones down its locks
 (`hair_back_0` to the tip, one chain for each side of the head it hangs from). Skirts, dresses, robes, coats
-and cloaks have them too below the hips (`cloth_skirt_front_0` and so on), and each breast has a short bone
-under the upper chest (`breast_l`, `breast_r`) that the skin and what's worn over it follow. Standing still,
-all of it rests as it was made.
+and cloaks have them too below the hips (`cloth_skirt_front_0` and so on), and each breast has a bone under
+the middle chest (`breast_l`, `breast_r`) that the skin and what's worn over it follow. Standing still, all
+of it rests as it was made.
 
 - **VRM** (`.vrm`, VRM 1.0) is the avatar format VRoid Studio, VSeeFace and the 3D Avatars agent's **VRM
   model** read. The avatar rests in a T-pose, and the file names its humanoid bones, so any VRM app can pose
   it. Its expressions are bound to the face's keys, and its eyes look about on their bones. Hanging hair,
   hanging clothes, the bust and a tail swing on spring bones. Colliders fitted to the body keep the hair out
-  of the head, neck, shoulders, arms and back, and the clothes out of the hips and legs. The file carries the terms you set under **The VRM's terms** on the
+  of the head, neck, shoulders, arms and back, and the clothes out of the hips and legs, and let the arms and
+  hands push the bust up or aside when they press on it. (In the maker's preview a pressed breast also
+  squashes in a little; a VRM app only moves it.) The file carries the terms you set under **The VRM's terms** on the
   Save tab: your name as the author, who may use the avatar, commercial use, sharing and changes, credit,
   and four uses VRM forbids unless allowed. They start at VRM's most careful choices, and the maker keeps
   yours in this browser for the next avatar. While the avatar wears a CC BY pack piece, the file asks for
@@ -137,7 +142,8 @@ use and share however you like, with no credit required:
   bobs are from MakeHuman's community packs (CC0), by Elvaerwyn, jujube, habanero, RehmanPolanski, Mindfront,
   skalldyrssuppe, onlytheghosts, toigo (MargaretToigo), flower-angel, ken1138, bobby_03, Nyloseth, Hatshj and
   spamrakuen. Where the makeup goes was found in toigo's made-up skins.
-- The races' shapes and parts, four hair styles and the fantasy clothing and armour were made in Blender
+- The races' shapes and parts, the beards and moustache, four hair styles and the fantasy clothing and armour
+  were made in Blender
   by ThatOneCan, who also fitted the nails and the six community bobs and baked the new brows and lashes; all
   released as CC0 1.0 too.
 
@@ -158,7 +164,7 @@ its own copy of those files and code. A look saved from Wanderworld's Look card 
   Avatars agent loads a GLB, and a `.vrm` the way it loads a VRM model.
 - Test: `node tests/3d-avatar-maker.regression.mjs`.
 - Preview animations: `src/motions.js` plays them; `node scripts/build-3d-avatar-maker-clips.mjs <UAL1.glb>
-  <UAL2.glb>` makes `src/clips/ual.json` from Quaternius's two libraries.
+<UAL2.glb>` makes `src/clips/ual.json` from Quaternius's two libraries.
 - Wardrobe packs: fitted by `assets/scripts/make_mh_packs.py` from `assets/packs.json`, built by
   `node scripts/build-3d-avatar-maker-packs.mjs`. The test page serves the repo's `packages/3d-avatar-maker-*`
   packs as if installed.

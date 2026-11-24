@@ -1,5 +1,9 @@
 # 3D Avatar Maker: Accessories release notes
 
+## 0.2.04 — 2026-11-23
+
+- Every piece is fitted again, placed as MakeHuman places it, so socks, gloves, hats and jewellery keep the shape they have in their own pictures.
+
 ## 0.2.03 — 2026-11-23
 
 - 50 new pieces for the slots 3D Avatar Maker 0.1.10 added. Jewellery: four bracelets and bangles, five anklets, four necklaces and a spiked collar, three pairs of earrings, ear and face piercings, and four for the belly. Six kinds of horns and antlers, seven pairs of wings and two tails. Things to hold or carry: a sword, a microphone, a tennis racket, a shopping bag, a shoulder bag, a sling purse and an electric guitar. Also a headset, a head mirror, a stethoscope and two tactical vests.

@@ -70,12 +70,13 @@ export function tPose(figure) {
   figure.root.updateMatrixWorld(true);
 }
 
-/** Every bone back as the body was built: the A-pose. */
+/** Every bone back as the body was built: the A-pose, the bust unsquashed. */
 export function restPose(figure) {
   for (const [name, bone] of figure.bones) {
     bone.quaternion.copy(figure.rest.get(name));
     const at = figure.restAt?.get(name);
     if (at) bone.position.copy(at);
+    if (bone.userData.squashes) bone.scale.setScalar(1); // (a breast the arms squashed: springs.js)
   }
   figure.root.updateMatrixWorld(true);
 }

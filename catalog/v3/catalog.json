@@ -64,7 +64,7 @@
         },
         "id": "3d-avatar-maker",
         "name": "3D Avatar Maker",
-        "version": "0.1.12",
+        "version": "0.1.13",
         "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
         "engine": {
           "min": "2.4.6",
@@ -92,6 +92,9 @@
             "paths": [
               "kit/avatar/avatar-eyes.webp",
               "kit/avatar/avatar-female-6.webp",
+              "kit/avatar/avatar-female-hair-masks-0.png",
+              "kit/avatar/avatar-female-hair-masks-1.png",
+              "kit/avatar/avatar-female-hair-masks-2.png",
               "kit/avatar/avatar-female-masks.png",
               "kit/avatar/avatar-female-skin-bronze.webp",
               "kit/avatar/avatar-female-skin-creamy.webp",
@@ -124,6 +127,9 @@
               "kit/avatar/avatar-male-4.webp",
               "kit/avatar/avatar-male-5.webp",
               "kit/avatar/avatar-male-6.webp",
+              "kit/avatar/avatar-male-hair-masks-0.png",
+              "kit/avatar/avatar-male-hair-masks-1.png",
+              "kit/avatar/avatar-male-hair-masks-2.png",
               "kit/avatar/avatar-male-masks.png",
               "kit/avatar/avatar-male-skin-aksel.webp",
               "kit/avatar/avatar-male-skin-bronze.webp",
@@ -162,8 +168,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "d8946b72f64ee90ee0681de982d42da2a608c13a5245778bf6def452dfcba7ea",
-            "bytes": 1260330
+            "sha256": "9744deab8cc04c67007aafdbc5a42711f0914fa082e584ef9960c4293aba0278",
+            "bytes": 1269545
           },
           {
             "path": "3d-avatar-maker-icon.webp",
@@ -179,6 +185,21 @@
             "path": "kit/avatar/avatar-female-6.webp",
             "sha256": "811eb0a68f84cca0577f5220d805089776deec58e9726aaac741316064c297db",
             "bytes": 293766
+          },
+          {
+            "path": "kit/avatar/avatar-female-hair-masks-0.png",
+            "sha256": "1c1e60f153f3bdbf34bde3d30fda6bca580ee39cc4cadb0f8146886ffc575bae",
+            "bytes": 33379
+          },
+          {
+            "path": "kit/avatar/avatar-female-hair-masks-1.png",
+            "sha256": "0b57472f8badd7cbde3229f3c4e7c14926e798f44cc90badc169f01744d5d10a",
+            "bytes": 42514
+          },
+          {
+            "path": "kit/avatar/avatar-female-hair-masks-2.png",
+            "sha256": "9e4689c9c513cdc40b349ccabf550b20711034e8e610181fb37b80810d00bc1e",
+            "bytes": 127633
           },
           {
             "path": "kit/avatar/avatar-female-masks.png",
@@ -277,8 +298,8 @@
           },
           {
             "path": "kit/avatar/avatar-female.pack.png",
-            "sha256": "e3df74877f57062a54db34a07c1b91c07fd0c7101158a97fbf460d7cd598543f",
-            "bytes": 8665795
+            "sha256": "e75db9f2a1781e9d4e698da3ad8752743b1202020cb8e833917e02c64587dfd4",
+            "bytes": 9269843
           },
           {
             "path": "kit/avatar/avatar-female.webp",
@@ -287,8 +308,8 @@
           },
           {
             "path": "kit/avatar/avatar-hair-bobs.pack.png",
-            "sha256": "e8676815ccb57edc64defb8a57ec892e2ee72233be0797107d60aad0fbf69dbd",
-            "bytes": 4834479
+            "sha256": "06602086de27b0cdbd665bb0fb1cf399a50acc1a8b8172dccecc826c1b0babae",
+            "bytes": 4834081
           },
           {
             "path": "kit/avatar/avatar-hair-index.json",
@@ -297,13 +318,13 @@
           },
           {
             "path": "kit/avatar/avatar-hair-long.pack.png",
-            "sha256": "62f1b6af13f993fa3848e0cc2a3a39a7e565b7bbc57a8c6e08957a984a763115",
-            "bytes": 2759898
+            "sha256": "b173f68f2477cce955906b09b32b33f209eb1b52deb290e8bb26debe8544bf20",
+            "bytes": 2759310
           },
           {
             "path": "kit/avatar/avatar-hair-short.pack.png",
-            "sha256": "63fa38204479f61e092fb818af9f940e11df13c4d181877c7110aad789b882be",
-            "bytes": 2114904
+            "sha256": "980c90e644d065cf885a69246cf61ea009e3cd2d498adb281cfd616701774822",
+            "bytes": 2114170
           },
           {
             "path": "kit/avatar/avatar-makeup-masks.png",
@@ -322,8 +343,8 @@
           },
           {
             "path": "kit/avatar/avatar-male-3.webp",
-            "sha256": "7de46d07b6ef4208db4291119ef36d0dbdcb3a384d6c5f16581c6b9166dbb98b",
-            "bytes": 561922
+            "sha256": "3b68bf3311e7220410d124e96ff58cbdb02dc28669cb36fc86cb82cbe5d7cc90",
+            "bytes": 187070
           },
           {
             "path": "kit/avatar/avatar-male-4.webp",
@@ -339,6 +360,21 @@
             "path": "kit/avatar/avatar-male-6.webp",
             "sha256": "e8ef5283d1b416f2800ae4c134d23fb422c099bf4b74c5e06d27f4c9a6b5c153",
             "bytes": 169836
+          },
+          {
+            "path": "kit/avatar/avatar-male-hair-masks-0.png",
+            "sha256": "d8a518be796017ac577b61fd4f6b37595475e27af02f91456c73e2edaeadb9bd",
+            "bytes": 35416
+          },
+          {
+            "path": "kit/avatar/avatar-male-hair-masks-1.png",
+            "sha256": "6c159068883e75b012ea34f107057481f15b1c6b3cf6771b02e2ec33dd3559f4",
+            "bytes": 36902
+          },
+          {
+            "path": "kit/avatar/avatar-male-hair-masks-2.png",
+            "sha256": "275c2be553b7cedec8a43f54fbfbc7de43e4c33054424a0f23e46ed3f0891bf0",
+            "bytes": 117763
           },
           {
             "path": "kit/avatar/avatar-male-masks.png",
@@ -422,8 +458,8 @@
           },
           {
             "path": "kit/avatar/avatar-male.pack.png",
-            "sha256": "9abf60e289b68b623391709adf00869291f779d3f47d2ef737563ab77a271cec",
-            "bytes": 6681623
+            "sha256": "4cdc882439c8cb8cae650afa5e895fea2353cb9d4529872ce4322fac9e56f172",
+            "bytes": 6942889
           },
           {
             "path": "kit/avatar/avatar-male.webp",
@@ -432,33 +468,33 @@
           },
           {
             "path": "kit/wardrobe/avatar-outfits-accessories.pack.png",
-            "sha256": "1ff48dee5a4931477df65f072dcc16ed9373556cfa24d7ed89a969b28ae08feb",
-            "bytes": 876011
+            "sha256": "69b3c7921700898749716f290d76bf6670d95739d5416df55bcccc33fa131992",
+            "bytes": 875829
           },
           {
             "path": "kit/wardrobe/avatar-outfits-armour.pack.png",
-            "sha256": "7782fb0564995ceb814bd3f9a0fe6f853597071c6f87262b61f9f6c77314e72e",
-            "bytes": 4737349
+            "sha256": "01f60ff392d4fc0713a2329e96e76bc8e131980e30e3f65c02413a99185cf921",
+            "bytes": 4736045
           },
           {
             "path": "kit/wardrobe/avatar-outfits-body.pack.png",
-            "sha256": "e7d36552e7f6df582933b9088609dc4b4fccd6ea49f711a875f81f6d4502b53d",
-            "bytes": 3416751
+            "sha256": "721f62d56a96d28026702934c52d57f76cb2c27cf9922ae0140add6716ae7855",
+            "bytes": 3501177
           },
           {
             "path": "kit/wardrobe/avatar-outfits-feet.pack.png",
-            "sha256": "7aa2011fec36f1440b07f72ac3791ed01dae4e46a407eb76db9d06e26956f53c",
-            "bytes": 2785660
+            "sha256": "ca6a9ea63ee58a39c295fafb37d96dde0bbe7a8ff67c15573b6dccea5aa1d9a6",
+            "bytes": 3287756
           },
           {
             "path": "kit/wardrobe/avatar-outfits-hands.pack.png",
-            "sha256": "3503186beb408171eb39f55c9eac37b2b7c4a6362eef1da3e8df184bbec3e7cc",
-            "bytes": 1208700
+            "sha256": "1fb7c6e8963d3d052a46ea652718cacb3c27c467a03401f0f478a6dbc835fa19",
+            "bytes": 1209341
           },
           {
             "path": "kit/wardrobe/avatar-outfits-head.pack.png",
-            "sha256": "b5310f22ed9f0c85e172ab29516780ea4982330f8597d722182b8248c8109721",
-            "bytes": 1040972
+            "sha256": "d1aebfd98b634a6d646eedece36f091a9c5e0dd705515a8b81f10e49882c7d53",
+            "bytes": 1086477
           },
           {
             "path": "kit/wardrobe/avatar-outfits-index.json",
@@ -467,13 +503,13 @@
           },
           {
             "path": "kit/wardrobe/avatar-outfits-legs.pack.png",
-            "sha256": "24a85572e27f493d3ad6662e1d8f4099f8092ecbff1121400f929b16080ce5ca",
-            "bytes": 4412007
+            "sha256": "10d35a4c6755578b59bed3a41efb7d1bb95ed71a1ea6fb902b693b29a6e1f65b",
+            "bytes": 4711734
           },
           {
             "path": "kit/wardrobe/avatar-outfits-tops.pack.png",
-            "sha256": "5166be0ef9c2fa5216f2296273e5a47014a6b1ae01aa2b3cc278ba441a27698f",
-            "bytes": 6332911
+            "sha256": "96efb20c432168bc2f5d99c6eb27e9cb24f5c310c9fbc4064b97bf23a4d5178b",
+            "bytes": 6918866
           }
         ],
         "permissions": [
@@ -484,9 +520,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-0.1.12.zip",
-        "sha256": "9002338bdac47d23c8e9e9f6306f4c1fc2a90eb0e2a82fc6508b2c7ca58ba863",
-        "bytes": 59339226
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-0.1.13.zip",
+        "sha256": "bfb05360f32e64630a7949e0a300fe5e0c4be9033c724228d69ab181364ca18d",
+        "bytes": 61749960
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker/README.md"
     },
@@ -503,7 +539,7 @@
         },
         "id": "3d-avatar-maker-wardrobe-accessories",
         "name": "3D Avatar Maker: Accessories",
-        "version": "0.2.03",
+        "version": "0.2.04",
         "description": "111 more accessories for 3D Avatar Maker's Clothes and Hair tabs, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.10 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
         "engine": {
           "min": "2.4.6",
@@ -556,68 +592,68 @@
           },
           {
             "path": "hair/elvs_50s_updo.pack.png",
-            "sha256": "938b410a2b77dcd2e971114db7599b5f415466bdf88ff83ba9abec1a4f8a7f8e",
-            "bytes": 486777
+            "sha256": "aaf4ddc2dfa17d3256f432dd3fe5764ac781cd39fa73479c2323b0aacbb36f2e",
+            "bytes": 486776
           },
           {
             "path": "hair/elvs_adrienne_hair.pack.png",
-            "sha256": "5196093ea06418a3c69fc455b7eeedb0f8e95d71791d9a37c9ceaef164ed5251",
-            "bytes": 1208476
+            "sha256": "3cb2a97213703b025406f57c561010358a579ce4a9ea3adddf7c4e0526970a64",
+            "bytes": 1208472
           },
           {
             "path": "hair/elvs_ashley_may_hair.pack.png",
-            "sha256": "a94069cb6bde44d80bc5a433da0af77ea3c586c34b20e74897f825ec77d01d45",
-            "bytes": 1108548
+            "sha256": "a1bcebfdb39a74fd21526b94d1d69cf149e590ee562bcfe0c82cedb542bd7a93",
+            "bytes": 1108376
           },
           {
             "path": "hair/elvs_braid_bun.pack.png",
-            "sha256": "4d9790ffe501b78cd661afd38b925f1a62b7313de7b7fff56a4b35786ff971ba",
+            "sha256": "b2e658b652ec7de13803059494872e9e1ec843500fd115022006cedf058d5164",
             "bytes": 1348843
           },
           {
             "path": "hair/elvs_daisy_hair.pack.png",
-            "sha256": "0a4e91dfc141e2582b95454329877933dc33e6668bb0cc41dbe5af6b0b1c5379",
-            "bytes": 952892
+            "sha256": "ddd5c97ac2e91f01627b17c73d88ac0aae37e5a5f9c2270cdbfa74244895a8e8",
+            "bytes": 952883
           },
           {
             "path": "hair/elvs_hazel_hair.pack.png",
-            "sha256": "f8211f5d2727eff15c389ba6868ff598bf7b74c579d4f93e6edc6f6d2d2e28d3",
-            "bytes": 755333
+            "sha256": "db881f115ca7c05ca0027e1fc0865a222142e6eebdd2845ae6d0039d5c8b536d",
+            "bytes": 755331
           },
           {
             "path": "hair/elvs_island_princess_hair.pack.png",
-            "sha256": "c52cbedbadf6a4836ac62339a4458bbbe76121a581a9381acb6ea8121a591883",
-            "bytes": 1053304
+            "sha256": "0e717027d942e82b35f417cd3818045104a5069d0a8f8ba01373dfeb8001c06a",
+            "bytes": 1053296
           },
           {
             "path": "hair/elvs_katherine_hair.pack.png",
-            "sha256": "0772bdf3501ff8b7a5310a6904cb47bcecffd1cd21ab01d0591b3786128b3b29",
-            "bytes": 627921
+            "sha256": "86b37067df9ee706070cd47606f4533bb9ab75d18484218a20f7de495775cbae",
+            "bytes": 627925
           },
           {
             "path": "hair/elvs_keylth_hair.pack.png",
-            "sha256": "aa3c293a8fe9db73d9c827b94f8301d631c618dc51b5d2d30a63c5419b717919",
-            "bytes": 1177534
+            "sha256": "bba0c1821d73872db5d5b6406b262a21c0860f78f9158133fe9a07c48cbd4c9c",
+            "bytes": 1177262
           },
           {
             "path": "hair/elvs_lady_hippy_hair.pack.png",
-            "sha256": "fe41dff6e211533277f23737a641c1565eff7b9722478d9c25a330ccac9841d3",
-            "bytes": 900384
+            "sha256": "7249f14e61fec5f7b6dd0183a0d8659500f9c844c039404660a7a127e38ed78e",
+            "bytes": 900247
           },
           {
             "path": "hair/elvs_maxwell_hair.pack.png",
-            "sha256": "5127bc9fd037066b9b6370322563c41e53b1cff13993b0812a92c40fc0614bda",
-            "bytes": 246900
+            "sha256": "e5a25a1abd47349168dc072a9f4c1d9e51eff65a39185a52f0ea6b65c35f3dd9",
+            "bytes": 246895
           },
           {
             "path": "hair/elvs_short_daisy_hair.pack.png",
-            "sha256": "2f6ab63ac676ac911fe90031e02621e34e7bc7a7338aafae8bca5d2f7fb845c1",
-            "bytes": 632745
+            "sha256": "5cadde2b2852fe03141e7b38fd8647601af32cef756340c43867efa04a19db89",
+            "bytes": 632696
           },
           {
             "path": "hair/elvs_that_80s_babe_hair.pack.png",
-            "sha256": "7ec8401258e8bad06f89f4e2e3d4723c3ddc274c1d14bcb6dec7aa65869c61e9",
-            "bytes": 1696550
+            "sha256": "c51479c30219214ca6d46f7ff7cec764d45508b53a781311b25020683f06f510",
+            "bytes": 1696279
           },
           {
             "path": "hair/elvs_wavy_bob.pack.png",
@@ -626,38 +662,38 @@
           },
           {
             "path": "wardrobe/accessories.pack.png",
-            "sha256": "a4e107b0c836f448e6bc36a2de74adfb2a63e2174a5ff97e3d368e71cd15073e",
-            "bytes": 16862400
+            "sha256": "551169105c19a4c5218f3942ad5dd9f7d9db0577b74555c1feb2ba7ebc3e1745",
+            "bytes": 17497599
           },
           {
             "path": "wardrobe/armour.pack.png",
-            "sha256": "05112e320a00fda2f9c68b369e318c0c4be692792e183f4de0f9bc7eb29b4a6d",
-            "bytes": 1320537
+            "sha256": "d66f5c037de002372b47ddd7b01e645c09e43ed99cba0a688e4436f5e2b44337",
+            "bytes": 1462632
           },
           {
             "path": "wardrobe/extras.pack.png",
-            "sha256": "9f88e6d385de163ff16456235f6b6ca37a3bfb3ae14eee1244f891b23da0eafe",
-            "bytes": 1264995
+            "sha256": "445a6a91b415181f2250a1e9118524abcc445c897d8c4e1e1a808e75be94d657",
+            "bytes": 1077891
           },
           {
             "path": "wardrobe/feet.pack.png",
-            "sha256": "2e3a36fc714dda81ae24288f2bb366914ac5389e95ab316e58f43d649db20868",
-            "bytes": 1080835
+            "sha256": "b6fb430afac2e30cb700922e6e5e878430ed1385c8eb53779a767f2b8d870f37",
+            "bytes": 1082814
           },
           {
             "path": "wardrobe/hands.pack.png",
-            "sha256": "7b6f31ca69bb0fa3ca398e50cd3ac1af60a42b728fd7378f06ce59bc1b134488",
-            "bytes": 1474332
+            "sha256": "5805793b8a5b00ab282abdd7d2c05fd06baf03318d7b5f6c012c3b8246aa6bbf",
+            "bytes": 1507371
           },
           {
             "path": "wardrobe/head.pack.png",
-            "sha256": "92ef8f070156949a261acf5021addd0456f1352b0854f49a3803d185c239aca2",
-            "bytes": 9160050
+            "sha256": "7eee7f12f6e6e9550883f77ec68fbdfc7cea97857b78b28b8c1e3eaeeb8c1b7a",
+            "bytes": 8562405
           },
           {
             "path": "wardrobe/objects.pack.png",
-            "sha256": "be83fe5ef0d0097121d7d2f93035d936d0fa233c3485e7c8341d512b38961e66",
-            "bytes": 8837219
+            "sha256": "122f8b190f64ea90adb734ce75db0aecd4b790f940f8f8444ec63e267c7c492f",
+            "bytes": 9761543
           }
         ],
         "permissions": [],
@@ -666,9 +702,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker-wardrobe-accessories.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-wardrobe-accessories-0.2.03.zip",
-        "sha256": "045a4161274ab224657c5d0c761e793ce680e294d92586107650076f8fd5ef89",
-        "bytes": 52792182
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-wardrobe-accessories-0.2.04.zip",
+        "sha256": "3dfd50b47380cdc11e5271358688ecea9730f4d1375de56851309ab0b2edc0ee",
+        "bytes": 53743143
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker-wardrobe-accessories/README.md"
     },
@@ -685,8 +721,8 @@
         },
         "id": "3d-avatar-maker-wardrobe-clothes",
         "name": "3D Avatar Maker: Clothes",
-        "version": "0.1.02",
-        "description": "186 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.11 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
+        "version": "0.1.03",
+        "description": "194 more pieces of clothing for 3D Avatar Maker's Clothes tab, from the MakeHuman community and free to share with credit to their makers (CC BY; a saved avatar carries the credits). Needs 3D Avatar Maker 0.1.11 or later. Install it beside 3D Avatar Maker, then open Home → 3D Avatar Maker → Clothes.",
         "engine": {
           "min": "2.4.6",
           "maxExclusive": "4.0.0"
@@ -713,43 +749,43 @@
         "files": [
           {
             "path": "agents.json",
-            "sha256": "4e051252a27ff8cadf2f2f71b240f7c637e64cf6e018e8cdd125637d0e910f39",
+            "sha256": "f910020dc30e08d8343a0581264c3c2b3177671cb07fa4e1f2a8a7efbc7df73b",
             "bytes": 789
           },
           {
             "path": "avatar-pack.json",
-            "sha256": "5fdc3ce7290d6eb2b6743d6f26916a054cf79c0b3a0e08bf210c83ab969cd12a",
-            "bytes": 115765
+            "sha256": "db13395c0f1acdf7ec4223042767550ba33adbc593e51e2c5d043f6906e99955",
+            "bytes": 121438
           },
           {
             "path": "wardrobe/accessories.pack.png",
-            "sha256": "2050622b1b3f610d199f780b454380a3dc0232241bcc162593dc18777cb2d353",
-            "bytes": 320163
+            "sha256": "b6e8d1ceb67b7abb7e2c8953f0ed7c88b34ee2083a0a2b41de034a608705914c",
+            "bytes": 307915
           },
           {
             "path": "wardrobe/body.pack.png",
-            "sha256": "7434723652609f4c5869fc4a9ff273555cdc26638711fd68c9ea37490a20e9be",
-            "bytes": 27719241
+            "sha256": "b451c21fa420c248569bbac168ef4d7bbfcc292b00ee72f683d4532535cbab91",
+            "bytes": 30650012
           },
           {
             "path": "wardrobe/feet.pack.png",
-            "sha256": "88c046062a29c4de2adf034ccc1a0ef4dad689be7cc73cab86f1f814ded420c7",
-            "bytes": 7691885
+            "sha256": "ceca5383c9562d69fd743057ecbbb9fd656e4a6cff7bc3fab718fae8e359ecc6",
+            "bytes": 7999709
           },
           {
             "path": "wardrobe/legs.pack.png",
-            "sha256": "b7e7393db8b6dd941cc693fc09984ea5e9f16656c5b9301cf10fe57e7d83dcb1",
-            "bytes": 15360341
+            "sha256": "33ca62b4324ec8f1f1e4922d43a0fe9afc887c79a4d8c42d09e069ee5acebae1",
+            "bytes": 14929778
           },
           {
             "path": "wardrobe/tops.pack.png",
-            "sha256": "495aeaf0bf8e25b4a183dfd6eb5d22aa880ce967ba620afc6a6f77bd49a7843f",
-            "bytes": 10183882
+            "sha256": "78c90112ae7375ca2f61f22ab94be41ee2fe4df3f697c25f81a3d689c5030026",
+            "bytes": 10034606
           },
           {
             "path": "wardrobe/underwear.pack.png",
-            "sha256": "a05a310abdd027569b270d7ec79a1581807f41dfb977b0d41a9c39990725c26d",
-            "bytes": 6842006
+            "sha256": "0bb089a80e4a3ab6eee383582dcf20bc3d7d2bc50c9863dc44b5e5862c4ca985",
+            "bytes": 6688213
           }
         ],
         "permissions": [],
@@ -758,9 +794,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker-wardrobe-clothes.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-wardrobe-clothes-0.1.02.zip",
-        "sha256": "d17d8cfa08d00d47946e4d556d9cf3e5023d65f0a38abdbea48aacd904cb8a23",
-        "bytes": 68237579
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-wardrobe-clothes-0.1.03.zip",
+        "sha256": "d1af3a06b7ea47cde4e70bbbf10d23a3255639e2dee871be6c02ced67c17d2bd",
+        "bytes": 70735967
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker-wardrobe-clothes/README.md"
     },
