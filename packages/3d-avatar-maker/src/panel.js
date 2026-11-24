@@ -41,6 +41,8 @@ import {
   PACK_HAIR,
   PACK_PIECES,
   RACE_PARTS,
+  STUBBLE,
+  STUBBLE_DENSITY,
   RACE_SHAPES,
   RACES,
   racePreset,
@@ -227,6 +229,57 @@ export function createPanel(actions) {
 
   // (`redraw` false: the control that changed stays as it is, so a slider being dragged keeps the pointer.)
   const change = (patch, redraw = true) => actions.onChange(patch, { redraw });
+
+  /** The stubble painted on the skin (looks.js STUBBLE): its shape, and once there is one, its colour and density. */
+  const stubbleRows = (filled) => {
+    const stubble = filled.stubble;
+    const rows = [
+      row(
+        "Stubble",
+        select(
+          [[BARE, "None"], ...STUBBLE.map(([value, label]) => [value, label])],
+          stubble?.shape ?? BARE,
+          (value) =>
+            change({ stubble: value === BARE ? undefined : { density: STUBBLE_DENSITY, ...stubble, shape: value } }),
+          "Stubble",
+        ),
+        "Short facial hair painted on the skin, alone or under a beard: light or heavy stubble, a moustache or goatee shadow, or a close-cropped beard.",
+      ),
+    ];
+    if (!stubble) return rows;
+    let now = stubble;
+    rows.push(
+      colours(
+        "Stubble colour",
+        HAIR_COLOURS,
+        stubble.colour ?? filled.hairColour,
+        (hex, redraw) => {
+          now = { ...now, colour: hex };
+          change({ stubble: now }, redraw);
+        },
+        "Its colour. Left alone, it's the hair's.",
+      ),
+      slider({
+        name: "Stubble density",
+        says: "How many hairs there are, from a few to many.",
+        ends: ["Sparse", "Dense"],
+        least: 0,
+        most: 1,
+        at: stubble.density,
+        onInput: (value) => {
+          now = { ...now, density: value };
+          change({ stubble: now }, false);
+        },
+      }),
+    );
+    if (stubble.colour !== undefined) {
+      const { colour: _colour, ...rest } = stubble;
+      rows.push(
+        h("button", { type: "button", onclick: () => change({ stubble: rest }) }, "Stubble in the hair's colour"),
+      );
+    }
+    return rows;
+  };
 
   const sections = {
     start: ({ filled }) => [
@@ -441,6 +494,7 @@ export function createPanel(actions) {
             says,
           ),
         ),
+        ...stubbleRows(filled),
         filled.horns !== BARE
           ? colours("Horn colour", HORN_COLOURS, filled.colours.horns, (hex, redraw) =>
               change({ colours: { horns: hex } }, redraw),

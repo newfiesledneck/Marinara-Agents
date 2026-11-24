@@ -233,6 +233,13 @@ export function checkLook(raw) {
   // A human body's race (missing: human, unless lore or their build says otherwise) and its parts.
   if (RACES.some(([race]) => race === raw.race)) look.race = raw.race;
   for (const [field, list] of RACE_PARTS) if (list.some(([style]) => style === raw[field])) look[field] = raw[field];
+  // Stubble painted on the skin: one of its shapes, its density within 0 to 1 (missing: STUBBLE_DENSITY) and a
+  // colour of its own if it has one.
+  if (isRecord(raw.stubble) && STUBBLE.some(([shape]) => shape === raw.stubble.shape)) {
+    const density = Number.isFinite(raw.stubble.density) ? raw.stubble.density : STUBBLE_DENSITY;
+    look.stubble = { shape: raw.stubble.shape, density: Math.round(Math.max(0, Math.min(1, density)) * 1000) / 1000 };
+    if (isColour(raw.stubble.colour)) look.stubble.colour = raw.stubble.colour;
+  }
   if (typeof raw.tail === "boolean") look.tail = raw.tail;
   for (const [field, list] of [
     ["shape", [...SHAPES, ...FACE, ...FACE_DETAIL, ...BODY_DETAIL, ...RACE_SHAPES, ...ANTHRO_SHAPES]],
@@ -340,6 +347,7 @@ export function checkLook(raw) {
 //     wings,                         a dragon's wings shown (missing: yes) or left off
 //     race,                          a human body's race (RACES): a shape key and proportions of its own
 //     facialHair, tusks, horns,      a style of each (FACIAL_HAIR, TUSKS, HORNS), or "none"
+//     stubble: { shape, density, colour },  stubble painted on the skin (STUBBLE); missing: none
 //     tail,                          a tiefling's tail shown or left off (missing: a tiefling has one)
 //     shape: { weight, muscle, … },  the build and face sliders (SHAPES, FACE, ANTHRO_SHAPES), each within its range
 //     limbs: { arms, legs, head },   arm and leg length and head size, as a share of the usual
@@ -457,11 +465,26 @@ export const FACIAL_HAIR = [
   [BARE, "None"],
   ["moustache-01", "Moustache"],
   ["beard-05", "Moustache and goatee"],
-  ["beard-01", "Short beard"],
+  ["beard-06", "Mutton chops"],
+  ["beard-01", "Short boxed beard"],
   ["beard-02", "Full beard"],
   ["beard-03", "Long beard"],
   ["beard-04", "Long beard with braids"],
 ];
+/**
+ * Stubble and a short beard painted on the skin, the way games often do short facial hair (src/skin.js
+ * STUBBLE_SHAPES, the same values): [value, label, what it is]. A look's `stubble` is { shape, density (0..1,
+ * how many hairs), colour (0xRRGGBB; missing: the hair's) }; missing: none.
+ */
+export const STUBBLE = [
+  ["light", "Light stubble", "A day or two's growth over the beard's ground."],
+  ["heavy", "Heavy stubble", "Several days' growth over the beard's ground."],
+  ["moustache", "Moustache shadow", "Stubble on the upper lip only."],
+  ["goatee", "Goatee shadow", "Stubble on the chin and upper lip, joined round the mouth."],
+  ["short", "Short beard", "A close-cropped full beard, painted on the skin."],
+];
+/** The stubble's density in a look that doesn't say. */
+export const STUBBLE_DENSITY = 0.7;
 export const TUSKS = [
   [BARE, "None"],
   ["tusks-01", "Small"],
@@ -1726,6 +1749,7 @@ export const PRESET_FIELDS = [
   "wings",
   "race",
   "facialHair",
+  "stubble",
   "tusks",
   "horns",
   "tail",

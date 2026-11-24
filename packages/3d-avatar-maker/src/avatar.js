@@ -266,8 +266,8 @@ const mixHex = (a, b, t) => {
  * menu's ("male", "female", "custom" or "auto"). Plain data: { body, species, wings, race, facialHair, tusks,
  * horns, tail, gender, shape, limbs,
  * height, colours, hair, hairColour (0xRRGGBB), underwear, clothes, age, skin, brows, lashes, eyePicture,
- * makeup, seed }. The Look card shows these. An anthro body has no hair, no eye or skin picture, and nothing worn
- * that's made for a human head or foot.
+ * makeup, stubble, seed }. The Look card shows these. An anthro body has no hair, no eye or skin picture, and
+ * nothing worn that's made for a human head or foot.
  */
 export function avatarLook(name, gender = "auto", chosen = {}) {
   const { sex, gender: own } = sexFor(name, gender, chosen);
@@ -438,6 +438,7 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
     lashes: chosen.lashes ?? usualLashes,
     eyePicture: anthro ? TINT : (chosen.eyePicture ?? TINT),
     makeup: anthro ? {} : (chosen.makeup ?? {}), // (none unless chosen)
+    stubble: anthro ? undefined : chosen.stubble, // (none unless chosen: looks.js STUBBLE)
     // (Nails are on unless chosen off: the body always had them.)
     nails: anthro ? "none" : (chosen.nails ?? "short"),
     toenails: !anthro && chosen.toenails !== false,
@@ -1336,8 +1337,9 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   if (filled.eyePicture !== TINT) swapped.set(textureOfPart("iris"), texture("avatar-eyes"));
   const anthro = filled.species !== "human";
   // The skin and lips share one picture: painted for this avatar (skin.js) with its skin colour, its lips
-  // coloured through the body's mask, so their edge is clean, and its makeup. Where it can't be painted (no
-  // canvas, as in Node, or no mask for the body), they're coloured by vertex as before, without makeup.
+  // coloured through the body's mask, so their edge is clean, its hair on the skin and its makeup. Where it
+  // can't be painted (no canvas, as in Node, or no mask for the body), they're coloured by vertex as before,
+  // without makeup.
   // (The nails are pieces of their own, worn with the clothes.)
   const painted =
     anthro || !kit.file.keys
@@ -1348,6 +1350,11 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
           skin: filled.skin === "custom" ? filled.colours.skin : WHITE,
           lips: filled.colours.lips,
           makeup: filled.makeup,
+          // (The skin under the facial hair and the hair style worn, in the hair's colour, and stubble.)
+          facialHair: filled.facialHair,
+          scalp: !!hair && !hides.has("hair"),
+          hair: filled.hairColour,
+          stubble: filled.stubble,
         }).catch(() => null);
   if (painted) swapped.set(textureOfPart("skin"), painted);
   const paintedParts = new Set(painted ? ["skin", "lips"] : []);
