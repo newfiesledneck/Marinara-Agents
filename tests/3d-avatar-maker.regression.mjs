@@ -575,7 +575,7 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
       );
     if (name === "dress") {
       // (The dress's chains, with capsules on the thighs and calves among the colliders they meet.)
-      const { springs, colliders } = json.extensions.VRMC_springBone;
+      const { springs, colliders, colliderGroups } = json.extensions.VRMC_springBone;
       assert.ok(
         springs.filter((spring) => spring.name.startsWith("Dress (")).length >= 3,
         "the dress hangs on springs",
@@ -586,6 +586,20 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
         ["Bust (left)", "Bust (right)"].every((bust) => springs.some((spring) => spring.name === bust)),
         "and her bust on springs too",
       );
+      // (Each breast's ball, as big as the figure's, meets capsules on both arms and hands.)
+      for (const name of ["Bust (left)", "Bust (right)"]) {
+        const spring = springs.find((one) => one.name === name);
+        const own = figure.springs.find((one) => one.name === name);
+        assert.equal(spring.joints[0].hitRadius, own.joint.hitRadius, `${name}: its ball's size in the VRM`);
+        const met = (spring.colliderGroups ?? []).flatMap((group) => colliderGroups[group].colliders);
+        const bones = met.map((at) => json.nodes[colliders[at].node].name);
+        for (const bone of ["upperarm_l", "lowerarm_l", "hand_l", "upperarm_r", "lowerarm_r", "hand_r"])
+          assert.ok(bones.includes(bone), `${name} meets ${bone}'s collider in the VRM`);
+        assert.ok(
+          met.every((at) => colliders[at].shape.capsule),
+          `${name}'s colliders are capsules`,
+        );
+      }
     }
     assert.deepEqual(lookInGlb(saved.bytes), { name: `Saved ${name}`, look }, `${name}: the look comes back out`);
 
@@ -633,6 +647,12 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
         moved < (name === "tiefling" ? 0.1 : 0.03),
         `${name}: its springs keep their shape at rest (${moved.toFixed(3)} m)`,
       );
+      // (The bust, its balls clear of the arms' capsules in the T-pose, stays exactly where it rests.)
+      figure.springs.forEach((spring, i) => {
+        if (!spring.name.startsWith("Bust (")) return;
+        const off = ends[i].getWorldPosition(new Vector3()).distanceTo(start[i]);
+        assert.ok(off < 0.0005, `${name}: three-vrm holds ${spring.name} at rest (${(off * 1000).toFixed(2)} mm)`);
+      });
     }
     // The face: VRM's expressions bound to its keys, and the eyes on their bones, turned to look.
     for (const key of FACE_MOVES)
@@ -986,9 +1006,9 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
 
   // ── A bust that moves: a spring bone in each breast, and what's worn over it moving with it (bust.js) ──
   {
-    const { BUST_JOINT, createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
+    const { createSprings } = await import("../packages/3d-avatar-maker/src/springs.js");
     const { movingPose } = await import("../packages/3d-avatar-maker/src/figure.js");
-    const bustOf = (figure) => figure.springs.filter((spring) => spring.joint === BUST_JOINT);
+    const bustOf = (figure) => figure.springs.filter((spring) => spring.name.startsWith("Bust ("));
     const build = (body, shape = {}, clothes = []) =>
       createAvatar(
         startOf(body, { shape: { ...startOf(body).shape, ...shape }, clothes, hair: "none" }),
@@ -1099,6 +1119,145 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
         moving.step(1 / 60);
       }
       assert.ok(furthest(tips(), rest) < 0.0005, `${label}: and settles within a second`);
+
+      // The arms press on it: each breast meets capsules on both upper arms, forearms and hands, and none holds
+      // its ball at rest, as built, in the T-pose or with the arms hanging relaxed.
+      for (const spring of springs) {
+        const met = new Set(spring.colliders.map((collider) => collider.bone.name));
+        for (const bone of ["upperarm", "lowerarm", "hand"].flatMap((name) => [`${name}_l`, `${name}_r`]))
+          assert.ok(met.has(bone), `${label}: ${spring.name} meets ${bone}'s collider`);
+      }
+      for (const pose of [restPose, tPose, (one) => relaxedPose(one, 0)]) {
+        pose(figure);
+        for (const spring of springs)
+          for (const collider of spring.colliders) {
+            const at = spring.bones[1].getWorldPosition(new Vector3());
+            const start = collider.offset.clone().applyMatrix4(collider.bone.matrixWorld);
+            const line = collider.tail.clone().applyMatrix4(collider.bone.matrixWorld).sub(start);
+            const t = Math.max(0, Math.min(1, at.clone().sub(start).dot(line) / line.lengthSq()));
+            const gap = at.distanceTo(start.addScaledVector(line, t)) - collider.radius - spring.joint.hitRadius;
+            assert.ok(gap > 0, `${label}: ${spring.name} rests clear of ${collider.bone.name}'s collider`);
+          }
+      }
+      // Arms folded (motions.js), on the same body bare (the skin under a top isn't drawn): the bust is pushed
+      // and the forearms stay outside its skin; the hands, tucked against its outer side, go less deep into it
+      // than with the bust left as it rests. Lowered again, it settles.
+      {
+        const bare = await build("female", shape);
+        const body = bare.meshes.find((mesh) => mesh.name === "body");
+        const breasts = bustOf(bare);
+        const own = breasts.flatMap((spring) => spring.bones);
+        const ends = () => breasts.map((spring) => spring.bones[1].getWorldPosition(new Vector3()));
+        const isBust = new Set(body.skeleton.bones.flatMap((bone, i) => (bone.name.startsWith("breast_") ? [i] : [])));
+        const armOf = (name) =>
+          /^upperarm_/u.test(name)
+            ? "upper"
+            : /^lowerarm_/u.test(name)
+              ? "fore"
+              : /^(?:hand|index|middle|ring|pinky|thumb)_/u.test(name)
+                ? "hand"
+                : null;
+        const { position, normal, skinIndex: index, skinWeight: weight } = body.geometry.attributes;
+        const breastPoints = [];
+        const armPoints = [];
+        for (const v of new Set(body.geometry.index.array)) {
+          let [onBust, most] = [0, 0];
+          for (let c = 0; c < 4; c++) {
+            if (isBust.has(index.getComponent(v, c))) onBust += weight.getComponent(v, c);
+            if (weight.getComponent(v, c) > weight.getComponent(v, most)) most = c;
+          }
+          if (onBust > 0.45) breastPoints.push(v);
+          const part = armOf(body.skeleton.bones[index.getComponent(v, most)].name);
+          if (part) armPoints.push([v, part]);
+        }
+        const placed = (v, out, along = 0) =>
+          body
+            .applyBoneTransform(
+              v,
+              out.fromBufferAttribute(position, v).addScaledVector(new Vector3().fromBufferAttribute(normal, v), along),
+            )
+            .applyMatrix4(body.matrixWorld);
+        /** How deep each part of the arms is under the breasts' skin at its deepest, as the body stands now. */
+        const under = () => {
+          bare.root.updateMatrixWorld(true);
+          const faces = breastPoints.map((v) => {
+            const at = placed(v, new Vector3());
+            return [at, placed(v, new Vector3(), 0.01).sub(at).normalize()];
+          });
+          const most = { upper: 0, fore: 0, hand: 0 };
+          const a = new Vector3();
+          for (const [v, part] of armPoints) {
+            placed(v, a);
+            let [best, gap] = [null, 0.04 ** 2];
+            for (const face of faces) {
+              const d = face[0].distanceToSquared(a);
+              if (d < gap) [best, gap] = [face, d];
+            }
+            if (best) most[part] = Math.max(most[part], -a.sub(best[0]).dot(best[1]));
+          }
+          return most;
+        };
+        const { createMotionPlayer } = await import("../packages/3d-avatar-maker/src/motions.js");
+        const player = createMotionPlayer();
+        relaxedPose(bare, 0);
+        const pressing = createSprings(bare);
+        const resting = ends();
+        player.play(bare, "fold-arms");
+        const deepest = { pushed: { upper: 0, fore: 0, hand: 0 }, resting: { upper: 0, fore: 0, hand: 0 } };
+        let pushed = 0;
+        for (let f = 1; f <= 150; f++) {
+          player.step(bare, 1 / 60, () => relaxedPose(bare, 0));
+          pressing.step(1 / 60);
+          if (f % 10) continue;
+          const now = ends();
+          const mostNow = under();
+          const held = own.map((bone) => [bone.quaternion.clone(), bone.position.clone(), bone.scale.clone()]);
+          for (const bone of own) {
+            bone.quaternion.copy(bare.rest.get(bone.name));
+            bone.position.copy(bare.restAt.get(bone.name));
+            bone.scale.setScalar(1);
+          }
+          bare.root.updateMatrixWorld(true);
+          pushed = Math.max(pushed, furthest(now, ends()));
+          const mostResting = under();
+          own.forEach((bone, i) => {
+            bone.quaternion.copy(held[i][0]);
+            bone.position.copy(held[i][1]);
+            bone.scale.copy(held[i][2]);
+          });
+          bare.root.updateMatrixWorld(true);
+          for (const part of ["upper", "fore", "hand"]) {
+            deepest.pushed[part] = Math.max(deepest.pushed[part], mostNow[part]);
+            deepest.resting[part] = Math.max(deepest.resting[part], mostResting[part]);
+          }
+        }
+        const mm = (x) => (x * 1000).toFixed(1);
+        assert.ok(pushed > 0.005, `${label}: folded arms push the bust (${mm(pushed)} mm)`);
+        // (Within a centimetre: one ball under each breast's skin can't fill a large one's sides, so where an arm
+        // presses beyond it, the skin it meets gives way only as the ball does.)
+        assert.ok(
+          deepest.pushed.fore < 0.01 && deepest.pushed.fore <= deepest.resting.fore / 2 + 0.001,
+          `${label}: the forearms stay outside it (${mm(deepest.pushed.fore)} mm; ${mm(deepest.resting.fore)} unpushed)`,
+        );
+        assert.ok(
+          deepest.pushed.hand < deepest.resting.hand - 0.002,
+          `${label}: the hands go less deep into it (${mm(deepest.pushed.hand)} mm; ${mm(deepest.resting.hand)} unpushed)`,
+        );
+        player.stop(bare);
+        for (let f = 0; f < 90; f++) {
+          player.step(bare, 1 / 60, () => relaxedPose(bare, 0));
+          pressing.step(1 / 60);
+        }
+        assert.ok(furthest(ends(), resting) < 0.0005, `${label}: and settles once they're lowered`);
+        assert.ok(
+          own.every(
+            (bone) => Math.abs(bone.scale.x - 1) + Math.abs(bone.scale.y - 1) + Math.abs(bone.scale.z - 1) < 1e-6,
+          ),
+          `${label}: unsquashed`,
+        );
+        bare.dispose();
+      }
+      restPose(figure);
       // A GLB keeps the bones and their weights.
       for (const mesh of figure.meshes) for (const material of [mesh.material].flat()) material.map = null;
       const { json } = readGlb((await exportGlb(figure, { look: {} })).bytes);

@@ -339,28 +339,85 @@ pose are in the hand-over note.
 
 ## Built: a bust that moves
 
-At the same time, and on the same springs: each breast has a short spring bone, as VRoid models do, so the
-chest sways a little as the body turns (`src/bust.js`).
+At the same time, and on the same springs: each breast has a spring bone, as VRoid models do, so the chest
+sways a little as the body turns (`src/bust.js`), and since then the arms push it.
 
 - **Who gets it.** Her body always. His only when his chest stands out in front of the breastbone as far as
   her bust does at its flattest (`BUST.least`, 1.6 cm). His chest is 0.8 cm as built and 1.3 cm at the
   fullest Chest slider. The half-orc slider with a full chest reaches 1.8 cm and gets one; no other slider
   mix tried did.
-- **The bones.** `breast_l` and `breast_r` under the upper chest, from 7 cm inside each breast to its front,
-  each with a tip there, placed from the body as shaped.
-- **Weights.** Round each front, a share of a point's upper-chest weight goes onto its side's bone: all of it
-  within 3 cm, none past 8.5 cm, eased between. Only the upper chest's weight moves, as it is the bones'
-  parent, so with the bust at rest the body bends exactly as before. A point with four weights already
-  gives up its smallest only if that's under 0.05; dropping more made a T-shirt sink 6 mm into the skin as
-  the arms moved.
+- **The bones.** `breast_l` and `breast_r` under the middle chest (`spine_02`), placed from the body as
+  shaped. Each runs from 10 cm behind the middle of its breast's ball (below) to that middle, with a tip
+  there. Each bone's own y axis points along it, so the preview can squash it along its own axes.
+- **Weights.** Round each front, a share of a point's middle and upper chest weight (`spine_02` and
+  `spine_03`) goes onto its side's bone: all of it within 3 cm, none past 8.5 cm, eased between, and eased
+  out over the last 2 cm of the 7 cm behind the front. Before the arms could push it, only the upper chest's
+  weight moved, which is a quarter of the breast's weight, so a pushed bone moved the skin a quarter as far.
+  The middle chest is the bones' parent and carries most of the rest. With the bust at rest the body bends
+  as before, except that the upper chest's share now turns with the middle chest when the two turn apart.
+- **Room for the bone.** A point with four weights already gives up its smallest if that's under 0.05.
+  Dropping more made a T-shirt sink 6 mm into the skin as the arms moved. If its smallest is larger, its two
+  chest weights merge into one place and the bone takes the other. Before, such a point kept its weights.
+  That was a third of the points in the middle of the share, and they tore from the rest once the bust was
+  pushed a few centimetres.
 - **Clothes follow.** Every piece but hair and bone-fixed pieces takes the share of the skin nearest it, so
   a top and the breast under it move together.
-- **Settings** (`BUST_JOINT`). Stiffness 1.5, no gravity (it rests as shaped), drag 0.45, and no colliders,
-  so the arms never push it. It sways about 2 mm in the Moving pose and settles within a second.
-- **Checked** in the regression test: rest exact on the skin and the top with whole weights, a few
-  millimetres of sway, settling, a T-shirt and a dress staying outside the skin as it sways (the bust adds
-  under 0.1 mm), his chest with none as built or muscular, and one at the half-orc's full chest. A GLB keeps
-  the bones and a VRM writes the springs.
+- **Settings** (`BUST_JOINT`). Stiffness 1.5, no gravity (it rests as shaped), drag 0.45. It sways about
+  2 mm in the Moving pose (1.7 mm at Chest -0.5, 2.3 mm at Chest 1) and settles within a second, as before.
+
+### The arms push it
+
+Before, the bust met no colliders, so folded arms went into a large bust.
+
+- **The ball** (`bust.js` `ballIn`). Each breast's spring tip has a hit radius: the ball the arms press on.
+  It is fitted to the body as shaped. Of the balls round and behind the breast's front (a 1 cm grid, then a
+  3 mm one about the best), each as big as reaches the nearest skin within 14 cm, it takes the one that
+  leaves least room under the breast's own skin. The ball is under the skin everywhere, touching it at its
+  nearest point: 3.3 cm at Chest -0.5, 3.7 cm as built and 5.4 cm at Chest 1. A first try with a larger
+  ball, fitted as a dome over the chest, stood out of the skin below the breast. A forearm under it
+  then turned the breast 50 degrees.
+- **The colliders** (`springs.js` `bodyColliders`, `arms`). A capsule along each upper arm, forearm and hand
+  (to the middle finger's second joint), as thick as half the skin is from the bone. They are fitted as the
+  others are, and also in the relaxed pose, where the arms hang closest to the bust. None holds a ball at
+  rest, as built, in the T-pose or relaxed.
+- **What a VRM app does.** It runs the spring as written: the ball is pushed out of a capsule and the bone
+  turns to follow it. So an arm under the bust pushes it up, and one at its side pushes it in towards the
+  other. A press from the front, along the bone, slides the ball off sideways however far it must turn.
+- **What the preview adds** (`springs.js` `squash`). An arm's push turns the breast only across its bone;
+  the part of the push along the bone is left. The turn is held to 20 degrees (`TURN_MOST`). What still
+  presses into the ball after that squashes the bone along its own axes: shorter by as much as it's pressed,
+  from the side it's pressed on, and wider the other ways to keep its size (to half its length at most).
+  So a hand on the chest flattens the breast under it, and it bulges round the palm. `figure.js` `restPose`
+  puts the size back, so a file saved mid-animation is the same as one saved at rest.
+- **Limits.** One ball can't fill the sides of a large breast. A hand tucked against its outer side (the
+  arms-folded clip's) still goes 12 mm in as built and 24 to 29 mm at Chest 1, from 17 and 37 to 40 mm
+  unpushed. The breast's sides move only as far as the ball does. Giving each breast more joints would need
+  more weight places than the body's points have free.
+
+Measured in Node over the arms-folded clip, from the arms' skin to the breasts' skin (points at least half
+on the bust):
+
+| Bust | Forearm in | Hand in | Ball pushed |
+| --- | --- | --- | --- |
+| As built | 0 mm (0 unpushed) | 12 mm (17) | 1.3 cm |
+| Chest 1 | 4 mm | 24 mm (37) | 3.6 cm |
+| Chest 1, high, pointed | 9 mm (26) | 29 mm (40) | 6.1 cm |
+
+The regression test checks the same two busts as before:
+
+- rest exact on the skin and the top, with whole weights;
+- a few millimetres of sway, then settling;
+- a T-shirt and a dress staying outside the skin as the bust sways;
+- every breast meeting both arms' and hands' capsules, and none holding its ball at rest, in the T-pose or
+  relaxed;
+- in the arms-folded clip, on the same body bare: the bust pushed, the forearms within a centimetre of the
+  breast's skin and at most half as deep as unpushed, and the hands less deep than unpushed;
+- settled and unsquashed once the arms are lowered.
+
+His chest has no bust as built or muscular, and one at the half-orc's full chest. A GLB keeps the bones. A
+VRM writes each breast's hit radius and its group of arm capsules, and three-vrm holds the bust at rest
+within 0.5 mm. Renders of arms folded under the bust, the arms-folded clip and a hand on the chest, before
+and after, are in the hand-over note.
 
 
 ## Built: animations in the preview

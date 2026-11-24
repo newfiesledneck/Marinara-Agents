@@ -313,7 +313,8 @@ function addVrm(json, figure, meta) {
   }
   json.extensions = { ...json.extensions, VRMC_vrm: block };
   const extensions = new Set(json.extensionsUsed ?? []).add("VRMC_vrm");
-  // The springs (springs.js): the hair's chains and a tail, each with the colliders it meets, as fitted.
+  // The springs (springs.js): the hair's and clothes' chains, the bust and a tail, each with the colliders it
+  // meets, as fitted (the bust's are the arms').
   const springs = (figure.springs ?? [])
     .map((spring) => ({ ...spring, bones: spring.bones.filter((bone) => nodeOf.has(bone.name)) }))
     .filter((spring) => spring.bones.length > 1);

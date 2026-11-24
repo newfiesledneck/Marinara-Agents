@@ -1518,7 +1518,9 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   // outfit piece is one mesh coloured by vertex, each of its parts (cloth, trim, metal…) the look's colour
   // or as made, those colours shared by everyone wearing the same.
   const springs = []; // (the hair's and clothes' chains, the bust and a tail: springs.js)
-  for (const spring of bustRig?.springs ?? []) springs.push({ ...spring, joint: BUST_JOINT, meets: "none" });
+  // (Each breast's ball is its own size, and meets the arms.)
+  for (const { radius, ...spring } of bustRig?.springs ?? [])
+    springs.push({ ...spring, joint: { ...BUST_JOINT, hitRadius: radius }, meets: "arms" });
   const wearPart = ({ key, part: asMade, pictures, slot, piece, bone, hang }, colourFor, hair = null) => {
     // (A piece fixed to a bone, fixedPart: it moves with that bone alone. It grows with the head as the hair
     // and eyes do, through the bone's stretch, and the look's shape keys move it as one: see `rigid` below.)
@@ -1670,14 +1672,12 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   const tailWorn = kit.meshes.some((mesh) => mesh.piece?.startsWith("tail-") && isWorn(mesh, filled, sex));
   if (tailWorn && tail.length > 1) springs.push({ name: "Tail", bones: tail, joint: TAIL_JOINT, meets: "legs" });
   // (Each spring meets its own colliders: springs.js fitColliders may leave one out where a lock rests on it.)
-  const colliders = springs.length
-    ? { ...bodyColliders(kit, position, bones), none: [] }
-    : { body: [], legs: [], cloth: [], none: [] };
+  const colliders = springs.length ? bodyColliders(kit, position, bones) : { body: [], legs: [], cloth: [], arms: [] };
   for (const spring of springs) spring.colliders = [...colliders[spring.meets]];
 
   const figure = standFigure(root, bones, filled.height * race.height);
   figure.springs = springs;
-  figure.colliders = [...colliders.body, ...colliders.legs, ...colliders.cloth];
+  figure.colliders = [...colliders.body, ...colliders.legs, ...colliders.cloth, ...colliders.arms];
   if (springs.length) fitColliders(figure);
   figure.dispose = () => {
     for (const letGo of owned) letGo();
