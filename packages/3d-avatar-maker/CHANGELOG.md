@@ -1,5 +1,9 @@
 # 3D Avatar Maker release notes
 
+## 0.1.14 — 2026-11-23
+
+- A new **Generate** tab lets a model on one of your connections design the avatar from a character's or persona's card, and their portrait if you tick it. **Revise avatar** sends the avatar as it looks now, with what you'd like changed, and asks only for what to change. **Undo** puts the last look back.
+- It's off until you turn it on, says what each call sends, and needs no restart. Everything else works without it.
 ## 0.1.13 — 2026-11-23
 
 - Clothes keep the shape they have in their own pictures: fitted where MakeHuman places them, skirts hang whole with no strip pulled out or seam between the legs, and pieces no longer follow the arms unless they cover them. Each layer is worn just over the one under it, so leggings and socks stop showing through.

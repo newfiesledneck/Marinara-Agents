@@ -2,12 +2,14 @@
 // file the Engine's 3D Avatars agent can show.
 //
 // The Engine mounts this element once, with view="browser", as the package's Home tab. Everything is made
-// in the browser from the package's own kit files (kitfiles.js): no AI and no outside service is needed.
+// in the browser from the package's own kit files (kitfiles.js): no AI and no outside service is needed. Generate
+// (generate.js) is an extra the user turns on: it asks a model on one of their Engine connections.
 // The look being worked on is kept in this browser as a draft, one for each character or persona, and
 // saved for good as a file the user keeps (a small .json look, or the .vrm or .glb avatar, which holds the look too).
 import { avatarChoices, createAvatar } from "./avatar.js";
 import { exportGlb, exportVrm, FILE_FORMAT, lookInGlb, vrmTerms } from "./exporter.js";
 import { FACE_MODES } from "./face.js";
+import { cardOf, createGenerator } from "./generate.js";
 import { PACKAGE_ID, setKitBase } from "./kitfiles.js";
 import { checkLook, missingNotes, NEUTRAL_LOOK, OUTFIT_PRESETS, outfitLook, wornLook } from "./looks.js";
 import { MOTIONS } from "./motions.js";
@@ -38,7 +40,7 @@ function cardName(row) {
   const name = card?.name ?? card?.data?.name ?? row?.name;
   return typeof name === "string" && name.trim() ? name.trim() : "Unnamed";
 }
-/** The Engine's personas and characters, as [{ type, id, name }]; empty when they can't be read. */
+/** The Engine's personas and characters, as [{ type, id, name, card }] (card: generate.js cardOf); empty when they can't be read. */
 async function listOwners() {
   const [personas, characters] = await Promise.all([
     getJson("/api/characters/personas/list"),
@@ -47,7 +49,7 @@ async function listOwners() {
   const named = (type, list, nameOf) =>
     rows(list)
       .filter((row) => typeof row?.id === "string" && row.id)
-      .map((row) => ({ type, id: row.id, name: nameOf(row) }))
+      .map((row) => ({ type, id: row.id, name: nameOf(row), card: cardOf(row) }))
       .sort((a, b) => a.name.localeCompare(b.name));
   return [
     ...named("persona", personas, (row) =>
@@ -280,6 +282,22 @@ function mount(element, props) {
       store.write(TERMS_KEY, state.terms);
     },
   });
+  // Generate avatar (generate.js): off until the user turns it on, on its own tab.
+  const generator = createGenerator({
+    look: () => state.look,
+    fresh: (body) => startingLook({ body }),
+    views: () => stage.snapshots(),
+    apply: (look, said) => {
+      const before = state.look;
+      state.look = checkLook(look);
+      state.exported = null;
+      state.redraw = true;
+      saveDraft();
+      panel.setStatus(said);
+      void rebuildFigure();
+      return before;
+    },
+  });
 
   const app = h(
     "div",
@@ -324,6 +342,7 @@ function mount(element, props) {
       tab: state.tab,
       exported: state.exported,
       terms: state.terms,
+      generator,
     });
   }
 
@@ -388,6 +407,7 @@ function mount(element, props) {
     state.exported = null;
     state.redraw = true;
     store.write(LAST_KEY, state.owner ? { type: state.owner.type, id: state.owner.id } : null);
+    generator.setOwner(state.owner);
     void rebuildFigure();
   }
 

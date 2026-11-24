@@ -58,12 +58,39 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; } #said { positio
 <body><canvas id="view"></canvas><div id="said">Loading…</div><script src="/viewer.js"></script></body>
 </html>`;
 const MOCK = {
-  "/api/characters/personas/list": [{ id: "p1", name: "Mira (persona)" }],
+  "/api/characters/personas/list": [
+    { id: "p1", name: "Mira (persona)", appearance: "Short and freckled, with a red bob and green eyes." },
+  ],
   "/api/characters": [
-    { id: "c1", data: JSON.stringify({ name: "Captain Aldric" }) },
+    {
+      id: "c1",
+      avatarPath: "/api/avatars/file/aldric.webp",
+      data: JSON.stringify({
+        name: "Captain Aldric",
+        description: "A broad, weathered sea captain in his fifties, with a grey beard and a long blue coat.",
+      }),
+    },
     { id: "c2", data: { data: { name: "Sister Wren" } } },
   ],
+  // (Generate avatar, generate.js: one stand-in connection; its model is the stand-in below.)
+  "/api/connections": [{ id: "stand-in", name: "Stand-in model (test page)", provider: "openai", model: "none" }],
 };
+/**
+ * The stand-in model's answers to Generate and Revise: a fixed look, so the tab can be tried without a model.
+ * What the maker sent is kept in dev/out/last-design-request.json to read.
+ */
+const DESIGNED = {
+  body: "male",
+  age: "middle",
+  hair: "short",
+  hairTint: "#8a8a88",
+  facialHair: "beard-02",
+  shape: { jaw: 0.6, weight: 0.3, muscle: 0.4, nose: 0.3 },
+  colours: { eyes: "#4a6a8a" },
+  clothes: ["shirt", "trousers", "long_coat", "boots"],
+  clothColours: { long_coat: { cloth: "#1f2a4a" } },
+};
+const REVISED = { hair: "slicked", shape: { cheekbones: 0.4 }, colours: { eyes: "#3a5a3a" } };
 
 /** The wardrobe packs, as the Engine lists installed packages: [{ id, version, status, readiness, manifest }]. */
 async function installedPacks() {
@@ -137,6 +164,19 @@ createServer(async (request, response) => {
       return send(200, TYPES[extname(file)] ?? "application/octet-stream", await readFile(file));
     }
     if (Object.hasOwn(MOCK, path)) return send(200, TYPES[".json"], JSON.stringify(MOCK[path]));
+    // (A card's portrait: the package's icon stands in.)
+    if (path === "/api/avatars/file/aldric.webp")
+      return send(200, "image/webp", await readFile(join(packageRoot, "3d-avatar-maker-icon.webp")));
+    if (path === "/api/generate/raw" && request.method === "POST") {
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      await mkdir(join(packageRoot, "dev", "out"), { recursive: true });
+      await writeFile(join(packageRoot, "dev", "out", "last-design-request.json"), JSON.stringify(body, null, 1));
+      const revise = body.messages.some((message) => message.content.includes("The avatar's settings now"));
+      const look = revise ? REVISED : DESIGNED;
+      return send(200, TYPES[".json"], JSON.stringify({ content: `Here it is:\n${JSON.stringify(look)}`, runId: "x" }));
+    }
     if (path === "/api/capability-packages/installed")
       return send(200, TYPES[".json"], JSON.stringify(await installedPacks()));
     const asset = /^\/api\/capability-packages\/([a-z0-9-]+)\/assets\/(.+)$/u.exec(path);

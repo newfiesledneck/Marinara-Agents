@@ -60,6 +60,11 @@ input[type="color"] { width: 38px; height: 30px; padding: 0; border: 1px solid v
 label.check { display: flex; gap: 8px; align-items: center; min-height: 28px; margin: 0 0 4px; }
 label.check input { accent-color: var(--accent); width: 18px; height: 18px; margin: 0; }
 ol.steps { margin: 6px 0 0; padding-left: 20px; color: var(--soft); }
+.says.bad { color: var(--bad); }
+textarea { font: inherit; color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: 6px;
+  padding: 6px 10px; width: 100%; box-sizing: border-box; resize: vertical; margin: 0 0 6px; }
+img.thumb { display: block; max-width: 120px; max-height: 160px; border-radius: 6px; border: 1px solid var(--line); margin: 4px 0 6px; }
+pre.answer { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; font-size: 12px; color: var(--soft); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-width: 820px) {
   main { grid-template-columns: 1fr; grid-template-rows: minmax(240px, 42%) minmax(0, 1fr); }

@@ -95,6 +95,7 @@ const TERM_FLAGS = [
 
 export const TABS = [
   ["start", "Start"],
+  ["generate", "Generate"],
   ["body", "Body"],
   ["face", "Face"],
   ["skin", "Skin and eyes"],
@@ -337,6 +338,9 @@ export function createPanel(actions) {
         `Body: ${labelOf(BODIES, filled.body)}. Your work is kept in this browser as you go. Use the Save tab to keep it as a file.`,
       ),
     ],
+
+    // (Generate avatar, generate.js: its controls keep what's typed in them, so they're made once.)
+    generate: ({ generator }) => (generator ? [generator.element()] : []),
 
     body: ({ filled, choices }) => [
       group(
