@@ -18,9 +18,10 @@
 //   come down when a foot couldn't otherwise reach the floor.
 // A turn on the spot turns the whole figure on its hips (the camera stays where it is). The springs (hair, a
 // tail) run after the pose each frame and follow on their own.
-import { Quaternion, Vector3 } from "three";
+import { Euler, Quaternion, Vector3 } from "three";
 import data from "./clips/ual.json" with { type: "json" };
-import { aimBone, restPose, turnInWorld } from "./figure.js";
+import { talkingAt } from "./face.js";
+import { aimBone, restPose, tPose, turnInWorld } from "./figure.js";
 
 /**
  * The recorded motions: each the clips it goes through, over and over: "clip", "clip*times" for a clip played
@@ -46,13 +47,31 @@ const RECORDED = {
   surprise: { clips: "surprise idle" },
   cry: { clips: "cry" },
   drink: { clips: "drink idle" },
-  sit: { clips: "sitDown@0.6 sit*2 sitTalk sit standUp idle" },
+  // (The library's seated talk throws both hands up by the face, which reads as a glitch mid-loop: left out.)
+  sit: { clips: "sitDown@0.6 sit*4 standUp idle" },
   "ground-sit": { clips: "groundSitDown@0.6 groundSit*3 groundStandUp idle" },
   crouch: { clips: "crouchDown@0.5 crouch crouchUp@0.6 idle" },
 };
 
 /** The preview's animations: [id, label (its name and what it does), more about it]. */
 export const MOTIONS = [
+  // (What a chat shows: the Engine's own movement, which is all a chat plays. `chatPose`.)
+  [
+    "chat-idle",
+    "In a chat: waiting",
+    "As Marinara Engine shows the avatar in a chat: arms at its sides, breathing, swaying a little. A chat plays none of the animations below",
+  ],
+  [
+    "chat-talking",
+    "In a chat: talking",
+    "As in a chat while it speaks: the same stand, the head nodding with the voice",
+  ],
+  [
+    "chat-thinking",
+    "In a chat: thinking",
+    "As in a chat while a reply is on its way: the head tilted, looking up a little",
+  ],
+  ["chat-listening", "In a chat: listening", "As in a chat while you type: leaning in a little, the head tilted"],
   ["idle", "Standing at ease", "Stands, breathing, shifting its weight now and then"],
   ["look", "Looking around", "Looks one way and another, turning its head and shoulders"],
   ["talk", "Talking with its hands", "Talks with its hands and head; the mouth moves while the Face list is on Lively"],
@@ -73,7 +92,7 @@ export const MOTIONS = [
   ["surprise", "Surprised", "Starts back in surprise; the face is surprised while the Face list is on Lively"],
   ["cry", "Crying", "Cries into its hands; the face is sad while the Face list is on Lively"],
   ["drink", "Drinking", "Drinks from a cup (not shown), then stands"],
-  ["sit", "Sitting down and getting up", "Sits on a seat (not shown), talks a little and stands up again"],
+  ["sit", "Sitting down and getting up", "Sits on a seat (not shown), rests and stands up again"],
   ["ground-sit", "Sitting on the ground", "Sits down on the floor, rests and gets up again"],
   ["crouch", "Crouching down and up", "Crouches, waits a moment and stands up again"],
   [
@@ -84,7 +103,14 @@ export const MOTIONS = [
 ];
 
 /** What a motion does with the face while the Face list is on Lively (the user's other choices win). */
-const MOTION_FACES = { talk: "talking", phone: "talking", celebrate: "happy", surprise: "surprised", cry: "sad" };
+const MOTION_FACES = {
+  "chat-talking": "talking",
+  talk: "talking",
+  phone: "talking",
+  celebrate: "happy",
+  surprise: "surprised",
+  cry: "sad",
+};
 
 const SIDE = new Vector3(1, 0, 0); // (the figure's left: it faces +Z)
 const UP = new Vector3(0, 1, 0);
@@ -307,23 +333,15 @@ function recordedAt(id, seconds) {
 }
 const references = new WeakMap();
 /**
- * Each humanoid bone's turn in this body's own T-pose, the pose the clips are measured from: the body as
- * built with the upper and lower arms straightened out level (the fingers as they rest).
+ * Each humanoid bone's turn in this body's own T-pose, the pose the clips are measured from: the arms level
+ * and the fingers straight along them (figure.js tPose), as the clips' own figure rests. (Measured from the
+ * fingers' soft curl at rest, every clip curled them that much further, through the palm.)
  */
 function referenceOf(figure) {
   let reference = references.get(figure);
   if (reference) return reference;
-  restPose(figure);
+  tPose(figure);
   const n = figure.humanoid;
-  for (const [side, sign] of [
-    ["left", 1],
-    ["right", -1],
-  ]) {
-    const level = new Vector3(sign, 0, 0);
-    aimBone(n[`${side}UpperArm`], n[`${side}LowerArm`], level);
-    aimBone(n[`${side}LowerArm`], n[`${side}Hand`], level);
-  }
-  figure.root.updateMatrixWorld(true);
   reference = BONES.map((name) => n[name]?.getWorldQuaternion(new Quaternion()) ?? null);
   restPose(figure);
   references.set(figure, reference);
@@ -359,6 +377,75 @@ function recordedPose(figure, id, seconds) {
   }
   if (Number.isFinite(low)) moveHips(rig, v1.set(0, -low, 0));
   turnInWorld(rig.hips, UP, pose.facing);
+  figure.root.updateMatrixWorld(true);
+}
+
+// ── As in a chat ──
+// What a saved avatar does in a chat. Marinara Engine's 3D Avatars agent plays no clip: it stands the avatar
+// with its arms at its sides, and turns nine bones a little by a few sums of the time (the Engine's
+// packages/client/src/features/avatars/renderers/vrm/vrm-motion.ts, computeBodyPose): breathing, a slow sway,
+// and the head set for what the chat is doing. The same sums here, so the preview shows what a chat will.
+// Every turn is from the T-pose, about the model's own axes (x to its left, y up, z the way it faces), in
+// radians, each bone's on top of the one it hangs from. The fingers stay as the file rests them.
+
+/** The chat's states: what the head does in each ({ tilt, nod, lean }), and whether it talks. */
+const CHAT = {
+  "chat-idle": { tilt: 0, nod: 0, lean: 0 },
+  "chat-thinking": { tilt: 0.08, nod: -0.06, lean: 0 },
+  "chat-listening": { tilt: -0.05, nod: 0.03, lean: 0.03 },
+  "chat-talking": { tilt: 0, nod: 0, lean: 0, talks: true },
+};
+const CHAT_ARM_DOWN = 1.2;
+const CHAT_ELBOW = 0.25;
+const chatParents = new WeakMap();
+const euler = new Euler();
+const NO_TURN = new Quaternion();
+
+/** The figure as a chat shows it in `state` (CHAT) at `seconds`, from rest. */
+function chatPose(figure, state, seconds) {
+  const reference = referenceOf(figure);
+  const n = figure.humanoid;
+  // (For each of BONES, the place in BONES of the humanoid bone it hangs from, or -1.)
+  let parents = chatParents.get(figure);
+  if (!parents) {
+    const placeOf = new Map(BONES.map((name, i) => [n[name], i]));
+    parents = BONES.map((name) => {
+      for (let up = n[name]?.parent; up; up = up.parent) if (placeOf.has(up)) return placeOf.get(up);
+      return -1;
+    });
+    chatParents.set(figure, parents);
+  }
+  const t = seconds * TAU;
+  const breath = Math.sin(t / 4.2);
+  // (Talking, the head nods a little with the voice: here with the preview's own talking mouth.)
+  const nod = state.talks
+    ? Object.values(talkingAt(seconds)).reduce((most, open) => Math.max(most, open), 0) * 0.04
+    : state.nod;
+  const turns = {
+    hips: [0, Math.sin(t / 7.3) * 0.025, 0],
+    spine: [breath * 0.012 + state.lean, 0, Math.sin(t / 5.9) * 0.012],
+    chest: [breath * 0.015, 0, 0],
+    neck: [nod * 0.4, Math.sin(t / 6.7) * 0.02, 0],
+    head: [nod * 0.6 + Math.sin(t / 3.1) * 0.006, Math.sin(t / 8.3) * 0.03, state.tilt],
+    leftUpperArm: [0, 0, -CHAT_ARM_DOWN + breath * 0.012],
+    rightUpperArm: [0, 0, CHAT_ARM_DOWN - breath * 0.012],
+    leftLowerArm: [0, -CHAT_ELBOW, 0],
+    rightLowerArm: [0, CHAT_ELBOW, 0],
+  };
+  restPose(figure);
+  worlds.clear();
+  const turned = [];
+  BONES.forEach((name, i) => {
+    const bone = n[name];
+    if (!bone || !reference[i]) return;
+    const turn = (turned[parents[i]] ?? NO_TURN).clone();
+    if (turns[name]) turn.multiply(q1.setFromEuler(euler.set(...turns[name])));
+    turned[i] = turn;
+    const world = turn.clone().multiply(reference[i]);
+    const parent = worlds.get(bone.parent) ?? bone.parent.getWorldQuaternion(new Quaternion());
+    bone.quaternion.copy(parent.clone().invert().multiply(world));
+    worlds.set(bone, world);
+  });
   figure.root.updateMatrixWorld(true);
 }
 
@@ -482,6 +569,10 @@ function poseLeg(leg, ankle, turn, pole) {
 /** The figure in motion `id` at `seconds` from its start, from rest. Returns false for an unknown motion. */
 export function motionPose(figure, id, seconds) {
   if (!figure?.humanoid?.hips) return false;
+  if (CHAT[id]) {
+    chatPose(figure, CHAT[id], Math.max(0, seconds));
+    return true;
+  }
   if (RECORDED[id]) {
     recordedPose(figure, id, seconds);
     return true;
@@ -597,7 +688,7 @@ export function createMotionPlayer() {
       return paused;
     },
     play(figure, next) {
-      if (!POSES[next] && !RECORDED[next]) return this.stop(figure);
+      if (!POSES[next] && !RECORDED[next] && !CHAT[next]) return this.stop(figure);
       remember(figure);
       id = next;
       clock = 0;

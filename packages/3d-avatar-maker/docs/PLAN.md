@@ -780,6 +780,57 @@ call that revises it from how it looks now.
   characters), the messages (pictures in order, colours as `#rrggbb`, sliders as made left out), `readJson`
   and `designedLook`.
 
+## Built: what a chat shows, nothing drawn under cloth, cloth the legs carry (0.1.16)
+
+Asked for after trying the animations in the Engine: a creepy Happy face, fingers through the palm, skin and
+underwear through clothes, a seated clip with the hands thrown up, legs missing under dresses.
+
+- **What a chat plays.** Marinara Engine's 3D Avatars agent plays no clip. Its `computeBodyPose`
+  (`packages/client/src/features/avatars/renderers/vrm/vrm-motion.ts`) turns nine bones from the T-pose: the
+  upper arms 1.2 radians down, the elbows 0.25, and a few sines for breath and sway, with a head tilt, nod or
+  lean for thinking, listening and talking. `src/motions.js` `chatPose` does the same sums, offered first in
+  the Animation list as **In a chat** (waiting, talking, thinking, listening). The fingers stay as the file
+  rests them: straight in a VRM.
+- **Fingers.** The clips are measured from the library figure's T-pose, fingers straight. `referenceOf` took
+  the body's own soft curl as that pose, so every clip curled the fingers that much further, through the
+  palm. It now uses `tPose`. (Loosening the clips' fists was tried and dropped: folded arms then press the
+  fingers into the chest.)
+- **Sitting.** The library's seated talk throws both hands up by the face; the sitting animation leaves it out.
+- **Happy and Relaxed.** `FACE_MOVES` in `make_avatar.py`: Happy is the lips drawn back and wide with the
+  corners a little up and the eyes hardly narrowed (it was the corners pulled all the way up with the eyes
+  half shut). A chat shows these keys at full weight. Both bodies rebuilt and repacked.
+- **Nothing drawn under cloth** (`src/layers.js` `coveredBy`, `deepUnder`; `src/avatar.js`). Each layer was
+  already tucked under the one over it at rest, but skin and inner layers are weighted to the bones a little
+  differently and came through in motion. Now a triangle of the skin, the body's underwear or an inner piece
+  isn't drawn (or saved) when all of it lies under an outer piece's cloth within 4 cm along the skin's
+  normal, and it is at least two edges in from where that cover ends. Cloth with holes cut by its picture
+  covers nothing, and neither does the part of a piece that hangs and swings.
+- **Regions.** A cloth piece's `hides` words for the trunk and limbs (neck, torso, hips, upper arms,
+  forearms, thighs, calves) no longer hide the whole region: they extend the reach to 8 cm for skin of that
+  region under that piece (a robe's sleeve, wide trousers). So the legs under a skirt or dress, a chest in an
+  open collar and a bare shoulder stay. Feet, hands and head still go whole, as does anything a piece that
+  isn't layered cloth hides. With **Show underwear under clothes** off, the body's own underwear is left off
+  whole under a piece that names it or covers the torso or hips, as a pack's already was.
+- **Cloth and legs** (`src/hair.js`, `src/springs.js`). With the legs now there under a skirt, the old
+  collision showed its limits: eight chains with joint-only collision let a lifted thigh pass between two of
+  them. Now:
+  - cloth has sixteen chains round, and starts no lower than the hip joints;
+  - the cloth's colliders are each half of each thigh and calf and each foot, as thick as what's worn there
+    (boots, trousers), and the arms and hands;
+  - in the preview each cloth joint is carried by the leg beside it (`carried`: kept at least as far out as
+    the leg would carry it, measured the way the leg has turned), is drawn back to how it hangs from the
+    hips, not to its own bone's line, and is tied to the joint at its level in the chain beside it
+    (`rings`), so a pushed chain draws its neighbours after it. A VRM app does none of the three: it pushes
+    each chain away from the colliders.
+- **A motions page** (`dev/motions.js`, `/motions` on the test server): one avatar through every animation
+  or face, frame by frame, on a sheet kept in `dev/out/`, with the springs run as the preview runs them.
+- Checks: what's covered and how far in; jeans and a tee hide the skin under them and leave the head and
+  hands; legs under a long skirt are drawn; the chat stand's arm angle; an open hand in a clip is open; the
+  eight leg capsules in a VRM; a skirt still settles within two seconds.
+
+Still rough (see Known rough edges): a heavily pleated skirt crumples when sitting, the thigh can show at
+the hip when lifted high, and the kit's own tunic over the long skirt shows the skirt through it at rest.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -807,8 +858,15 @@ call that revises it from how it looks now.
 - Seen close from below, the upper teeth's shading changes in steps (each face takes one of three copies of
   the picture). From a chat's distance it reads as the mouth's shadow.
 - A saved file has one picture for each piece worn. Packing them into one would make it smaller.
-- Hanging cloth is kept out of the legs at its chains' joints only. Between them, at a lifted knee, the cloth
-  can cut a little into the thigh. Two hanging pieces (a cloak over a dress) swing through each other.
+- Hanging cloth is carried by the legs at its chains' joints only, each chain a line of stiff bones. A skirt
+  with deep pleats (the Clothes pack's long full skirt) comes out boxy as it moves and crumples when the
+  avatar sits; cloth at the sides is drawn up in points when the front is lifted; and a thigh lifted high can
+  show at the hip, where the cloth is still on the hips' own weights. A real fix is the cloth's points
+  weighted by where they are along the mesh, not round the hips, and a row of joints across each fold. Two
+  hanging pieces (a cloak over a dress, the kit's tunic over its long skirt) pass through each other.
+- A saved VRM in another app swings a skirt on plain springs: the leg pushes each chain aside, and comes
+  through between them. In a chat the legs don't move, so it doesn't show there.
+- In a chat a VRM's fingers are straight (the Engine turns no finger bone), so the hands look stiff.
 - The bust sways only a couple of millimetres in the Moving pose, as nothing in it bounces the body up and
   down. A VRM app that walks or jumps shows more.
 - Swinging hair can dip about 2 cm into the shoulders, where a lock resting on a shoulder leaves out that

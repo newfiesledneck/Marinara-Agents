@@ -17,7 +17,10 @@ VRM the eyes move, and long hair, skirts, dresses, coats and the bust swing too.
    **Face** list under the picture plays the face's moves: blinking and looking at you, talking, or one
    expression held. In the pose list, **Moving** turns the head and hips now and then and lifts each knee in a
    small step, to show the hair and clothes swing.
-   The **Animation** list plays the avatar moving, so you can see how its clothes and hair move: standing,
+   The **Animation** list starts with **In a chat**: the avatar as Marinara Engine shows it in a chat, waiting,
+   talking, thinking and listening. A chat plays no recorded animation: the Engine stands the avatar with
+   its arms at its sides and moves it a little itself, and these four do the same sums. The rest of the list
+   is there to see how the clothes and hair move: standing,
    looking around, talking, walking on the spot, turning round, waving, dancing, celebrating, nodding,
    shaking its head, folding its arms, surprise, crying, drinking, sitting, crouching and stretching.
    **Pause** holds it where it is and **Stop** goes back to the pose. The **Face** and **Hand** views follow
@@ -80,9 +83,11 @@ or GLB has only what's worn.
 
 Underwear is always the innermost layer. With **Show underwear under clothes** on (the Underwear group on the
 Clothes tab; on unless you turn it off), it stays on under everything, so a bra strap shows at an open neckline or
-off the shoulder and briefs show under a skirt. Clothes still hide the skin they cover, and each is worn
-just over what's under it, so underwear stays under them; a speck can still show where two layers meet at
-a shallow angle. Turn the setting off and clothes hide the underwear they cover, as they did before. A swimsuit, bodysuit, shapewear, a teddy or swimming trunks are
+off the shoulder and briefs show under a skirt. Each piece is worn just over what's under it, and whatever
+lies directly under cloth isn't drawn (or saved): the skin under jeans, a bra under a tee, socks under
+trousers. That is what would otherwise come through as the body moves. Only what the cloth lies on goes, so
+the legs under a skirt or a dress, the chest in an open collar and a bare shoulder are all still there; the
+feet in shoes and the hands in gloves go whole. Turn the setting off and clothes hide the underwear they cover, as they did before. A swimsuit, bodysuit, shapewear, a teddy or swimming trunks are
 worn on bare skin, so the underwear they cover is left off under them either way. The setting is part of the look,
 so a saved avatar keeps it.
 
@@ -106,7 +111,7 @@ Both carry the face's moves as shape keys named the way VRM names its expression
 `surprised`. The 3D Avatars agent finds them by those names. The mouth opens on teeth and a tongue, and each
 eye turns on a bone of its own (`eye_l`, `eye_r`). Hair that hangs loose has chains of bones down its locks
 (`hair_back_0` to the tip, one chain for each side of the head it hangs from). Skirts, dresses, robes, coats
-and cloaks have them too below the hips (`cloth_skirt_front_0` and so on), and each breast has a bone under
+and cloaks have them too from the hips down (`cloth_skirt_1_of_16_0` and so on, sixteen chains round), and each breast has a bone under
 the middle chest (`breast_l`, `breast_r`) that the skin and what's worn over it follow. Standing still, all
 of it rests as it was made.
 
@@ -114,9 +119,11 @@ of it rests as it was made.
   model** read. The avatar rests in a T-pose, and the file names its humanoid bones, so any VRM app can pose
   it. Its expressions are bound to the face's keys, and its eyes look about on their bones. Hanging hair,
   hanging clothes, the bust and a tail swing on spring bones. Colliders fitted to the body keep the hair out
-  of the head, neck, shoulders, arms and back, and the clothes out of the hips and legs, and let the arms and
+  of the head, neck, shoulders, arms and back, and the clothes out of the hips, legs, feet, arms and hands (the
+  legs as thick as what's worn on them, boots included), and let the arms and
   hands push the bust up or aside when they press on it. (In the maker's preview a pressed breast also
-  squashes in a little; a VRM app only moves it.) The file carries the terms you set under **The VRM's terms** on the
+  squashes in a little, and a skirt is carried by the leg that lifts under it, its chains tied side to side
+  like a curtain; a VRM app only pushes each chain away from the leg.) The file carries the terms you set under **The VRM's terms** on the
   Save tab: your name as the author, who may use the avatar, commercial use, sharing and changes, credit,
   and four uses VRM forbids unless allowed. They start at VRM's most careful choices, and the maker keeps
   yours in this browser for the next avatar. While the avatar wears a CC BY pack piece, the file asks for

@@ -669,14 +669,15 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
         `${name}: long hair swings (a helm hides the dwarf's)`,
       );
     if (name === "dress") {
-      // (The dress's chains, with capsules on the thighs and calves among the colliders they meet.)
+      // (The dress's chains, with capsules on the thighs and calves among the colliders they meet: one for
+      // each half of each, as thick as the leg is there.)
       const { springs, colliders, colliderGroups } = json.extensions.VRMC_springBone;
       assert.ok(
         springs.filter((spring) => spring.name.startsWith("Dress (")).length >= 3,
         "the dress hangs on springs",
       );
       const legs = colliders.filter((collider) => /^(?:thigh|calf)_[lr]$/u.test(json.nodes[collider.node].name));
-      assert.ok(legs.length === 4 && legs.every((collider) => collider.shape.capsule), "with capsules on the legs");
+      assert.ok(legs.length === 8 && legs.every((collider) => collider.shape.capsule), "with capsules on the legs");
       assert.ok(
         ["Bust (left)", "Bust (right)"].every((bust) => springs.some((spring) => spring.name === bust)),
         "and her bust on springs too",
@@ -1058,7 +1059,8 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
           relaxedPose(figure, 0);
           moving.step(1 / 60);
         }
-        assert.ok(furthest(tips(), hung) < 0.005, `${label}: and settles within two seconds`);
+        const unsettled = furthest(tips(), hung);
+        assert.ok(unsettled < 0.005, `${label}: and settles within two seconds (${(unsettled * 100).toFixed(2)} cm)`);
         figure.dispose();
       }
     // On longer legs, the skirt rests where its own weights put it, so nothing tears where cloth that grew with
@@ -1780,6 +1782,55 @@ for (const figure of Object.values(made)) figure.dispose();
     assert.ok(Math.abs(points[5] + 0.05) < 1e-6, "a point well under it stays");
     assert.ok(Math.abs(points[8] - 0.012) < 1e-6, "a point past its edge stays");
   }
+  // What lies directly under cloth isn't drawn. A point under a surface within reach is covered (or just over
+  // one it stands through); one far under it or past its edge isn't. Only triangles well in from where the
+  // cover ends go: each edge of margin takes a ring of them back.
+  {
+    const { coveredBy, deepUnder, isUnder } = await import("../packages/3d-avatar-maker/src/layers.js");
+    const outer = surfaceOf(new Float32Array([-1, -1, 0.01, 1, -1, 0.01, 0, 1, 0.01]), new Uint32Array([0, 1, 2]));
+    const points = new Float32Array([0, 0, 0, 0, 0, -0.2, 0.9, 0.9, 0, 0, 0, 0.012]);
+    const upwards = (v, out) => {
+      out.splice(0, 3, 0, 0, 1);
+      return true;
+    };
+    assert.deepEqual([...coveredBy(points, 0, 4, upwards, [{ surface: outer }])], [1, 0, 0, 1], "what's covered");
+    const strip = new Uint32Array([0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 5]);
+    const covered = new Uint8Array([1, 1, 1, 1, 1, 0]);
+    const under = (margin) => {
+      const deep = deepUnder(covered, strip, 0, 0, strip.length, margin);
+      return [0, 3, 6, 9].map((i) => isUnder(deep, strip, i));
+    };
+    assert.deepEqual(under(0), [true, true, true, false], "with no margin, every covered triangle");
+    assert.deepEqual(under(1), [true, false, false, false], "a ring back from where the cover ends");
+    assert.deepEqual(under(2), [false, false, false, false], "and another");
+  }
+  // Worn: the skin directly under jeans and a tee isn't drawn (it would come through them as the body moves),
+  // the head's and the hands' all is, and so are the legs under a long skirt, which only hangs over them.
+  {
+    const skinDrawn = async (body, clothes) => {
+      const figure = await createAvatar(startOf(body, { clothes, hair: "none" }), "Test", "auto");
+      const { geometry } = figure.meshes.find((mesh) => mesh.name === "body");
+      const skin = figure.kit.meshes.find((mesh) => mesh.part === "skin" && !mesh.piece);
+      const drawn = {};
+      for (const { start, count } of geometry.groups)
+        for (let i = start; i < start + count; i += 3) {
+          const vertex = geometry.index.array[i];
+          if (vertex < skin.start || vertex >= skin.start + skin.count) continue;
+          drawn[figure.kit.regions[vertex]] = (drawn[figure.kit.regions[vertex]] ?? 0) + 1;
+        }
+      figure.dispose();
+      return drawn;
+    };
+    const [bare, dressed] = [await skinDrawn("male", []), await skinDrawn("male", ["mh_jeans", "mh_tee"])];
+    assert.ok(bare.thighs > 100 && bare.torso > 100, "bare, the skin is all drawn");
+    assert.ok(dressed.thighs < bare.thighs * 0.2, `jeans: the thighs under them aren't drawn (${dressed.thighs})`);
+    assert.ok(dressed.torso < bare.torso * 0.5, `a tee: nor the chest and back under it (${dressed.torso})`);
+    assert.equal(dressed.head, bare.head, "the head is all there");
+    assert.equal(dressed.hands, bare.hands, "and the hands");
+    const [her, skirted] = [await skinDrawn("female", []), await skinDrawn("female", ["skirt"])];
+    assert.ok(skirted.calves >= her.calves * 0.95, `under a long skirt the legs are there (${skirted.calves})`);
+    assert.ok(skirted.thighs >= her.thighs * 0.5, `and most of the thighs (${skirted.thighs} of ${her.thighs})`);
+  }
   // Worn together, no point of an inner piece is left over the piece worn over it (along the skin's normals,
   // as the maker tucks it: looked for again, nothing more moves).
   const { nearestSkin } = await import("../packages/3d-avatar-maker/src/avatar.js");
@@ -2237,6 +2288,35 @@ for (const figure of Object.values(made)) figure.dispose();
       "auto",
     ),
   };
+  // What a chat shows, as Marinara Engine stands an avatar: each upper arm 1.2 radians down from level. And a
+  // clip is measured from straight fingers: where it holds the hand open (talking), the fingers are straight,
+  // not curled further by the soft curl they rest in.
+  {
+    const figure = bodies.woman;
+    const n = figure.humanoid;
+    const place = (bone) => bone.getWorldPosition(new Vector3());
+    for (const id of ["chat-idle", "chat-talking", "chat-thinking", "chat-listening"])
+      assert.ok(
+        MOTIONS.some(([offered]) => offered === id),
+        `${id}: offered`,
+      );
+    assert.ok(motionPose(figure, "chat-idle", 0));
+    for (const [side, sign] of [
+      ["left", 1],
+      ["right", -1],
+    ]) {
+      const arm = place(n[`${side}LowerArm`])
+        .sub(place(n[`${side}UpperArm`]))
+        .normalize();
+      const down = Math.atan2(-arm.y, sign * arm.x);
+      assert.ok(Math.abs(down - 1.2) < 0.03, `in a chat the ${side} arm hangs 1.2 radians below level (${down})`);
+    }
+    motionPose(figure, "talk", 1);
+    const [a, b, c] = ["Proximal", "Intermediate", "Distal"].map((joint) => place(n[`leftIndex${joint}`]));
+    const bend = b.clone().sub(a).angleTo(c.clone().sub(b));
+    assert.ok(bend < 0.2, `an open hand in a clip is open (${bend.toFixed(2)} radians at the index finger)`);
+    restPose(figure);
+  }
   // How far each bone may turn from rest (radians): past these a body looks broken.
   const LIMITS = [
     [/^(lowerarm|calf)_/u, 2.8],

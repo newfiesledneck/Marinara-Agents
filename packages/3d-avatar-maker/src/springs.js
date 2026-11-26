@@ -1,7 +1,10 @@
 // Spring bones: the hair's and clothes' chains (hair.js), the bust (bust.js) and a tail, swinging as the body
 // moves, kept out of the body by colliders. The settings and colliders are VRM 1.0's (`VRMC_springBone`): the
 // saved VRM carries them (exporter.js), and the preview swings them here the way three-vrm (the Engine's VRM
-// model) does, so what the maker shows is what a VRM app shows.
+// model) does, so what the maker shows is what a VRM app shows. In two things the preview does more, for
+// its animations, which move the legs as a chat never does: a breast pressed by an arm is squashed, and
+// hanging cloth is carried by the legs under it and tied side to side (createSprings), where a VRM app only
+// pushes each chain away from its colliders.
 import { Matrix4, Quaternion, Vector3 } from "three";
 import { relaxedPose, tPose, restPose } from "./figure.js";
 
@@ -49,6 +52,15 @@ export const BUST_JOINT = {
 export const TAIL_BONES = ["tail_01", "tail_02", "tail_03", "tail_04", "tail_05"];
 const LEG_RADIUS = 0.07; // metres: the legs' colliders, so a swinging tail stays outside the thighs
 const CLEAR = 0.005; // metres a collider stays clear of a joint at rest, so nothing is pushed while still
+// Metres from a thigh's or calf's line within which hanging cloth follows that leg all of the way when it
+// moves out from the body (createSprings `carried`), and beyond which it doesn't follow it at all.
+const LEG_NEAR = 0.12;
+const LEG_FAR = 0.3;
+const LEG_PAST = 0.08; // metres past the end of a thigh or calf at which cloth no longer follows it
+// Cloth's chains are tied side to side (createSprings `rings`): two joints side by side may be this many times
+// as far apart as they rest before the cloth between them draws them together, over this many passes a frame.
+const RING_STRETCH = 1.1;
+const RING_PASSES = 2;
 const TURN_MOST = 0.35; // radians the arms may turn a breast in the preview; pressed further, it squashes
 
 /**
@@ -58,14 +70,15 @@ const TURN_MOST = 0.35; // radians the arms may turn a breast in the preview; pr
  * file, avatar.js bodyKit), in the bind pose:
  * - the head a ball, and the neck, collarbones and upper arms capsules along them;
  * - the hips, waist, chest and back a capsule across the body at each spine bone, as deep as it is there;
- * - for cloth, those of the hips and back again (their own, fitted to the cloth), and the thighs and calves
- *   capsules along them, as thick as the leg is there;
+ * - for cloth, those of the hips and back again (their own, fitted to the cloth), each half of each thigh
+ *   and calf and each foot a capsule as thick as the leg is there with what's worn on it (`worn`: the
+ *   clothes that don't hang, as [{ position, skinIndex, skinWeight, joints }]), and the arms' again;
  * - for the bust, each upper arm, forearm and hand a capsule along it, as thick as half its skin is from its
  *   bone (so an arm pressing on a breast pushes it about where the skins meet), and fitted in the relaxed
  *   pose too (`relaxed`), where the arms hang closest to it.
  * Each sits inside the body, so what rests on it isn't pushed.
  */
-export function bodyColliders(kit, position, bones) {
+export function bodyColliders(kit, position, bones, worn = []) {
   const { joints } = kit.file;
   const index = kit.shared.skinIndex.array;
   const weight = kit.shared.skinWeight.array;
@@ -148,17 +161,52 @@ export function bodyColliders(kit, position, bones) {
       ? [{ bone: thigh, radius: LEG_RADIUS, offset: new Vector3(), tail: calf.position.clone() }]
       : [];
   });
-  // The cloth's: the hips and back, and each thigh and calf.
+  // The cloth's: the hips and back, and each leg and foot as thick as it is dressed, so a skirt is pushed by
+  // the thigh that lifts under it and stays off a boot. A thigh or calf is two capsules, one for each half
+  // of it (a thigh is far thicker at the hip than at the knee, and a capsule is one thickness all along):
+  // each as thick as the middle of the skin's points round that half, or of what's worn there (trousers, a
+  // boot's shaft) where that is thicker.
   const cloth = body
     .filter((collider) => collider.tail && /^(?:pelvis|spine_0[123])$/u.test(collider.bone.name))
     .map((collider) => ({ ...collider, offset: collider.offset.clone(), tail: collider.tail.clone() }));
-  // (A leg's may shrink by half to fit, not a quarter: cloth that lies on the thigh, a tight robe's sides,
-  // should still be kept out of it.)
+  const dressed = new Map(); // bone name → the points of what's worn that it moves most
+  for (const piece of worn)
+    for (let v = 0; v < piece.position.length / 3; v++) {
+      let best = 0;
+      for (let c = 1; c < 4; c++) if (piece.skinWeight[v * 4 + c] > piece.skinWeight[v * 4 + best]) best = c;
+      const name = piece.joints[piece.skinIndex[v * 4 + best]];
+      if (!/^(?:thigh|calf|foot|ball)_[lr]$/u.test(name ?? "")) continue;
+      if (!dressed.has(name)) dressed.set(name, []);
+      dressed.get(name).push(new Vector3().fromArray(piece.position, v * 3));
+    }
+  /** A capsule along the share `from` to `to` of a bone's length (to the next bone's joint), in `cloth`. */
+  const section = (name, next, from = 0, to = 1) => {
+    const [bone, a, b] = [bones.get(name), at(name), at(next)];
+    if (!bone || !a || !b) return;
+    const line = b.clone().sub(a);
+    const span = line.lengthSq() || 1;
+    const within = (points = []) =>
+      points.filter((p) => {
+        const t = p.clone().sub(a).dot(line) / span;
+        return (from === 0 || t >= from) && (to === 1 || t < to);
+      });
+    const [start, end] = [a.clone().addScaledVector(line, from), a.clone().addScaledVector(line, to)];
+    const radius = Math.max(
+      reach(within(by.get(name)), start, end, 0.5),
+      reach(within(dressed.get(name)), start, end, 0.5),
+    );
+    // (It may shrink by half to fit, not a quarter: cloth that lies on the thigh, a tight robe's sides,
+    // should still be kept out of it.)
+    if (radius)
+      cloth.push({ bone, radius: radius * 0.95, offset: local(bone, start), tail: local(bone, end), least: 0.5 });
+  };
   for (const side of ["l", "r"]) {
-    along(cloth, `thigh_${side}`, `calf_${side}`);
-    along(cloth, `calf_${side}`, `foot_${side}`);
+    section(`thigh_${side}`, `calf_${side}`, 0, 0.5);
+    section(`thigh_${side}`, `calf_${side}`, 0.5, 1);
+    section(`calf_${side}`, `foot_${side}`, 0, 0.5);
+    section(`calf_${side}`, `foot_${side}`, 0.5, 1);
+    section(`foot_${side}`, `ball_${side}`);
   }
-  for (const collider of cloth) if (/^(?:thigh|calf)_/u.test(collider.bone.name)) collider.least = 0.5;
   // The bust's: each upper arm, forearm and hand (to the middle finger's second joint).
   const arms = [];
   for (const side of ["l", "r"]) {
@@ -167,6 +215,10 @@ export function bodyColliders(kit, position, bones) {
     along(arms, `hand_${side}`, `middle_02_${side}`, 1, 0.5);
   }
   for (const collider of arms) collider.relaxed = true;
+  // The cloth meets the arms and hands too (its own, fitted to it): a cape is pushed by an arm swung back, a
+  // skirt by a hand at the hip.
+  for (const collider of arms)
+    cloth.push({ ...collider, offset: collider.offset.clone(), tail: collider.tail.clone(), least: 0.5 });
   return { body, legs, cloth, arms };
 }
 
@@ -174,6 +226,8 @@ const a = new Vector3();
 const b = new Vector3();
 const c = new Vector3();
 const d = new Vector3();
+const e = new Vector3();
+const fan = new Vector3();
 const start = new Vector3();
 const line = new Vector3();
 const offset = new Vector3();
@@ -287,16 +341,19 @@ function squash(joint, tip) {
  */
 export function createSprings(figure) {
   const joints = [];
+  const pieces = new Map(); // a piece of cloth (a spring's `ring`) → its chains: [{ side, sides, joints }]
   for (const spring of figure.springs ?? []) {
     const { colliders } = spring;
+    const chain = [];
     spring.bones.slice(0, -1).forEach((bone, i) => {
       bone.quaternion.copy(figure.rest.get(bone.name) ?? bone.quaternion);
       bone.updateMatrix();
       const child = spring.bones[i + 1].position.clone(); // (where the next joint is, in this bone's space)
-      joints.push({
+      chain.push({
         bone,
         settings: spring.joint,
         colliders,
+        root: spring.meets === "cloth" ? spring.bones[0] : null, // (a chain of cloth: pushed out from the body)
         squashes: !!spring.squash,
         restAt: bone.position.clone(),
         local: bone.matrix.clone(),
@@ -307,8 +364,109 @@ export function createSprings(figure) {
         scale: 1, // (world metres to the bone's own units)
         tip: new Vector3(),
         last: new Vector3(),
+        // (Each frame's working: where its parent holds it, where its tip is going, the way it rests, and more.)
+        at: new Vector3(),
+        next: new Vector3(),
+        aim: new Vector3(),
+        outward: new Vector3(),
+        initial: new Matrix4(),
+        held: false,
+        pulled: false,
       });
     });
+    joints.push(...chain);
+    if (spring.meets === "cloth" && spring.ring) {
+      if (!pieces.has(spring.ring)) pieces.set(spring.ring, []);
+      pieces.get(spring.ring).push({ side: spring.side ?? 0, sides: spring.sides ?? 1, joints: chain });
+    }
+  }
+  // A piece of cloth's chains tied side to side (the maker's preview only: a VRM's springs each swing alone).
+  // Row by row down the cloth, each joint is tied to the one at its level in the chain beside it (`ties`:
+  // [one, other, how far apart they rest]), all the way round a skirt; a gap of more than one missing chain
+  // (the open front of a coat, a cloak's sides) isn't tied across.
+  const rings = [...pieces.values()].map((chains) => {
+    chains.sort((one, other) => one.side - other.side);
+    const levels = Math.max(...chains.map((chain) => chain.joints.length));
+    const rows = Array.from({ length: levels }, (_, level) => chains.flatMap((chain) => chain.joints[level] ?? []));
+    const ties = rows.map(() => []);
+    chains.forEach((chain, i) => {
+      const beside = chains[(i + 1) % chains.length];
+      const round = (beside.side - chain.side + chain.sides) % chain.sides;
+      if (beside === chain || round > 2 || (chains.length === 2 && i)) return;
+      for (let level = 0; level < Math.min(chain.joints.length, beside.joints.length); level++)
+        ties[level].push([chain.joints[level], beside.joints[level], 0]);
+    });
+    return { rows, ties };
+  });
+  const tied = new Set(rings.flatMap((ring) => ring.rows.flat()));
+  const loose = joints.filter((joint) => !tied.has(joint));
+  // Cloth carried by the legs under it (the maker's preview only). A thigh that lifts carries the skirt's front
+  // with it; colliders alone can't show that: they push a chain away from the leg, so the chains either side
+  // of it part and the leg comes through between them. So each joint of a cloth chain knows where its tip
+  // rests against each thigh and calf (`carried`: the tip in that bone's own space, and how much it follows
+  // it: all of the way within LEG_NEAR of the bone's line, none beyond LEG_FAR), and each frame the tip is
+  // kept at least as far out from the body as the leg would carry it (`step`). Measured in the pose the body
+  // was built in, whatever pose it's in now.
+  const cloth = joints.filter((joint) => joint.root);
+  if (cloth.length) {
+    const posed = [...figure.bones.values()].map((bone) => [bone, bone.quaternion.clone(), bone.position.clone()]);
+    restPose(figure);
+    const legs = ["l", "r"].flatMap((side) =>
+      [
+        [`thigh_${side}`, `calf_${side}`],
+        [`calf_${side}`, `foot_${side}`],
+      ].flatMap(([name, next]) => {
+        const [bone, to] = [figure.bones.get(name), figure.bones.get(next)];
+        return bone && to
+          ? [{ bone, from: bone.getWorldPosition(new Vector3()), to: to.getWorldPosition(new Vector3()) }]
+          : [];
+      }),
+    );
+    for (const joint of cloth) {
+      const tip = joint.child.clone().applyMatrix4(joint.bone.matrixWorld);
+      // (Which way it hangs at rest, as the bone its chain hangs from sees it: where it's drawn back to, however
+      // the joints above it are turned. Drawn back to its own bone's line, as a VRM app does, a skirt lifted at
+      // the thigh would stand straight out from there down.)
+      joint.hangs = tip
+        .clone()
+        .sub(joint.bone.getWorldPosition(new Vector3()))
+        .normalize()
+        .applyQuaternion(joint.root.parent.getWorldQuaternion(new Quaternion()).invert());
+      // (Out from the body, for this chain: from the bone it hangs from to its root, level.)
+      const out = joint.root.getWorldPosition(new Vector3()).sub(joint.root.parent.getWorldPosition(new Vector3()));
+      out.setY(0).normalize();
+      joint.carried = legs.flatMap(({ bone, from, to }) => {
+        const span = line.copy(to).sub(from);
+        const along = offset.copy(tip).sub(from).dot(span) / (span.lengthSq() || 1);
+        const t = Math.max(0, Math.min(1, along));
+        const gap = tip.distanceTo(offset.copy(from).addScaledVector(span, t));
+        // (Beside the bone, not past its ends: cloth below the knee is the calf's to carry, not the thigh's,
+        // or a skirt would stand out level from a seated knee in place of hanging from it.)
+        const past = Math.max(0, along - 1, -along) * span.length();
+        const share =
+          Math.max(0, Math.min(1, 1 - (gap - LEG_NEAR) / (LEG_FAR - LEG_NEAR))) * Math.max(0, 1 - past / LEG_PAST);
+        if (!share) return [];
+        // (`out` in the leg's own space too: lifted level, a thigh carries the cloth in front of it up.)
+        const inverse = new Matrix4().copy(bone.matrixWorld).invert();
+        return [
+          {
+            bone,
+            tip: tip.clone().applyMatrix4(inverse),
+            out: out.clone().transformDirection(inverse),
+            share: share * share * (3 - 2 * share),
+          },
+        ];
+      });
+    }
+    // (How far apart each pair of tied joints rests.)
+    const tipOf = (joint) => joint.child.clone().applyMatrix4(joint.bone.matrixWorld);
+    for (const ring of rings)
+      for (const ties of ring.ties) for (const each of ties) each[2] = tipOf(each[0]).distanceTo(tipOf(each[1]));
+    for (const [bone, turn_, place] of posed) {
+      bone.quaternion.copy(turn_);
+      bone.position.copy(place);
+    }
+    figure.root.updateMatrixWorld(true);
   }
   const gravity = new Vector3();
   function reset() {
@@ -327,56 +485,145 @@ export function createSprings(figure) {
       joint.scale = joint.length / (joint.child.length() || 1);
     }
   }
+  const keepLength = (joint) => joint.next.sub(joint.at).normalize().multiplyScalar(joint.length).add(joint.at);
+
+  /** Where a joint's tip goes this frame left to itself (`joint.next`): carried on, drawn back and down. */
+  function advance(joint, dt) {
+    const { bone, settings, at, next } = joint;
+    joint.initial.multiplyMatrices(bone.parent.matrixWorld, joint.local);
+    at.setFromMatrixPosition(joint.initial); // (the joint, where its parent holds it)
+    const rest = joint.aim.copy(joint.child).applyMatrix4(joint.initial).sub(at).normalize();
+    if (joint.hangs) rest.copy(joint.hangs).applyQuaternion(joint.root.parent.getWorldQuaternion(facing));
+    gravity.fromArray(settings.gravityDir).normalize();
+    next
+      .copy(joint.tip)
+      .addScaledVector(c.copy(joint.tip).sub(joint.last), 1 - settings.dragForce)
+      .addScaledVector(rest, settings.stiffness * dt)
+      .addScaledVector(gravity, settings.gravityPower * dt);
+    keepLength(joint);
+    joint.held = false;
+    joint.pulled = false;
+    // (Which way is out from the body for a chain of cloth: from the bone it hangs from to its root, level.)
+    if (joint.root)
+      joint.outward
+        .setFromMatrixPosition(joint.root.matrixWorld)
+        .sub(e.setFromMatrixPosition(joint.root.parent.matrixWorld))
+        .setY(0)
+        .normalize();
+  }
+
+  /** The tip kept out of what it meets: the legs that carry cloth (`carried`), and the colliders. */
+  function hold(joint) {
+    const { settings, at, next } = joint;
+    const outward = joint.root && joint.outward.lengthSq() ? joint.outward : null;
+    if (outward && joint.carried?.length) {
+      // As far out as the leg nearest it carries it, at least, measured the way the leg has turned "out":
+      // forward for a thigh at rest, up for one lifted level.
+      let need = 0;
+      for (const { bone: leg, tip, out, share } of joint.carried) {
+        c.copy(out).transformDirection(leg.matrixWorld);
+        const by = e.copy(tip).applyMatrix4(leg.matrixWorld).sub(next).dot(c) * share;
+        if (by > need) {
+          need = by;
+          d.copy(c);
+        }
+      }
+      if (need > 0) {
+        next.addScaledVector(d, need);
+        keepLength(joint);
+        joint.held = true;
+      }
+    }
+    for (const collider of joint.colliders) {
+      nearestOn(collider, next, d);
+      const out = c.copy(next).sub(d);
+      const gap = out.length() - collider.radius - settings.hitRadius;
+      if (gap < 0) {
+        out.normalize().multiplyScalar(-gap);
+        // (A breast in the preview is pushed only across its bone, which turns it; a push along the bone is
+        // left to `squash` below, where a VRM app slides the ball off sideways, however far it must turn.)
+        if (joint.squashes) out.projectOnPlane(line.copy(next).sub(at).normalize());
+        next.add(out);
+        keepLength(joint);
+      }
+    }
+  }
+
+  /**
+   * Two joints side by side in a piece of cloth kept no further apart than the cloth between them reaches
+   * (`apart`, as they rest, and RING_STRETCH more): pushed out by a leg, a chain draws the ones beside it
+   * after it, as a curtain pushed at one fold. What a leg holds stays where the leg put it, and the cloth
+   * beside it comes to it; otherwise each comes half the way.
+   */
+  function tie(one, other, apart) {
+    const gap = c.copy(other.next).sub(one.next);
+    const far = gap.length();
+    const over = far - apart * RING_STRETCH;
+    if (over <= 0) return;
+    gap.multiplyScalar(over / far);
+    const share = one.held === other.held ? 0.5 : one.held ? 0 : 1;
+    if (share) {
+      one.next.addScaledVector(gap, share);
+      keepLength(one);
+      one.pulled = true;
+    }
+    if (share < 1) {
+      other.next.addScaledVector(gap, share - 1);
+      keepLength(other);
+      other.pulled = true;
+    }
+  }
+
+  /** The joint's bone turned to its new tip, and the tip kept for the next frame. */
+  function settle(joint) {
+    const { bone, at, next } = joint;
+    if (joint.squashes) {
+      // (Turned TURN_MOST at most: pressed further, it is squashed instead.)
+      const now = line.copy(next).sub(at).normalize();
+      if (now.angleTo(joint.aim) > TURN_MOST) {
+        const across = offset.copy(now).addScaledVector(joint.aim, -now.dot(joint.aim)).normalize();
+        next.copy(at).addScaledVector(joint.aim, Math.cos(TURN_MOST) * joint.length);
+        next.addScaledVector(across, Math.sin(TURN_MOST) * joint.length);
+      }
+    }
+    // (Cloth a leg holds out, or the cloth beside it draws along, goes with it and no faster: carried on by
+    // the push, it would fly off the leg.)
+    joint.last.copy(joint.held || joint.pulled ? next : joint.tip);
+    joint.tip.copy(next);
+    // The bone turned from its rest to point at the tip.
+    back.copy(joint.initial).invert();
+    turn.setFromUnitVectors(joint.axis, toward.copy(next).applyMatrix4(back).normalize());
+    bone.quaternion.copy(joint.rest).multiply(turn);
+    if (joint.squashes) squash(joint, next);
+    bone.updateMatrix();
+    bone.matrixWorld.multiplyMatrices(bone.parent.matrixWorld, bone.matrix);
+    for (const child of bone.children) child.updateMatrixWorld(true);
+  }
+
   function step(seconds) {
     const dt = Math.min(0.05, Math.max(0, seconds));
     if (!dt || !joints.length) return;
     figure.root.updateMatrixWorld(true);
-    for (const joint of joints) {
-      const { bone, settings } = joint;
-      const parent = bone.parent.matrixWorld;
-      initial.multiplyMatrices(parent, joint.local);
-      const at = a.setFromMatrixPosition(initial); // (the joint, where its parent holds it)
-      const rest = toward.copy(joint.child).applyMatrix4(initial).sub(at).normalize();
-      gravity.fromArray(settings.gravityDir).normalize();
-      const next = b
-        .copy(joint.tip)
-        .addScaledVector(c.copy(joint.tip).sub(joint.last), 1 - settings.dragForce)
-        .addScaledVector(rest, settings.stiffness * dt)
-        .addScaledVector(gravity, settings.gravityPower * dt);
-      next.sub(at).normalize().multiplyScalar(joint.length).add(at);
-      for (const collider of joint.colliders) {
-        nearestOn(collider, next, d);
-        const out = c.copy(next).sub(d);
-        const gap = out.length() - collider.radius - settings.hitRadius;
-        if (gap < 0) {
-          out.normalize().multiplyScalar(-gap);
-          // (A breast in the preview is pushed only across its bone, which turns it; a push along the bone is
-          // left to `squash` below, where a VRM app slides the ball off sideways, however far it must turn.)
-          if (joint.squashes) out.projectOnPlane(line.copy(next).sub(at).normalize());
-          next.add(out);
-          next.sub(at).normalize().multiplyScalar(joint.length).add(at);
-        }
-      }
-      if (joint.squashes) {
-        // (Turned TURN_MOST at most: pressed further, it is squashed instead.)
-        const now = line.copy(next).sub(at).normalize();
-        if (now.angleTo(rest) > TURN_MOST) {
-          const across = offset.copy(now).addScaledVector(rest, -now.dot(rest)).normalize();
-          next.copy(at).addScaledVector(rest, Math.cos(TURN_MOST) * joint.length);
-          next.addScaledVector(across, Math.sin(TURN_MOST) * joint.length);
-        }
-      }
-      joint.last.copy(joint.tip);
-      joint.tip.copy(next);
-      // The bone turned from its rest to point at the tip.
-      back.copy(initial).invert();
-      turn.setFromUnitVectors(joint.axis, toward.copy(next).applyMatrix4(back).normalize());
-      bone.quaternion.copy(joint.rest).multiply(turn);
-      if (joint.squashes) squash(joint, next);
-      bone.updateMatrix();
-      bone.matrixWorld.multiplyMatrices(parent, bone.matrix);
-      for (const child of bone.children) child.updateMatrixWorld(true);
+    for (const joint of loose) {
+      advance(joint, dt);
+      hold(joint);
+      settle(joint);
     }
+    // A piece of cloth, row by row down from where it hangs: each row's joints moved, tied to the ones beside
+    // them and kept out of the legs again (the legs have the last word), then its bones turned, which the
+    // row under it hangs from.
+    for (const ring of rings)
+      ring.rows.forEach((row, level) => {
+        for (const joint of row) {
+          advance(joint, dt);
+          hold(joint);
+        }
+        for (let pass = 0; pass < RING_PASSES; pass++) {
+          for (const [one, other, apart] of ring.ties[level]) tie(one, other, apart);
+          for (const joint of row) hold(joint);
+        }
+        for (const joint of row) settle(joint);
+      });
   }
   reset();
   return { step, reset, joints: joints.length };

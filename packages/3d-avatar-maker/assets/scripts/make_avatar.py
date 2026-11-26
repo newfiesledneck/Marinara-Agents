@@ -145,10 +145,12 @@ FACE_MOVES = {
     "ou": {"mouth-open": 0.1, "mouth-pursing": 0.8, "mouth-protusion": 0.5},
     "ee": {"mouth-open": 0.15, "mouth-depression-retraction": 0.35, "mouth-upward-retraction": 0.35, "mouth-retraction": 0.5},
     "oh": {"mouth-open": 0.45, "mouth-protusion": 0.6},
-    "happy": {"mouth-corner-puller": 1.0, "mouth-upward-retraction": 0.3, "eye-left-slit": 0.5, "eye-right-slit": 0.5, "eyebrows-left-up": 0.1, "eyebrows-right-up": 0.1},
+    # (A smile is mostly the lips drawn back and wide, the corners only a little up, the eyes hardly narrowed:
+    # the corners pulled all the way up with the eyes half shut was a leer. A chat shows this key at full weight.)
+    "happy": {"mouth-corner-puller": 0.45, "mouth-retraction": 0.5, "mouth-upward-retraction": 0.15, "eye-left-slit": 0.15, "eye-right-slit": 0.15, "eyebrows-left-up": 0.15, "eyebrows-right-up": 0.15},
     "angry": {"eyebrows-left-down": 1.0, "eyebrows-right-down": 1.0, "mouth-compression": 0.4, "mouth-depression": 0.4, "mouth-elevation": 0.3, "eye-left-slit": 0.35, "eye-right-slit": 0.35, "nose-left-elevation": 0.4, "nose-right-elevation": 0.4},
     "sad": {"eyebrows-left-inner-up": 1.0, "eyebrows-right-inner-up": 1.0, "mouth-depression": 1.0, "mouth-compression": 0.2, "eye-left-slit": 0.25, "eye-right-slit": 0.25},
-    "relaxed": {"mouth-corner-puller": 0.5, "eye-left-slit": 0.55, "eye-right-slit": 0.55},
+    "relaxed": {"mouth-corner-puller": 0.25, "mouth-retraction": 0.2, "eye-left-slit": 0.35, "eye-right-slit": 0.35},
     "surprised": {"eyebrows-left-up": 1.0, "eyebrows-right-up": 1.0, "eye-left-opened-up": 1.0, "eye-right-opened-up": 1.0, "mouth-open": 0.35, "mouth-protusion": 0.25},
 }
 # How far each key that parts the lips undoes `seal_lips` (1: back to MakeHuman's own lips, open as its units

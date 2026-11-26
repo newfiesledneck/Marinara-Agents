@@ -149,6 +149,12 @@ createServer(async (request, response) => {
       return send(200, TYPES[".html"], page);
     }
     if (path === "/art.js") return send(200, TYPES[".js"], await bundle("packages/3d-avatar-maker/dev/art.js"));
+    // The motions page: one avatar through every animation or face, frame by frame, on a sheet (dev/motions.js).
+    if (path === "/motions") {
+      const page = VIEWER.replace("/viewer.js", "/motions.js").replace("position: fixed; inset: 0;", "display: none;");
+      return send(200, TYPES[".html"], page);
+    }
+    if (path === "/motions.js") return send(200, TYPES[".js"], await bundle("packages/3d-avatar-maker/dev/motions.js"));
     if (path === "/viewer.js") return send(200, TYPES[".js"], await bundle("packages/3d-avatar-maker/dev/viewer.js"));
     // The test page can hand a saved file to the check page: POST /dev/out/<name> keeps it in dev/out/.
     if (path.startsWith("/dev/out/")) {

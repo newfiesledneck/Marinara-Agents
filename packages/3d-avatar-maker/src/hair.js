@@ -9,7 +9,8 @@
 // How a style or piece is rigged (`hangPlan`, once per style or piece and body):
 // - What's above its hang line (a little below the eyes for hair, about the hips for cloth) stays as it is.
 // - Below it, each point is followed back up the mesh to where it leaves the hang line: how far along the hair
-//   or cloth it is, and from which side of the head or hips it hangs (eight sides, from the back round).
+//   or cloth it is, and from which side of the head or hips it hangs (eight sides for hair, sixteen for
+//   cloth, from the back round).
 //   Cloth that moves mostly with the arms (a sleeve's cuff) stays as it is.
 // - Each side with enough hanging below gets a chain of bones down its middle, from the hang line to near its
 //   end, each bone about a tenth of a metre long.
@@ -77,8 +78,7 @@ export const hangOf = (piece) =>
   HANGING_CLOTH.get(piece) ?? (Object.hasOwn(PACK_PIECES, piece) ? PACK_PIECES[piece].hang : null) ?? undefined;
 
 /** The eight sides of the head or hips, from straight behind, round by the avatar's left (+X). */
-const SIDES = ["back", "back_left", "left", "front_left", "front", "front_right", "right", "back_right"];
-const STEP = (Math.PI * 2) / SIDES.length;
+const EIGHT_SIDES = ["back", "back_left", "left", "front_left", "front", "front_right", "right", "back_right"];
 /**
  * How hair is rigged (hangPlan): `ease` (metres along it over which a point goes over to its chain),
  * `shortest` (metres: shorter locks stay as they are), `bone` (about how long each bone is, metres), `most`
@@ -90,10 +90,13 @@ const HAIR_FROM = ["Head", "neck_01", "spine_03", "spine_02"]; // (the head, nec
  * How cloth is rigged, the same way: eased over longer, with longer bones, and only what moves mostly with
  * these bones (`body`) hangs; cloth that moves with the arms (a sleeve) stays as it is. Each point's side is
  * where it is round the hips (`around`), not where the path down the cloth from the line began: a skirt's
- * rows of points are far apart, and paths across them drift round.
+ * rows of points are far apart, and paths across them drift round. It has sixteen sides (`sides`), not
+ * hair's eight: with a chain every 22 degrees one always hangs in front of each thigh, for the leg to push
+ * (springs.js); with eight, a lifted thigh went between two of them and through the cloth.
  */
 export const CLOTH = {
   around: true,
+  sides: 16,
   ease: 0.08,
   shortest: 0.06,
   bone: 0.12,
@@ -226,9 +229,6 @@ function alongMesh(position, index, line, centre, kept = null) {
   };
 }
 
-/** Which of the sides an angle is nearest (0 to 7). */
-const sideOf = (angle) => ((Math.round(angle / STEP) % SIDES.length) + SIDES.length) % SIDES.length;
-
 /**
  * How a hair style's or a hanging piece's mesh is rigged to move: { chains, title, skinIndex, skinWeight, was
  * (its own weights: { skinIndex, skinWeight }) }, or null when nothing of it hangs far enough to swing.
@@ -261,6 +261,10 @@ export function hangPlan(geometry, joints, hangs) {
   const { far, side } = along;
   if (hangs.around)
     for (let i = 0; i < count; i++) side[i] = Math.atan2(position[i * 3] - centre.x, centre.z - position[i * 3 + 2]);
+  // (The sides round: hair's eight, by name; cloth's sixteen, numbered round from the back by the left.)
+  const SIDES = hangs.sides ? Array.from({ length: hangs.sides }, (_, s) => `${s + 1}_of_${hangs.sides}`) : EIGHT_SIDES;
+  const STEP = (Math.PI * 2) / SIDES.length;
+  const sideOf = (angle) => ((Math.round(angle / STEP) % SIDES.length) + SIDES.length) % SIDES.length;
   const members = SIDES.map(() => []);
   let hanging = 0;
   for (let i = 0; i < count; i++)
@@ -283,7 +287,8 @@ export function hangPlan(geometry, joints, hangs) {
   const chainOf = new Array(SIDES.length).fill(null);
   SIDES.forEach((name, s) => {
     const points = members[s];
-    if (points.length < Math.max(24, hanging * 0.03)) return;
+    // (Enough hanging there for a chain: fewer points where there are more sides.)
+    if (points.length < (Math.max(24, hanging * 0.03) * EIGHT_SIDES.length) / SIDES.length) return;
     const lengths = points.map((i) => far[i]).sort((a, b) => a - b);
     const reach = lengths[Math.floor(lengths.length * 0.95)];
     if (reach < shortest) return;
@@ -294,7 +299,8 @@ export function hangPlan(geometry, joints, hangs) {
     );
     if (bands.filter((band) => band.length).length < 2) return;
     chainOf[s] = chains.length;
-    chains.push({ name: `${hangs.name}_${name}`, side: name, from, bones, step, bands });
+    // (`at` of `of`: which side it is, round from the back, for the chains beside it: springs.js.)
+    chains.push({ name: `${hangs.name}_${name}`, side: name, at: s, of: SIDES.length, from, bones, step, bands });
   });
   if (!chains.length) return null;
   // The first bone of each chain, as the new weights number them.
@@ -457,7 +463,12 @@ export function rigChains(plan, part, position, bones, stretch = null, prefix = 
       return bone;
     });
     made.push(...chainBones);
-    springs.push({ name: `${plan.title} (${chain.side.replace("_", " ")})`, bones: chainBones });
+    springs.push({
+      name: `${plan.title} (${chain.side.replaceAll("_", " ")})`,
+      bones: chainBones,
+      side: chain.at,
+      sides: chain.of,
+    });
   }
   // (Each point back through its new weights' blend at rest, the chains' bones adding nothing: there it rests.)
   if (moved) {
