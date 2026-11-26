@@ -1,5 +1,14 @@
 # 3D Avatar Maker release notes
 
+## 0.1.16 — 2026-11-26
+
+- The Animation list starts with **In a chat**: the avatar waiting, talking, thinking and listening as Marinara Engine shows it. A chat plays no recorded animation, so these four are what you'll see there.
+- Skin, underwear and socks that lie directly under clothes aren't drawn or saved, so they stop coming through as the avatar moves. Legs now show under skirts and dresses, and the chest in an open collar.
+- Skirts, dresses and coats are carried by the legs under them and move as one piece, with sixteen chains round in place of eight. First pass: a deeply pleated skirt still crumples when sitting.
+- A gentler **Happy** face, and a calmer **Relaxed** one.
+- Fixed: fingers curled through the palm in most animations.
+- Fixed: the sitting animation threw both hands up halfway through.
+
 ## 0.1.15 — 2026-11-23
 
 - Fixed: reopening the maker went back to the free draft instead of the character or persona you were last working on.

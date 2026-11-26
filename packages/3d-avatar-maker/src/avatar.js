@@ -26,7 +26,7 @@ import { byNearest, byPlace, bustWeights, findBust, rigBust } from "./bust.js";
 import { FACE_MOVES } from "./face.js";
 import { standFigure } from "./figure.js";
 import { CLOTH, HAIR, hangOf, hangPlan, rigChains, swingOf } from "./hair.js";
-import { depthOf, surfaceOf, tuckUnder } from "./layers.js";
+import { COVER_FAR, coveredBy, deepUnder, depthOf, isUnder, normalNear, surfaceOf, tuckUnder } from "./layers.js";
 import {
   ANTHRO_BARE_SLOTS,
   ANTHRO_SHAPES,
@@ -142,6 +142,26 @@ export const HIDE_WORDS = [
   "underwear-bottom",
   "hair",
 ];
+/** The regions a cloth piece hides only where its cloth lies over the skin (createAvatar): the trunk and the
+ *  limbs. The rest (the feet in shoes, the hands in gloves, the head) are hidden whole. */
+const UNDER_CLOTH = new Set(["neck", "torso", "hips", "upperarms", "forearms", "thighs", "calves"]);
+/**
+ * The triangles of a hanging piece that stay on the body: `index` without those its plan (hair.js hangPlan)
+ * swings, which have a point with half its weight or more on the plan's chains (numbered from `joints` on).
+ */
+function restingTriangles(index, plan, joints) {
+  const [bone, weight] = [plan.skinIndex.array, plan.skinWeight.array];
+  const swings = (v) => {
+    let share = 0;
+    for (let k = 0; k < 4; k++) if (bone[v * 4 + k] >= joints) share += weight[v * 4 + k];
+    return share >= 0.5;
+  };
+  const kept = [];
+  for (let i = 0; i + 2 < index.length; i += 3)
+    if (!swings(index[i]) && !swings(index[i + 1]) && !swings(index[i + 2]))
+      kept.push(index[i], index[i + 1], index[i + 2]);
+  return new index.constructor(kept);
+}
 /** The parts the regions hide (the skin, and underwear under the piece; an anthro body's fur or scales, and
  *  its claws and pads, which gloves would otherwise let through). */
 const COVERED = new Set([
@@ -1229,13 +1249,23 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     }
   const underwear = underwearWorn.filter((piece) => piece && !off.has(UNDERWEAR_FIELD_OF[piece.slot]));
   for (const piece of underwear) for (const word of piece.hides) if (!word.startsWith("underwear")) hides.add(word);
-  // (The body's own underwear: shown under clothes, only the words of what's worn on bare skin hide it.)
-  const bodyHides = filled.underwear.underClothes
-    ? new Set([
-        ...[...hides].filter((word) => !word.startsWith("underwear")),
-        ...[...off].map((field) => `underwear-${field}`),
-      ])
-    : hides;
+  // Clothes worn over each other (layers.js) are cloth: not what's fixed to a bone, the small things (rings,
+  // earrings, glasses) or the nails.
+  const layered = (slot, fixed) =>
+    !!slot && !fixed && !SMALL_SLOTS.has(slot) && !NAIL_SLOTS.some(([nail]) => nail === slot);
+  // What's hidden whole on the body. A cloth piece's words for the trunk and the limbs (UNDER_CLOTH) aren't:
+  // those hide the skin only where its cloth lies over it (below, once it's worn), so the legs under a skirt
+  // or a dress, the chest in an open collar and a bare shoulder stay. The feet in shoes and the hands in
+  // gloves go whole, as does whatever a piece that isn't cloth hides.
+  const whole = new Set();
+  for (const piece of [...pieces, ...underwear])
+    for (const word of piece.hides) if (!(UNDER_CLOTH.has(word) && layered(piece.slot, !!piece.bone))) whole.add(word);
+  // (The body's own underwear: shown under clothes, only the words of what's worn on bare skin hide it; not
+  // shown, it's left off whole under a piece that names it or covers the torso or hips, as a pack's is.)
+  const bodyHides = new Set([
+    ...[...whole].filter((word) => !word.startsWith("underwear") || !filled.underwear.underClothes),
+    ...[...off].map((field) => `underwear-${field}`),
+  ]);
   const flat = hides.has("neck") || hides.has("torso") || pieces.some((piece) => RUFF_SLOTS.has(piece.slot));
   const weights = keyWeights(filled, sex, kit.file.keys, flat);
   // The finger joints go where the look's keys put the knuckles (the kit's jointMoves: a dwarf's bigger
@@ -1464,7 +1494,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     // (Only what's this person's: the shared texture places, weights, face moves and triangles stay for the rest.)
     geometry.morphAttributes = {};
     for (const attribute of Object.keys(kit.shared)) geometry.deleteAttribute(attribute);
-    geometry.setIndex(null);
+    if (!geometry.userData.ownIndex) geometry.setIndex(null); // (its own, where clothes cover it: below)
     geometry.dispose();
     for (const material of materials) material.dispose();
   });
@@ -1479,21 +1509,39 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   // Clothes worn over each other (layers.js): worn from the outermost in, each piece's points kept under the
   // surfaces of those worn over it, and then the underwear under them all. Cloth only: not what's fixed to a
   // bone, the small things (rings, earrings, glasses) or the nails.
-  const outers = []; // { depth, surface } of each piece worn so far
-  const layered = (slot, fixed) =>
-    !!slot && !fixed && !SMALL_SLOTS.has(slot) && !NAIL_SLOTS.some(([nail]) => nail === slot);
-  const wearPart = ({ key, part: asMade, pictures, slot, piece, bone, hang, layer }, colourFor, hair = null) => {
+  // What then lies directly under cloth isn't drawn, nor saved: it would only come through as the body moves.
+  // `rest` is the piece without what hangs and swings (a skirt below its line), and `cover` the cloth that
+  // covers: that, or nothing at all of cloth with holes cut by its picture (what's under it shows through
+  // them). `regions`: the regions of skin the piece says it hides, hidden further under it (layers.js COVER_FAR).
+  const outers = []; // { depth, surface, rest, cover, regions } of each piece worn so far
+  const dressed = []; // the cloth worn that doesn't hang: { position, skinIndex, skinWeight, joints }
+  /** `all` (a layer's triangles) without those wholly under cloth (`covered`: layers.js coveredBy), or null if none are. */
+  const uncovered = (all, covered) => {
+    const deep = deepUnder(covered, all);
+    const kept = [];
+    for (let i = 0; i + 2 < all.length; i += 3) if (!isUnder(deep, all, i)) kept.push(all[i], all[i + 1], all[i + 2]);
+    return kept.length < all.length ? new all.constructor(kept) : null;
+  };
+  const wearPart = (
+    { key, part: asMade, pictures, slot, piece, bone, hang, layer, hides: words = [] },
+    colourFor,
+    hair = null,
+  ) => {
+    const regions = new Set(words.filter((word) => UNDER_CLOTH.has(word)));
     // (A piece fixed to a bone, fixedPart: it moves with that bone alone. It grows with the head as the hair
     // and eyes do, through the bone's stretch, and the look's shape keys move it as one: see `rigid` below.)
     const fixed = bone ? fixedPart(asMade, bone, kit.file) : null;
     const part = fixed ?? asMade;
     const depth = layered(slot, fixed) ? depthOf(slot, layer) : null;
-    const over = depth === null ? [] : outers.filter((outer) => outer.depth > depth + 1e-6).map((o) => o.surface);
+    const overs = depth === null ? [] : outers.filter((outer) => outer.depth > depth + 1e-6);
+    const over = overs.map((outer) => outer.surface);
     // (Cloth that hangs, from its line between the hips and knees: hair.js. Its chains hang from the hips, or
     // from the spine bone at its line.)
     let hangs = hair;
     if (!fixed && hang !== undefined && hang !== null) {
-      const line = kit.legs.hip - hang * (kit.legs.hip - kit.legs.knee);
+      // (No lower than the hip joints, wherever the piece says its cloth leaves the body: cloth that stays on
+      // the hips below them can't be lifted by a thigh, which then comes through it.)
+      const line = kit.legs.hip - Math.min(hang, 0) * (kit.legs.hip - kit.legs.knee);
       hangs = {
         ...CLOTH,
         line,
@@ -1588,7 +1636,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
         const own = geometry;
         owned.push(() => {
           for (const attribute of borrowed) own.deleteAttribute(attribute);
-          own.setIndex(null);
+          if (!own.userData.ownIndex) own.setIndex(null);
           own.dispose();
         });
       }
@@ -1598,9 +1646,31 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
           const rest = shared.attributes.position.array;
           const near = (made.near ??= nearestSkin(kit, rest));
           tuckUnder(points, 0, points.length / 3, near, CARRY_NEAREST, normal, over, shared.index.array);
+          // (Its triangles directly under the layers over it aren't drawn. Its own geometry: `placed`.)
+          const covers = overs.flatMap((outer) => (outer.cover ? [{ surface: outer.cover }] : []));
+          const normalAt = (v, out) => normalNear(near, CARRY_NEAREST, normal, v, out);
+          const shown = uncovered(shared.index.array, coveredBy(points, 0, points.length / 3, normalAt, covers));
+          if (shown) {
+            geometry.setIndex(new BufferAttribute(shown, 1));
+            geometry.userData = { ...geometry.userData, ownIndex: true, distant: undefined };
+          }
         }
         const full = shared.userData.distant?.full ?? { start: 0, count: shared.index.count };
-        outers.push({ depth, surface: surfaceOf(points, shared.index.array, full.start, full.count) });
+        const surface = surfaceOf(points, shared.index.array, full.start, full.count);
+        // (What of it stays on the body: the triangles its plan doesn't swing, hair.js hangPlan.)
+        const resting = plan ? (made.resting ??= restingTriangles(shared.index.array, plan, part.joints.length)) : null;
+        const rest = resting ? surfaceOf(points, resting) : surface;
+        outers.push({ depth, surface, rest, cover: mesh.alpha ? null : rest, regions });
+        // (What doesn't hang makes the legs it's on as thick as it is, for the cloth that does: springs.js.)
+        if (!plan) {
+          const { skinIndex, skinWeight } = geometry.attributes;
+          dressed.push({
+            position: points,
+            skinIndex: skinIndex.array,
+            skinWeight: skinWeight.array,
+            joints: part.joints,
+          });
+        }
       }
       const material = new MeshLambertMaterial({
         map: mesh.texture ? texture(mesh.texture, pictures) : null,
@@ -1618,7 +1688,9 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
         const rig = rigChains(plan, part, geometry.attributes.position.array, bones, stretch, m ? `${m}_` : "");
         added.bones.push(...rig.bones);
         added.inverses.push(...rig.inverses);
-        for (const spring of rig.springs) springs.push({ ...spring, joint: hangs.joint, meets: hangs.meets });
+        // (`ring`: the piece of cloth or hair its chains are of, which ties cloth's side to side: springs.js.)
+        for (const spring of rig.springs)
+          springs.push({ ...spring, joint: hangs.joint, meets: hangs.meets, ring: rig });
       }
       if (busty) {
         added.bones.push(...bustRig.bones);
@@ -1650,13 +1722,55 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     const surfaces = outers.map((outer) => outer.surface);
     tuckUnder(position, mesh.start, mesh.count, near, CARRY_NEAREST, normal, surfaces, mesh.index);
   }
+  // The skin (and the body's own underwear) directly under cloth isn't drawn either: the body's triangles
+  // without those, in the same groups.
+  // (A piece's cloth with holes covers nothing directly, but still hides the regions it says it hides.)
+  const covers = outers.flatMap((outer) => (outer.cover ? [{ surface: outer.cover }] : []));
+  const hiders = outers.flatMap((outer) =>
+    outer.regions.size ? [{ surface: outer.rest, regions: outer.regions }] : [],
+  );
+  if (covers.length || hiders.length) {
+    const covered = new Uint8Array(position.length / 3);
+    for (const mesh of kit.meshes) {
+      if (!COVERED.has(mesh.part) || !isWorn(mesh, filled, sex)) continue;
+      const normalAt = (v, out) => {
+        for (let c = 0; c < 3; c++) out[c] = normal[(mesh.start + v) * 3 + c];
+        return true;
+      };
+      const near = coveredBy(position, mesh.start, mesh.count, normalAt, covers);
+      const inRegion = (v, cover) => cover.regions.has(kit.regions[mesh.start + v]);
+      const far = coveredBy(position, mesh.start, mesh.count, normalAt, hiders, COVER_FAR, inRegion);
+      for (let v = 0; v < mesh.count; v++) covered[mesh.start + v] = near[v] | far[v];
+    }
+    const all = index.array;
+    const drawn = groups.reduce((most, group) => Math.max(most, group.start + group.count), 0);
+    const deep = deepUnder(covered, all, 0, 0, drawn);
+    const kept = [];
+    const ranges = groups.map((group) => {
+      const start = kept.length;
+      for (let i = group.start; i < group.start + group.count; i += 3)
+        if (!isUnder(deep, all, i)) kept.push(all[i], all[i + 1], all[i + 2]);
+      return { start, count: kept.length - start };
+    });
+    if (kept.length < drawn) {
+      geometry.setIndex(new BufferAttribute(new all.constructor(kept), 1));
+      geometry.userData.ownIndex = true;
+      geometry.clearGroups();
+      ranges.forEach(({ start, count }, i) => {
+        geometry.addGroup(start, count, i);
+        geometry.groups[i].distant = { full: { start, count }, far: { start, count: 0 } };
+      });
+    }
+  }
 
   // A tail worn swings too, kept out of the legs.
   const tail = TAIL_BONES.map((name) => bones.get(name)).filter(Boolean);
   const tailWorn = kit.meshes.some((mesh) => mesh.piece?.startsWith("tail-") && isWorn(mesh, filled, sex));
   if (tailWorn && tail.length > 1) springs.push({ name: "Tail", bones: tail, joint: TAIL_JOINT, meets: "legs" });
   // (Each spring meets its own colliders: springs.js fitColliders may leave one out where a lock rests on it.)
-  const colliders = springs.length ? bodyColliders(kit, position, bones) : { body: [], legs: [], cloth: [], arms: [] };
+  const colliders = springs.length
+    ? bodyColliders(kit, position, bones, dressed)
+    : { body: [], legs: [], cloth: [], arms: [] };
   for (const spring of springs) spring.colliders = [...colliders[spring.meets]];
 
   const figure = standFigure(root, bones, filled.height * race.height);

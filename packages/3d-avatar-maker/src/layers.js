@@ -176,3 +176,104 @@ export function tuckUnder(position, start, count, near, per, skinNormal, outers,
   }
   return moved;
 }
+
+// ── What's directly under cloth isn't drawn ──
+// Kept under an outer layer at rest, an inner layer or the skin still comes through it when the body moves:
+// each is weighted to the bones a little differently, so a bent knee pushes through jeans and a bra through
+// a tee. So the triangles lying directly under cloth aren't drawn (nor saved in the file). Only those: a
+// point counts as covered where an outer surface passes within COVER_NEAR of it along the skin's normal (or
+// within COVER_FAR, for skin in a region the piece says it hides), so the thighs under a full skirt, the
+// collar bones in an open neckline and a shoulder a strap leaves bare stay, and COVER_MARGIN edges in from
+// where the cover ends stay too, so nothing is missing at a hem, a cuff or a collar seen from the side.
+// Cloth that hangs and swings (a skirt below its line) covers nothing: avatar.js leaves it out of `covers`.
+
+/** How many edges in from where its cover ends a covered triangle still shows. */
+export const COVER_MARGIN = 2;
+/** How far under a point cloth still covers it (metres): cloth the skin stands a little through at rest.
+ *  (Not the full reach: through an ear or a finger, the far side of a hat or glove is that close.) */
+export const COVER_SINK = 0.004;
+
+/** The skin's normal at point `v` of a layer (its nearest skin `near`, as tuckUnder's), into `out`; false if it has none. */
+export function normalNear(near, per, skinNormal, v, out) {
+  let [nx, ny, nz] = [0, 0, 0];
+  for (let k = 0; k < per; k++) {
+    const id = near.ids[v * per + k] * 3;
+    const share = near.shares[v * per + k];
+    nx += skinNormal[id] * share;
+    ny += skinNormal[id + 1] * share;
+    nz += skinNormal[id + 2] * share;
+  }
+  const length = Math.hypot(nx, ny, nz);
+  if (length < 1e-6) return false;
+  out[0] = nx / length;
+  out[1] = ny / length;
+  out[2] = nz / length;
+  return true;
+}
+
+/** How far over a point cloth still covers it (metres): further than LAYER_REACH, as a tee stands off the
+ *  skin under the arm and jeans off the crease of the hip, where a moving body comes through first. */
+export const COVER_NEAR = 0.04;
+/** How far over the skin a piece's cloth still hides a region the piece says it hides (metres): a robe's
+ *  sleeve over the arm, wide trousers over the calf. */
+export const COVER_FAR = 0.08;
+
+/**
+ * Which of the `count` points of `position` from vertex `start` lie under cloth: 1 where one of the `covers`
+ * ({ surface (surfaceOf) }) passes within `reach` (COVER_NEAR unless said) over the point along its normal
+ * (`normalAt(v, out)`, v from 0, false for none), or COVER_SINK under it. `counts(v, cover)`, when given, says whether a cover counts for
+ * a point at all.
+ */
+export function coveredBy(position, start, count, normalAt, covers, reach = COVER_NEAR, counts = null) {
+  const covered = new Uint8Array(count);
+  if (!covers.length) return covered;
+  const n = [0, 0, 0];
+  for (let v = 0; v < count; v++) {
+    if (!normalAt(v, n)) continue;
+    const at = (start + v) * 3;
+    const [px, py, pz] = [position[at], position[at + 1], position[at + 2]];
+    const [ox, oy, oz] = [px - n[0] * COVER_SINK, py - n[1] * COVER_SINK, pz - n[2] * COVER_SINK];
+    // (Cell by cell out along the normal: each cell holds every triangle within LAYER_REACH of it.)
+    search: for (let out = 0; out <= reach; out += CELL) {
+      const key = cellAt(
+        Math.floor((px + n[0] * out) / CELL),
+        Math.floor((py + n[1] * out) / CELL),
+        Math.floor((pz + n[2] * out) / CELL),
+      );
+      for (const cover of covers) {
+        if (counts && !counts(v, cover)) continue;
+        for (const tri of cover.surface.cells.get(key) ?? [])
+          if (meets(cover.surface, tri, ox, oy, oz, n[0], n[1], n[2]) <= COVER_SINK + reach) {
+            covered[v] = 1;
+            break search;
+          }
+      }
+    }
+  }
+  return covered;
+}
+
+/**
+ * The covered points far enough in from where their cover ends: `covered` (coveredBy) with every point of a
+ * triangle that has an uncovered point taken out, COVER_MARGIN times over. `index` is the layer's triangles
+ * (from `from` for `length` indices), numbered from vertex `start`.
+ */
+export function deepUnder(covered, index, start = 0, from = 0, length = index.length - from, margin = COVER_MARGIN) {
+  let deep = covered;
+  for (let ring = 0; ring < margin; ring++) {
+    const next = deep.slice();
+    for (let i = from; i + 2 < from + length; i += 3) {
+      const [a, b, c] = [index[i] - start, index[i + 1] - start, index[i + 2] - start];
+      if (deep[a] && deep[b] && deep[c]) continue;
+      if (a >= 0 && a < next.length) next[a] = 0;
+      if (b >= 0 && b < next.length) next[b] = 0;
+      if (c >= 0 && c < next.length) next[c] = 0;
+    }
+    deep = next;
+  }
+  return deep;
+}
+
+/** Whether the triangle at `i` of `index` (numbered from vertex `start`) is wholly `deep` (deepUnder) under cloth. */
+export const isUnder = (deep, index, i, start = 0) =>
+  deep[index[i] - start] === 1 && deep[index[i + 1] - start] === 1 && deep[index[i + 2] - start] === 1;
