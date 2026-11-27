@@ -898,7 +898,7 @@ Female bodies and everything fitted to them are untouched: that is the backup, a
   dark picture, a normal map made from its height map, and a roughness map raised from the character's (as
   it has it the skin looks wet in plain shading). The maker blends light and dark on a canvas by the tone
   slider. The eye's clear front is the alpha of its sclera picture: those faces are a part of their own,
-  drawn black and 30% solid, which keeps a glint. Between the legs the pictures are blurred to plain skin.
+  drawn black and 30% solid, which keeps a glint. Between the legs the pictures were blurred to plain skin (0.1.20 paints underwear there instead).
 - **Hair.** Each strand style is Blender particle hair on a copy of the body. The script turns the style's
   own strands and a few of Blender's copies round each into about 4,500 flat ribbons (85,000 to 100,000
   triangles), with a cap of the scalp near the roots, fading at its edge. In the maker each strand moves
@@ -916,6 +916,30 @@ Female bodies and everything fitted to them are untouched: that is the backup, a
 
 Still to do on it, in the order asked: eyelashes; eye colours; more skins and makeup; clothes and underwear
 refitted to it; hair that swings; the two hair styles left out; the rest of the morphs as sliders.
+
+## Built: painted underwear on the Realistic body, and a switch for it (0.1.20)
+
+Asked for: a switch for the blurred skin, the same for the nipples on a female build; covered to start with,
+as simple underwear thin enough never to clip, perhaps just painted black; the switch takes it off. Then:
+make it look like actual underwear, panties for a female build and boxer briefs for a male one.
+
+- **Painted on the skin's pictures** (`make_realistic.py` `write_textures`). For each texel of the torso and
+  legs tiles the script works out where on the body it is (`place_map`: the base shape's points across each
+  UV triangle, run a few texels past each island's edge so no skin shows along a seam). Each garment is a
+  region of the body in metres, given as how deep inside it a place is, with its lighter trim:
+  `panties` (under a waist line, above a leg line that rises from between the legs along the groin's crease,
+  cut high in front and lower behind, hemmed); `bra` (a cup over each breast hung on the bust's furthest
+  point forward, a band all the way round, a bridge between the cups, and a strap from each cup over the
+  shoulder and down the back); `boxer_briefs` (a wide elastic, legs a hand's width down the thigh, and the
+  two seams that shape the front). Inside one, the colour becomes dark cloth, the relief is smoothed and
+  the roughness raised. Being the skin's own picture, it moves with every slider and pose and cannot clip.
+- **Three ways** for the torso and the legs (bare, `-female`, `-male`), each a light and dark colour, a
+  normal map and a roughness map: 16 more pictures, about 0.7 MB.
+- **In the maker** (`realistic.js` `coverOf`): covered unless the look has `realBare`; the female set on the
+  female side of the first slider (0 and up), the male set below. A tick box on the body's Clothes tab. The
+  bare pictures are the model's own, with nothing blurred: the blurred patch of 0.1.19 is gone.
+- Check: each build takes the pictures its cover names, nothing is painted on the head or arms, and the kit
+  has every one of them.
 
 ## Next, in order
 

@@ -381,10 +381,24 @@ export function createPanel(actions) {
         ),
       ),
     ],
-    clothes: () => [
+    clothes: ({ filled }) => [
       group(
         "Clothes",
         "This body has no clothes yet. They will be fitted to it in a later version; the other two bodies keep theirs.",
+      ),
+      group(
+        "Painted underwear",
+        "Dark underwear painted on the skin: panties and a bra on a female build, boxer briefs on a male one. It is part of the skin's picture, so nothing can show through it, and it is saved with the avatar.",
+        h(
+          "label",
+          { class: "check" },
+          h("input", {
+            type: "checkbox",
+            checked: !filled.realBare,
+            onchange: (event) => change({ realBare: event.target.checked ? undefined : true }),
+          }),
+          " Painted underwear (untick for bare skin, as the model has it)",
+        ),
       ),
     ],
   };

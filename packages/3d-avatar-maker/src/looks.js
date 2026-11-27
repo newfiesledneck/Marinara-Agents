@@ -254,6 +254,8 @@ export function checkLook(raw) {
   }
   if (Number.isFinite(raw.realTone)) look.realTone = Math.max(0, Math.min(1, Number(raw.realTone)));
   if (REALISTIC_HAIR.some(([style]) => style === raw.realHair)) look.realHair = raw.realHair;
+  // (Its painted underwear is on unless this is set.)
+  if (raw.realBare === true) look.realBare = true;
   // Which kind of body (missing: a human, unless lore or their race says otherwise), and a dragon's wings.
   if (SPECIES.some(([species]) => species === raw.species)) look.species = raw.species;
   if (typeof raw.wings === "boolean") look.wings = raw.wings;

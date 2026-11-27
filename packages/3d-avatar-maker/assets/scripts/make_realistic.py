@@ -9,6 +9,7 @@ Writes, for scripts/build-3d-avatar-maker-kit.mjs to pack:
   shape sliders as shape keys, and its brows; realistic-body.json beside it (how each slider moves the joints).
 - assets/models/realistic-hair-<style>.glb: each of its strand hair styles as narrow ribbons over a cap.
 - assets/textures/realistic/*.webp: the skin (light and dark), its normal and roughness maps, eyes and mouth.
+  The torso and legs come bare, and with underwear painted on (panties and a bra, or boxer briefs).
 
 The character lives outside the repository: in `VITRUVIAN_DATA`, else in
 `_planning/Wanderworld asset packs/Vitruvian/CharMorph-Vitruvian-main` in this folder or any above it.
@@ -326,71 +327,166 @@ def normal_from_height(height, strength):
     return n * 0.5 + 0.5
 
 
-def uv_mask(size, triangles):
-    """A picture (size x size, rows bottom up) that is 1 inside the UV `triangles` (n x 3 x 2, in 0..1)."""
-    mask = np.zeros((size, size), dtype=bool)
-    for tri in triangles * size:
-        lo = np.floor(tri.min(axis=0)).astype(int).clip(0, size - 1)
-        hi = np.ceil(tri.max(axis=0)).astype(int).clip(0, size - 1)
-        xs, ys = np.meshgrid(np.arange(lo[0], hi[0] + 1) + 0.5, np.arange(lo[1], hi[1] + 1) + 0.5)
-        (ax, ay), (bx, by), (cx, cy) = tri
-        d = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
-        if abs(d) < 1e-12:
+def place_map(C, tile, size):
+    """Where on the body each texel of `tile` is: (size, size, 3) points of the base shape (rows bottom up), and
+    which texels have one. Past an island's edge the nearest point is repeated a few texels out, so what is
+    painted by place runs under the seam and no skin shows along it."""
+    place = np.zeros((size, size, 3), dtype=np.float64)
+    known = np.zeros((size, size), dtype=bool)
+    shape = C["shape"]
+    for f, face in enumerate(C["faces"]):
+        if C["tiles"][f] != tile or SLOTS[C["slots"][f]] not in ("UDIM.Skin", "charmorph_censor"):
             continue
-        u = ((by - cy) * (xs - cx) + (cx - bx) * (ys - cy)) / d
-        v = ((cy - ay) * (xs - cx) + (ax - cx) * (ys - cy)) / d
-        inside = (u >= -0.02) & (v >= -0.02) & (u + v <= 1.02)
-        mask[lo[1] : hi[1] + 1, lo[0] : hi[0] + 1] |= inside
-    return mask
+        corners = C["uv01"][C["starts"][f] : C["starts"][f] + C["totals"][f]] * size
+        points = shape[list(face)]
+        for k in range(1, len(face) - 1):
+            tri = corners[[0, k, k + 1]]
+            at = points[[0, k, k + 1]]
+            lo = np.floor(tri.min(axis=0)).astype(int).clip(0, size - 1)
+            hi = np.ceil(tri.max(axis=0)).astype(int).clip(0, size - 1)
+            xs, ys = np.meshgrid(np.arange(lo[0], hi[0] + 1) + 0.5, np.arange(lo[1], hi[1] + 1) + 0.5)
+            (ax, ay), (bx, by), (cx, cy) = tri
+            d = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
+            if abs(d) < 1e-12:
+                continue
+            u = ((by - cy) * (xs - cx) + (cx - bx) * (ys - cy)) / d
+            v = ((cy - ay) * (xs - cx) + (ax - cx) * (ys - cy)) / d
+            inside = (u >= -0.02) & (v >= -0.02) & (u + v <= 1.02)
+            if not inside.any():
+                continue
+            w = 1 - u - v
+            found = u[..., None] * at[0] + v[..., None] * at[1] + w[..., None] * at[2]
+            window = (slice(lo[1], hi[1] + 1), slice(lo[0], hi[0] + 1))
+            place[window][inside] = found[inside]
+            known[window][inside] = True
+    for _ in range(12):
+        grown = known.copy()
+        for axis, step in ((0, 1), (0, -1), (1, 1), (1, -1)):
+            near = np.roll(known, step, axis=axis) & ~grown
+            place[near] = np.roll(place, step, axis=axis)[near]
+            grown |= near
+        known = grown
+    return place, known
 
 
-def smoothed_over(picture, mask, feather):
-    """`picture` with the part under `mask` blurred until only its broad colour is left, the edge feathered:
-    the skin left plain there."""
-    if not mask.any():
-        return picture
-    soft = blurred(mask.astype(np.float64)[:, :, None], feather)
-    cover = np.clip(soft * 2.2, 0, 1)
-    plain = blurred(blurred(picture, feather * 2), feather * 2)
-    return picture * (1 - cover) + plain * cover
+def smoothstep(e0, e1, x):
+    t = np.clip((x - e0) / (e1 - e0), 0, 1)
+    return t * t * (3 - 2 * t)
 
 
-def face_uv_triangles(C, chosen, tile):
-    """The UV triangles (in the tile's own 0..1) of faces `chosen` (indices) that lie in `tile`."""
-    out = []
-    for f in chosen:
-        if C["tiles"][f] != tile:
-            continue
-        corners = C["uv01"][C["starts"][f] : C["starts"][f] + C["totals"][f]]
-        for k in range(1, len(corners) - 1):
-            out.append([corners[0], corners[k], corners[k + 1]])
-    return np.array(out, dtype=np.float64).reshape(-1, 3, 2)
+# The painted underwear: dark cloth drawn on the skin's own pictures, so it can never clip. Panties and a bra
+# for a female build, boxer briefs for a male one. Places are the base shape's (metres; x across, y back,
+# z up); painted on the skin, they move with it under every slider.
+CLOTH = (0.075, 0.075, 0.085)  # its colour (sRGB)
+CLOTH_TRIM = (0.21, 0.21, 0.23)  # its elastic, hems and seams: a lighter line
+CLOTH_ROUGH = 0.86
+EDGE = 0.0022  # how wide its edge fades (metres)
+HEM = 0.0045  # how wide a hem's lighter line is
+CROTCH = 0.79  # the height the cloth between the legs starts at
+PANTIES_TOP = 0.958
+BOXERS_TOP = 0.988
+BOXERS_BAND = 0.03  # the boxer briefs' elastic
+BOXERS_LEG = 0.722  # where their legs end
+CUP = (0.08, 0.074)  # a bra cup's half width and half height
+BRA_BAND = (0.07, 0.042)  # its band, from this far under the bust's furthest point forward to this far under
+STRAP = (0.097, 0.0065)  # where a strap crosses the shoulder (from the middle), and its half width
+
+
+def line(depth, width=HEM):
+    """A lighter line `width` wide just inside an edge, from how deep inside it each place is."""
+    return smoothstep(0, EDGE, depth) * (1 - smoothstep(width, width + EDGE, depth))
+
+
+def panties(place):
+    """Panties: how deep inside them each place is (metres; under 0 outside), and their lighter trim (0…1)."""
+    x, y, z = np.abs(place[..., 0]), place[..., 1], place[..., 2]
+    out = np.maximum(0, x - 0.045)
+    front = CROTCH + 1.0 * out  # (the leg's line: up along the groin's crease to the hip, cut high)
+    back = 0.815 + 0.62 * out  # (lower behind, over the buttocks)
+    leg = front + (back - front) * smoothstep(-0.02, 0.05, y)
+    depth = np.minimum(PANTIES_TOP - z, z - leg)
+    return depth, line(depth)
+
+
+def boxer_briefs(place):
+    """Boxer briefs: a wide elastic at the waist, legs a hand's width down the thigh, and the two seams that
+    shape the front."""
+    x, y, z = np.abs(place[..., 0]), place[..., 1], place[..., 2]
+    depth = np.minimum(BOXERS_TOP - z, z - BOXERS_LEG)
+    elastic = smoothstep(0, EDGE, z - (BOXERS_TOP - BOXERS_BAND)) * smoothstep(0, EDGE, depth)
+    seam = 0.022 + 0.33 * (z - 0.8)  # (from between the legs up and outwards to the elastic)
+    seams = (1 - smoothstep(0.0009, 0.0009 + EDGE * 0.6, np.abs(x - seam))) * (y < -0.02) * (z > 0.8) * (z < BOXERS_TOP - BOXERS_BAND)
+    return depth, np.maximum(np.maximum(elastic * 0.75, line(z - BOXERS_LEG)), seams * 0.8)
+
+
+def bra(place, bust, shoulder):
+    """A bra: a cup over each breast (`bust`: how far from the middle, and how high, its furthest point forward
+    is), a band under them all the way round, and a strap from each cup over the shoulder (`shoulder`: its
+    height there) and down the back."""
+    x, y, z = np.abs(place[..., 0]), place[..., 1], place[..., 2]
+    ax, az = bust
+    front = y < 0.02
+    cup = np.where(front, (1 - np.sqrt(((x - ax) / CUP[0]) ** 2 + ((z - az + 0.004) / CUP[1]) ** 2)) * CUP[1], -1.0)
+    band = np.minimum(z - (az - BRA_BAND[0]), (az - BRA_BAND[1]) - z)
+    # (Between the cups, the band rises to join them.)
+    bridge = np.where(front, np.minimum(np.minimum(z - (az - BRA_BAND[0]), (az - 0.018) - z), ax - x), -1.0)
+    up = np.clip((z - (az + CUP[1] * 0.6)) / max(1e-6, shoulder - (az + CUP[1] * 0.6)), 0, 1)
+    across = np.where(front, ax + (STRAP[0] - ax) * up, STRAP[0])
+    strap = np.minimum(STRAP[1] - np.abs(x - across), z - (az - BRA_BAND[1] - 0.004))
+    depth = np.maximum(np.maximum(cup, band), np.maximum(bridge, strap))
+    return depth, line(depth, HEM * 0.8)
 
 
 def write_textures(C):
-    """The skin's pictures for each tile (light, dark, normal, roughness), the eyes' and the mouth's."""
+    """The skin's pictures for each tile (light, dark, normal, roughness), the eyes' and the mouth's. The torso's
+    and legs' come three ways: bare as the character has them (no suffix), and with underwear painted on for a
+    female build (`-female`: panties and a bra) and for a male one (`-male`: boxer briefs)."""
     centres = np.array([C["shape"][list(face)].mean(axis=0) for face in C["faces"]])
-    private = [f for f in range(len(C["faces"])) if C["slots"][f] == SLOTS.index("charmorph_censor") and centres[f, 2] < 1.1]
+    shape = C["shape"]
+    # (The bra is hung on the bust's furthest point forward, among the skin the character itself covers there.)
+    chest = sorted({i for f, face in enumerate(C["faces"]) if C["slots"][f] == SLOTS.index("charmorph_censor") and centres[f, 2] > 1.1 for i in face})
+    furthest = shape[chest][np.argmin(shape[chest, 1])]
+    bust = (abs(furthest[0]), furthest[2])
+    over = np.abs(np.abs(shape[:, 0]) - STRAP[0]) < 0.01
+    shoulder = shape[over & (shape[:, 2] < bust[1] + 0.3), 2].max()
+    log(f"the bust {bust[0]:.3f} m from the middle at {bust[1]:.3f} m up; the shoulder under a strap at {shoulder:.3f} m")
     for tile, part in SKIN_TILES.items():
         size = 2048
         small = 2048 if part == "head" else 1024
-        # (Between the legs the skin is left plain: the colour round it, and no relief.)
-        mask = uv_mask(size, face_uv_triangles(C, private, tile))
-        for tone in ("Light", "Dark"):
-            colour = to_srgb(exr(f"{tone}_Skin_Color.{tile}", size)[:, :, :3])
-            save_picture(f"realistic-skin-{part}-{tone.lower()}", smoothed_over(colour, mask, 10))
+        covers = {"": None}
+        if part in ("torso", "legs"):
+            place, known = place_map(C, tile, size)
+            hers, hers_trim = panties(place)
+            his, his_trim = boxer_briefs(place)
+            if part == "torso":
+                top, top_trim = bra(place, bust, shoulder)
+                hers_trim = np.where(top > hers, top_trim, hers_trim)
+                hers = np.maximum(hers, top)
+            covers = {"": None, "-female": (np.where(known, hers, -1.0), hers_trim), "-male": (np.where(known, his, -1.0), his_trim)}
+        colours = {tone: to_srgb(exr(f"{tone}_Skin_Color.{tile}", size)[:, :, :3]) for tone in ("Light", "Dark")}
         height = exr(f"Skin_Height.{tile}", small)[:, :, :1]
-        if mask.any():
-            height = smoothed_over(height, uv_mask(small, face_uv_triangles(C, private, tile)), 6)
-        save_picture(f"realistic-skin-{part}-normal", normal_from_height(height[:, :, 0], 0.004 if part == "head" else 0.002), 94)
-        rough = exr(f"Skin_Roughness.{tile}", 1024)[:, :, 0]
-        # (glTF keeps roughness in the green channel. As the character has it the skin looks wet in plain
-        # shading, which has no light going through the skin to soften it: raised.)
-        orm = np.ones((1024, 1024, 3), dtype=np.float32)
-        orm[:, :, 1] = np.clip(0.32 + rough * 0.54, 0.05, 1)
-        orm[:, :, 2] = 0
-        save_picture(f"realistic-skin-{part}-rough", orm, 80)
-        log(f"skin pictures: {part}")
+        rough = np.clip(0.32 + exr(f"Skin_Roughness.{tile}", 1024)[:, :, 0] * 0.54, 0.05, 1)
+        for suffix, cover in covers.items():
+            cloth = None if cover is None else smoothstep(0, EDGE, cover[0])[:, :, None]
+            for tone, colour in colours.items():
+                if cloth is not None:
+                    trim = cover[1][:, :, None]
+                    dyed = np.array(CLOTH) * (1 - trim) + np.array(CLOTH_TRIM) * trim
+                    colour = colour * (1 - cloth) + dyed * cloth
+                save_picture(f"realistic-skin-{part}-{tone.lower()}{suffix}", colour)
+            # (Cloth lies smooth over the skin's relief, and is not as glossy.)
+            step = size // small
+            lower = cloth[::step, ::step] if cloth is not None else None
+            relief = height if lower is None else height * (1 - lower) + blurred(blurred(height, 8), 8) * lower
+            save_picture(f"realistic-skin-{part}-normal{suffix}", normal_from_height(relief[:, :, 0], 0.004 if part == "head" else 0.002), 94)
+            # (glTF keeps roughness in the green channel. As the character has it the skin looks wet in plain
+            # shading, which has no light going through the skin to soften it: raised.)
+            least = cloth[:: size // 1024, :: size // 1024, 0] if cloth is not None else 0
+            orm = np.ones((1024, 1024, 3), dtype=np.float32)
+            orm[:, :, 1] = rough * (1 - least) + CLOTH_ROUGH * least
+            orm[:, :, 2] = 0
+            save_picture(f"realistic-skin-{part}-rough{suffix}", orm, 80)
+        log(f"skin pictures: {part} ({len(covers)} of each)")
     save_picture("realistic-iris", to_srgb(exr("Iris_Color.1007", 1024)[:, :, :3]))
     save_picture("realistic-eye", to_srgb(exr("Sclera_Color.1005", 1024)[:, :, :3]))
     save_picture("realistic-mouth", to_srgb(exr("Mouth_Color.1008", 1024)[:, :, :3]))

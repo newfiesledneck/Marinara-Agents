@@ -2825,6 +2825,39 @@ for (const figure of Object.values(made)) figure.dispose();
   for (const key of FACE_MOVES)
     assert.ok(vrm.expressionManager.getExpression(key), `realistic: its VRM has the ${key} expression`);
   assert.ok(vrm.lookAt, "realistic: its VRM's eyes can look");
+  // Underwear is painted on the skin unless the look goes bare: panties and a bra on the female side of the
+  // first slider, boxer briefs on the male side. Each is a picture of its own in the kit.
+  {
+    const pictures = (of) =>
+      Object.fromEntries(
+        ["head", "torso", "arms", "legs"].map((part) => {
+          const { map, normalMap, roughnessMap } = mesh(of, `skin_${part}`).material;
+          return [part, [map.name, normalMap.name, roughnessMap.name]];
+        }),
+      );
+    const dressed = await createAvatar(start(), "Test", "auto");
+    const boxers = await createAvatar(start({ realShape: { gender: -1 } }), "Test", "auto");
+    const bare = await createAvatar(start({ realBare: true }), "Test", "auto");
+    assert.equal(checkLook({ body: REALISTIC, realBare: "yes" }).realBare, undefined, "going bare takes a plain true");
+    assert.deepEqual(pictures(dressed).torso, [
+      "realistic-skin-torso-light-female",
+      "realistic-skin-torso-normal-female",
+      "realistic-skin-torso-rough-female",
+    ]);
+    assert.equal(pictures(dressed).legs[0], "realistic-skin-legs-light-female", "the panties' edge runs onto the legs");
+    assert.equal(pictures(boxers).torso[0], "realistic-skin-torso-light-male", "a male build has boxer briefs");
+    assert.equal(pictures(boxers).legs[2], "realistic-skin-legs-rough-male", "whose legs are on the legs' pictures");
+    assert.equal(pictures(bare).torso[0], "realistic-skin-torso-light", "bare, the skin is as the model has it");
+    assert.equal(pictures(bare).legs[1], "realistic-skin-legs-normal");
+    for (const made of [dressed, boxers, bare]) {
+      assert.equal(pictures(made).head[0], "realistic-skin-head-light", "nothing is painted on the head");
+      assert.equal(pictures(made).arms[2], "realistic-skin-arms-rough", "or on the arms");
+      for (const names of Object.values(pictures(made)))
+        for (const name of names)
+          assert.ok((await readFile(join(kitRoot, "avatar", `${name}.webp`))).length > 500, `the kit has ${name}`);
+      made.dispose();
+    }
+  }
   for (const made of [figure, male, leggy, tall]) made.dispose();
 }
 console.log("3d-avatar-maker.regression: ok");

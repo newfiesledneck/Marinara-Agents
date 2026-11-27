@@ -67,8 +67,12 @@ bodies, which stay as they are with everything made for them. So far it has:
 - Four hair styles on the Hair tab, each made of thousands of separate strands, in any hair colour.
 - The same blinks, mouth shapes and feelings, the preview's poses and animations, and saving as a VRM or GLB.
 
-It has no clothes, underwear, eyelashes, eye colours or makeup yet, and its hair doesn't swing yet. Its
-skin is left plain between the legs. Generate makes one of the other two bodies.
+- Underwear painted on the skin: panties and a bra on a female build, boxer briefs on a male one (the first
+  slider decides which). It is part of the skin's picture, so nothing can show through it. **Painted
+  underwear** on the Clothes tab is ticked to start with; untick it for bare skin as the model has it.
+
+It has no clothes, fitted underwear, eyelashes, eye colours or makeup yet, and its hair doesn't swing yet.
+Generate makes one of the other two bodies.
 
 ## Wardrobe packs
 
