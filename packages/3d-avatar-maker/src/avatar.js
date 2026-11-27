@@ -142,6 +142,9 @@ export const HIDE_WORDS = [
   "underwear-bottom",
   "hair",
 ];
+/** Where a skirt's, dress's or coat's cloth hangs from at the lowest: the waist, this share of the way from
+ *  the hip joints to the knees above the hips (as a piece's own `hang`, hair.js hangOf, which is below 0 there). */
+const HANG_FROM = -0.3;
 /** The regions a cloth piece hides only where its cloth lies over the skin (createAvatar): the trunk and the
  *  limbs. The rest (the feet in shoes, the hands in gloves, the head) are hidden whole. */
 const UNDER_CLOTH = new Set(["neck", "torso", "hips", "upperarms", "forearms", "thighs", "calves"]);
@@ -1539,14 +1542,17 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
     // from the spine bone at its line.)
     let hangs = hair;
     if (!fixed && hang !== undefined && hang !== null) {
-      // (No lower than the hip joints, wherever the piece says its cloth leaves the body: cloth that stays on
-      // the hips below them can't be lifted by a thigh, which then comes through it.)
-      const line = kit.legs.hip - Math.min(hang, 0) * (kit.legs.hip - kit.legs.knee);
+      // (From the waist, wherever below it the piece says its cloth leaves the body: a skirt is held at the
+      // waist and lies on the hips from there. Cloth that stayed on the hips couldn't be lifted by a thigh,
+      // which came through it at the top of the leg. Such a piece hangs from the hips' bone; one that hangs
+      // from higher, a cloak, from the spine bone at its line. hair.js hangPlan lowers the line to a piece's
+      // own top where that is under the waist.)
+      const line = kit.legs.hip - Math.min(hang, HANG_FROM) * (kit.legs.hip - kit.legs.knee);
       hangs = {
         ...CLOTH,
         line,
         centre: kit.hips,
-        from: kit.spine.filter(([, y]) => y <= line).at(-1)?.[0] ?? "pelvis",
+        from: hang < HANG_FROM ? (kit.spine.filter(([, y]) => y <= line).at(-1)?.[0] ?? "pelvis") : "pelvis",
         name: `cloth_${piece}`,
         title: CLOTHES.find(([id]) => id === piece)?.[1] ?? piece,
         joint: CLOTH_JOINT,

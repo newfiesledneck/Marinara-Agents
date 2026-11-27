@@ -26,6 +26,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.17",
+          "date": "2026-11-26",
+          "notes": "- Skirts and dresses hang from the waist and move as one piece of cloth: a leg lifts the cloth over it and the cloth beside it follows, walking, dancing, sitting and crouching. A thigh no longer shows at the hip, and pleated skirts no longer crumple.\n- An open mouth shows the upper teeth and little of the lower, where it showed a full lower row and no upper teeth. The teeth are ivory in place of grey.\n- Known: the kit's own Long skirt is made of few, large panels, so a lifted thigh can still cut through it. Skirts from the Clothes pack don't have this.",
+          "highlight": false
+        },
+        {
           "version": "0.1.16",
           "date": "2026-11-26",
           "notes": "- The Animation list starts with **In a chat**: the avatar waiting, talking, thinking and listening as Marinara Engine shows it. A chat plays no recorded animation, so these four are what you'll see there.\n- Skin, underwear and socks that lie directly under clothes aren't drawn or saved, so they stop coming through as the avatar moves. Legs now show under skirts and dresses, and the chest in an open collar.\n- Skirts, dresses and coats are carried by the legs under them and move as one piece, with sixteen chains round in place of eight. First pass: a deeply pleated skirt still crumples when sitting.\n- A gentler **Happy** face, and a calmer **Relaxed** one.\n- Fixed: fingers curled through the palm in most animations.\n- Fixed: the sitting animation threw both hands up halfway through.",

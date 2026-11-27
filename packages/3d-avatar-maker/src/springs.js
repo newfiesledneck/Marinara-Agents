@@ -52,14 +52,15 @@ export const BUST_JOINT = {
 export const TAIL_BONES = ["tail_01", "tail_02", "tail_03", "tail_04", "tail_05"];
 const LEG_RADIUS = 0.07; // metres: the legs' colliders, so a swinging tail stays outside the thighs
 const CLEAR = 0.005; // metres a collider stays clear of a joint at rest, so nothing is pushed while still
-// Metres from a thigh's or calf's line within which hanging cloth follows that leg all of the way when it
-// moves out from the body (createSprings `carried`), and beyond which it doesn't follow it at all.
-const LEG_NEAR = 0.12;
-const LEG_FAR = 0.3;
-const LEG_PAST = 0.08; // metres past the end of a thigh or calf at which cloth no longer follows it
-// Cloth's chains are tied side to side (createSprings `rings`): two joints side by side may be this many times
-// as far apart as they rest before the cloth between them draws them together, over this many passes a frame.
+// Metres past a leg's own thickness a cloth joint is kept off the leg it hangs over (createSprings `carried`).
+const LEG_CLEAR = 0.03;
+const LEG_PAST = 0.08; // metres past the end of a thigh or calf at which cloth is no longer that bone's to push
+const LEG_ASIDE = 0.1; // metres aside of a leg over which that eases to nothing
+// Cloth's chains are tied side to side (createSprings `rings`), RING_PASSES times a frame: each joint's
+// drift from where it hangs goes RING_EVEN of the way to that of the joints beside it, and two joints side by
+// side may be RING_STRETCH times as far apart as they rest before the cloth between them draws them together.
 const RING_STRETCH = 1.1;
+const RING_EVEN = 0.5;
 const RING_PASSES = 2;
 const TURN_MOST = 0.35; // radians the arms may turn a breast in the preview; pressed further, it squashes
 
@@ -197,8 +198,17 @@ export function bodyColliders(kit, position, bones, worn = []) {
     );
     // (It may shrink by half to fit, not a quarter: cloth that lies on the thigh, a tight robe's sides,
     // should still be kept out of it.)
+    // (`full`: as thick as the leg is there, whatever fitColliders shrinks the collider to: createSprings keeps
+    // the cloth it carries off the leg by it.)
     if (radius)
-      cloth.push({ bone, radius: radius * 0.95, offset: local(bone, start), tail: local(bone, end), least: 0.5 });
+      cloth.push({
+        bone,
+        radius: radius * 0.95,
+        full: radius,
+        offset: local(bone, start),
+        tail: local(bone, end),
+        least: 0.5,
+      });
   };
   for (const side of ["l", "r"]) {
     section(`thigh_${side}`, `calf_${side}`, 0, 0.5);
@@ -371,7 +381,11 @@ export function createSprings(figure) {
         outward: new Vector3(),
         initial: new Matrix4(),
         held: false,
-        pulled: false,
+        // (Tied cloth: where it would have gone left alone, how far it is from where it hangs, and the joints
+        // beside it.)
+        free: new Vector3(),
+        drift: new Vector3(),
+        beside: [],
       });
     });
     joints.push(...chain);
@@ -393,20 +407,23 @@ export function createSprings(figure) {
       const beside = chains[(i + 1) % chains.length];
       const round = (beside.side - chain.side + chain.sides) % chain.sides;
       if (beside === chain || round > 2 || (chains.length === 2 && i)) return;
-      for (let level = 0; level < Math.min(chain.joints.length, beside.joints.length); level++)
+      for (let level = 0; level < Math.min(chain.joints.length, beside.joints.length); level++) {
         ties[level].push([chain.joints[level], beside.joints[level], 0]);
+        chain.joints[level].beside.push(beside.joints[level]);
+        beside.joints[level].beside.push(chain.joints[level]);
+      }
     });
     return { rows, ties };
   });
   const tied = new Set(rings.flatMap((ring) => ring.rows.flat()));
   const loose = joints.filter((joint) => !tied.has(joint));
-  // Cloth carried by the legs under it (the maker's preview only). A thigh that lifts carries the skirt's front
+  // Cloth kept off the legs under it (the maker's preview only). A thigh that lifts carries the skirt's front
   // with it; colliders alone can't show that: they push a chain away from the leg, so the chains either side
-  // of it part and the leg comes through between them. So each joint of a cloth chain knows where its tip
-  // rests against each thigh and calf (`carried`: the tip in that bone's own space, and how much it follows
-  // it: all of the way within LEG_NEAR of the bone's line, none beyond LEG_FAR), and each frame the tip is
-  // kept at least as far out from the body as the leg would carry it (`step`). Measured in the pose the body
-  // was built in, whatever pose it's in now.
+  // of it part and the leg comes through between them. So each joint of a cloth chain knows, for each thigh
+  // and calf it rests on the outer side of, which way is out from the body as that leg sees it (`carried`),
+  // and each frame the tip is kept clear of the leg that way wherever it is over it (`hold`): forward for a
+  // thigh at rest, up for one lifted level. Measured in the pose the body was built in, whatever pose it's in
+  // now.
   const cloth = joints.filter((joint) => joint.root);
   if (cloth.length) {
     const posed = [...figure.bones.values()].map((bone) => [bone, bone.quaternion.clone(), bone.position.clone()]);
@@ -439,21 +456,25 @@ export function createSprings(figure) {
         const span = line.copy(to).sub(from);
         const along = offset.copy(tip).sub(from).dot(span) / (span.lengthSq() || 1);
         const t = Math.max(0, Math.min(1, along));
-        const gap = tip.distanceTo(offset.copy(from).addScaledVector(span, t));
-        // (Beside the bone, not past its ends: cloth below the knee is the calf's to carry, not the thigh's,
-        // or a skirt would stand out level from a seated knee in place of hanging from it.)
-        const past = Math.max(0, along - 1, -along) * span.length();
-        const share =
-          Math.max(0, Math.min(1, 1 - (gap - LEG_NEAR) / (LEG_FAR - LEG_NEAR))) * Math.max(0, 1 - past / LEG_PAST);
-        if (!share) return [];
-        // (`out` in the leg's own space too: lifted level, a thigh carries the cloth in front of it up.)
+        // (Beside the bone, not past its ends: cloth under the knee is the calf's to push, not the thigh's, or
+        // a seated thigh, lying level, would lift the hem hanging under it up over itself.)
+        const share = Math.max(0, 1 - (Math.max(0, along - 1, -along) * span.length()) / LEG_PAST);
+        // (How thick the leg is, the thickest of its colliders as made, and how far out from its line the tip
+        // rests. A tip that rests on the leg's inner side isn't this leg's to push out.)
+        const made = joint.colliders.filter((each) => each.bone === bone).map((each) => each.full ?? each.radius);
+        const radius = Math.max(0, ...made) || LEG_RADIUS;
+        const rests = tip.clone().sub(from).addScaledVector(span, -t).dot(out);
+        if (!share || rests < radius / 2) return [];
         const inverse = new Matrix4().copy(bone.matrixWorld).invert();
         return [
           {
             bone,
-            tip: tip.clone().applyMatrix4(inverse),
             out: out.clone().transformDirection(inverse),
-            share: share * share * (3 - 2 * share),
+            tail: to.clone().applyMatrix4(inverse),
+            radius,
+            share,
+            // (How far off the leg's line it's kept: no further than it rests, so nothing is pushed while still.)
+            clear: Math.min(radius + LEG_CLEAR, rests),
           },
         ];
       });
@@ -501,8 +522,8 @@ export function createSprings(figure) {
       .addScaledVector(rest, settings.stiffness * dt)
       .addScaledVector(gravity, settings.gravityPower * dt);
     keepLength(joint);
+    joint.free.copy(next);
     joint.held = false;
-    joint.pulled = false;
     // (Which way is out from the body for a chain of cloth: from the bone it hangs from to its root, level.)
     if (joint.root)
       joint.outward
@@ -517,12 +538,21 @@ export function createSprings(figure) {
     const { settings, at, next } = joint;
     const outward = joint.root && joint.outward.lengthSq() ? joint.outward : null;
     if (outward && joint.carried?.length) {
-      // As far out as the leg nearest it carries it, at least, measured the way the leg has turned "out":
-      // forward for a thigh at rest, up for one lifted level.
+      // Clear of each leg it hangs over, the way that leg has turned "out": within the leg's own thickness to
+      // either side of its line all of the way, easing to nothing over LEG_ASIDE further aside. (More than the
+      // leg's thickness: the cloth between two chains is flat, and cuts into a leg that a chain only just
+      // clears.)
       let need = 0;
-      for (const { bone: leg, tip, out, share } of joint.carried) {
+      for (const { bone: leg, out, tail, radius, share, clear } of joint.carried) {
         c.copy(out).transformDirection(leg.matrixWorld);
-        const by = e.copy(tip).applyMatrix4(leg.matrixWorld).sub(next).dot(c) * share;
+        start.setFromMatrixPosition(leg.matrixWorld);
+        line.copy(tail).applyMatrix4(leg.matrixWorld).sub(start);
+        const t = Math.max(0, Math.min(1, offset.copy(next).sub(start).dot(line) / (line.lengthSq() || 1)));
+        offset.copy(next).sub(start).addScaledVector(line, -t); // (from the leg's line to the tip)
+        const over = offset.dot(c);
+        const aside = Math.sqrt(Math.max(0, offset.lengthSq() - over * over));
+        const beside = Math.max(0, Math.min(1, 1 - (aside - radius) / LEG_ASIDE));
+        const by = (clear - over) * beside * beside * (3 - 2 * beside) * share;
         if (by > need) {
           need = by;
           d.copy(c);
@@ -565,12 +595,27 @@ export function createSprings(figure) {
     if (share) {
       one.next.addScaledVector(gap, share);
       keepLength(one);
-      one.pulled = true;
     }
     if (share < 1) {
       other.next.addScaledVector(gap, share - 1);
       keepLength(other);
-      other.pulled = true;
+    }
+  }
+
+  /**
+   * A row of cloth evened out round the piece: each joint's drift from where it would hang goes part of the way
+   * (RING_EVEN) to the mean drift of the joints beside it. A leg lifting one chain then lifts the ones beside
+   * it less, and the ones beside those less again, so the cloth takes a curve over the leg, not a corner.
+   */
+  function even(row) {
+    for (const joint of row) joint.drift.copy(joint.next).sub(joint.at).addScaledVector(joint.aim, -joint.length);
+    for (const joint of row) {
+      if (!joint.beside.length) continue;
+      c.set(0, 0, 0);
+      for (const other of joint.beside) c.add(other.drift);
+      d.copy(joint.drift).lerp(c.multiplyScalar(1 / joint.beside.length), RING_EVEN);
+      joint.next.copy(joint.at).addScaledVector(joint.aim, joint.length).add(d);
+      keepLength(joint);
     }
   }
 
@@ -586,9 +631,10 @@ export function createSprings(figure) {
         next.addScaledVector(across, Math.sin(TURN_MOST) * joint.length);
       }
     }
-    // (Cloth a leg holds out, or the cloth beside it draws along, goes with it and no faster: carried on by
-    // the push, it would fly off the leg.)
-    joint.last.copy(joint.held || joint.pulled ? next : joint.tip);
+    // (Tied cloth carries on only as it would have left alone: what a leg, or the cloth beside it, moved it by
+    // isn't carried on, or cloth a leg pushes would fly off it. A VRM's spring carries a collider's push on.)
+    joint.last.copy(joint.tip);
+    if (joint.beside.length) joint.last.add(next).sub(joint.free);
     joint.tip.copy(next);
     // The bone turned from its rest to point at the tip.
     back.copy(joint.initial).invert();
@@ -609,9 +655,9 @@ export function createSprings(figure) {
       hold(joint);
       settle(joint);
     }
-    // A piece of cloth, row by row down from where it hangs: each row's joints moved, tied to the ones beside
-    // them and kept out of the legs again (the legs have the last word), then its bones turned, which the
-    // row under it hangs from.
+    // A piece of cloth, row by row down from where it hangs: each row's joints moved, evened out with and
+    // tied to the ones beside them, and kept off the legs again (the legs have the last word), then its bones
+    // turned, which the row under it hangs from.
     for (const ring of rings)
       ring.rows.forEach((row, level) => {
         for (const joint of row) {
@@ -619,6 +665,7 @@ export function createSprings(figure) {
           hold(joint);
         }
         for (let pass = 0; pass < RING_PASSES; pass++) {
+          even(row);
           for (const [one, other, apart] of ring.ties[level]) tie(one, other, apart);
           for (const joint of row) hold(joint);
         }

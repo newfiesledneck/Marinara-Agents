@@ -10,7 +10,7 @@
   },
   "id": "3d-avatar-maker",
   "name": "3D Avatar Maker",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
   "engine": {
     "min": "2.4.6",
@@ -114,8 +114,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "430a66a2e48c7d956d4cfd546aefd02f25746d2e7631699a999dd4e2a4656eca",
-      "bytes": 1297784
+      "sha256": "14dd2b878ca28505e0068254c2b73e9790e041fe6d266d9ea9445c04f773bc88",
+      "bytes": 1298801
     },
     {
       "path": "3d-avatar-maker-icon.webp",
@@ -244,8 +244,8 @@
     },
     {
       "path": "kit/avatar/avatar-female.pack.png",
-      "sha256": "71208d3c37f3463125e4f90c0812db2be0922f4b8d1eaca4d1f57d6e00dcdb2d",
-      "bytes": 9279049
+      "sha256": "edf7ef485ad0fd752789c9164fa6b9b258acfb45d1eac221f9e446a7e23786db",
+      "bytes": 9271807
     },
     {
       "path": "kit/avatar/avatar-female.webp",
@@ -284,8 +284,8 @@
     },
     {
       "path": "kit/avatar/avatar-male-2.webp",
-      "sha256": "56250df564a3f41b4db71edeede0b477e1b24d916564207e4217b0c7067e900f",
-      "bytes": 37676
+      "sha256": "306a90b81cd6b8e32ba30c8c2bf38a3f0494ad119d2f5724ed77b82affcf2c67",
+      "bytes": 40688
     },
     {
       "path": "kit/avatar/avatar-male-3.webp",
@@ -404,8 +404,8 @@
     },
     {
       "path": "kit/avatar/avatar-male.pack.png",
-      "sha256": "d392972ad202388dd4903fd894d55f0304501f8175ec093bdadf0b2c4dc23f2a",
-      "bytes": 6945805
+      "sha256": "a3358b2e30b43185412c909a2c86d5b70ade9c2e64f7ddf1112233ae297fb4e0",
+      "bytes": 6940427
     },
     {
       "path": "kit/avatar/avatar-male.webp",

@@ -814,22 +814,54 @@ underwear through clothes, a seated clip with the hands thrown up, legs missing 
 - **Cloth and legs** (`src/hair.js`, `src/springs.js`). With the legs now there under a skirt, the old
   collision showed its limits: eight chains with joint-only collision let a lifted thigh pass between two of
   them. Now:
-  - cloth has sixteen chains round, and starts no lower than the hip joints;
+  - cloth has sixteen chains round;
   - the cloth's colliders are each half of each thigh and calf and each foot, as thick as what's worn there
     (boots, trousers), and the arms and hands;
-  - in the preview each cloth joint is carried by the leg beside it (`carried`: kept at least as far out as
-    the leg would carry it, measured the way the leg has turned), is drawn back to how it hangs from the
-    hips, not to its own bone's line, and is tied to the joint at its level in the chain beside it
-    (`rings`), so a pushed chain draws its neighbours after it. A VRM app does none of the three: it pushes
-    each chain away from the colliders.
+  - in the preview each cloth joint is kept off the leg it hangs over (`carried`; 0.1.17 settled how), is
+    drawn back to how it hangs from the hips, not to its own bone's line, and is tied to the joint at its
+    level in the chain beside it (`rings`), so a pushed chain draws its neighbours after it. A VRM app does
+    none of the three: it pushes each chain away from the colliders.
 - **A motions page** (`dev/motions.js`, `/motions` on the test server): one avatar through every animation
   or face, frame by frame, on a sheet kept in `dev/out/`, with the springs run as the preview runs them.
 - Checks: what's covered and how far in; jeans and a tee hide the skin under them and leave the head and
   hands; legs under a long skirt are drawn; the chat stand's arm angle; an open hand in a clip is open; the
   eight leg capsules in a VRM; a skirt still settles within two seconds.
 
-Still rough (see Known rough edges): a heavily pleated skirt crumples when sitting, the thigh can show at
-the hip when lifted high, and the kit's own tunic over the long skirt shows the skirt through it at rest.
+Still rough after 0.1.16: a heavily pleated skirt crumpled when sitting and the thigh showed at the hip
+when lifted high. 0.1.17 took those on.
+
+## Built: cloth from the waist, and teeth that sit right (0.1.17)
+
+- **Cloth hangs from the waist** (`src/avatar.js` `HANG_FROM`, `src/hair.js`). A piece's own `hang` said
+  where its cloth leaves the body, often well down the thigh; the cloth above that stayed on the hips'
+  weights, and a lifted thigh came through it. Every skirt, dress and coat now hangs from the waist (0.3 of
+  the thigh's length over the hip joints), or from 3 cm under its own top where that is lower, on the hips'
+  bone. A cloak still hangs from the spine bone at its line.
+- **Cloth is placed by where it is, not followed along its mesh** (`hangPlan`). Its distance along is how
+  far under the line it hangs, as its side is already where it is round the hips. A pleated or gathered
+  skirt is many strips joined at few points; a path along the mesh gave neighbouring folds very different
+  lengths, so they followed different bones and tore apart when the skirt bent.
+- **Rows evened out** (`src/springs.js` `even`). Each joint's drift from where it hangs goes half the way to
+  the mean of the joints beside it, twice a frame, before the ties and the legs. A lifted chain raises the
+  ones beside it less and theirs less again, so cloth curves over a leg.
+- **Clear of the leg, and nothing more.** Where a joint hangs over a thigh or calf it is kept the leg's own
+  thickness and 3 cm off its line, the way that leg has turned "out" (forward at rest, up when lifted
+  level), no further than it rests, and by the leg's true thickness (`full`), not the collider's, which
+  `fitColliders` shrinks where cloth rests on it. 0.1.16 also had cloth near a leg follow it as if fixed to
+  it; that dragged a hem 30 cm from a calf along with its kick, and is gone. Each joint answers only to the
+  bone it rests beside (within 8 cm of its ends): without that, a seated thigh lifted the hem hanging under
+  the knee up over itself and bared the legs.
+- **What the leg moves isn't carried on.** Tied cloth carries on each frame only by the step it would have
+  taken left alone, so a push by a leg or a neighbour adds no speed and the cloth doesn't fly off the leg.
+- **Teeth** (`make_avatar.py` `mouth_parts`, `mouth_texture`). Measured against MakeHuman's own lips: the
+  upper teeth's edge sat 1.7 mm up behind the upper lip, the lower teeth's 1.7 mm over the lower lip's, and
+  the jaw's opening drops the lower lip 6.6 mm further than the lower teeth. So an open mouth showed a full
+  lower row and no upper teeth. The upper teeth are lowered 3 mm, the lower 4 mm, and the lower teeth follow
+  the jaw 1.3 times as far in the face's moves. The teeth's grey picture is lifted to ivory, its dark blots
+  to soft shadow; the gums stay. Both bodies rebuilt and repacked.
+- The motions page draws the face's keys one by one (`keys=aa,oh:0.5`) and has close views of the mouth.
+- Checks: a skirt's sixteen chains hang from over the hip joints, and walking, over the thighs, no two side
+  by side part by more than 16 cm (about 13 at the most).
 
 ## Next, in order
 
@@ -858,12 +890,12 @@ the hip when lifted high, and the kit's own tunic over the long skirt shows the 
 - Seen close from below, the upper teeth's shading changes in steps (each face takes one of three copies of
   the picture). From a chat's distance it reads as the mouth's shadow.
 - A saved file has one picture for each piece worn. Packing them into one would make it smaller.
-- Hanging cloth is carried by the legs at its chains' joints only, each chain a line of stiff bones. A skirt
-  with deep pleats (the Clothes pack's long full skirt) comes out boxy as it moves and crumples when the
-  avatar sits; cloth at the sides is drawn up in points when the front is lifted; and a thigh lifted high can
-  show at the hip, where the cloth is still on the hips' own weights. A real fix is the cloth's points
-  weighted by where they are along the mesh, not round the hips, and a row of joints across each fold. Two
-  hanging pieces (a cloak over a dress, the kit's tunic over its long skirt) pass through each other.
+- Hanging cloth is carried by the legs at its chains' joints only, and the cloth between two joints is as
+  flat as its mesh makes it. The kit's own Long skirt, Dress and Tunic are made of few, large panels, so a
+  lifted thigh still cuts through one however well its chains are carried; the packs' finer skirts and
+  dresses don't. In a deep crouch a knee can come through a long skirt. Seated, the back of a skirt hangs
+  through the seat, which isn't there. Two hanging pieces (a cloak over a dress, the kit's tunic over its
+  long skirt) pass through each other.
 - A saved VRM in another app swings a skirt on plain springs: the leg pushes each chain aside, and comes
   through between them. In a chat the legs don't move, so it doesn't show there.
 - In a chat a VRM's fingers are straight (the Engine turns no finger bone), so the hands look stiff.

@@ -1575,6 +1575,10 @@ MOUTH_SIZE = 768  # the mouth's texture: the teeth's picture (left) and the tong
 MOUTH_SHADES = (1.0, 0.62, 0.34)  # the copies' brightness, top to bottom: the front of the mouth to its back
 MOUTH_DEPTH = (0.012, 0.026)  # where a face goes from the first copy to the second, and to the third (metres back)
 MOUTH_DARK = (0.16, 0.07, 0.07)  # the inside of the mouth (sRGB), where the pictures are clear
+TEETH_IVORY = (0.98, 0.95, 0.88)  # the teeth's colour (sRGB) where MakeHuman's picture is brightest
+TEETH_LIFT = 0.78  # how bright the picture's darkest tooth is, as a share of that
+TEETH_DROP = (0.003, 0.004)  # how far the upper teeth, and the lower, sit under where MakeHuman fits them (metres)
+JAW_FOLLOW = 1.3  # how far the lower teeth go down with the jaw, against how far MakeHuman's units carry them
 
 
 def mouth_texture():
@@ -1591,6 +1595,14 @@ def mouth_texture():
         a = read_image(picture)
         # (Where the picture is clear, its colour means nothing: the mouth's own dark shows there instead.)
         alpha = a[..., 3:4] if a.shape[2] > 3 else 1.0
+        if part == "mouth_teeth":
+            # (The teeth themselves, the picture's grey parts: MakeHuman paints them grey with dark blots
+            # between them, which behind the lips read as stained or braced. Lifted to ivory, the blots to a
+            # soft shadow. The gums, its red parts, stay.)
+            rgb = a[..., :3]
+            tooth = wa.smoothstep(0.2, 0.08, rgb.max(axis=2) - rgb.min(axis=2))[..., None]
+            ivory = np.array(TEETH_IVORY) * (TEETH_LIFT + (1 - TEETH_LIFT) * rgb.mean(axis=2, keepdims=True))
+            a = np.concatenate([rgb * (1 - tooth) + ivory * tooth, a[..., 3:]], axis=2)
         a = shrink(a[..., :3] * alpha + np.array(MOUTH_DARK) * (1 - alpha), 512)
         rows = ((np.arange(band) + 0.5) / band * a.shape[0]).astype(int)
         cols = ((np.arange(half) + 0.5) / half * a.shape[1]).astype(int)
@@ -1612,6 +1624,24 @@ def mouth_parts(body, key_names):
     out = []
     for column, (part, p, co) in enumerate(fitted):
         keys = _still({k: p.blend(body.keys[k]) for k in key_names})
+        if part == "mouth_teeth":
+            # Where the teeth sit against the lips. As MakeHuman fits them, the upper teeth's edge is 1.7 mm
+            # up behind the upper lip and the lower teeth's is 1.7 mm over the lower lip's, and its jaw
+            # drops the lower lip 6.6 mm further than the lower teeth: an open mouth showed a whole row of
+            # lower teeth and no upper ones, where a mouth that talks shows the upper teeth's edge and
+            # hardly any lower. So the upper teeth are lowered (TEETH_DROP[0]), the lower teeth lowered
+            # behind their lip (TEETH_DROP[1]), and the lower teeth go down with the jaw as far as the lip
+            # nearly does (JAW_FOLLOW times as far as fitted, in the face's moves only).
+            co = co.copy()
+            fall = keys["aa"][:, 2]
+            lower = fall < fall.min() / 2  # (the lower teeth and gums: what the jaw's opening carries down)
+            co[~lower, 2] -= TEETH_DROP[0]
+            co[lower, 2] -= TEETH_DROP[1]
+            for k in FACE_MOVES:
+                if k in keys:
+                    keys[k] = keys[k].copy()
+                    keys[k][lower] *= JAW_FOLLOW
+            log(f"teeth: {int(lower.sum())} of {len(co)} vertices are the lower teeth's")
         uv = []
         for f, fuv in zip(p.faces, p.face_uv):
             back = co[f, 1].mean() - front

@@ -1,5 +1,11 @@
 # 3D Avatar Maker release notes
 
+## 0.1.17 — 2026-11-26
+
+- Skirts and dresses hang from the waist and move as one piece of cloth: a leg lifts the cloth over it and the cloth beside it follows, walking, dancing, sitting and crouching. A thigh no longer shows at the hip, and pleated skirts no longer crumple.
+- An open mouth shows the upper teeth and little of the lower, where it showed a full lower row and no upper teeth. The teeth are ivory in place of grey.
+- Known: the kit's own Long skirt is made of few, large panels, so a lifted thigh can still cut through it. Skirts from the Clothes pack don't have this.
+
 ## 0.1.16 — 2026-11-26
 
 - The Animation list starts with **In a chat**: the avatar waiting, talking, thinking and listening as Marinara Engine shows it. A chat plays no recorded animation, so these four are what you'll see there.

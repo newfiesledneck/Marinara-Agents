@@ -4,14 +4,15 @@
 //
 //   /motions?body=female&motions=idle,walk&frames=8&step=0.6&view=body&name=sheet
 //
-// `view`: body (the default), back, hand, legs or face. `faces=1` draws each face of the Face list in place
-// of the animations. `outfit` names a ready-made outfit (Modern casual unless said); `look` is a look as
-// JSON, over that; `packs=0` leaves the wardrobe packs out.
+// `view`: body (the default), back, hand, legs, face, mouth, mouth-side or mouth-below. `faces=1` draws each
+// face of the Face list in place of the animations, and `keys=aa,oh:0.5` the face's own keys, each alone.
+// `outfit` names a ready-made outfit (Modern casual unless said); `look` is a look as JSON, over that;
+// `packs=0` leaves the wardrobe packs out.
 //
 // For development only; not part of the package.
 import { DirectionalLight, HemisphereLight, PerspectiveCamera, Scene, SRGBColorSpace, Vector3, WebGLRenderer } from "three";
 import { createAvatar } from "../src/avatar.js";
-import { animateFace, FACE_MODES } from "../src/face.js";
+import { animateFace, FACE_MODES, setFace } from "../src/face.js";
 import { relaxedPose } from "../src/figure.js";
 import { setKitBase, texturesReady } from "../src/kitfiles.js";
 import { checkLook, NEUTRAL_LOOK, OUTFIT_PRESETS, outfitLook } from "../src/looks.js";
@@ -45,6 +46,12 @@ function aim(figure, view) {
   } else if (view === "face") {
     n.head.getWorldPosition(at).y += 0.05;
     camera.position.set(at.x, at.y + 0.01, at.z + 0.7);
+  } else if (view === "mouth" || view === "mouth-side" || view === "mouth-below") {
+    // (The mouth, close: about six centimetres under the eyes. From the front, the side, or a little below.)
+    (figure.bones.get("eye_l") ?? n.head).getWorldPosition(at);
+    at.set(0, at.y - 0.065, at.z);
+    if (view === "mouth-side") camera.position.set(at.x + 0.26, at.y, at.z + 0.12);
+    else camera.position.set(at.x, at.y - (view === "mouth-below" ? 0.07 : 0), at.z + 0.28);
   } else if (view === "legs") {
     n.hips.getWorldPosition(at).y *= 0.55;
     camera.position.set(at.x + 0.5, at.y + 0.2, at.z + 2.3);
@@ -73,14 +80,18 @@ async function main() {
   await texturesReady();
   await new Promise((resolve) => setTimeout(resolve, 500));
 
-  const faces = asked.get("faces") === "1";
+  // (`keys`: the face's own keys, each alone, as "aa,oh:0.5": a mouth shape a talking avatar passes through.)
+  const keys = asked.get("keys")?.split(",").map((entry) => entry.split(":")) ?? null;
+  const faces = asked.get("faces") === "1" || !!keys;
   const view = asked.get("view") ?? (faces ? "face" : "body");
   const frames = faces ? 1 : number("frames", 8);
   const step = number("step", 0.6);
   const from = number("from", 0.3);
-  const rows = faces
-    ? FACE_MODES.filter(([mode]) => mode !== "lively" && mode !== "talking")
-    : MOTIONS.filter(([id]) => !asked.get("motions") || asked.get("motions").split(",").includes(id));
+  const rows = keys
+    ? keys.map(([key, weight = "1"]) => [{ [key]: Number(weight) }, `${key} ${weight}`])
+    : faces
+      ? FACE_MODES.filter(([mode]) => mode !== "lively" && mode !== "talking")
+      : MOTIONS.filter(([id]) => !asked.get("motions") || asked.get("motions").split(",").includes(id));
   const [width, height] = [number("w", view === "body" || view === "back" ? 200 : 260), number("h", view === "face" ? 260 : 320)];
   // (Faces go across; animations go down, their frames across.)
   const across = faces ? rows.length : frames;
@@ -105,7 +116,8 @@ async function main() {
       const seconds = from + frame * step;
       if (faces) {
         relaxedPose(figure, 0);
-        animateFace(figure, id, 0, null, true);
+        if (keys) setFace(figure, id);
+        else animateFace(figure, id, 0, null, true);
       } else {
         // (Played through at 30 frames a second, so the springs are where the preview would have them.)
         for (; played < seconds; played += 1 / 30) {

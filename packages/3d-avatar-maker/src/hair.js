@@ -94,6 +94,7 @@ const HAIR_FROM = ["Head", "neck_01", "spine_03", "spine_02"]; // (the head, nec
  * hair's eight: with a chain every 22 degrees one always hangs in front of each thigh, for the leg to push
  * (springs.js); with eight, a lifted thigh went between two of them and through the cloth.
  */
+const CLOTH_BAND = 0.03; // metres of a piece's top that stay on the body: its waistband
 export const CLOTH = {
   around: true,
   sides: 16,
@@ -241,9 +242,14 @@ function alongMesh(position, index, line, centre, kept = null) {
  * chain by chain, root to tip (rigChains makes them in that order).
  */
 export function hangPlan(geometry, joints, hangs) {
-  const { line, centre, ease, shortest, bone: length, most, body } = hangs;
+  const { centre, ease, shortest, bone: length, most, body } = hangs;
   const position = geometry.attributes.position.array;
   const count = position.length / 3;
+  // (Cloth hangs from its line, or from just under its own top where that is lower: a skirt worn low on the
+  // hips has nothing at the waist to hang from.)
+  let top = -Infinity;
+  for (let i = 0; i < count; i++) top = Math.max(top, position[i * 3 + 1]);
+  const line = hangs.around ? Math.min(hangs.line, top - CLOTH_BAND) : hangs.line;
   const index = geometry.attributes.skinIndex.array;
   const weight = geometry.attributes.skinWeight.array;
   // (Cloth that moves mostly with other bones than `body`'s, a sleeve's cuff, stays as it is.)
@@ -256,11 +262,21 @@ export function hangPlan(geometry, joints, hangs) {
       kept[i] = own < 0.5 ? 1 : 0;
     }
   }
-  const along = alongMesh(position, geometry.index.array, line, centre, kept);
+  // Hair is followed along its mesh. Cloth is placed by where it is: its side by where it is round the hips,
+  // and how far along it is by how far under the line it hangs. A pleated or gathered skirt is many strips
+  // joined at few points, and a path along it gives the points of one fold very different lengths from those
+  // of the next, which then follow different bones and tear apart as the skirt bends.
+  const placed = () => {
+    const [far, side] = [new Float32Array(count), new Float32Array(count)];
+    for (let i = 0; i < count; i++) {
+      far[i] = kept?.[i] ? 0 : Math.max(0, line - position[i * 3 + 1]);
+      side[i] = Math.atan2(position[i * 3] - centre.x, centre.z - position[i * 3 + 2]);
+    }
+    return { far, side };
+  };
+  const along = hangs.around ? placed() : alongMesh(position, geometry.index.array, line, centre, kept);
   if (!along) return null;
   const { far, side } = along;
-  if (hangs.around)
-    for (let i = 0; i < count; i++) side[i] = Math.atan2(position[i * 3] - centre.x, centre.z - position[i * 3 + 2]);
   // (The sides round: hair's eight, by name; cloth's sixteen, numbered round from the back by the left.)
   const SIDES = hangs.sides ? Array.from({ length: hangs.sides }, (_, s) => `${s + 1}_of_${hangs.sides}`) : EIGHT_SIDES;
   const STEP = (Math.PI * 2) / SIDES.length;
