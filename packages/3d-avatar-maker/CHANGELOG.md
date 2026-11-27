@@ -1,5 +1,10 @@
 # 3D Avatar Maker release notes
 
+## 0.1.18 — 2026-11-26
+
+- The preview is much lighter on the graphics card. It was drawn as often as the screen asked, 120 times a second and more on many screens; it's now drawn 30 times a second at rest and 60 while you turn the view or an animation plays.
+- Fixed: every change to the avatar left textures and buffers on the graphics card until the page was closed, so a long session kept using more.
+
 ## 0.1.17 — 2026-11-26
 
 - Skirts and dresses hang from the waist and move as one piece of cloth: a leg lifts the cloth over it and the cloth beside it follows, walking, dancing, sitting and crouching. A thigh no longer shows at the hip, and pleated skirts no longer crumple.

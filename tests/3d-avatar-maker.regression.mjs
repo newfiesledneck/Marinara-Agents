@@ -1864,6 +1864,19 @@ for (const figure of Object.values(made)) figure.dispose();
     assert.ok(skirted.calves >= her.calves * 0.95, `under a long skirt the legs are there (${skirted.calves})`);
     assert.ok(skirted.thighs >= her.thighs * 0.5, `and most of the thighs (${skirted.thighs} of ${her.thighs})`);
   }
+  // Let go, an avatar lets go of what it alone holds on the graphics card: each mesh's skeleton (its bones'
+  // texture), and the weights a moving bust gave its body, still on the geometry when that is disposed of.
+  {
+    const figure = await createAvatar(startOf("female", { clothes: ["mh_female_tee"] }), "Test", "auto");
+    const body = figure.meshes.find((mesh) => mesh.name === "body");
+    let freed = 0;
+    for (const mesh of figure.meshes) mesh.skeleton.dispose = () => freed++;
+    let weights = null;
+    body.geometry.addEventListener("dispose", () => (weights = Object.keys(body.geometry.attributes)));
+    figure.dispose();
+    assert.equal(freed, figure.meshes.length, "every mesh's skeleton is let go");
+    assert.ok(weights.includes("skinIndex") && weights.includes("skinWeight"), "and the bust's own weights");
+  }
   // Worn together, no point of an inner piece is left over the piece worn over it (along the skin's normals,
   // as the maker tucks it: looked for again, nothing more moves).
   const { nearestSkin } = await import("../packages/3d-avatar-maker/src/avatar.js");
