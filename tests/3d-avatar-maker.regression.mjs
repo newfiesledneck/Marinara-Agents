@@ -1054,7 +1054,9 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
         }
         // (A tunic's short tails swing least: about 1.5 cm on him, 4.5 on her; a long skirt's hem up to 40.)
         assert.ok(swung > 0.01, `${label}: swings as the hips turn and a knee lifts (${(swung * 100).toFixed(1)} cm)`);
-        assert.ok(deeper < 0.001, `${label}: its joints go no deeper into the legs (${(deeper * 100).toFixed(2)} cm)`);
+        // (Half a centimetre: a chain that rests on a leg meets no collider of that leg, so the cloth beside it
+        // can draw it a few millimetres into one that the other chains meet.)
+        assert.ok(deeper < 0.005, `${label}: its joints go no deeper into the legs (${(deeper * 100).toFixed(2)} cm)`);
         for (let f = 0; f < 120; f++) {
           relaxedPose(figure, 0);
           moving.step(1 / 60);
@@ -1063,6 +1065,37 @@ assert.throws(() => readGlb(new Uint8Array(30)), /isn't a \.glb/u);
         assert.ok(unsettled < 0.005, `${label}: and settles within two seconds (${(unsettled * 100).toFixed(2)} cm)`);
         figure.dispose();
       }
+    // A skirt hangs from the waist, above the hip joints, on sixteen chains round; and as she walks, the chains
+    // stay together as one piece of cloth: over the thighs (its first four rows), no two side by side are drawn
+    // far further apart than they rest. (Its hem can be: a heel that kicks back pushes one chain's end out
+    // further than the next chain, at its own length, can follow.)
+    {
+      const { motionPose } = await import("../packages/3d-avatar-maker/src/motions.js");
+      const figure = await createAvatar(startOf("female", { clothes: ["skirt"], hair: "none" }), "Test", "auto");
+      const chains = clothOf(figure).sort((one, other) => one.side - other.side);
+      assert.equal(chains.length, 16, "a skirt has sixteen chains round");
+      restPose(figure);
+      const hip = figure.humanoid.leftUpperLeg.getWorldPosition(new Vector3()).y;
+      const roots = chains.map((spring) => spring.bones[0].getWorldPosition(new Vector3()).y);
+      assert.ok(Math.min(...roots) > hip, `its chains hang from over the hip joints (${Math.min(...roots) - hip} m)`);
+      const tips = () =>
+        chains.map((spring) => spring.bones.slice(0, 5).map((bone) => bone.getWorldPosition(new Vector3())));
+      const apart = (all) =>
+        all.flatMap((chain, i) => chain.map((at, k) => at.distanceTo(all[(i + 1) % all.length][k] ?? at)));
+      const rests = apart(tips());
+      motionPose(figure, "walk", 0);
+      const moving = createSprings(figure); // (from rest in the walk's first pose, as the preview starts one)
+      let widest = 0;
+      for (let f = 0; f < 150; f++) {
+        motionPose(figure, "walk", f / 30);
+        moving.step(1 / 30);
+        apart(tips()).forEach((gap, i) => (widest = Math.max(widest, gap - rests[i])));
+      }
+      // (About 13 cm at the most, where a thigh lifts one chain and the next lies beside the leg; each on its
+      // own, as they were, a carried chain left its neighbours 30 cm and more behind.)
+      assert.ok(widest < 0.16, `walking, no two chains side by side part far (${(widest * 100).toFixed(1)} cm)`);
+      figure.dispose();
+    }
     // On longer legs, the skirt rests where its own weights put it, so nothing tears where cloth that grew with
     // the legs meets cloth that didn't.
     {

@@ -111,7 +111,7 @@ Both carry the face's moves as shape keys named the way VRM names its expression
 `surprised`. The 3D Avatars agent finds them by those names. The mouth opens on teeth and a tongue, and each
 eye turns on a bone of its own (`eye_l`, `eye_r`). Hair that hangs loose has chains of bones down its locks
 (`hair_back_0` to the tip, one chain for each side of the head it hangs from). Skirts, dresses, robes, coats
-and cloaks have them too from the hips down (`cloth_skirt_1_of_16_0` and so on, sixteen chains round), and each breast has a bone under
+and cloaks have them too from the waist down (`cloth_skirt_1_of_16_0` and so on, sixteen chains round), and each breast has a bone under
 the middle chest (`breast_l`, `breast_r`) that the skin and what's worn over it follow. Standing still, all
 of it rests as it was made.
 
@@ -122,8 +122,8 @@ of it rests as it was made.
   of the head, neck, shoulders, arms and back, and the clothes out of the hips, legs, feet, arms and hands (the
   legs as thick as what's worn on them, boots included), and let the arms and
   hands push the bust up or aside when they press on it. (In the maker's preview a pressed breast also
-  squashes in a little, and a skirt is carried by the leg that lifts under it, its chains tied side to side
-  like a curtain; a VRM app only pushes each chain away from the leg.) The file carries the terms you set under **The VRM's terms** on the
+  squashes in a little, and a skirt is carried by the leg that lifts under it and kept clear of it, its chains
+  tied side to side and evened out like a curtain; a VRM app only pushes each chain away from the leg.) The file carries the terms you set under **The VRM's terms** on the
   Save tab: your name as the author, who may use the avatar, commercial use, sharing and changes, credit,
   and four uses VRM forbids unless allowed. They start at VRM's most careful choices, and the maker keeps
   yours in this browser for the next avatar. While the avatar wears a CC BY pack piece, the file asks for
