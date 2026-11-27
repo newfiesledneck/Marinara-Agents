@@ -19,6 +19,15 @@ import { movingPose, relaxedPose, restPose, tPose } from "./figure.js";
 import { createMotionPlayer } from "./motions.js";
 import { createSprings } from "./springs.js";
 
+// How often the preview is drawn (milliseconds a frame). Drawn whenever the screen asks, at 120 or 144 frames a
+// second on many screens, it kept the graphics card near its limit for nothing: Marinara Engine itself draws
+// a chat's avatar 30 times a second. So 30 times a second while it stands, breathes or blinks, and 60 while the
+// view is turned (and for TURN_ON after, as it eases to rest) or an animation plays.
+const FRAME_CALM = 1000 / 30;
+const FRAME_BUSY = 1000 / 60;
+const FRAME_SLACK = 2; // (a frame this many milliseconds early is drawn, or every other one would be missed)
+const TURN_ON = 700;
+
 export const POSES = [
   ["relaxed", "Relaxed"],
   ["moving", "Moving: looks about and steps, to show the hair and clothes swing"],
@@ -79,6 +88,14 @@ export function createStage(canvas) {
   controls.maxDistance = 9;
   controls.maxPolarAngle = Math.PI * 0.92;
   controls.listenToKeyEvents(canvas); // arrow keys move the view when the picture has focus
+  // (Whether the view is being turned, moved or zoomed, and when it last was: it's drawn more often then.)
+  let turning = false;
+  let turned = -Infinity;
+  controls.addEventListener("start", () => (turning = true));
+  controls.addEventListener("end", () => {
+    turning = false;
+    turned = performance.now();
+  });
 
   let figure = null;
   let springs = null; // (the figure's hair and tail swinging)
@@ -151,8 +168,14 @@ export function createStage(canvas) {
   function draw() {
     frame = 0;
     if (disposed) return;
+    const now = performance.now();
+    // (No more often than FRAME_CALM or FRAME_BUSY: a screen asks for a frame 120 times a second and more.)
+    const busy = turning || now - turned < TURN_ON || motion.active;
+    if (now - last < (busy ? FRAME_BUSY : FRAME_CALM) - FRAME_SLACK) {
+      frame = requestAnimationFrame(draw);
+      return;
+    }
     if (visible && document.visibilityState !== "hidden") {
-      const now = performance.now();
       const dt = last ? (now - last) / 1000 : 0;
       const animated = motion.step(figure, dt, applyPose);
       if (!animated && (pose === "relaxed" || pose === "moving") && !reduced) applyPose();

@@ -863,6 +863,22 @@ when lifted high. 0.1.17 took those on.
 - Checks: a skirt's sixteen chains hang from over the hip joints, and walking, over the thighs, no two side
   by side part by more than 16 cm (about 13 at the most).
 
+## Built: a preview that spares the graphics card (0.1.18)
+
+Reported: graphics card use near 90% with any outfit. Measured on the test page by counting the WebGL calls
+of 60 frames, this build against 0.1.15's: the drawing itself was lighter than before (72,000 triangles a
+frame against 88,000, the same 12 draws). Two things were wrong, both older than 0.1.16:
+
+- **Drawn at the screen's rate** (`src/stage.js`). The loop drew on every animation frame, 121 a second on
+  the test screen, into a 1861 by 1709 picture. It now draws 30 times a second at rest and 60 while the view
+  is turned (and for 0.7 s after) or an animation plays, as the Engine draws a chat's avatar at 30.
+- **Left on the card** (`src/avatar.js`). Each mesh's skeleton keeps a texture of its bones, which only
+  `skeleton.dispose()` frees: six stayed for every avatar built, at each change of a slider. And the weights
+  a moving bust gave the body were taken off its geometry before it was disposed of, so their two buffers
+  stayed. `figure.dispose` now lets the skeletons go and leaves the bust's weights on. Measured over six
+  rebuilds: textures steady at 5 (they climbed from 11 to 41), buffers steady.
+- Check: letting an avatar go disposes of every mesh's skeleton, with the bust's weights still on the body.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and

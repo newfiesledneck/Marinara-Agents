@@ -1496,7 +1496,10 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   owned.push(() => {
     // (Only what's this person's: the shared texture places, weights, face moves and triangles stay for the rest.)
     geometry.morphAttributes = {};
-    for (const attribute of Object.keys(kit.shared)) geometry.deleteAttribute(attribute);
+    // (Not the weights a moving bust gave it, which are its own: taken off first, they'd stay on the graphics
+    // card for good, two buffers for every avatar built.)
+    for (const attribute of Object.keys(kit.shared))
+      if (!bustRig || !/^skin(?:Index|Weight)$/u.test(attribute)) geometry.deleteAttribute(attribute);
     if (!geometry.userData.ownIndex) geometry.setIndex(null); // (its own, where clothes cover it: below)
     geometry.dispose();
     for (const material of materials) material.dispose();
@@ -1785,6 +1788,9 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   if (springs.length) fitColliders(figure);
   figure.dispose = () => {
     for (const letGo of owned) letGo();
+    // (Each mesh's skeleton keeps a texture of its bones on the graphics card, which only this lets go: left,
+    // every avatar built, at each change of a slider, kept one for each of its meshes for good.)
+    for (const mesh of figure.meshes) mesh.skeleton?.dispose();
   };
   figure.avatar = filled; // (what it was made from, for the maker's controls and the exporter)
   figure.kit = kit;
