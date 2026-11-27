@@ -57,6 +57,19 @@ The skins that came with makeup painted on are gone from the skin list; their ma
 you can put on any skin (Natural, Classic, Violet, Bronzed, Eyeliner, Goth, Dark eyes). A look or draft that
 wore one opens on its plain skin with that makeup.
 
+## The Realistic body (new, in progress)
+
+The Body tab offers a third body, **Realistic body**. It is a different base model from the Male and Female
+bodies, which stay as they are with everything made for them. So far it has:
+
+- 39 shape sliders of its own on the Body and Face tabs, the first a male-to-female slider.
+- A skin tone slider on the Skin and eyes tab, from its light skin to its dark one.
+- Four hair styles on the Hair tab, each made of thousands of separate strands, in any hair colour.
+- The same blinks, mouth shapes and feelings, the preview's poses and animations, and saving as a VRM or GLB.
+
+It has no clothes, underwear, eyelashes, eye colours or makeup yet, and its hair doesn't swing yet. Its
+skin is left plain between the legs. Generate makes one of the other two bodies.
+
 ## Wardrobe packs
 
 More clothes come as two separate packages you install from the catalog: 3D Avatar Maker: Clothes (194
@@ -176,6 +189,11 @@ use and share however you like, with no credit required:
   by ThatOneCan, who also fitted the nails and the six community bobs and baked the new brows and lashes; all
   released as CC0 1.0 too.
 
+- The Realistic body, its skin, eyes, brows and four strand hair styles are from
+  [Vitruvian for CharMorph](https://github.com/Upliner/CharMorph-Vitruvian) (CC0) by Sean Buckley, on Antonia
+  Polygon by Olaf Delgado-Friedrichs, with SirMaxim, Upliner, AgentA1CR, Benjamin McDonnell and Mindfront;
+  adapted in Blender by ThatOneCan, used as data.
+
 - Most of the preview's animations are clips from Quaternius's Universal Animation Library and Universal
   Animation Library 2 (CC0). They play in the preview only; a saved file doesn't carry them.
 
@@ -192,6 +210,9 @@ its own copy of those files and code. A look saved from Wanderworld's Look card 
   `http://127.0.0.1:5197/`. `/viewer?file=/dev/out/last.glb` loads a saved file the way the Engine's 3D
   Avatars agent loads a GLB, and a `.vrm` the way it loads a VRM model.
 - Test: `node tests/3d-avatar-maker.regression.mjs`.
+- The Realistic body: `assets/scripts/make_realistic.py` builds its model, hair and pictures from the Vitruvian
+  character (kept outside the repository; `VITRUVIAN_DATA` says where), `node
+scripts/build-3d-avatar-maker-kit.mjs realistic` packs them, and `src/realistic.js` builds it in the maker.
 - Preview animations: `src/motions.js` plays them; `node scripts/build-3d-avatar-maker-clips.mjs <UAL1.glb>
 <UAL2.glb>` makes `src/clips/ual.json` from Quaternius's two libraries.
 - Wardrobe packs: fitted by `assets/scripts/make_mh_packs.py` from `assets/packs.json`, built by

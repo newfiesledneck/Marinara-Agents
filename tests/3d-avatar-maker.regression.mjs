@@ -2661,4 +2661,170 @@ for (const figure of Object.values(made)) figure.dispose();
     "a revision keeps the rest",
   );
 }
+// ── The Realistic body (realistic.js): a body of another make beside the kit's two, which stay as they are ──
+{
+  const { ALL_BODIES, BODIES, REALISTIC, REALISTIC_HAIR, REALISTIC_SHAPES } = looks;
+  const { FACE_MOVES } = await import("../packages/3d-avatar-maker/src/face.js");
+  const { exportVrm } = await import("../packages/3d-avatar-maker/src/exporter.js");
+  const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+  const { VRMLoaderPlugin } = await import("@pixiv/three-vrm");
+  const { Vector3 } = await import("three");
+  assert.deepEqual(
+    BODIES.map(([body]) => body),
+    ["male", "female"],
+    "the kit's two bodies are the ones the clothes, hair and presets are made for",
+  );
+  assert.ok(
+    ALL_BODIES.some(([body]) => body === REALISTIC),
+    "the Body tab offers the Realistic body beside them",
+  );
+
+  // Its file has every slider and face move the lists name, each going as far as the list says.
+  const choices = await avatarChoices(REALISTIC);
+  const ranges = new Map(choices.sliders.map(([key, least, most]) => [key, [least, most]]));
+  for (const [key, label, tab, , ends, both] of REALISTIC_SHAPES) {
+    assert.ok(choices.keys.includes(key), `the Realistic body has the ${label} slider's key`);
+    assert.deepEqual(
+      ranges.get(key),
+      [both ? -1 : 0, 1],
+      `${label} goes ${both ? "both ways" : "one way"} in its file`,
+    );
+    assert.ok(["body", "face"].includes(tab) && ends.length === 2, `${label} has a tab and two ends`);
+  }
+  for (const key of FACE_MOVES) assert.ok(choices.keys.includes(key), `the Realistic body's face has ${key}`);
+  assert.deepEqual(choices.clothes, [], "it has no clothes yet");
+
+  // A look keeps its own fields, held within what they can be.
+  const kept = checkLook({
+    body: REALISTIC,
+    realShape: { gender: 5, fat: -1, waist: -0.4, made_up: 1 },
+    realTone: 2,
+    realHair: "made up",
+  });
+  assert.equal(kept.body, REALISTIC);
+  assert.equal(kept.realShape.gender, 1, "a slider is held to its range");
+  assert.ok(!(kept.realShape.fat < 0), "a one-way slider doesn't go backwards");
+  assert.equal(kept.realShape.waist, -0.4, "a two-way slider goes both ways");
+  assert.ok(!("made_up" in kept.realShape), "a slider it doesn't have isn't kept");
+  assert.equal(kept.realTone, 1, "the skin's tone is held to 0…1");
+  assert.equal(kept.realHair, undefined, "a hair style it doesn't have isn't kept");
+
+  const start = (over = {}) => checkLook({ ...NEUTRAL_LOOK, body: REALISTIC, realShape: { gender: 1 }, ...over });
+  const figure = await createAvatar(start(), "Test", "auto");
+  assert.equal(figure.avatar.body, REALISTIC);
+  for (const bone of [...VRM_REQUIRED, "leftEye", "rightEye", "leftIndexProximal", "rightThumbDistal"])
+    assert.ok(figure.humanoid[bone], `realistic: has its ${bone} bone`);
+  const names = figure.meshes.map((mesh) => mesh.name);
+  for (const part of [
+    ...["skin_head", "skin_torso", "skin_arms", "skin_legs"],
+    ...["mouth", "iris", "pupil", "eye_white", "cornea", "brows", "hair", "scalp"],
+  ])
+    assert.ok(names.includes(part), `realistic: has its ${part}`);
+  assert.ok(
+    figure.meshes.every((mesh) => mesh.isSkinnedMesh),
+    "realistic: skinned meshes",
+  );
+  const box = new Box3().setFromObject(figure.object);
+  assert.ok(Math.abs(box.min.y) < 0.01, `realistic: stands on the floor (lowest point ${box.min.y.toFixed(3)})`);
+  assert.ok(box.max.y > 1.5 && box.max.y < 2, `realistic: a person's height (${box.max.y.toFixed(2)} m)`);
+  const drop = (of) =>
+    of.humanoid.leftUpperArm.getWorldPosition(new Vector3()).y - of.humanoid.leftHand.getWorldPosition(new Vector3()).y;
+  restPose(figure);
+  const atRest = drop(figure);
+  tPose(figure);
+  assert.ok(Math.abs(drop(figure)) < 0.01, `realistic: arms level in the T-pose (${drop(figure).toFixed(3)})`);
+  relaxedPose(figure, 0);
+  assert.ok(drop(figure) > atRest, "realistic: arms lower in the relaxed pose than at rest");
+  restPose(figure);
+
+  // The face's moves are live on the head, and on the brows that lie on it; each eye turns on its own bone,
+  // which sits inside the eyeball.
+  const mesh = (of, name) => of.meshes.find((each) => each.name === name);
+  for (const key of FACE_MOVES)
+    assert.ok(key in mesh(figure, "skin_head").morphTargetDictionary, `realistic: its head has the ${key} move`);
+  assert.ok("surprised" in mesh(figure, "brows").morphTargetDictionary, "realistic: its brows rise with the face");
+  // (From the points alone: a geometry's own box also takes in how far its face moves reach.)
+  const boxOf = (of, name) => new Box3().setFromBufferAttribute(mesh(of, name).geometry.attributes.position);
+  const eye = figure.bones.get("eye_l").getWorldPosition(new Vector3());
+  const whites = boxOf(figure, "eye_white");
+  assert.ok(
+    eye.x > 0 && eye.y > whites.min.y && eye.y < whites.max.y,
+    "realistic: the left eye's bone is in its eyeball",
+  );
+
+  // Sliders: a male build is broader in the shoulders; longer legs lengthen the bones; the height is a size.
+  const shoulders = (of) =>
+    of.humanoid.leftUpperArm.getWorldPosition(new Vector3()).x -
+    of.humanoid.rightUpperArm.getWorldPosition(new Vector3()).x;
+  const legs = (of) =>
+    of.humanoid.leftUpperLeg.getWorldPosition(new Vector3()).y - of.humanoid.leftFoot.getWorldPosition(new Vector3()).y;
+  const male = await createAvatar(start({ realShape: { gender: -1 } }), "Test", "auto");
+  assert.ok(shoulders(male) > shoulders(figure) + 0.01, "realistic: a male build has wider shoulders, bones and all");
+  const leggy = await createAvatar(start({ realShape: { gender: 1, proportions: 1 } }), "Test", "auto");
+  assert.ok(legs(leggy) > legs(figure) + 0.01, "realistic: longer legs move the leg's joints");
+  assert.ok(
+    Math.abs(new Box3().setFromObject(leggy.object).min.y) < 0.01,
+    "realistic: and it still stands on the floor",
+  );
+  const tall = await createAvatar(start({ height: 1.1 }), "Test", "auto");
+  assert.ok(
+    Math.abs(new Box3().setFromObject(tall.object).max.y / box.max.y - 1.1) < 0.01,
+    "realistic: the height slider sizes the whole figure",
+  );
+  // The hair stays on the head whatever the sliders make of it: its top within a centimetre or so of the scalp's.
+  for (const [name, shape] of [
+    ["female", { gender: 1 }],
+    ["male", { gender: -1 }],
+    ["old and heavy", { gender: 1, old: 1, fat: 1 }],
+    ["other features", { gender: -1, features_african: 1, proportions: -1 }],
+  ]) {
+    const made = await createAvatar(start({ realShape: shape }), "Test", "auto");
+    const gap = boxOf(made, "hair").max.y - boxOf(made, "skin_head").max.y;
+    assert.ok(
+      gap > -0.002 && gap < 0.02,
+      `realistic, ${name}: the hair sits on the head (${(gap * 1000).toFixed(1)} mm over it)`,
+    );
+    const cap = boxOf(made, "scalp").max.y - boxOf(made, "skin_head").max.y;
+    assert.ok(
+      cap > -0.003 && cap < 0.004,
+      `realistic, ${name}: the scalp cap lies on the scalp (${(cap * 1000).toFixed(1)} mm)`,
+    );
+    made.dispose();
+  }
+  // Every hair style loads; none is none.
+  for (const [style] of REALISTIC_HAIR) {
+    const made = await createAvatar(start({ realHair: style }), "Test", "auto");
+    const hair = mesh(made, "hair");
+    if (style === "none") assert.ok(!hair && !mesh(made, "scalp"), "realistic: no hair is no hair");
+    else assert.ok(hair.geometry.index.count / 3 > 20000, `realistic: the ${style} style has its strands`);
+    made.dispose();
+  }
+
+  // Saved as a GLB and as a VRM, with its face and eyes, and its look back out.
+  for (const each of figure.meshes)
+    for (const material of [each.material].flat())
+      Object.assign(material, { map: null, normalMap: null, roughnessMap: null }); // (no pictures in Node)
+  const look = start({ realHair: "bob", realTone: 0.25 });
+  const glb = await exportGlb(figure, { look, name: "Realistic" });
+  const file = readGlb(glb.bytes).json;
+  assert.equal(file.meshes.length, figure.meshes.length, "realistic: every mesh is in the saved file");
+  assert.deepEqual(lookInGlb(glb.bytes), { name: "Realistic", look }, "realistic: the look comes back out");
+  const cornea = file.materials.find((material) => material.name.startsWith("cornea"));
+  assert.equal(cornea.alphaMode, "BLEND", "realistic: the eye's clear front is saved see-through");
+  const vrmFile = await exportVrm(figure, { look, name: "Realistic", terms: { author: "Tester" } });
+  const loader = new GLTFLoader();
+  loader.register((parser) => new VRMLoaderPlugin(parser));
+  const bytes = vrmFile.bytes;
+  const gltf = await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
+  const vrm = gltf.userData.vrm;
+  assert.ok(vrm?.humanoid, "realistic: three-vrm reads it as a VRM");
+  vrm.scene.updateMatrixWorld(true);
+  const at = (bone) => vrm.humanoid.getRawBoneNode(bone).getWorldPosition(new Vector3());
+  assert.ok(Math.abs(at("leftUpperArm").y - at("leftHand").y) < 0.01, "realistic: its VRM rests with its arms level");
+  assert.ok(at("leftToes").z > at("leftFoot").z, "realistic: its VRM faces +Z");
+  for (const key of FACE_MOVES)
+    assert.ok(vrm.expressionManager.getExpression(key), `realistic: its VRM has the ${key} expression`);
+  assert.ok(vrm.lookAt, "realistic: its VRM's eyes can look");
+  for (const made of [figure, male, leggy, tall]) made.dispose();
+}
 console.log("3d-avatar-maker.regression: ok");

@@ -2,7 +2,7 @@
 // sheet, to look over every animation for hands, clothes and faces that go wrong. Open /motions on the test
 // server; the sheet is kept in dev/out/ as a PNG.
 //
-//   /motions?body=female&motions=idle,walk&frames=8&step=0.6&view=body&name=sheet
+//   /motions?body=female&motions=idle,walk&frames=8&step=0.6&view=body&name=sheet   (body: female, male or realistic)
 //
 // `view`: body (the default), back, hand, legs, face, mouth, mouth-side or mouth-below. `faces=1` draws each
 // face of the Face list in place of the animations, and `keys=aa,oh:0.5` the face's own keys, each alone.
@@ -10,7 +10,15 @@
 // `packs=0` leaves the wardrobe packs out.
 //
 // For development only; not part of the package.
-import { DirectionalLight, HemisphereLight, PerspectiveCamera, Scene, SRGBColorSpace, Vector3, WebGLRenderer } from "three";
+import {
+  DirectionalLight,
+  HemisphereLight,
+  PerspectiveCamera,
+  Scene,
+  SRGBColorSpace,
+  Vector3,
+  WebGLRenderer,
+} from "three";
 import { createAvatar } from "../src/avatar.js";
 import { animateFace, FACE_MODES, setFace } from "../src/face.js";
 import { relaxedPose } from "../src/figure.js";
@@ -23,7 +31,8 @@ import { createSprings } from "../src/springs.js";
 setKitBase("/kit/");
 const said = document.getElementById("said");
 const asked = new URLSearchParams(location.search);
-const number = (name, fallback) => (Number.isFinite(Number(asked.get(name))) && asked.get(name) ? Number(asked.get(name)) : fallback);
+const number = (name, fallback) =>
+  Number.isFinite(Number(asked.get(name))) && asked.get(name) ? Number(asked.get(name)) : fallback;
 
 const renderer = new WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
 renderer.outputColorSpace = SRGBColorSpace;
@@ -64,24 +73,30 @@ function aim(figure, view) {
 
 async function main() {
   if (asked.get("packs") !== "0") await loadPacks();
-  const body = asked.get("body") === "male" ? "male" : "female";
+  const body = ["male", "realistic"].includes(asked.get("body")) ? asked.get("body") : "female";
   // (As the maker's own new avatar is dressed, or in the outfit named.)
   const outfit = OUTFIT_PRESETS.find((preset) => preset.name === (asked.get("outfit") ?? "Modern casual"));
   const look = checkLook({
     ...NEUTRAL_LOOK,
     body,
-    ...(outfit ? outfitLook(outfit, body) : {}),
+    ...(outfit && body !== "realistic" ? outfitLook(outfit, body) : {}),
+    ...(body === "realistic" ? { realShape: { gender: 1 } } : {}),
     ...JSON.parse(asked.get("look") ?? "{}"),
   });
   const figure = await createAvatar(look, "Sheet", "auto");
   scene.add(figure.object);
+  globalThis.sheetFigure = figure; // (to look at from the browser's console)
   relaxedPose(figure, 0);
   const springs = createSprings(figure); // (hair, hanging cloth, the bust and a tail, as in the preview)
   await texturesReady();
   await new Promise((resolve) => setTimeout(resolve, 500));
 
   // (`keys`: the face's own keys, each alone, as "aa,oh:0.5": a mouth shape a talking avatar passes through.)
-  const keys = asked.get("keys")?.split(",").map((entry) => entry.split(":")) ?? null;
+  const keys =
+    asked
+      .get("keys")
+      ?.split(",")
+      .map((entry) => entry.split(":")) ?? null;
   const faces = asked.get("faces") === "1" || !!keys;
   const view = asked.get("view") ?? (faces ? "face" : "body");
   const frames = faces ? 1 : number("frames", 8);
@@ -92,7 +107,10 @@ async function main() {
     : faces
       ? FACE_MODES.filter(([mode]) => mode !== "lively" && mode !== "talking")
       : MOTIONS.filter(([id]) => !asked.get("motions") || asked.get("motions").split(",").includes(id));
-  const [width, height] = [number("w", view === "body" || view === "back" ? 200 : 260), number("h", view === "face" ? 260 : 320)];
+  const [width, height] = [
+    number("w", view === "body" || view === "back" ? 200 : 260),
+    number("h", view === "face" ? 260 : 320),
+  ];
   // (Faces go across; animations go down, their frames across.)
   const across = faces ? rows.length : frames;
   const down = faces ? 1 : rows.length;
@@ -133,7 +151,11 @@ async function main() {
       const [x, y] = faces ? [row * width, 0] : [frame * width, row * (height + 18)];
       context.drawImage(renderer.domElement, x, y + 18);
       context.fillStyle = "#e8eaf0";
-      context.fillText(faces ? label : frame ? `${seconds.toFixed(1)} s` : `${id}: ${label}`.slice(0, 34), x + 4, y + 13);
+      context.fillText(
+        faces ? label : frame ? `${seconds.toFixed(1)} s` : `${id}: ${label}`.slice(0, 34),
+        x + 4,
+        y + 13,
+      );
     }
   });
   const name = `${asked.get("name") ?? `motions-${body}-${view}`}.png`;

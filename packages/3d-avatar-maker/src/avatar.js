@@ -60,6 +60,7 @@ import {
   HORNS,
   RACE_PARTS,
   RACES,
+  REALISTIC,
   raceOf,
   SKINS,
   COMMUNITY_SKINS,
@@ -88,6 +89,7 @@ import {
   USUAL_HAIR_COLOURS,
 } from "./looks.js";
 import { geometryOf, load, loadUrl, rigOf, sexFor, skeletonFor, texture, view } from "./kitfiles.js";
+import { createRealistic, realisticChoices } from "./realistic.js";
 import { paintedSkin } from "./skin.js";
 import { bodyColliders, BUST_JOINT, CLOTH_JOINT, fitColliders, HAIR_JOINT, TAIL_BONES, TAIL_JOINT } from "./springs.js";
 import { hashString, rng } from "./util.js";
@@ -944,6 +946,7 @@ const packUnderwear = (slot, sex) =>
  * (a hood up).
  */
 export async function avatarChoices(sex, species = "human") {
+  if (sex === REALISTIC) return realisticChoices();
   const anthro = species !== "human";
   const kit = await bodyKit(sex, species);
   const [hair, outfits] = await Promise.all([indexOf(HAIR_INDEX), indexOf(OUTFIT_INDEX)]);
@@ -1205,6 +1208,8 @@ function centreEyes(body, kit, bones) {
  * hasn't got is left off.
  */
 export async function createAvatar(look = {}, name = "", gender = "auto") {
+  // (The Realistic body is a build of its own, realistic.js: nothing below is for it.)
+  if (look.body === REALISTIC) return createRealistic(look);
   const filled = avatarLook(name, gender, look);
   const sex = filled.body;
   // The nails: pieces of their own, worn unless gloves, shoes or socks cover them, in the look's nail colour

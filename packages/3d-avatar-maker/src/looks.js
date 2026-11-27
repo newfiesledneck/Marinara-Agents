@@ -243,7 +243,17 @@ export function checkLook(raw) {
   // Which avatar shows: one of their card's 3D models, or the built-in person (missing: the card's own choice).
   if (AVATARS.includes(raw.avatar)) look.avatar = raw.avatar;
   // The base avatar's own (avatar.js): its body, sliders, colours, underwear, outfit pieces, and the preset it began from.
-  if (BODIES.some(([body]) => body === raw.body)) look.body = raw.body;
+  if (ALL_BODIES.some(([body]) => body === raw.body)) look.body = raw.body;
+  // The Realistic body's own: its sliders, its skin's tone (0 light to 1 dark) and its hair style.
+  if (raw.realShape && typeof raw.realShape === "object") {
+    look.realShape = {};
+    for (const [key, , , , , both] of REALISTIC_SHAPES) {
+      const value = Number(raw.realShape[key]);
+      if (Number.isFinite(value) && value !== 0) look.realShape[key] = Math.max(both ? -1 : 0, Math.min(1, value));
+    }
+  }
+  if (Number.isFinite(raw.realTone)) look.realTone = Math.max(0, Math.min(1, Number(raw.realTone)));
+  if (REALISTIC_HAIR.some(([style]) => style === raw.realHair)) look.realHair = raw.realHair;
   // Which kind of body (missing: a human, unless lore or their race says otherwise), and a dragon's wings.
   if (SPECIES.some(([species]) => species === raw.species)) look.species = raw.species;
   if (typeof raw.wings === "boolean") look.wings = raw.wings;
@@ -386,6 +396,94 @@ export function checkLook(raw) {
 export const BODIES = [
   ["male", "Male body"],
   ["female", "Female body"],
+];
+/**
+ * The Realistic body (realistic.js): a body of another make, kept beside the two above, which stay as they
+ * are. It has its own sliders, skin, eyes and hair, and no clothes yet.
+ */
+export const REALISTIC = "realistic";
+/** Every body the Body tab offers. (BODIES alone is the kit's two, which the clothes, hair and presets are made for.) */
+export const ALL_BODIES = [...BODIES, [REALISTIC, "Realistic body (new, in progress)"]];
+/**
+ * The Realistic body's sliders: [key (the shape key in its file), label, tab, what it changes, its ends, both ways].
+ * One-way sliders start at the left; two-way ones have the body's own shape in the middle.
+ */
+export const REALISTIC_SHAPES = [
+  [
+    "gender",
+    "Male or female",
+    "body",
+    "The whole body and face, from a male build to a female one.",
+    ["Male", "Female"],
+    true,
+  ],
+  ["fat", "Weight", "body", "Fat all over the body and face.", ["As built", "Heavy"], false],
+  ["muscular", "Muscle", "body", "Muscle all over the body.", ["As built", "Muscular"], false],
+  ["lean", "Lean", "body", "Less fat, with the muscles showing.", ["As built", "Lean"], false],
+  ["thin", "Thin", "body", "Very little fat or muscle.", ["As built", "Thin"], false],
+  ["ectomorph", "Slight frame", "body", "A narrow, light frame.", ["As built", "Slight"], false],
+  ["mesomorph", "Athletic frame", "body", "A broad-shouldered, athletic frame.", ["As built", "Athletic"], false],
+  ["endomorph", "Stocky frame", "body", "A wide, soft frame.", ["As built", "Stocky"], false],
+  [
+    "proportions",
+    "Leg length",
+    "body",
+    "Longer legs and a shorter body, or the other way.",
+    ["Shorter legs", "Longer legs"],
+    true,
+  ],
+  ["old", "Age", "body", "An older face and body.", ["As built", "Old"], false],
+  ["breasts", "Breast size", "body", "The size of the breasts.", ["As built", "Larger"], false],
+  ["shoulders", "Shoulder width", "body", "How wide the shoulders are.", ["As built", "Wider"], false],
+  ["waist", "Waist", "body", "How wide the waist is.", ["Narrower", "Wider"], true],
+  ["hips", "Hips", "body", "How wide the hips are.", ["Narrower", "Wider"], true],
+  ["glutes", "Buttocks", "body", "The size of the buttocks.", ["Smaller", "Larger"], true],
+  ["thighs", "Thighs", "body", "How thick the thighs are.", ["Thinner", "Thicker"], true],
+  ["calves", "Calves", "body", "How thick the calves are.", ["Thinner", "Thicker"], true],
+  ["biceps", "Upper arms", "body", "How thick the upper arms are.", ["Thinner", "Thicker"], true],
+  ["neck_girth", "Neck thickness", "body", "How thick the neck is.", ["As built", "Thicker"], false],
+  ["neck_length", "Neck length", "body", "How long the neck is.", ["Shorter", "Longer"], true],
+  ["jaw_width", "Jaw width", "face", "How wide the jaw is.", ["Narrower", "Wider"], true],
+  ["chin_width", "Chin width", "face", "How wide the chin is.", ["Narrower", "Wider"], true],
+  ["chin_height", "Chin height", "face", "How tall the chin is.", ["Shorter", "Taller"], true],
+  ["cheekbones", "Cheekbones", "face", "How far the cheekbones stand out.", ["Flatter", "Fuller"], true],
+  ["cheek_fat", "Cheeks", "face", "How full the cheeks are.", ["Hollow", "Full"], true],
+  ["eye_size", "Eye size", "face", "The size of the eyes.", ["Smaller", "Larger"], true],
+  ["eye_distance", "Eye spacing", "face", "How far apart the eyes are.", ["Closer", "Wider"], true],
+  ["eye_tilt", "Eye tilt", "face", "The slant of the eyelids.", ["Down", "Up"], true],
+  ["nose_height", "Nose height", "face", "How high the nose sits.", ["Lower", "Higher"], true],
+  ["nose_out", "Nose length", "face", "How far the nose stands out.", ["Flatter", "Longer"], true],
+  ["nostrils", "Nostrils", "face", "The size of the nostrils.", ["Smaller", "Larger"], true],
+  ["lips_height", "Lip fullness", "face", "How full the lips are.", ["Thinner", "Fuller"], true],
+  ["lips_width", "Mouth width", "face", "How wide the mouth is.", ["Narrower", "Wider"], true],
+  [
+    "features_african",
+    "African features",
+    "face",
+    "Mixes in a face and skull shape. The features sliders can be mixed.",
+    ["None", "Full"],
+    false,
+  ],
+  ["features_east_asian", "East Asian features", "face", "Mixes in a face and skull shape.", ["None", "Full"], false],
+  ["features_south_asian", "South Asian features", "face", "Mixes in a face and skull shape.", ["None", "Full"], false],
+  ["features_hispanic", "Hispanic features", "face", "Mixes in a face and skull shape.", ["None", "Full"], false],
+  [
+    "features_middle_eastern",
+    "Middle Eastern features",
+    "face",
+    "Mixes in a face and skull shape.",
+    ["None", "Full"],
+    false,
+  ],
+  ["features_white", "White features", "face", "Mixes in a face and skull shape.", ["None", "Full"], false],
+];
+/** The Realistic body's hair: strand styles turned into ribbons (kit/avatar/realistic-hair-<style>). */
+export const REALISTIC_HAIR = [
+  ["none", "None"],
+  ["bob", "Bob"],
+  ["slicked", "Slicked back"],
+  ["back", "Swept back, long"],
+  ["eve", "Long, parted"],
 ];
 /**
  * The kinds of body: [value, label]. An anthro kind is a body of its own (kit/generic/avatar/

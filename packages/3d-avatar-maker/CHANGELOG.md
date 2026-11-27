@@ -1,5 +1,11 @@
 # 3D Avatar Maker release notes
 
+## 0.1.19 — 2026-11-27
+
+- A third body to choose on the Body tab: **Realistic body (new, in progress)**. It is a different base model with scanned-looking skin, its own eyes, teeth and brows, and the same blinks, mouth shapes and feelings. It plays every preview animation and saves as a VRM or GLB like the others.
+- It has 39 shape sliders of its own (a male-to-female slider, build, age, and the face), a skin tone slider from light to dark, and four hair styles made of thousands of separate strands.
+- The Male and Female bodies are unchanged and keep everything made for them. The Realistic body has no clothes, underwear, eyelashes, eye colours or makeup yet, and its hair doesn't swing yet.
+
 ## 0.1.18 — 2026-11-26
 
 - The preview is much lighter on the graphics card. It was drawn as often as the screen asked, 120 times a second and more on many screens; it's now drawn 30 times a second at rest and 60 while you turn the view or an animation plays.

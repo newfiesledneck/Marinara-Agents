@@ -15,7 +15,7 @@
         },
         "id": "3d-avatar-maker",
         "name": "3D Avatar Maker",
-        "version": "0.1.18",
+        "version": "0.1.19",
         "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
         "engine": {
           "min": "2.4.6",
@@ -99,6 +99,30 @@
               "kit/avatar/avatar-male-skin-young-caucasian.webp",
               "kit/avatar/avatar-male.pack.png",
               "kit/avatar/avatar-male.webp",
+              "kit/avatar/realistic-body.pack.png",
+              "kit/avatar/realistic-eye.webp",
+              "kit/avatar/realistic-hair-back.pack.png",
+              "kit/avatar/realistic-hair-bob.pack.png",
+              "kit/avatar/realistic-hair-eve.pack.png",
+              "kit/avatar/realistic-hair-slicked.pack.png",
+              "kit/avatar/realistic-iris.webp",
+              "kit/avatar/realistic-mouth.webp",
+              "kit/avatar/realistic-skin-arms-dark.webp",
+              "kit/avatar/realistic-skin-arms-light.webp",
+              "kit/avatar/realistic-skin-arms-normal.webp",
+              "kit/avatar/realistic-skin-arms-rough.webp",
+              "kit/avatar/realistic-skin-head-dark.webp",
+              "kit/avatar/realistic-skin-head-light.webp",
+              "kit/avatar/realistic-skin-head-normal.webp",
+              "kit/avatar/realistic-skin-head-rough.webp",
+              "kit/avatar/realistic-skin-legs-dark.webp",
+              "kit/avatar/realistic-skin-legs-light.webp",
+              "kit/avatar/realistic-skin-legs-normal.webp",
+              "kit/avatar/realistic-skin-legs-rough.webp",
+              "kit/avatar/realistic-skin-torso-dark.webp",
+              "kit/avatar/realistic-skin-torso-light.webp",
+              "kit/avatar/realistic-skin-torso-normal.webp",
+              "kit/avatar/realistic-skin-torso-rough.webp",
               "kit/wardrobe/avatar-outfits-accessories.pack.png",
               "kit/wardrobe/avatar-outfits-armour.pack.png",
               "kit/wardrobe/avatar-outfits-body.pack.png",
@@ -119,8 +143,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "a43958164e0c2d222838c81bcdac4bf552fd8a509d728b8053f6982b2500c5be",
-            "bytes": 1299134
+            "sha256": "a8b25737b6308d6d385b6e566d921e312e38ba26706b634452038e091d88ba8d",
+            "bytes": 1314873
           },
           {
             "path": "3d-avatar-maker-icon.webp",
@@ -418,6 +442,126 @@
             "bytes": 66580
           },
           {
+            "path": "kit/avatar/realistic-body.pack.png",
+            "sha256": "1659e4d4e8326371a76427f0b33dd8b48f6a2e0c5267b65bd1e97fe66f9143b0",
+            "bytes": 2404923
+          },
+          {
+            "path": "kit/avatar/realistic-eye.webp",
+            "sha256": "96f394f470b86584b487b63770511b3bb1fb1d89c72ac09dff67ad9f5c39d648",
+            "bytes": 32524
+          },
+          {
+            "path": "kit/avatar/realistic-hair-back.pack.png",
+            "sha256": "f05ee39a9761e7ff618358463ecfb4c95ba1b509043cb362ec2755027d4c7b43",
+            "bytes": 534666
+          },
+          {
+            "path": "kit/avatar/realistic-hair-bob.pack.png",
+            "sha256": "98e4c46cbb34e28fa4ff960a23d87545698007044338b7adb83f90a0de93252d",
+            "bytes": 594063
+          },
+          {
+            "path": "kit/avatar/realistic-hair-eve.pack.png",
+            "sha256": "db3d052f325efc260e1905f6b728fa5618c7c7071984ff00944d2bf45c3293d5",
+            "bytes": 572458
+          },
+          {
+            "path": "kit/avatar/realistic-hair-slicked.pack.png",
+            "sha256": "e56fe46f6dbc6c4e2acbfb05bdece51fc3680df81b66db9d3db7601d72946c5c",
+            "bytes": 540775
+          },
+          {
+            "path": "kit/avatar/realistic-iris.webp",
+            "sha256": "4dae8adfe9e2a12e8eb13d39db70ac6e16fe71a0857ae437373ff8f62317c6c8",
+            "bytes": 41244
+          },
+          {
+            "path": "kit/avatar/realistic-mouth.webp",
+            "sha256": "b4aded19fb83a70abd7ab448fd860fcb66e3762c21d4648f6bf0b9ef0c2bca5b",
+            "bytes": 76406
+          },
+          {
+            "path": "kit/avatar/realistic-skin-arms-dark.webp",
+            "sha256": "bafb85c5b809c5f0937e3cf8740cacf9393c4f72d839c86a6f37461bd940745d",
+            "bytes": 67732
+          },
+          {
+            "path": "kit/avatar/realistic-skin-arms-light.webp",
+            "sha256": "1ba1aa5833b9f94c9e283557f3666e52e7fcfbee025251b73643a81943bb683f",
+            "bytes": 99358
+          },
+          {
+            "path": "kit/avatar/realistic-skin-arms-normal.webp",
+            "sha256": "59a9f31a6ef9e0c36b12bc7008d90fb80843e290f2f5cc44af883b6846126f2d",
+            "bytes": 5590
+          },
+          {
+            "path": "kit/avatar/realistic-skin-arms-rough.webp",
+            "sha256": "f34162a3c890b53d5ba9ba571bcbb4fcfc21da38031b4085d71c32a98d3414fe",
+            "bytes": 14140
+          },
+          {
+            "path": "kit/avatar/realistic-skin-head-dark.webp",
+            "sha256": "c5e23accba60b75a78ba76d495a477738a63b812b45fba344c991d2333b1f8a2",
+            "bytes": 40504
+          },
+          {
+            "path": "kit/avatar/realistic-skin-head-light.webp",
+            "sha256": "bd0d2b5bf6e0aed94787b41730d9a423672b037be37a6533a26ce396a23f8dd9",
+            "bytes": 106354
+          },
+          {
+            "path": "kit/avatar/realistic-skin-head-normal.webp",
+            "sha256": "a9a2602133e97ef543a3334585025c7a3cb40377c24458f03d04bc19860c7d9e",
+            "bytes": 206738
+          },
+          {
+            "path": "kit/avatar/realistic-skin-head-rough.webp",
+            "sha256": "784311755d0beb92d57f0fd9787dde98725033ef69e1006bb1fb0866e85fd9a7",
+            "bytes": 42728
+          },
+          {
+            "path": "kit/avatar/realistic-skin-legs-dark.webp",
+            "sha256": "ad9ea7d6003562519b1846c4a98223b1057cda839d97993285e755342283f6e7",
+            "bytes": 61998
+          },
+          {
+            "path": "kit/avatar/realistic-skin-legs-light.webp",
+            "sha256": "a5027b5d07233b2cbb1fc41f8647bd222b8cb436455cce9b1f929dbe88d2d9e0",
+            "bytes": 96742
+          },
+          {
+            "path": "kit/avatar/realistic-skin-legs-normal.webp",
+            "sha256": "2ab9261d9c5647c59b0bd83effde46c1912d5d02f6d8d5db7a8723761ed9478e",
+            "bytes": 5342
+          },
+          {
+            "path": "kit/avatar/realistic-skin-legs-rough.webp",
+            "sha256": "8737e3e9e6e0639a06463c22b79f51c25820c160388147335b25ee4be94939e5",
+            "bytes": 15408
+          },
+          {
+            "path": "kit/avatar/realistic-skin-torso-dark.webp",
+            "sha256": "2ddc18fd44a22981eb8568b832435c31c831889ad0d7e0e5d163c69d6b60926c",
+            "bytes": 39248
+          },
+          {
+            "path": "kit/avatar/realistic-skin-torso-light.webp",
+            "sha256": "e27d064e721f6de51bf0005347f5762249fb807d66474b2529a0dd4cca4121e3",
+            "bytes": 99310
+          },
+          {
+            "path": "kit/avatar/realistic-skin-torso-normal.webp",
+            "sha256": "70dd1bf0612398408b43c5a36e321d8ec0e15ba1e7208e881717382371a7c52f",
+            "bytes": 3888
+          },
+          {
+            "path": "kit/avatar/realistic-skin-torso-rough.webp",
+            "sha256": "cf2d795f7be99742060dff1d9bfc48e0cdce0959c9b783099d554d27403e1a0f",
+            "bytes": 19674
+          },
+          {
             "path": "kit/wardrobe/avatar-outfits-accessories.pack.png",
             "sha256": "69b3c7921700898749716f290d76bf6670d95739d5416df55bcccc33fa131992",
             "bytes": 875829
@@ -471,9 +615,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-0.1.18.zip",
-        "sha256": "022abad367bb98a205491f0d2f6bee6af06b99cc8ed387f69116026757cf0c98",
-        "bytes": 61810205
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-0.1.19.zip",
+        "sha256": "85d4bdb44f8b898ed52c9e75afe83a1ab29eff073dff19df363ff89bf8444a6d",
+        "bytes": 67556902
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker/README.md"
     },
