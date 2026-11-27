@@ -11,7 +11,7 @@ import { exportGlb, exportVrm, FILE_FORMAT, lookInGlb, vrmTerms } from "./export
 import { FACE_MODES } from "./face.js";
 import { cardOf, createGenerator } from "./generate.js";
 import { PACKAGE_ID, setKitBase } from "./kitfiles.js";
-import { checkLook, missingNotes, NEUTRAL_LOOK, OUTFIT_PRESETS, outfitLook, wornLook } from "./looks.js";
+import { checkLook, missingNotes, NEUTRAL_LOOK, OUTFIT_PRESETS, outfitLook, REALISTIC, wornLook } from "./looks.js";
 import { MOTIONS } from "./motions.js";
 import { loadPacks } from "./packs.js";
 import { createPanel, h } from "./panel.js";
@@ -24,7 +24,7 @@ const DRAFT_KEY = (owner) => `${PACKAGE_ID}:draft:${owner ? `${owner.type}:${own
 const LAST_KEY = `${PACKAGE_ID}:last`;
 const TERMS_KEY = `${PACKAGE_ID}:vrm-terms`; // (the author's VRM terms, the same for every avatar they save)
 /** The look's fields that are records, merged part by part when a control changes one part. */
-const RECORDS = ["shape", "limbs", "colours", "makeup", "underwear", "clothColours", "variants"];
+const RECORDS = ["shape", "limbs", "colours", "makeup", "underwear", "clothColours", "variants", "realShape"];
 
 const rows = (list) => (Array.isArray(list) ? list : Array.isArray(list?.items) ? list.items : []);
 /** A character card's name: rows keep the card as JSON in `data` (text or already read). */
@@ -79,6 +79,8 @@ const store = {
 
 /** A new avatar's look: the body's own shape, dressed in everyday modern clothes. */
 function startingLook(over = {}) {
+  // (The Realistic body has no clothes yet: it starts bare, as a female build.)
+  if (over.body === REALISTIC) return checkLook({ ...NEUTRAL_LOOK, realShape: { gender: 1 }, ...over });
   const body = over.body === "male" ? "male" : "female";
   const casual = OUTFIT_PRESETS.find((preset) => preset.name === "Modern casual");
   return checkLook({ ...NEUTRAL_LOOK, body, ...(casual ? outfitLook(casual, body) : {}), ...over });

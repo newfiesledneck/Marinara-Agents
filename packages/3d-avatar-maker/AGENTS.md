@@ -13,7 +13,8 @@ with every change.
 - Humans only for now. Every feature works without AI; anything that calls a model is off until the user
   turns it on, has its own switch, and says what it sends.
 - Only CC0 or CC-BY material: MakeHuman's data and its community packs (read as data; MakeHuman's GPL code
-  is never run or copied) and what is made here. The main kit stays CC0, so a saved avatar is free to share;
+  is never run or copied), the Vitruvian character for CharMorph (CC0, read as data; CharMorph's GPL code is
+  never run or copied) and what is made here. The main kit stays CC0, so a saved avatar is free to share;
   CC-BY items go in the separate asset packs, with their authors credited there. Check each item's own files
   as well as its catalogue, and leave out any whose files say otherwise (AGPL headers): `docs/MAKEHUMAN-PACKS.md`
   is the item-by-item list. Anything under another licence: ask first.
@@ -58,6 +59,21 @@ masks (`kit/avatar/avatar-<sex>-hair-masks-<n>.png`: where its facial hair grows
 so the skin under hair is painted in the hair's colour). Run the third whenever a body or the hair is repacked. The packer reads and writes only under
 `packages/3d-avatar-maker/`. The body script reads MakeHuman's data from the user's asset folder
 (`MAKEHUMAN_DATA` and `MAKEHUMAN_ASSETS`, else `_planning/Wanderworld asset packs/MakeHuman`).
+
+The Realistic body is built apart from the other two, from the Vitruvian character for CharMorph (CC0), which
+lives outside the repository (`VITRUVIAN_DATA`, else `_planning/Wanderworld asset packs/Vitruvian/CharMorph-Vitruvian-main`):
+
+```bash
+"$BLENDER" --background --factory-startup --disable-autoexec --python packages/3d-avatar-maker/assets/scripts/make_realistic.py
+node scripts/build-3d-avatar-maker-kit.mjs realistic
+```
+
+The first writes `assets/models/realistic-*.glb`, `realistic-body.json` and `assets/textures/realistic/`
+(`-- body`, `-- textures` or `-- hair` builds one of them; ffmpeg on `PATH`, or `FFMPEG`); the second packs
+them into `kit/avatar/realistic-*` and leaves the rest of the kit as it is. `src/realistic.js` builds that
+body in the maker; nothing in it reads the other bodies' files, and `BODIES` in `src/looks.js` stays the
+kit's two, which the clothes, hair and presets are made for. Its sliders are named in three places that must
+agree: `SLIDERS` in the script, `REALISTIC_SHAPES` in `src/looks.js`, and the keys in its packed file.
 
 The face and body sliders are pairs of shape keys, `<slider>.lo` and `<slider>.hi` (`FACE_DETAIL`,
 `BODY_DETAIL`, `BREAST_DETAIL` in `make_avatar.py`, the same names in `src/looks.js`). Only the skin and eyes

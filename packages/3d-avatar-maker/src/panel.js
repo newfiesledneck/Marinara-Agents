@@ -4,6 +4,7 @@
 // `shape`, `colours` and the like is merged, not replaced; `undefined` clears a choice).
 import {
   AGES,
+  ALL_BODIES,
   AVATAR_COLOURS,
   BARE,
   BODIES,
@@ -25,6 +26,9 @@ import {
   fromTrack,
   presetFields,
   HAIR_COLOURS,
+  REALISTIC,
+  REALISTIC_HAIR,
+  REALISTIC_SHAPES,
   HAIRSTYLES,
   hasSlider,
   HEIGHTS,
@@ -290,6 +294,101 @@ export function createPanel(actions) {
     return rows;
   };
 
+  /** The change that picks body `value`: the Realistic body, picked for the first time, starts as the build left. */
+  const toBody = (value, look, filled) =>
+    value === REALISTIC && !look?.realShape
+      ? { body: value, realShape: { gender: filled.body === "male" ? -1 : 1 } }
+      : { body: value };
+
+  /** One of the Realistic body's sliders (looks.js REALISTIC_SHAPES). */
+  const realSlider = ([key, label, , says, ends, both], filled) =>
+    slider({
+      name: label,
+      says,
+      ends,
+      least: both ? -1 : 0,
+      most: 1,
+      at: filled.realShape?.[key] ?? 0,
+      onInput: (at) => change({ realShape: { [key]: at } }, false),
+    });
+
+  /**
+   * The Realistic body's tabs, in place of the other bodies' (the Start, Generate and Save tabs are shared):
+   * its own sliders, its skin's tone and its hair. It has no clothes yet, and says so.
+   */
+  const realistic = {
+    body: ({ look, filled }) => [
+      group(
+        "Body",
+        "",
+        row(
+          "Body",
+          select(ALL_BODIES, filled.body, (value) => change(toBody(value, look, filled)), "Body"),
+          "The Realistic body is new and still being built: it has its own sliders, skin and hair, and no clothes yet. The other two bodies are as they were, with everything made for them.",
+        ),
+        middleSlider({
+          name: "Height",
+          says: "The whole figure, taller or shorter.",
+          ends: ["Short", "Tall"],
+          least: HEIGHTS[0],
+          most: HEIGHTS[1],
+          at: filled.height,
+          onInput: (value) => change({ height: value }, false),
+        }),
+      ),
+      group(
+        "Build",
+        "A slider with two ends has the body's own shape in the middle; the others start at the left.",
+        ...REALISTIC_SHAPES.filter((entry) => entry[2] === "body").map((entry) => realSlider(entry, filled)),
+      ),
+    ],
+    face: ({ filled }) => [
+      group(
+        "Face",
+        "A slider with two ends has the face's own shape in the middle; the others start at the left.",
+        ...REALISTIC_SHAPES.filter((entry) => entry[2] === "face").map((entry) => realSlider(entry, filled)),
+      ),
+    ],
+    skin: ({ filled }) => [
+      group(
+        "Skin",
+        "This body has a light skin and a dark one; the slider blends between them. Eye colours and more skins come later.",
+        slider({
+          name: "Skin tone",
+          says: "From the light skin to the dark one.",
+          ends: ["Light", "Dark"],
+          least: 0,
+          most: 1,
+          at: filled.realTone ?? 0,
+          onInput: (at) => change({ realTone: at }, false),
+        }),
+      ),
+    ],
+    hair: ({ filled }) => [
+      group(
+        "Hair",
+        "Each style is made of thousands of separate strands. They don't swing yet.",
+        row(
+          "Style",
+          select(REALISTIC_HAIR, filled.realHair, (value) => change({ realHair: value }), "Hair style"),
+          "The brows take the hair's colour, a little darker.",
+        ),
+        colours(
+          "Hair colour",
+          HAIR_COLOURS,
+          filled.hairTint ?? HAIR_COLOURS[filled.hairColour ?? 0]?.[0],
+          (hex, redraw) => change({ hairTint: hex, hairColour: undefined }, redraw),
+        ),
+      ),
+    ],
+    clothes: () => [
+      group(
+        "Clothes",
+        "This body has no clothes yet. They will be fitted to it in a later version; the other two bodies keep theirs.",
+      ),
+    ],
+  };
+
   const sections = {
     start: ({ filled }) => [
       group(
@@ -312,6 +411,11 @@ export function createPanel(actions) {
           { class: "swatches" },
           h("button", { type: "button", onclick: () => actions.onNew({ body: "female" }) }, "New female avatar"),
           h("button", { type: "button", onclick: () => actions.onNew({ body: "male" }) }, "New male avatar"),
+          h(
+            "button",
+            { type: "button", onclick: () => actions.onNew({ body: REALISTIC }) },
+            "New realistic avatar (in progress)",
+          ),
         ),
       ),
       group(
@@ -335,21 +439,21 @@ export function createPanel(actions) {
       ),
       group(
         "Where this avatar is",
-        `Body: ${labelOf(BODIES, filled.body)}. Your work is kept in this browser as you go. Use the Save tab to keep it as a file.`,
+        `Body: ${labelOf(ALL_BODIES, filled.body)}. Your work is kept in this browser as you go. Use the Save tab to keep it as a file.`,
       ),
     ],
 
     // (Generate avatar, generate.js: its controls keep what's typed in them, so they're made once.)
     generate: ({ generator }) => (generator ? [generator.element()] : []),
 
-    body: ({ filled, choices }) => [
+    body: ({ look, filled, choices }) => [
       group(
         "Body",
         "",
         row(
           "Body",
-          select(BODIES, filled.body, (value) => change({ body: value }), "Body"),
-          "Each body has its own hair fits, underwear and some clothes.",
+          select(ALL_BODIES, filled.body, (value) => change(toBody(value, look, filled)), "Body"),
+          "Each body has its own hair fits, underwear and some clothes. The Realistic body is new and still being built: it has its own sliders, skin and hair, and no clothes yet.",
         ),
         row(
           "Race",
@@ -1081,7 +1185,9 @@ export function createPanel(actions) {
       { class: `status${status.bad ? " bad" : ""}`, role: "status", "aria-live": "polite" },
       status.text,
     );
-    body.replaceChildren(statusLine, ...(info.filled && info.choices ? sections[info.tab](info) : []).filter(Boolean));
+    // (The Realistic body has tabs of its own for what's its own.)
+    const section = (info.filled?.body === REALISTIC && realistic[info.tab]) || sections[info.tab];
+    body.replaceChildren(statusLine, ...(info.filled && info.choices ? section(info) : []).filter(Boolean));
     body.scrollTop = scroll;
   }
 

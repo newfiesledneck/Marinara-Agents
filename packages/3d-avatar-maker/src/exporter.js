@@ -27,7 +27,7 @@ import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import { FACE_MOVES } from "./face.js";
 import { restPose, tPose } from "./figure.js";
 import { HUMANOID_BONES, texturesReady } from "./kitfiles.js";
-import { packCredits } from "./looks.js";
+import { packCredits, REALISTIC } from "./looks.js";
 
 export const FILE_FORMAT = 1;
 export const GENERATOR = "3D Avatar Maker (Marinara Engine)";
@@ -35,11 +35,15 @@ const KIT_NOTE =
   "Body, hair, skin and clothing: MakeHuman base mesh and system assets (CC0 1.0), and parts made in Blender by ThatOneCan (CC0 1.0).";
 /** What travels with every exported file. The kit is CC0, so the file asks nothing of whoever gets it. */
 export const LICENCE_NOTE = `${KIT_NOTE} No credit required.`;
+/** The same for the Realistic body (realistic.js), which is of another make. */
+export const REALISTIC_NOTE =
+  "Body, hair and skin: Vitruvian for CharMorph by Sean Buckley, on Antonia Polygon by Olaf Delgado-Friedrichs (CC0 1.0), adapted in Blender by ThatOneCan (CC0 1.0). No credit required.";
 /**
  * The file's licence note for a look: the kit's, and the credit each CC-BY piece and hair style from a
  * wardrobe pack asks for.
  */
 export function licenceNote(look) {
+  if (look?.body === REALISTIC) return REALISTIC_NOTE;
   const credits = packCredits(look);
   return credits.length ? `${KIT_NOTE} From wardrobe packs: ${credits.join("; ")}` : LICENCE_NOTE;
 }
@@ -155,8 +159,15 @@ function standardMaterial(material, name) {
     map: material.map ?? null,
     color: material.color,
     vertexColors: material.vertexColors,
-    roughness: 0.9,
-    metalness: 0,
+    // (A part with shading of its own, the Realistic body's, keeps it: how smooth it is, its relief, how solid.
+    // glTF holds roughness and metalness in one picture, green and blue: the roughness map's blue is 0, no metal.)
+    roughness: material.isMeshStandardMaterial ? material.roughness : 0.9,
+    metalness: material.roughnessMap ? 1 : 0,
+    roughnessMap: material.roughnessMap ?? null,
+    metalnessMap: material.roughnessMap ?? null,
+    normalMap: material.normalMap ?? null,
+    ...(material.normalMap ? { normalScale: material.normalScale.clone() } : {}),
+    opacity: material.opacity,
     side: material.side === DoubleSide ? DoubleSide : FrontSide,
     // glTF has two kinds of see-through: cut out by the picture's alpha (MASK), or blended (BLEND).
     alphaTest: cutOut ? material.alphaTest : 0,
@@ -402,6 +413,9 @@ async function exportFile(figure, { look = {}, name = "", maxTextureSize = 2048 
             clear || mimeTypes.get(converted.map) === "image/png" ? "image/png" : "image/jpeg",
           );
         }
+        // (A relief or roughness picture has nothing see-through in it: a JPEG, a tenth of the PNG's size.)
+        for (const map of [converted.normalMap, converted.roughnessMap])
+          if (map && !mimeTypes.has(map)) mimeTypes.set(map, "image/jpeg");
         return converted;
       });
       // (A part coloured by its material alone has no use for the colours a shared geometry carries.)

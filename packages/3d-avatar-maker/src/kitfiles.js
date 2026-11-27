@@ -10,6 +10,7 @@ import {
   BufferGeometry,
   Group,
   Matrix4,
+  NoColorSpace,
   Skeleton,
   SRGBColorSpace,
   TextureLoader,
@@ -49,14 +50,15 @@ export function loadUrl(url, what = url) {
 
 /**
  * A kit texture, loaded once and shared: the .webp of that name, or the picture of that name in `pictures`
- * (a bundle's, packed.js).
+ * (a bundle's, packed.js). `asData`: a picture of numbers (a normal or roughness map), not colours.
  */
-export function texture(name, pictures = null) {
+export function texture(name, pictures = null, asData = false) {
   if (!textures.has(name)) {
     const packed = pictures?.find((picture) => picture.name === name)?.webp;
     const map = packed ? pictureTexture(packed) : loader.load(urlOf(`${name}.webp`));
     map.flipY = false; // glTF texture coordinates
-    map.colorSpace = SRGBColorSpace;
+    // (A normal or roughness map is numbers, not colours.)
+    map.colorSpace = asData ? NoColorSpace : SRGBColorSpace;
     map.name = name;
     map.userData.shared = true;
     textures.set(name, map);

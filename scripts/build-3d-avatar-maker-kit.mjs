@@ -1358,6 +1358,62 @@ export function packHairStyles({ dir, files, reach, shares, bundler, bundleOf, p
  * and clothes' shape keys move them only where they move the body (followBody), and every key's normals
  * are put right (keyNormals).
  */
+/**
+ * The Realistic body (assets/scripts/make_realistic.py, from the Vitruvian character, CC0): kept beside the
+ * MakeHuman bodies, and packed on its own with `node scripts/build-3d-avatar-maker-kit.mjs realistic`.
+ * - kit/avatar/realistic-body.pack.png: its skeleton and parts (each mesh saying its material as `part`, the
+ *   brows as a `piece`), the face's moves and the shape sliders as keys, `sliders` ([key, least, most]) and
+ *   `jointMoves` (how each slider moves every joint, from realistic-body.json: the character's own joints
+ *   follow its shape).
+ * - kit/avatar/realistic-hair-<style>.pack.png: a strand hair style each, as ribbons and a scalp cap.
+ * - kit/avatar/realistic-*.webp: its pictures, as the script wrote them.
+ */
+function realistic(dir, out) {
+  if (!existsSync(join(dir, "realistic-body.glb"))) return;
+  const source =
+    "Vitruvian for CharMorph by Sean Buckley, on Antonia Polygon by Olaf Delgado-Friedrichs (CC0), adapted in Blender by ThatOneCan (packages/3d-avatar-maker/assets/scripts/make_realistic.py)";
+  const gltf = readGltf(join(dir, "realistic-body.glb"));
+  const primitives = skinnedPrimitives(gltf);
+  primitives.forEach(keyNormals);
+  const body = part(primitives, () => null, { skeleton: skeletonOf(gltf) });
+  body.meshes.forEach((mesh, i) => {
+    if (/brows/u.test(primitives[i].nodeName ?? "")) mesh.piece = "brows";
+  });
+  let top = 0;
+  for (const primitive of primitives)
+    for (let i = 1; i < primitive.position.values.length; i += 3) top = Math.max(top, primitive.position.values[i]);
+  const beside = JSON.parse(readFileSync(join(dir, "realistic-body.json"), "utf8"));
+  const keys = [...new Set(primitives.flatMap((primitive) => primitive.keyNames))];
+  writePacked(
+    join(out, "realistic-body.pack.png"),
+    {
+      source,
+      height: Math.round(top * 100) / 100,
+      keys,
+      sliders: beside.sliders,
+      jointMoves: beside.jointMoves,
+      ...body,
+    },
+    MESH_KINDS,
+  );
+  const styles = [];
+  for (const name of readdirSync(dir).filter((file) => /^realistic-hair-[a-z0-9_]+.glb$/u.test(file))) {
+    const hair = readGltf(join(dir, name));
+    writePacked(
+      join(out, name.replace(/.glb$/u, ".pack.png")),
+      { source, ...part(skinnedPrimitives(hair), () => null) },
+      MESH_KINDS,
+    );
+    styles.push(name.slice("realistic-hair-".length, -4));
+  }
+  const pictures = join(ROOT, "packages/3d-avatar-maker/assets/textures/realistic");
+  const copied = existsSync(pictures)
+    ? readdirSync(pictures).filter((file) => /^realistic-[a-z0-9-]+.webp$/u.test(file))
+    : [];
+  for (const name of copied) writeFileSync(join(out, name), readFileSync(join(pictures, name)));
+  console.log(`wrote the Realistic body: ${keys.length} keys, hair ${styles.join(", ")}, ${copied.length} pictures`);
+}
+
 function avatar(only = "", to = "") {
   // (`--avatar anthro`: only the anthro bodies are packed again, the rest of the kit left as it is.
   // `--avatar outfits [folder]`: only the outfit pieces, into `folder` if given, to set a trim beside the kit's.)
@@ -1365,6 +1421,11 @@ function avatar(only = "", to = "") {
   const outfitsOnly = only === "outfits";
   const dir = join(ROOT, "packages/3d-avatar-maker/assets/models");
   const out = join(KIT, "avatar");
+  // (`realistic`: only the Realistic body is packed again, the rest of the kit left as it is.)
+  if (only === "realistic") {
+    mkdirSync(out, { recursive: true });
+    return realistic(dir, out);
+  }
   const outfitsOut = outfitsOnly && to ? resolve(to) : join(KIT, "wardrobe");
   for (const folder of [out, outfitsOut]) {
     if (!anthroOnly && !(outfitsOnly && folder === out)) rmSync(folder, { recursive: true, force: true });
@@ -1543,6 +1604,7 @@ function avatar(only = "", to = "") {
     writeFileSync(join(out, "avatar-hair-index.json"), `${JSON.stringify(sorted(hairIndex), null, 1)}\n`);
   if (Object.keys(outfitIndex).length)
     writeFileSync(join(outfitsOut, "avatar-outfits-index.json"), `${JSON.stringify(sorted(outfitIndex), null, 1)}\n`);
+  if (!anthroOnly && !outfitsOnly) realistic(dir, out);
   for (const folder of [out, outfitsOut]) if (!readdirSync(folder).length) rmSync(folder, { recursive: true });
   console.log(
     `wrote the avatar: ${readdirSync(out).join(", ")}; ${Object.keys(hairIndex).length} hair styles and ${Object.keys(outfitIndex).length} outfit pieces in ${[...bundles.keys()].map((path) => path.split(/[\\/]/u).pop()).join(", ")}`,

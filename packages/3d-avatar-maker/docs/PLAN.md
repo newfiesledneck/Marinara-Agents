@@ -879,6 +879,44 @@ frame against 88,000, the same 12 draws). Two things were wrong, both older than
   rebuilds: textures steady at 5 (they climbed from 11 to 41), buffers steady.
 - Check: letting an avatar go disposes of every mesh's skeleton, with the bust's weights still on the body.
 
+## Built: a Realistic body beside the other two (0.1.19)
+
+Asked for: the MakeHuman bodies read as semi-real; switch to a more realistic base, the body first, its
+strand hair kept to see how it turns out, nude skin for now, and the current bodies set aside as a backup.
+
+The base is Vitruvian for CharMorph (CC0; Sean Buckley, on Olaf Delgado-Friedrichs' Antonia Polygon), read as
+data. It comes in as a third body, `realistic`, built by its own code (`src/realistic.js`), so the Male and
+Female bodies and everything fitted to them are untouched: that is the backup, and it still works.
+
+- **The model** (`assets/scripts/make_realistic.py`). One mesh of 37,436 vertices. The character's own
+  game-rig weights (76 bones: five in the spine, twist bones, a palm bone a finger) are gathered onto the
+  maker's bones; its joints are weighted means of vertices, so each slider's move of every joint is worked
+  out and kept (`jointMoves` in the packed file), and the skeleton follows the shape. Each eyeball is whole
+  on a bone of its own. The face's 13 moves are mixes of its 149 face shapes; 39 of its 150 morphs are
+  sliders (`SLIDERS`), one key each, two-way where the character's own list says so.
+- **Skin and eyes.** Its 4K EXR tiles become four skin parts (head, torso, arms, legs), each a light and a
+  dark picture, a normal map made from its height map, and a roughness map raised from the character's (as
+  it has it the skin looks wet in plain shading). The maker blends light and dark on a canvas by the tone
+  slider. The eye's clear front is the alpha of its sclera picture: those faces are a part of their own,
+  drawn black and 30% solid, which keeps a glint. Between the legs the pictures are blurred to plain skin.
+- **Hair.** Each strand style is Blender particle hair on a copy of the body. The script turns the style's
+  own strands and a few of Blender's copies round each into about 4,500 flat ribbons (85,000 to 100,000
+  triangles), with a cap of the scalp near the roots, fading at its edge. In the maker each strand moves
+  whole with the skin under its root, so hair stays on a head the sliders reshape. Brows are Mindfront's
+  strands as ribbons, tied to the skin under them for the sliders and the face's moves.
+- **In the maker.** `createAvatar` hands a `realistic` look to `createRealistic`, which gives back the same
+  figure the stage, face, motions and exporter work with. A first build takes about 0.7 s, each one after
+  about 30 ms. The exporter keeps a part's own normal map, roughness and see-through. The panel swaps in the
+  body's own Body, Face, Skin, Hair and Clothes tabs.
+- Left out for their authors' terms to be checked first: the Combover (zoro_d) and Scene hair (O4saken) styles.
+- Check: the lists and the file agree on every slider and face move; a look keeps its fields within range;
+  the figure has every VRM bone, stands on the floor and takes the T-pose; a male build is wider in the
+  shoulders and longer legs move the joints; hair and cap stay on the head under four builds; every style
+  loads; a GLB and a VRM save, the VRM read by three-vrm with every expression.
+
+Still to do on it, in the order asked: eyelashes; eye colours; more skins and makeup; clothes and underwear
+refitted to it; hair that swings; the two hair styles left out; the rest of the morphs as sliders.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -901,6 +939,10 @@ frame against 88,000, the same 12 draws). Two things were wrong, both older than
    outline (MToon, VRM only). The body below the neck and all clothing are shared.
 
 ## Known rough edges
+
+- The Realistic body: no eyelashes; long hair passes through a body made much heavier than the one it was
+  styled on; the hairline is a cap with a soft edge, which shows as a band where a style is swept back from
+  it; the eye's clear front is drawn 30% solid, so the iris is a little darker than its picture.
 
 - The Ranger outfit's leather armour shows gaps at the front on the male body.
 - Seen close from below, the upper teeth's shading changes in steps (each face takes one of three copies of

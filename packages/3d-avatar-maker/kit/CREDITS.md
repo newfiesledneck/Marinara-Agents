@@ -8,6 +8,24 @@ files may be used and shared freely. This note is a courtesy.
 The kit began as a copy of Wanderworld's (`packages/wanderworld/kit`, version 0.7.62) and is this package's
 own from there. A `.pack.png` is a packed kit file, not a picture: `src/packed.js` says what's in one.
 
+## The Realistic body: from Vitruvian (CC0), adapted in Blender by ThatOneCan
+
+Vitruvian for CharMorph (https://github.com/Upliner/CharMorph-Vitruvian) is public domain (CC0 1.0): by Sean
+Buckley (shape, morphs, face shapes, UVs, textures, rigging), on Antonia Polygon by Olaf Delgado-Friedrichs
+(the original figure and its topology, released by its author as CC0), with SirMaxim (skin look-up table),
+Upliner (the original Antonia rigging), AgentA1CR (node help, eyebrow conversion), Benjamin McDonnell
+(feedback) and Mindfront (the original eyebrow geometry). Its files are read as data by
+`assets/scripts/make_realistic.py`; CharMorph itself is neither run nor copied.
+
+- `avatar/realistic-body.pack.png`: the body on the maker's bones (the character's own game-rig weights,
+  gathered onto them), its face's moves (mixes of the character's face shapes chosen by ThatOneCan), its shape
+  sliders (the character's morphs) and its brows (Mindfront's, as ribbons).
+- `avatar/realistic-skin-<part>-light.webp`, `-dark.webp`, `-normal.webp`, `-rough.webp`,
+  `avatar/realistic-iris.webp`, `realistic-eye.webp`, `realistic-mouth.webp`: the character's textures at a
+  browser's size; the normal maps made from its height maps. Between the legs the skin is left plain.
+- `avatar/realistic-hair-bob.pack.png`, `-slicked`, `-back`, `-eve`: four of the character's strand hair
+  styles, each strand turned into a narrow ribbon, over a cap of the scalp it grows from.
+
 ## From MakeHuman (CC0), fitted in Blender by ThatOneCan
 
 MakeHuman's hm08 base mesh, morph targets and system assets are public domain (CC0 1.0). They are read as

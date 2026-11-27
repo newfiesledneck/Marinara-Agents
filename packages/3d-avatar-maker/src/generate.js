@@ -318,7 +318,8 @@ export function readJson(content) {
  */
 export function designedLook(base, raw) {
   const design = readDesign(raw);
-  const body = design.body ?? base.body ?? "female";
+  // (A design is for one of the kit's two bodies: the Realistic body has none of what a design chooses from.)
+  const body = design.body ?? (BODIES.some(([each]) => each === base.body) ? base.body : "female");
   const raced = design.race && design.race !== base.race ? mergeLooks(base, racePreset(design.race, body)) : base;
   return { look: checkLook(mergeLooks({ ...raced, body }, design)), design };
 }
