@@ -268,18 +268,30 @@ function pictureOf(name) {
   return pictures.get(name);
 }
 
-const tones = new Map(); // a part of the skin → { tone, map, users }: the last blend made of it, kept while in use
 /**
- * A part of the skin at `tone` (0 the light skin's picture, 1 the dark's, between them a blend of the two):
- * { map, letGo }. Where there's no canvas to blend on, the nearer of the two pictures.
+ * What's painted on the skin of `part` for `look`, as its pictures' suffix: underwear unless the look goes
+ * bare (`realBare`). Panties and a bra on the female side of the first slider, boxer briefs on the male side;
+ * only the torso and the legs have any (assets/scripts/make_realistic.py write_textures).
  */
-async function skinMap(part, tone) {
-  const light = `realistic-skin-${part}-light`;
-  const dark = `realistic-skin-${part}-dark`;
+export function coverOf(part, look) {
+  if (look.realBare || (part !== "torso" && part !== "legs")) return "";
+  return (Number(look.realShape?.gender) || 0) >= 0 ? "-female" : "-male";
+}
+
+const tones = new Map(); // a skin picture (its part and what's painted on it) → { tone, map, users }: the last blend made of it, kept while in use
+/**
+ * A part of the skin at `tone` (0 the light skin's picture, 1 the dark's, between them a blend of the two),
+ * with `cover` painted on it (coverOf): { map, letGo }. Where there's no canvas to blend on, the nearer of
+ * the two pictures.
+ */
+async function skinMap(part, tone, cover) {
+  const light = `realistic-skin-${part}-light${cover}`;
+  const dark = `realistic-skin-${part}-dark${cover}`;
   const canDraw = typeof document !== "undefined" && typeof createImageBitmap === "function";
   if (tone <= 0.001 || (!canDraw && tone < 0.5)) return { map: texture(light), letGo: () => {} };
   if (tone >= 0.999 || !canDraw) return { map: texture(dark), letGo: () => {} };
-  let made = tones.get(part);
+  const which = `${part}${cover}`;
+  let made = tones.get(which);
   if (!made || made.tone !== tone) {
     const [a, b] = await Promise.all([pictureOf(light), pictureOf(dark)]);
     const canvas = document.createElement("canvas");
@@ -292,9 +304,9 @@ async function skinMap(part, tone) {
     const map = new CanvasTexture(canvas);
     map.flipY = false; // glTF texture coordinates
     map.colorSpace = SRGBColorSpace;
-    map.name = `realistic-skin-${part}`;
+    map.name = `realistic-skin-${which}`;
     made = { tone, map, users: 0 };
-    tones.set(part, made);
+    tones.set(which, made);
   }
   const mine = made;
   mine.users++;
@@ -302,7 +314,7 @@ async function skinMap(part, tone) {
     map: mine.map,
     letGo: () => {
       mine.users--;
-      if (!mine.users && tones.get(part) !== mine) mine.map.dispose();
+      if (!mine.users && tones.get(which) !== mine) mine.map.dispose();
     },
   };
 }
@@ -359,14 +371,15 @@ async function materialFor(mesh, look, hair) {
   const { part } = mesh;
   if (part.startsWith("skin_")) {
     const name = part.slice("skin_".length);
-    const skin = await skinMap(name, look.realTone ?? 0);
+    const cover = coverOf(name, look);
+    const skin = await skinMap(name, look.realTone ?? 0, cover);
     const material = new MeshStandardMaterial({
       name: part,
       map: skin.map,
-      normalMap: dataMap(`realistic-skin-${name}-normal`),
+      normalMap: dataMap(`realistic-skin-${name}-normal${cover}`),
       // (glTF texture coordinates, and no tangents on the mesh: the map's up is the other way, as three's own loader has it.)
       normalScale: new Vector2(1, -1),
-      roughnessMap: dataMap(`realistic-skin-${name}-rough`),
+      roughnessMap: dataMap(`realistic-skin-${name}-rough${cover}`),
       roughness: 1,
       metalness: 0,
     });
@@ -494,6 +507,7 @@ export async function createRealistic(look = {}) {
     realShape: Object.fromEntries(REALISTIC_SHAPES.map(([key]) => [key, Number(look.realShape?.[key]) || 0])),
     realTone: Math.max(0, Math.min(1, Number(look.realTone) || 0)),
     realHair: REALISTIC_HAIR.some(([style]) => style === look.realHair) ? look.realHair : REALISTIC_HAIR[1][0],
+    realBare: look.realBare === true,
     height: Number.isFinite(look.height) ? look.height : 1,
   };
   const weights = sliderWeights(body, filled);

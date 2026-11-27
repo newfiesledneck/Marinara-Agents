@@ -22,7 +22,8 @@ Upliner (the original Antonia rigging), AgentA1CR (node help, eyebrow conversion
   sliders (the character's morphs) and its brows (Mindfront's, as ribbons).
 - `avatar/realistic-skin-<part>-light.webp`, `-dark.webp`, `-normal.webp`, `-rough.webp`,
   `avatar/realistic-iris.webp`, `realistic-eye.webp`, `realistic-mouth.webp`: the character's textures at a
-  browser's size; the normal maps made from its height maps. Between the legs the skin is left plain.
+  browser's size; the normal maps made from its height maps. The torso and legs also come with
+  underwear painted on by ThatOneCan (`-female`: panties and a bra; `-male`: boxer briefs).
 - `avatar/realistic-hair-bob.pack.png`, `-slicked`, `-back`, `-eve`: four of the character's strand hair
   styles, each strand turned into a narrow ribbon, over a cap of the scalp it grows from.
 

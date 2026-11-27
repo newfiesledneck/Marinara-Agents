@@ -1,5 +1,10 @@
 # 3D Avatar Maker release notes
 
+## 0.1.20 — 2026-11-27
+
+- The Realistic body wears underwear painted on its skin: panties and a bra on a female build, boxer briefs on a male one. It is part of the skin's picture, so nothing shows through it in any pose.
+- A **Painted underwear** tick box on its Clothes tab takes it off, for bare skin as the model has it. It replaces the blurred patch 0.1.19 had between the legs.
+
 ## 0.1.19 — 2026-11-27
 
 - A third body to choose on the Body tab: **Realistic body (new, in progress)**. It is a different base model with scanned-looking skin, its own eyes, teeth and brows, and the same blinks, mouth shapes and feelings. It plays every preview animation and saves as a VRM or GLB like the others.
