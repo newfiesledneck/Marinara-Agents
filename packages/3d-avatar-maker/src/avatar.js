@@ -25,6 +25,7 @@ import {
 import { byNearest, byPlace, bustWeights, findBust, rigBust } from "./bust.js";
 import { FACE_MOVES } from "./face.js";
 import { standFigure } from "./figure.js";
+import { findGlutes, glutePlace, gluteWeights, rigGlutes } from "./glutes.js";
 import { CLOTH, HAIR, hangOf, hangPlan, rigChains, swingOf } from "./hair.js";
 import { COVER_FAR, coveredBy, deepUnder, depthOf, isUnder, normalNear, surfaceOf, tuckUnder } from "./layers.js";
 import {
@@ -89,9 +90,19 @@ import {
   USUAL_HAIR_COLOURS,
 } from "./looks.js";
 import { geometryOf, load, loadUrl, rigOf, sexFor, skeletonFor, texture, view } from "./kitfiles.js";
+import { jointAt, physicsOf } from "./physics.js";
 import { createRealistic, realisticChoices } from "./realistic.js";
 import { paintedSkin } from "./skin.js";
-import { bodyColliders, BUST_JOINT, CLOTH_JOINT, fitColliders, HAIR_JOINT, TAIL_BONES, TAIL_JOINT } from "./springs.js";
+import {
+  bodyColliders,
+  BUST_JOINT,
+  CLOTH_JOINT,
+  fitColliders,
+  GLUTE_JOINT,
+  HAIR_JOINT,
+  TAIL_BONES,
+  TAIL_JOINT,
+} from "./springs.js";
 import { hashString, rng } from "./util.js";
 
 /** The region of the body each bone's vertices are, for what an outfit piece `hides`. */
@@ -480,6 +491,8 @@ export function avatarLook(name, gender = "auto", chosen = {}) {
     // (Nails are on unless chosen off: the body always had them.)
     nails: anthro ? "none" : (chosen.nails ?? "short"),
     toenails: !anthro && chosen.toenails !== false,
+    // (Which of the hair, bust and buttocks move on springs, and how much; missing: all, as made. physics.js.)
+    physics: physicsOf(chosen),
     seed: hashString(`${name}:motion`),
   };
 }
@@ -1479,7 +1492,8 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   // A bust that moves (bust.js): her body always, his when his chest stands out as far. Its bones under the
   // upper chest, and the skin and underwear over it weighted to them; what's worn over it is weighted the same
   // way below. (Not where a stretch or a moved joint would shift a point whose weights are full: bustWeights.)
-  const bust = anthro ? null : findBust(kit, position, sex);
+  // (Neither with the look's switch for it off, physics.js: then its bones and springs aren't made at all.)
+  const bust = anthro || !filled.physics.bust.on ? null : findBust(kit, position, sex);
   const still = new Set([...stretch.keys(), ...(moved?.keys() ?? [])]);
   const bustAt =
     bust &&
@@ -1492,19 +1506,40 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
       still,
     );
   const bustRig = bustAt ? rigBust(bust, bones) : null;
-  if (bustRig) {
-    geometry.setAttribute("skinIndex", new Uint16BufferAttribute(bustAt.skinIndex, 4));
-    geometry.setAttribute("skinWeight", new BufferAttribute(bustAt.skinWeight, 4));
+  // Buttocks that move (glutes.js), the same way: a bone in each under the hips, numbered after the bust's,
+  // and a share of the hips' weight of the skin and underwear round each onto it.
+  const glutes = anthro || !filled.physics.butt.on ? null : findGlutes(kit, position);
+  const gluteAt =
+    glutes &&
+    gluteWeights(
+      bustAt?.skinIndex ?? kit.shared.skinIndex.array,
+      bustAt?.skinWeight ?? kit.shared.skinWeight.array,
+      kit.file.joints,
+      kit.file.joints.length + (bustRig?.bones.length ?? 0),
+      glutePlace(glutes, position),
+    );
+  const gluteRig = gluteAt ? rigGlutes(glutes, bones) : null;
+  const softAt = gluteAt ?? bustAt; // (the body's weights with the bust's and the buttocks' bones in them)
+  if (softAt) {
+    geometry.setAttribute("skinIndex", new Uint16BufferAttribute(softAt.skinIndex, 4));
+    geometry.setAttribute("skinWeight", new BufferAttribute(softAt.skinWeight, 4));
     const { bones: own, boneInverses } = body.skeleton;
-    body.bind(new Skeleton([...own, ...bustRig.bones], [...boneInverses, ...bustRig.inverses]), body.bindMatrix);
+    const rigs = [bustRig, gluteRig].filter(Boolean);
+    body.bind(
+      new Skeleton(
+        [...own, ...rigs.flatMap((rig) => rig.bones)],
+        [...boneInverses, ...rigs.flatMap((rig) => rig.inverses)],
+      ),
+      body.bindMatrix,
+    );
   }
   owned.push(() => {
     // (Only what's this person's: the shared texture places, weights, face moves and triangles stay for the rest.)
     geometry.morphAttributes = {};
-    // (Not the weights a moving bust gave it, which are its own: taken off first, they'd stay on the graphics
-    // card for good, two buffers for every avatar built.)
+    // (Not the weights a moving bust or buttocks gave it, which are its own: taken off first, they'd stay on
+    // the graphics card for good, two buffers for every avatar built.)
     for (const attribute of Object.keys(kit.shared))
-      if (!bustRig || !/^skin(?:Index|Weight)$/u.test(attribute)) geometry.deleteAttribute(attribute);
+      if (!softAt || !/^skin(?:Index|Weight)$/u.test(attribute)) geometry.deleteAttribute(attribute);
     if (!geometry.userData.ownIndex) geometry.setIndex(null); // (its own, where clothes cover it: below)
     geometry.dispose();
     for (const material of materials) material.dispose();
@@ -1515,8 +1550,16 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   // or as made, those colours shared by everyone wearing the same.
   const springs = []; // (the hair's and clothes' chains, the bust and a tail: springs.js)
   // (Each breast's ball is its own size, and meets the arms.)
+  // (How far each part moves is the look's amount for it, worked into its spring's settings: physics.js jointAt.)
   for (const { radius, ...spring } of bustRig?.springs ?? [])
-    springs.push({ ...spring, joint: { ...BUST_JOINT, hitRadius: radius }, meets: "arms" });
+    springs.push({
+      ...spring,
+      joint: { ...jointAt(BUST_JOINT, filled.physics.bust.amount), hitRadius: radius },
+      meets: "arms",
+    });
+  // (The buttocks meet no colliders.)
+  for (const spring of gluteRig?.springs ?? [])
+    springs.push({ ...spring, joint: jointAt(GLUTE_JOINT, filled.physics.butt.amount), meets: "none" });
   // Clothes worn over each other (layers.js): worn from the outermost in, each piece's points kept under the
   // surfaces of those worn over it, and then the underwear under them all. Cloth only: not what's fixed to a
   // bone, the small things (rings, earrings, glasses) or the nails.
@@ -1608,7 +1651,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
       // (Clothes over the bust move with it, weighted as the skin under them is: bust.js. Not hair, nor a piece
       // fixed to a bone. Its bones are numbered after the chains'.)
       const chained = plan ? plan.chains.reduce((total, chain) => total + chain.bones + 1, 0) : 0;
-      const busty =
+      const overBust =
         bustRig && slot && !fixed
           ? bustWeights(
               shared.attributes.skinIndex.array,
@@ -1619,6 +1662,18 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
               still,
             )
           : null;
+      // (And clothes over the buttocks with them, glutes.js, the same way: their bones numbered after the bust's.)
+      const overGlutes =
+        gluteRig && slot && !fixed
+          ? gluteWeights(
+              overBust?.skinIndex ?? shared.attributes.skinIndex.array,
+              overBust?.skinWeight ?? shared.attributes.skinWeight.array,
+              part.joints,
+              part.joints.length + chained + (overBust ? bustRig.bones.length : 0),
+              byNearest(gluteAt.shares, (made.near ??= nearestSkin(kit, shared.attributes.position.array))),
+            )
+          : null;
+      const busty = overGlutes ?? overBust; // (its weights with whichever of those bones it follows)
       if (keyed || colour || placed || busty) {
         // (Its own geometry over the shared data: its positions and normals shaped, its colours, its weights.)
         const borrowed = [
@@ -1706,9 +1761,9 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
         for (const spring of rig.springs)
           springs.push({ ...spring, joint: hangs.joint, meets: hangs.meets, ring: rig });
       }
-      if (busty) {
-        added.bones.push(...bustRig.bones);
-        added.inverses.push(...bustRig.inverses.map((inverse) => inverse.clone())); // (each skeleton its own)
+      for (const rig of [overBust && bustRig, overGlutes && gluteRig].filter(Boolean)) {
+        added.bones.push(...rig.bones);
+        added.inverses.push(...rig.inverses.map((inverse) => inverse.clone())); // (each skeleton its own)
       }
       if (added.bones.length) {
         const { bones: own, boneInverses } = worn.skeleton;
@@ -1719,11 +1774,21 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   // (A hood or helm that hides the hair leaves it off.)
   // (A style that swings, from where its hair leaves the head: hair.js.)
   const below = swingOf(filled.hair);
+  // (Not with the look's switch for swinging hair off, physics.js; how far it swings is its amount.)
   const hangs =
-    below === undefined
+    below === undefined || !filled.physics.hair.on
       ? null
-      : { ...HAIR, line: kit.eyes - below, centre: kit.headAt, joint: HAIR_JOINT, meets: "body" };
-  if (hair && !hides.has("hair")) wearPart(hair, () => new Color(filled.hairColour), hangs);
+      : {
+          ...HAIR,
+          line: kit.eyes - below,
+          centre: kit.headAt,
+          joint: jointAt(HAIR_JOINT, filled.physics.hair.amount),
+          meets: "body",
+        };
+  // (A style that would swing, worn still, is kept apart from the same style rigged to swing: partMeshes
+  // keeps each style's meshes, with the weights its chains gave them, by its key.)
+  const stillHair = hair && below !== undefined && !hangs ? { ...hair, key: `${hair.key}:still` } : hair;
+  if (hair && !hides.has("hair")) wearPart(stillHair, () => new Color(filled.hairColour), hangs);
   // (The outermost first, each worn under the ones before it; a pack's underwear slots are the deepest.)
   const outermostFirst = [...underwear, ...pieces].sort((a, b) => depthOf(b.slot, b.layer) - depthOf(a.slot, a.layer));
   for (const piece of outermostFirst)
@@ -1785,7 +1850,7 @@ export async function createAvatar(look = {}, name = "", gender = "auto") {
   const colliders = springs.length
     ? bodyColliders(kit, position, bones, dressed)
     : { body: [], legs: [], cloth: [], arms: [] };
-  for (const spring of springs) spring.colliders = [...colliders[spring.meets]];
+  for (const spring of springs) spring.colliders = [...(colliders[spring.meets] ?? [])];
 
   const figure = standFigure(root, bones, filled.height * race.height);
   figure.springs = springs;

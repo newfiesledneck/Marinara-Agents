@@ -13,6 +13,7 @@
 //
 // (Their gender is kept apart, save.bodies, and gives the body unless the look has one of its own,
 // `body`: the base avatar's fields are below, by BODIES.)
+import { checkPhysics } from "./physics.js";
 
 /** Outfits, and the colours each comes in: [value (the kit's texture name), label]. */
 export const OUTFITS = {
@@ -359,6 +360,10 @@ export function checkLook(raw) {
     if (variant && CLOTH_VARIANTS[piece]?.ways.some(([way]) => way === variant)) variants[piece] = variant;
   if (Object.keys(variants).length) look.variants = variants;
   if (typeof raw.preset === "string" && raw.preset.trim()) look.preset = raw.preset.trim().slice(0, PRESET_NAME);
+  // Which of the hair, bust and buttocks move on springs, and how much (physics.js): { part: { on, amount } },
+  // only where it differs from the usual (on, amount 1), for any body.
+  const physics = checkPhysics(raw.physics);
+  if (physics) look.physics = physics;
   return look;
 }
 

@@ -275,7 +275,8 @@ export function lookForModel(look) {
   }
   const { fromPacks: _packs, preset: _preset, skinSet: _set, avatar: _avatar, ...rest } = look ?? {};
   const out = { ...rest };
-  for (const field of REALISTIC_ONLY) delete out[field];
+  // (Not the Realistic body's fields, nor which parts move on springs: neither is on this body's menu.)
+  for (const field of [...REALISTIC_ONLY, "physics"]) delete out[field];
   if (isRecord(out.shape)) out.shape = Object.fromEntries(Object.entries(out.shape).filter(([, value]) => value !== 0));
   if (isRecord(out.limbs)) out.limbs = Object.fromEntries(Object.entries(out.limbs).filter(([, value]) => value !== 1));
   for (const field of ["shape", "limbs"])
@@ -390,7 +391,7 @@ export function designedLook(base, raw) {
   // (From here a design is for one of the kit's two bodies, the one the avatar has: a design doesn't choose the
   // body, or set what only the Realistic body has. One started from anything else is a female body's.)
   const design = readDesign(raw);
-  for (const field of ["body", ...REALISTIC_ONLY]) delete design[field];
+  for (const field of ["body", "physics", ...REALISTIC_ONLY]) delete design[field];
   const body = BODIES.some(([each]) => each === base.body) ? base.body : "female";
   const raced = design.race && design.race !== base.race ? mergeLooks(base, racePreset(design.race, body)) : base;
   return { look: checkLook(mergeLooks({ ...raced, body }, design)), design };

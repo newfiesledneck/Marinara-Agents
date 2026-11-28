@@ -1038,6 +1038,31 @@ switch to stay as the user left it; and Generate to send only what the selected 
   and a design that names another body. Makeup, stubble and nails were looked over on the motions page
   (`view=face`, `eyes`, `hand`); the switch was tried on the test page across New.
 
+## Built: hair, bust and buttocks on springs, each with a switch and an amount (0.1.26)
+
+Asked for: swinging hair and a moving bust on the Realistic body, the buttocks too "on both skins", a toggle
+for each part, and a slider for how much each is moved. Built by a subagent on `feat/3d-avatar-physics`,
+merged here.
+
+- **The look.** `physics: { hair, bust, butt: { on, amount } }` (`physics.js` `checkPhysics`, `physicsOf`):
+  on and amount 1 unless said, the amount held to 0…2; a look keeps only what differs. Generate neither sees
+  nor sets it.
+- **The amount** changes only a spring's settings (`jointAt`): stiffness and gravity divided by it, so a part
+  hangs the same at every amount. At 0 the spring is 50 times as stiff. A saved VRM carries the same settings.
+- **The Realistic body** (`realistic-physics.js` `softParts`): the bust is found from the `breasts` key and
+  is there once it stands out 8 mm from the breastbone; the buttocks from the `glutes` key, hung from the
+  thighs, which carry them on this body; each hair strand is placed along itself from where it drops under
+  the eyes, and given to chains by side (`hair.js` `hangPlan`, `hangs.along`).
+- **The kit's bodies** (`glutes.js`): each buttock is found from the `buttocks.hi` key and weighted by place
+  round its middle, so the skin, the body's own underwear and tight clothes share it.
+- **The panel**: a Movement group on the Body and Hair tabs of every body (`movement`).
+- Check: the regression test builds each body with every part on and off, shakes it, and compares rest
+  poses (a part moves when on, further at 2, is held at 0, and rests in the same place at any amount); a VRM
+  of the Realistic body is read back with three-vrm and its springs run. Looked over on the motions page and
+  the test page in the dance.
+- Not yet: hanging skirts and dresses don't follow the buttocks; the kit bodies' lower cheek, on the thigh's
+  bone, moves less than the upper.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and

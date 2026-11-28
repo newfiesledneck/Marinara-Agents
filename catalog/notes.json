@@ -26,6 +26,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.26",
+          "date": "2026-11-27",
+          "notes": "- The Realistic body's hair swings, and its bust and buttocks move a little as the body does, in the preview and in a saved VRM. The long styles swing, the bob moves at its ends, and Slicked back stays on the head.\n- The buttocks move on the Male and Female bodies too, and tight clothes over them move with them.\n- Each moving part has its own **Movement** controls, on the Body tab (bust, buttocks) and the Hair tab (hair): a tick box that turns it off, and a slider from held still to twice as far. A part turned off leaves its spring bones out of the saved file.",
+          "highlight": false
+        },
+        {
           "version": "0.1.25",
           "date": "2026-11-27",
           "notes": "- The Realistic body has makeup on its Skin and eyes tab: eyeshadow, eyeliner, blush and lipstick, each a colour and a strength, with the presets the other bodies have.\n- It has nail colour for fingernails and toenails, and stubble on its Hair tab: light or heavy stubble, a moustache or goatee shadow, or a short beard, in the hair's colour or its own.\n- Its **Painted underwear** choice is remembered in this browser. A new or generated avatar starts the way you last left it, where before it was switched back on.\n- **Generate** and **Revise avatar** send the model only the options of the body the avatar has, and keep that body. A design used to choose between the Male and Female bodies itself; now choose the body on the Body tab first.",
@@ -137,12 +143,6 @@
           "version": "0.1.07",
           "date": "2026-11-23",
           "notes": "- The face moves: avatars blink, shape their mouth as they talk, and look happy, angry, sad, relaxed or surprised. In a chat, the 3D Avatars agent plays these on both VRM and GLB files.\n- Teeth and a tongue inside the mouth, seen when it opens.\n- The eyes turn to look. In a VRM, the 3D Avatars agent and other VRM apps move them.\n- A **Face** list under the picture plays it all in the maker: blinking and looking at you, talking, or one expression held.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.06",
-          "date": "2026-11-23",
-          "notes": "- Save as VRM: the Save tab now saves a `.vrm` file as well as a `.glb`. Import it in 3D Avatars as a VRM model. It stands in a T-pose and works in other VRM apps too. A tail swings as the avatar moves.\n- The VRM's terms: put your name as the author, and choose who may use the avatar, commercial use, sharing and changes, and credit. Your choices are kept for the next avatar you save. A VRM wearing credited pack clothes always asks for credit to their makers.\n- **Open** reads a saved `.vrm` back for editing, as it does a `.glb`.",
           "highlight": false
         }
       ]

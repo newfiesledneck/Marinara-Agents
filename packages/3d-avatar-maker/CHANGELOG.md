@@ -1,5 +1,11 @@
 # 3D Avatar Maker release notes
 
+## 0.1.26 — 2026-11-27
+
+- The Realistic body's hair swings, and its bust and buttocks move a little as the body does, in the preview and in a saved VRM. The long styles swing, the bob moves at its ends, and Slicked back stays on the head.
+- The buttocks move on the Male and Female bodies too, and tight clothes over them move with them.
+- Each moving part has its own **Movement** controls, on the Body tab (bust, buttocks) and the Hair tab (hair): a tick box that turns it off, and a slider from held still to twice as far. A part turned off leaves its spring bones out of the saved file.
+
 ## 0.1.25 — 2026-11-27
 
 - The Realistic body has makeup on its Skin and eyes tab: eyeshadow, eyeliner, blush and lipstick, each a colour and a strength, with the presets the other bodies have.
