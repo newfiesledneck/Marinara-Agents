@@ -955,12 +955,29 @@ edge, which is as coarse as the mesh and covered only the skin near a root.
   then gaps between roots up to 18 mm wide are closed (grown by 9 mm and shrunk by as much, which keeps the
   outline). A first version painted all the scalp a strand passed over, to 2 cm: that ran past the hairline
   onto the forehead and sideburns, and was reported. 512 pixels, the cover in its alpha, about 8 KB each.
+  0.1.23 pulls it 9 mm in from the hairline and feathers it: along a hairline the hair is combed away from
+  its roots, so the first strip inside the line showed as a painted band (reported, with a picture).
 - **Painted by the maker** (`realistic.js` `skinMap`, `paintsOf`). The head's skin picture is drawn on a
   canvas: the tone's blend, then the hair's colour at 62% brightness kept only where the style's picture
   says. `skinMap` now takes a list of such paints (a mask, a colour, a strength), which makeup and the like
   can use next. The cap's mesh, material and picture are gone; a hair file is one mesh.
 - Check: each style's scalp picture is in the kit. On the test page the head is drawn from the side, above
   and behind (`view=head-side`, `head-top`, `head-back` on the motions page).
+
+## Built: Generate on the Realistic body (0.1.23)
+
+Reported: Generate on a Realistic avatar swapped it for the old body. That was by design in 0.1.19 (a design
+chose from the other bodies' lists); it now has a menu of its own.
+
+- `generate.js` `designMenu(body)` gives `realisticMenu()` for that body: its height, every slider of
+  `REALISTIC_SHAPES` with its range and ends, the skin tone, the hair styles and the hair's colour.
+- `looks.js` `readRealisticDesign` reads an answer as `REALISTIC_FIELDS` alone, each through `checkLook`;
+  whatever else the answer names (a body, clothes) is dropped. `designedLook` keeps the body and lays the
+  sliders on part by part; `lookForModel` shows the model those fields only when revising.
+- A field this body gains (eye colour, makeup) is added in three places: `REALISTIC_FIELDS`, `realisticMenu`
+  and `checkLook`.
+- Check: the menu lists every slider and style and no clothes; a design naming another body and clothes
+  leaves the Realistic body with only its own fields set.
 
 ## Next, in order
 

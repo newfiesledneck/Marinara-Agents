@@ -2858,6 +2858,48 @@ for (const figure of Object.values(made)) figure.dispose();
       made.dispose();
     }
   }
+  // Generate on this body: a menu of its own fields, and a design read as those fields alone, on this body.
+  {
+    const gen = await import("../packages/3d-avatar-maker/src/generate.js");
+    const menu = await gen.designMenu(REALISTIC);
+    for (const [key] of REALISTIC_SHAPES) assert.ok(menu.includes(`  ${key}: `), `its menu lists the ${key} slider`);
+    for (const [style] of REALISTIC_HAIR) assert.ok(menu.includes(`${style} (`), `its menu lists the ${style} hair`);
+    assert.ok(
+      !menu.includes("clothes: a list") && !/^body: /mu.test(menu),
+      "its menu offers no clothes and no other body",
+    );
+    assert.ok(/clothes: a list/u.test(await gen.designMenu("female")), "the other bodies' menu is as it was");
+    const base = start({ realHair: "bob", realTone: 0.3 });
+    const { look: designed, design } = gen.designedLook(base, {
+      body: "male",
+      clothes: ["boots"],
+      hair: "long",
+      realShape: { gender: -1, fat: 0.5, made_up: 3 },
+      realHair: "eve",
+      hairTint: "#aa5522",
+      height: 1.05,
+    });
+    assert.equal(designed.body, REALISTIC, "a design leaves the Realistic body the Realistic body");
+    assert.deepEqual(designed.realShape, { gender: -1, fat: 0.5 }, "its sliders are set, and only its own");
+    assert.deepEqual(
+      [designed.realHair, designed.hairTint, designed.height, designed.realTone],
+      ["eve", 0xaa5522, 1.05, 0.3],
+    );
+    assert.deepEqual(designed.clothes ?? [], base.clothes ?? [], "clothes named for another body aren't worn");
+    assert.deepEqual(Object.keys(design).sort(), ["hairTint", "height", "realHair", "realShape"]);
+    assert.deepEqual(
+      gen.designedLook(base, { realShape: { waist: -0.2 } }).look.realShape,
+      { gender: 1, waist: -0.2 },
+      "a revision keeps the other sliders",
+    );
+    assert.deepEqual(gen.lookForModel(designed), {
+      height: 1.05,
+      realShape: { gender: -1, fat: 0.5 },
+      realTone: 0.3,
+      realHair: "eve",
+      hairTint: "#aa5522",
+    });
+  }
   for (const made of [figure, male, leggy, tall]) made.dispose();
 }
 console.log("3d-avatar-maker.regression: ok");

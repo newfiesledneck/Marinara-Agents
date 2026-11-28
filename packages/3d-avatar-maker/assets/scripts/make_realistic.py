@@ -187,6 +187,7 @@ BROW_WIDTH = 0.00017
 SCALP_SIZE = 512  # the scalp's picture for each style
 SCALP_ROOT = 0.0045  # the scalp this near a strand's root is painted (metres)
 SCALP_GAP = 0.009  # gaps between roots up to twice this wide are painted too
+SCALP_INSET = 0.009  # how far in from the hairline the paint starts
 
 _START = __import__("time").time()
 
@@ -583,7 +584,7 @@ def ribbons(strands, centre, points, width, seed=7, taper_from=0.7):
 def scalp_paint(head, strands):
     """Where a style's hair grows, as a picture over the head's skin picture: the texels of the head (`head`:
     place_map of its tile) within SCALP_ROOT of a strand's root, with the gaps between roots up to twice
-    SCALP_GAP wide closed, and no further: it stops at the hairline. The maker paints the hair's colour
+    SCALP_GAP wide closed, pulled in from the hairline by SCALP_INSET. The maker paints the hair's colour
     there, so no skin shows between the strands."""
     tree = KDTree(len(strands))
     for at, strand in enumerate(strands):
@@ -598,7 +599,12 @@ def scalp_paint(head, strands):
     reach = max(1, int(round(SCALP_GAP / max(1e-6, float(np.median(texel))))))
     grown = blurred(rooted[:, :, None], reach)[:, :, 0] > 1e-6
     closed = (blurred(grown.astype(np.float64)[:, :, None], reach)[:, :, 0] > 1 - 1e-6) | (rooted > 0)
-    return blurred((closed & known).astype(np.float64)[:, :, None], 1)[:, :, 0]
+    # Pulled in from its edge: along a hairline the hair is combed away from its roots, and the first strip of
+    # scalp inside the line has no hair over it to hide the paint. (What lies past the picture's islands counts
+    # as inside, so only a hairline is pulled in, not a seam.) Then feathered.
+    inset = max(1, int(round(SCALP_INSET / max(1e-6, float(np.median(texel))))))
+    inner = blurred((closed | ~known).astype(np.float64)[:, :, None], inset)[:, :, 0] > 1 - 1e-6
+    return blurred((inner & closed & known).astype(np.float64)[:, :, None], 3)[:, :, 0]
 
 
 # ── Meshes, the rig and the files ───────────────────────────────────────────────────────────────────────

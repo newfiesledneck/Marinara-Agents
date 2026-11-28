@@ -1,5 +1,10 @@
 # 3D Avatar Maker release notes
 
+## 0.1.23 — 2026-11-27
+
+- **Generate** and **Revise avatar** work on the Realistic body: the model is given that body's own sliders, skin tone and hair styles, and the avatar stays the Realistic body. Before, generating swapped it for the Male or Female body.
+- The paint under the Realistic body's hair starts a little inside the hairline, so no painted band shows on the forehead or at the temples.
+
 ## 0.1.22 — 2026-11-27
 
 - The Realistic body's scalp is painted in the hair's colour where a style's hair grows, up to its hairline, so skin no longer shows between the strands from the side, above or behind.

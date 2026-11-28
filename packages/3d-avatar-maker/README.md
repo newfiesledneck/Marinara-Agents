@@ -74,7 +74,7 @@ bodies, which stay as they are with everything made for them. So far it has:
   underwear** on the Clothes tab is ticked to start with; untick it for bare skin as the model has it.
 
 It has no clothes, fitted underwear, eyelashes, eye colours or makeup yet, and its hair doesn't swing yet.
-Generate makes one of the other two bodies.
+Generate and Revise avatar work on it with a menu of its own: its sliders, skin tone and hair.
 
 ## Wardrobe packs
 

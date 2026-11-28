@@ -26,6 +26,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.23",
+          "date": "2026-11-27",
+          "notes": "- **Generate** and **Revise avatar** work on the Realistic body: the model is given that body's own sliders, skin tone and hair styles, and the avatar stays the Realistic body. Before, generating swapped it for the Male or Female body.\n- The paint under the Realistic body's hair starts a little inside the hairline, so no painted band shows on the forehead or at the temples.",
+          "highlight": false
+        },
+        {
           "version": "0.1.22",
           "date": "2026-11-27",
           "notes": "- The Realistic body's scalp is painted in the hair's colour where a style's hair grows, up to its hairline, so skin no longer shows between the strands from the side, above or behind.\n- The patchy, blocky edge that showed at the temples and hairline is gone.",
@@ -137,12 +143,6 @@
           "version": "0.1.04",
           "date": "2026-11-23",
           "notes": "- New places to wear things: glasses, a face mask, earrings, rings and socks. The new Accessories pack fills them, and adds gloves and two hats.\n- Gloves hide rings, and socks hide the toenails, the way gloves and shoes already hide the nails.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.03",
-          "date": "2026-11-23",
-          "notes": "- Wardrobe packs: install a 3D Avatar Maker wardrobe pack and its clothes appear in the Clothes tab, each with a line saying which pack it's from and who made it. The first two are Everyday Women's Clothes and Everyday Men's Clothes and Suits.\n- A saved avatar names the makers of any credited pack clothes it wears.",
           "highlight": false
         }
       ]
