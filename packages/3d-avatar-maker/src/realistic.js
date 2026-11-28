@@ -29,6 +29,8 @@ import { FACE_MOVES } from "./face.js";
 import { standFigure } from "./figure.js";
 import { geometryOf, load, rigOf, texture, urlOf, view } from "./kitfiles.js";
 import { HAIR_COLOURS, NEUTRAL_LOOK, REALISTIC, REALISTIC_HAIR, REALISTIC_SHAPES } from "./looks.js";
+import { physicsOf } from "./physics.js";
+import { softParts } from "./realistic-physics.js";
 
 const BODY_FILE = "realistic-body.pack.png";
 const hairFile = (style) => `realistic-hair-${style}.pack.png`;
@@ -460,8 +462,9 @@ function hairKit(body, style) {
           if (packed.part !== "hair")
             return { part: packed.part, geometry, position, tied: nearestOf(position, body.head.position) };
           // (A strand's points come one after another and share its shade, which the picture's `u` is: where
-          // `u` changes a new strand starts. Its root is the point furthest back along it, the least `v`. One
-          // tie a strand, for its root, then given to each of its points.)
+          // `u` changes a new strand starts. Its root is the point with the greatest `v`: in the packed files
+          // `v` falls from 0.99 at the root to 0.01 at the tip. One tie a strand, for its root, then given to
+          // each of its points.)
           const uv = geometry.attributes.uv.array;
           const count = position.length / 3;
           const strandOf = new Uint32Array(count);
@@ -470,7 +473,7 @@ function hairKit(body, style) {
             let end = start;
             let rootAt = start;
             while (end < count && Math.abs(uv[end * 2] - uv[start * 2]) < 1e-4) {
-              if (uv[end * 2 + 1] < uv[rootAt * 2 + 1]) rootAt = end;
+              if (uv[end * 2 + 1] > uv[rootAt * 2 + 1]) rootAt = end;
               strandOf[end] = roots.length / 3;
               end++;
             }
@@ -526,6 +529,9 @@ export async function createRealistic(look = {}) {
   const weights = sliderWeights(body, filled);
   const { root, bones } = shapedRig(body, weights);
   const hairColour = hairColourOf(filled);
+  // (The hair, bust and buttocks on springs, each with the look's switch and amount: realistic-physics.js.)
+  filled.physics = physicsOf(look);
+  const soft = softParts(body, weights, bones, filled.physics);
   const owned = [];
   let headMoved = body.head.position;
   for (const mesh of body.meshes) {
@@ -543,6 +549,7 @@ export async function createRealistic(look = {}) {
     }
     const { material, letGo } = await materialFor(mesh, filled, hairColour);
     const made = skinned(mesh.piece ?? mesh.part, geometry, material, body.file.joints, bones, root);
+    soft.wear(made, mesh);
     if (moves.length) {
       made.morphTargetDictionary = Object.fromEntries(moves.map((move, i) => [move.name, i]));
       made.morphTargetInfluences = moves.map(() => 0);
@@ -569,6 +576,7 @@ export async function createRealistic(look = {}) {
       geometry.setIndex(mesh.geometry.index);
       const { material } = await materialFor(mesh, filled, hairColour);
       const made = skinned(mesh.part, geometry, material, hair.file.joints, bones, root);
+      soft.wearHair(made, mesh);
       owned.push(() => {
         geometry.dispose();
         material.dispose();
@@ -578,6 +586,7 @@ export async function createRealistic(look = {}) {
   const figure = standFigure(root, bones, filled.height);
   figure.springs = [];
   figure.colliders = [];
+  soft.finish(figure);
   figure.dispose = () => {
     for (const letGo of owned) letGo();
     for (const mesh of figure.meshes) mesh.skeleton?.dispose();

@@ -2902,4 +2902,711 @@ for (const figure of Object.values(made)) figure.dispose();
   }
   for (const made of [figure, male, leggy, tall]) made.dispose();
 }
+// ── Parts that move on springs, each with a switch and an amount in the look (physics.js): the hair, the bust
+// and the buttocks, on the kit's two bodies (hair.js, bust.js, glutes.js) and the Realistic one (realistic-physics.js) ──
+{
+  const { Vector3 } = await import("three");
+  const { exportVrm } = await import("../packages/3d-avatar-maker/src/exporter.js");
+  const { turnInWorld } = await import("../packages/3d-avatar-maker/src/figure.js");
+  const { createMotionPlayer, motionPose } = await import("../packages/3d-avatar-maker/src/motions.js");
+  const { checkPhysics, jointAt, physicsOf } = await import("../packages/3d-avatar-maker/src/physics.js");
+  const { BUST_JOINT, createSprings, HAIR_JOINT } = await import("../packages/3d-avatar-maker/src/springs.js");
+  const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+  const { VRMLoaderPlugin } = await import("@pixiv/three-vrm");
+  const { REALISTIC } = looks;
+  const mm = (metres) => (metres * 1000).toFixed(1);
+
+  // The look's record: each part { on, amount }, only what differs from the usual (on, amount 1), held to 0…2.
+  const usual = { on: true, amount: 1 };
+  assert.deepEqual(
+    physicsOf({}),
+    { hair: usual, bust: usual, butt: usual },
+    "a look that says nothing has every part on",
+  );
+  assert.equal(checkLook({ body: "female" }).physics, undefined, "and keeps no physics field");
+  assert.equal(startOf("female").physics, undefined, "a new avatar's look has none either");
+  assert.deepEqual(
+    checkLook({
+      physics: { hair: { on: false }, bust: { amount: 5 }, butt: { on: true, amount: 1 }, tail: { on: false } },
+    }).physics,
+    { hair: { on: false, amount: 1 }, bust: { on: true, amount: 2 } },
+    "a part is kept where it differs, its amount held to 2, and only the parts there are",
+  );
+  assert.deepEqual(checkLook({ physics: { butt: { amount: -3 } } }).physics, { butt: { on: true, amount: 0 } });
+  assert.equal(
+    checkLook({ physics: { hair: { on: "no", amount: "lots" } } }).physics,
+    undefined,
+    "off takes a plain false",
+  );
+  assert.equal(checkLook({ physics: "all" }).physics, undefined);
+  assert.equal(checkPhysics([{ on: false }]), undefined);
+  assert.deepEqual(physicsOf({ physics: { bust: { on: false, amount: 0.4 } } }).bust, { on: false, amount: 0.4 });
+  // The amount is the spring's settings: its pull back to rest divided by it, its weight too (so it hangs at
+  // rest as it does at 1), its drag and size left alone; at 0 it is held all but still.
+  assert.equal(jointAt(HAIR_JOINT, 1), HAIR_JOINT, "at 1 a spring is as made");
+  const loose = jointAt(HAIR_JOINT, 2);
+  assert.equal(loose.stiffness, HAIR_JOINT.stiffness / 2, "at 2 it is half as stiff");
+  assert.equal(loose.gravityPower / loose.stiffness, HAIR_JOINT.gravityPower / HAIR_JOINT.stiffness);
+  assert.deepEqual(
+    [loose.dragForce, loose.hitRadius, loose.gravityDir],
+    [HAIR_JOINT.dragForce, HAIR_JOINT.hitRadius, HAIR_JOINT.gravityDir],
+  );
+  assert.ok(jointAt(BUST_JOINT, 0).stiffness >= BUST_JOINT.stiffness * 20, "at 0 it is held still");
+  assert.deepEqual(Object.keys(loose).sort(), Object.keys(HAIR_JOINT).sort(), "nothing a VRM's joint doesn't have");
+
+  const PARTS = {
+    // (`hangs`: metres it may rest from where it was bound, its springs run on a body standing still: the
+    // hair's own weight draws it down a little; `sways`: the least it must move when shaken; `settles`: how
+    // near to that rest it must be two seconds after.)
+    hair: { spring: /^Hair \(/u, bone: /^hair_/u, hangs: 0.025, sways: 0.02, settles: 0.003 },
+    bust: { spring: /^Bust \(/u, bone: /^breast_/u, hangs: 0.0005, sways: 0.002, settles: 0.0005 },
+    butt: { spring: /^Buttock \(/u, bone: /^glute_/u, hangs: 0.0005, sways: 0.001, settles: 0.0005 },
+  };
+  const BODIES = {
+    female: { look: startOf("female", { hair: "long", clothes: [] }), parts: ["hair", "bust", "butt"] },
+    male: { look: startOf("male", { hair: "long", clothes: [] }), parts: ["hair", "butt"] },
+    realistic: {
+      look: checkLook({ ...NEUTRAL_LOOK, body: REALISTIC, realShape: { gender: 1 }, realHair: "eve" }),
+      parts: ["hair", "bust", "butt"],
+    },
+  };
+  const build = (look, physics) => createAvatar(checkLook({ ...look, physics }), "Test", "auto");
+  const springsOf = (figure, part) => figure.springs.filter((spring) => PARTS[part].spring.test(spring.name));
+  /** The names of the part's bones the figure has, on its skeleton or in any mesh's. */
+  const bonesOf = (figure, part) => [
+    ...new Set(
+      [...figure.bones.keys(), ...figure.meshes.flatMap((mesh) => mesh.skeleton.bones.map((bone) => bone.name))].filter(
+        (name) => PARTS[part].bone.test(name),
+      ),
+    ),
+  ];
+  const point = new Vector3();
+  /** Every `every`-th point of each of the figure's meshes, where its bones put it as it stands. */
+  const drawnAt = (figure, every = 7) =>
+    figure.meshes.map((mesh) => {
+      const { position } = mesh.geometry.attributes;
+      const out = [];
+      for (let i = 0; i < position.count; i += every)
+        out.push(
+          mesh.applyBoneTransform(i, point.fromBufferAttribute(position, i)).clone().applyMatrix4(mesh.matrixWorld),
+        );
+      return out;
+    });
+  const furthest = (a, b) => a.reduce((most, at, i) => Math.max(most, at.distanceTo(b[i])), 0);
+  const tipsOf = (springs) => springs.map((spring) => spring.bones.at(-1).getWorldPosition(new Vector3()));
+  const UP = new Vector3(0, 1, 0);
+  /**
+   * The relaxed stand with the body moving, as sets a part swinging: for the hair the head turning slowly from
+   * side to side; for the bust and the buttocks the hips bouncing and turning, the whole body with them.
+   */
+  const shaken = (figure, part, seconds) => {
+    relaxedPose(figure, 0);
+    const { hips, head } = figure.humanoid;
+    if (part === "hair") {
+      turnInWorld(hips, UP, 0.3 * Math.sin(seconds * 3));
+      turnInWorld(head, UP, 0.3 * Math.sin(seconds * 2.5));
+    } else {
+      hips.position.y += 0.02 * Math.sin(seconds * 12);
+      hips.position.x += 0.02 * Math.sin(seconds * 9);
+      turnInWorld(hips, UP, 0.2 * Math.sin(seconds * 6));
+    }
+    figure.root.updateMatrixWorld(true);
+  };
+  /**
+   * The part's springs on a body standing still, then shaken, then still again: { rests (metres its tips hang
+   * from where they were bound, standing still: the hair's own weight draws it down a little), most (metres
+   * they went from there as the body moved, measured on the body as it stood each frame), after (metres from
+   * there two seconds after the body stops) }.
+   */
+  const swung = (figure, part) => {
+    const springs = springsOf(figure, part);
+    const own = springs.flatMap((spring) => spring.bones);
+    /** How far each tip is from where its bones hold it at rest on the body as it stands, as a vector. */
+    const drift = () => {
+      const now = tipsOf(springs);
+      const held = own.map((bone) => [bone.quaternion.clone(), bone.position.clone(), bone.scale.clone()]);
+      for (const bone of own) {
+        bone.quaternion.copy(figure.rest.get(bone.name));
+        bone.position.copy(figure.restAt.get(bone.name));
+        bone.scale.setScalar(1);
+      }
+      figure.root.updateMatrixWorld(true);
+      const bound = tipsOf(springs);
+      own.forEach((bone, i) => {
+        bone.quaternion.copy(held[i][0]);
+        bone.position.copy(held[i][1]);
+        bone.scale.copy(held[i][2]);
+      });
+      figure.root.updateMatrixWorld(true);
+      return now.map((at, i) => at.sub(bound[i]));
+    };
+    relaxedPose(figure, 0);
+    const moving = createSprings(figure);
+    const still = (frames) => {
+      for (let f = 0; f < frames; f++) {
+        relaxedPose(figure, 0);
+        moving.step(1 / 60);
+      }
+      return drift();
+    };
+    const hung = still(90);
+    let most = 0;
+    for (let f = 1; f <= 150; f++) {
+      shaken(figure, part, f / 60);
+      moving.step(1 / 60);
+      most = Math.max(most, furthest(drift(), hung));
+    }
+    const after = furthest(still(120), hung);
+    restPose(figure);
+    return { rests: Math.max(...hung.map((off) => off.length())), most, after };
+  };
+  const bare = (figure) => {
+    for (const mesh of figure.meshes)
+      for (const material of [mesh.material].flat())
+        Object.assign(material, { map: null, normalMap: null, roughnessMap: null }); // (no pictures in Node)
+    return figure;
+  };
+  const jointsIn = async (figure) => {
+    const { json } = readGlb((await exportGlb(bare(figure), { look: {} })).bytes);
+    return new Set(json.skins.flatMap((skin) => skin.joints.map((at) => json.nodes[at].name)));
+  };
+
+  for (const [body, { look, parts }] of Object.entries(BODIES)) {
+    const on = await build(look);
+    assert.deepEqual(
+      on.avatar.physics,
+      physicsOf({}),
+      `${body}: built from a look without the field, every part is on`,
+    );
+    const none = await build(look, Object.fromEntries(Object.keys(PARTS).map((part) => [part, { on: false }])));
+    assert.equal(none.springs.length, 0, `${body}: with every part off it has no springs`);
+    for (const part of Object.keys(PARTS))
+      assert.deepEqual(bonesOf(none, part), [], `${body}: and no bones for its ${part}`);
+    // At rest nothing has moved: every mesh's points are where they are with the parts off, as listed and as
+    // their bones draw them, in the pose it was built in and in the relaxed one (the springs at rest in it).
+    assert.equal(on.meshes.length, none.meshes.length);
+    on.meshes.forEach((mesh, m) => {
+      const [mine, plain] = [
+        mesh.geometry.attributes.position.array,
+        none.meshes[m].geometry.attributes.position.array,
+      ];
+      assert.equal(mine.length, plain.length, `${body}: its ${mesh.name} has the same points`);
+      let off = 0;
+      for (let i = 0; i < mine.length; i++) off = Math.max(off, Math.abs(mine[i] - plain[i]));
+      assert.equal(off, 0, `${body}: its ${mesh.name}'s points are where they were`);
+      const { skinWeight } = mesh.geometry.attributes;
+      for (let i = 0; i < skinWeight.count; i += 3) {
+        const sum = [0, 1, 2, 3].reduce((total, c) => total + skinWeight.getComponent(i, c), 0);
+        assert.ok(Math.abs(sum - 1) < 1e-4, `${body}: every point of its ${mesh.name} has whole weights`);
+      }
+    });
+    restPose(on);
+    restPose(none);
+    const apart = (one, other, every) =>
+      Math.max(...drawnAt(one, every).map((points, m) => furthest(points, drawnAt(other, every)[m])));
+    assert.ok(
+      apart(on, none) < 1e-4,
+      `${body}: drawn where it was with the parts off (off by ${mm(apart(on, none))} mm)`,
+    );
+    // The buttocks' bones hang from the bones their points were on, so with the springs at rest the body bends
+    // as it did in any pose: mid-stride and seated, it is drawn where it is without them. (On the kit's bodies
+    // to a fraction of a millimetre: a trace of the lowest back bone's weight goes with the hips'.)
+    {
+      const still = { on: false };
+      const seat = await build(look, { hair: still, bust: still });
+      for (const [motion, seconds] of [
+        ["walk", 0.4],
+        ["sit", 2.5],
+      ]) {
+        for (const figure of [seat, none])
+          assert.ok(motionPose(figure, motion, seconds), `the ${motion} motion poses it`);
+        const off = apart(seat, none, 3);
+        assert.ok(
+          off < (body === REALISTIC ? 1e-4 : 0.0005),
+          `${body}: its buttocks at rest, it bends as before in the ${motion} (off by ${(off * 1000).toFixed(2)} mm)`,
+        );
+      }
+      restPose(none);
+      seat.dispose();
+    }
+    const saved = await jointsIn(on);
+    const savedNone = await jointsIn(none);
+    for (const part of parts) {
+      const label = `${body}'s ${part}`;
+      const springs = springsOf(on, part);
+      assert.ok(springs.length > 0, `${label}: on springs`);
+      assert.ok(bonesOf(on, part).length >= springs.length * 2, `${label}: with bones of its own`);
+      assert.ok(
+        springs.every((spring) => spring.bones.every((bone) => saved.has(bone.name))),
+        `${label}: a saved file has its bones`,
+      );
+      assert.ok(![...savedNone].some((name) => PARTS[part].bone.test(name)), `${label}: off, a saved file has none`);
+      // Off: neither springs nor bones for it, and the other parts as they were.
+      const off = await build(look, { [part]: { on: false } });
+      assert.equal(springsOf(off, part).length, 0, `${label}: off, no springs`);
+      assert.deepEqual(bonesOf(off, part), [], `${label}: off, no bones`);
+      for (const other of parts.filter((one) => one !== part))
+        assert.equal(
+          springsOf(off, other).length,
+          springsOf(on, other).length,
+          `${label}: off, the ${other} still moves`,
+        );
+      off.dispose();
+      // Shaken, it moves; still again, it comes back to rest. The amount says how far: more at 2, next to
+      // nothing at 0, and at any amount it rests where it did.
+      const moved = swung(on, part);
+      assert.ok(
+        moved.rests < PARTS[part].hangs,
+        `${label}: on a body standing still it stays where it rests (${mm(moved.rests)} mm)`,
+      );
+      assert.ok(moved.most > PARTS[part].sways, `${label}: moves when the body does (${mm(moved.most)} mm)`);
+      assert.ok(moved.after < PARTS[part].settles, `${label}: comes back to rest (${mm(moved.after)} mm off)`);
+      const [still, more] = [
+        await build(look, { [part]: { amount: 0 } }),
+        await build(look, { [part]: { amount: 2 } }),
+      ];
+      for (const [name, figure] of [
+        ["0", still],
+        ["2", more],
+      ]) {
+        assert.equal(springsOf(figure, part).length, springs.length, `${label}: at amount ${name} it has its springs`);
+        restPose(figure);
+        const off0 = Math.max(...drawnAt(figure, 13).map((points, m) => furthest(points, drawnAt(none, 13)[m])));
+        assert.ok(off0 < 1e-4, `${label}: at amount ${name} it rests where it did`);
+      }
+      const [least, most] = [swung(still, part), swung(more, part)];
+      assert.ok(
+        most.most > moved.most * 1.25,
+        `${label}: moves further at amount 2 (${mm(most.most)} mm against ${mm(moved.most)})`,
+      );
+      assert.ok(
+        least.most < moved.most * 0.35,
+        `${label}: is held at amount 0 (${mm(least.most)} mm against ${mm(moved.most)})`,
+      );
+      assert.ok(
+        most.after < PARTS[part].settles,
+        `${label}: comes back to rest at amount 2 (${mm(most.after)} mm off)`,
+      );
+      still.dispose();
+      more.dispose();
+    }
+    // No collider a spring meets holds one of its joints at rest, as built, in the T-pose or relaxed.
+    for (const pose of [restPose, tPose, (one) => relaxedPose(one, 0)]) {
+      pose(on);
+      for (const spring of on.springs)
+        for (const collider of spring.colliders) {
+          if (pose !== restPose && pose !== tPose && !collider.relaxed) continue;
+          for (const bone of spring.bones.slice(1)) {
+            const at = bone.getWorldPosition(new Vector3());
+            const start = collider.offset.clone().applyMatrix4(collider.bone.matrixWorld);
+            const end = (collider.tail ?? collider.offset).clone().applyMatrix4(collider.bone.matrixWorld);
+            const line = end.clone().sub(start);
+            const t = line.lengthSq() ? Math.max(0, Math.min(1, at.clone().sub(start).dot(line) / line.lengthSq())) : 0;
+            const gap = at.distanceTo(start.addScaledVector(line, t)) - collider.radius - spring.joint.hitRadius;
+            assert.ok(gap > 0, `${body}: ${bone.name} rests clear of ${collider.bone.name}'s collider`);
+          }
+        }
+    }
+    restPose(on);
+    on.dispose();
+    none.dispose();
+  }
+
+  // His chest has a bust to switch off once it stands out (bust.js): with the switch off, none.
+  {
+    const chest = { shape: { ...startOf("male").shape, chest: 1, race_halforc: 1 }, hair: "none", clothes: [] };
+    const [his, off] = [
+      await build(startOf("male", chest)),
+      await build(startOf("male", chest), { bust: { on: false } }),
+    ];
+    assert.equal(springsOf(his, "bust").length, 2, "his fullest chest has a bust");
+    assert.equal(springsOf(off, "bust").length + bonesOf(off, "bust").length, 0, "and none with its switch off");
+    his.dispose();
+    off.dispose();
+  }
+  // A style that swings worn still, then swinging again: each is built as asked, whichever came first.
+  {
+    const long = startOf("female", { hair: "long", clothes: [] });
+    for (const on of [false, true, false, true]) {
+      const figure = await build(long, { hair: { on } });
+      assert.equal(
+        springsOf(figure, "hair").length > 0,
+        on,
+        `long hair ${on ? "swings" : "stays still"} as the look says`,
+      );
+      assert.equal(bonesOf(figure, "hair").length > 0, on);
+      figure.dispose();
+    }
+  }
+
+  // The buttocks on the kit's bodies: under the hips, shaking with them; what's worn over them moves with
+  // them (trousers, a tight skirt) or hangs on its own chains over them (a skirt), and sits as it did.
+  {
+    const { GLUTES } = await import("../packages/3d-avatar-maker/src/glutes.js");
+    for (const [body, clothes, follows, most] of [
+      ["female", "mh_female_leggings", true, 0.0005],
+      ["male", "mh_jeans", true, 0.0005],
+      ["female", "mh_female_skirt", true, 0.0005],
+      ["female", "skirt", false, 0.003],
+    ]) {
+      const label = `${body} in ${clothes}`;
+      const look = startOf(body, { hair: "none", clothes: [clothes] });
+      const [figure, plain] = [await build(look), await build(look, { butt: { on: false } })];
+      const glutes = springsOf(figure, "butt");
+      assert.equal(glutes.length, 2, `${label}: a spring each side`);
+      for (const spring of glutes) {
+        assert.equal(spring.bones[0].parent.name, GLUTES.parent, `${label}: ${spring.name} hangs from the hips`);
+        assert.equal(spring.colliders.length, 0, `${label}: ${spring.name} meets no colliders`);
+      }
+      const skin = figure.meshes.find((mesh) => mesh.name === "body");
+      const piece = figure.meshes.find((mesh) => mesh.userData.piece === clothes);
+      if (follows)
+        assert.ok(
+          piece.skeleton.bones.some((bone) => bone.name === "glute_l"),
+          `${label}: the piece over them moves with them`,
+        );
+      // Worn, it rests where it does without them.
+      for (const pose of [restPose, (one) => relaxedPose(one, 0)]) {
+        pose(figure);
+        pose(plain);
+        const off = Math.max(...drawnAt(figure, 3).map((points, m) => furthest(points, drawnAt(plain, 3)[m])));
+        assert.ok(off < 1e-4, `${label}: body and clothes rest where they did (off by ${mm(off)} mm)`);
+      }
+      // The piece's points over the buttocks, each with the skin point nearest it: as the hips move in a walk,
+      // the piece is no further behind the skin than with the buttocks left as they rest.
+      restPose(figure);
+      const tips = glutes.map((spring) => figure.root.worldToLocal(spring.bones[1].getWorldPosition(new Vector3())));
+      const near = (at, reach) => tips.some((tip) => tip.distanceTo(at) < reach);
+      const skinAt = (i) => new Vector3().fromBufferAttribute(skin.geometry.attributes.position, i);
+      const skinNear = [];
+      for (let j = 0; j < skin.geometry.attributes.position.count; j++) if (near(skinAt(j), 0.12)) skinNear.push(j);
+      const drawn = new Set(skin.geometry.index.array);
+      const pairs = [];
+      let shown = 0;
+      for (let i = 0; i < piece.geometry.attributes.position.count; i++) {
+        const at = new Vector3().fromBufferAttribute(piece.geometry.attributes.position, i);
+        if (!near(at, 0.09)) continue;
+        let [best, gap] = [-1, Infinity];
+        for (const j of skinNear) {
+          const d = skinAt(j).distanceTo(at);
+          if (d < gap) [best, gap] = [j, d];
+        }
+        const normal = new Vector3().fromBufferAttribute(skin.geometry.attributes.normal, best);
+        if (at.clone().sub(skinAt(best)).dot(normal) <= 0) continue;
+        pairs.push([i, best, normal]);
+        if (drawn.has(best)) shown++;
+      }
+      assert.ok(pairs.length > 10, `${label}: the piece lies over the buttocks (${pairs.length} points)`);
+      // (The skin right under cloth isn't drawn, layers.js, so it can't show through whatever it does.)
+      assert.ok(shown < pairs.length * 0.15, `${label}: the skin under it isn't drawn (${shown} of ${pairs.length})`);
+      const through = () => {
+        let deepest = 0;
+        const [a, b, n] = [new Vector3(), new Vector3(), new Vector3()];
+        for (const [i, j, normal] of pairs) {
+          skin.applyBoneTransform(j, a.copy(skinAt(j)));
+          skin.applyBoneTransform(j, n.copy(skinAt(j)).addScaledVector(normal, 0.01));
+          n.sub(a).normalize();
+          piece.applyBoneTransform(i, b.fromBufferAttribute(piece.geometry.attributes.position, i));
+          deepest = Math.max(deepest, -b.sub(a).dot(n));
+        }
+        return deepest;
+      };
+      const own = glutes.flatMap((spring) => spring.bones);
+      const player = createMotionPlayer();
+      relaxedPose(figure, 0);
+      const moving = createSprings(figure);
+      player.play(figure, "walk");
+      let [deeper, shook] = [0, 0];
+      for (let f = 1; f <= 180; f++) {
+        player.step(figure, 1 / 60, () => relaxedPose(figure, 0));
+        moving.step(1 / 60);
+        if (f % 3) continue;
+        const [now, ends] = [through(), tipsOf(glutes)];
+        const held = own.map((bone) => bone.quaternion.clone());
+        for (const bone of own) bone.quaternion.copy(figure.rest.get(bone.name));
+        figure.root.updateMatrixWorld(true);
+        deeper = Math.max(deeper, now - through());
+        shook = Math.max(shook, furthest(ends, tipsOf(glutes)));
+        own.forEach((bone, i) => bone.quaternion.copy(held[i]));
+        figure.root.updateMatrixWorld(true);
+      }
+      player.stop(figure);
+      assert.ok(shook > 0.001 && shook < 0.02, `${label}: the buttocks shake a little in a walk (${mm(shook)} mm)`);
+      assert.ok(deeper < most, `${label}: the piece is no further behind the skin for it (${mm(deeper)} mm)`);
+      figure.dispose();
+      plain.dispose();
+    }
+    // Longer legs stretch the thighs' bones, which the buttocks' points are on too: they still move as one (no
+    // point of a buttock's middle left behind), and rest where they did.
+    const leggy = startOf("female", { hair: "none", clothes: [], limbs: { legs: 1.15 } });
+    const [figure, plain] = [await build(leggy), await build(leggy, { butt: { on: false } })];
+    const off = Math.max(...drawnAt(figure, 1).map((points, m) => furthest(points, drawnAt(plain, 1)[m])));
+    assert.ok(off < 1e-4, `longer legs: the body rests where it did (off by ${mm(off)} mm)`);
+    const skin = figure.meshes.find((mesh) => mesh.name === "body");
+    const was = plain.meshes.find((mesh) => mesh.name === "body");
+    const names = skin.skeleton.bones.map((bone) => bone.name);
+    const tips = springsOf(figure, "butt").map((spring) =>
+      figure.root.worldToLocal(spring.bones[1].getWorldPosition(new Vector3())),
+    );
+    let [middle, moved] = [0, 0];
+    const { position, skinIndex, skinWeight } = skin.geometry.attributes;
+    for (const v of new Set(skin.geometry.index.array)) {
+      point.fromBufferAttribute(position, v);
+      if (!tips.some((tip) => Math.hypot(tip.x - point.x, tip.y - point.y) < 0.04 && point.z < tip.z + 0.04)) continue;
+      let [hips, onGlute] = [0, 0];
+      for (let c = 0; c < 4; c++) {
+        if (names[was.geometry.attributes.skinIndex.getComponent(v, c)] === "pelvis")
+          hips += was.geometry.attributes.skinWeight.getComponent(v, c);
+        if (/^glute_/u.test(names[skinIndex.getComponent(v, c)])) onGlute += skinWeight.getComponent(v, c);
+      }
+      if (hips < 0.2) continue;
+      middle++;
+      if (onGlute > 0.1) moved++;
+    }
+    assert.ok(
+      middle > 50 && moved === middle,
+      `longer legs: every point of the buttocks' middles moves (${moved} of ${middle})`,
+    );
+    figure.dispose();
+    plain.dispose();
+  }
+
+  // The Realistic body's own.
+  {
+    const real = (over = {}) => checkLook({ ...NEUTRAL_LOOK, body: REALISTIC, realShape: { gender: 1 }, ...over });
+    const mesh = (of, name) => of.meshes.find((each) => each.name === name);
+    // Hair: the short style has no chains, the bob short ones that barely move, the long styles long ones that
+    // swing. Every strand's root stays on the head (none of its weight on a chain), and its tip is on a chain.
+    const sways = {};
+    for (const [style, chains, joints] of [
+      ["slicked", 0, 0],
+      ["bob", 5, 1],
+      ["back", 3, 3],
+      ["eve", 5, 4],
+    ]) {
+      const figure = await createAvatar(real({ realHair: style }), "Test", "auto");
+      const springs = springsOf(figure, "hair");
+      if (!chains) {
+        assert.equal(springs.length, 0, `realistic ${style}: too short to swing, no chains`);
+        assert.deepEqual(bonesOf(figure, "hair"), []);
+        figure.dispose();
+        continue;
+      }
+      assert.ok(
+        springs.length >= chains && springs.length <= 8,
+        `realistic ${style}: a few chains round the head (${springs.length})`,
+      );
+      assert.ok(
+        springs.every((spring) => spring.bones[0].parent.name === "Head"),
+        `realistic ${style}: each hanging from the head`,
+      );
+      const longest = Math.max(...springs.map((spring) => spring.bones.length - 1));
+      assert.ok(joints > 1 ? longest >= joints : longest === 1, `realistic ${style}: chains of ${longest} bones`);
+      const hair = mesh(figure, "hair");
+      const isChain = hair.skeleton.bones.map((bone) => PARTS.hair.bone.test(bone.name));
+      const { skinIndex, skinWeight, uv } = hair.geometry.attributes;
+      const onChains = (v) =>
+        [0, 1, 2, 3].reduce(
+          (sum, c) => sum + (isChain[skinIndex.getComponent(v, c)] ? skinWeight.getComponent(v, c) : 0),
+          0,
+        );
+      let [strands, loose, swinging] = [0, 0, 0];
+      for (let start = 0; start < uv.count;) {
+        let [end, root, tip] = [start, start, start];
+        while (end < uv.count && Math.abs(uv.getX(end) - uv.getX(start)) < 1e-4) {
+          if (uv.getY(end) > uv.getY(root)) root = end;
+          if (uv.getY(end) < uv.getY(tip)) tip = end;
+          end++;
+        }
+        strands++;
+        if (onChains(root) > 0) loose++;
+        if (onChains(tip) > 0.9) swinging++;
+        start = end;
+      }
+      assert.equal(loose, 0, `realistic ${style}: every strand's root stays on the head (${strands} strands)`);
+      assert.ok(
+        swinging > strands * (joints > 1 ? 0.7 : 0.2),
+        `realistic ${style}: strands' tips swing (${swinging} of ${strands})`,
+      );
+      // (Its hair springs meet the head, the shoulders and the upper body.)
+      const met = new Set(springs.flatMap((spring) => spring.colliders.map((collider) => collider.bone.name)));
+      for (const bone of ["Head", "clavicle_l", "clavicle_r", "spine_03"])
+        assert.ok(met.has(bone), `realistic ${style}: its hair meets ${bone}'s collider`);
+      sways[style] = swung(figure, "hair").most;
+      // What depends on the style alone is worked out once: a second avatar's hair has the very same weights.
+      const again = await createAvatar(real({ realHair: style, realShape: { gender: -1, fat: 0.5 } }), "Test", "auto");
+      assert.equal(
+        mesh(again, "hair").geometry.attributes.skinWeight,
+        skinWeight,
+        `realistic ${style}: its chains' weights are kept`,
+      );
+      assert.equal(springsOf(again, "hair").length, springs.length);
+      again.dispose();
+      figure.dispose();
+    }
+    assert.ok(sways.bob < 0.02, `the bob barely moves (${mm(sways.bob)} mm)`);
+    assert.ok(
+      sways.back > sways.bob * 3 && sways.eve > sways.bob * 3,
+      `the long styles swing (${mm(sways.back)} and ${mm(sways.eve)} mm)`,
+    );
+    // The hair is carried by the scalp under each strand's root, so a long style goes with a head the sliders
+    // move: its top stays on the scalp and its ends come down as far as the head does.
+    {
+      const boxOf = (of, name) => new Box3().setFromBufferAttribute(mesh(of, name).geometry.attributes.position);
+      const [base, moved] = [
+        await createAvatar(real({ realHair: "eve" }), "Test", "auto"),
+        await createAvatar(
+          real({ realHair: "eve", realShape: { gender: -1, proportions: -1, features_african: 1 } }),
+          "Test",
+          "auto",
+        ),
+      ];
+      const gap = boxOf(moved, "hair").max.y - boxOf(moved, "skin_head").max.y;
+      assert.ok(gap > -0.002 && gap < 0.02, `realistic: long hair sits on a moved head (${mm(gap)} mm over it)`);
+      const [headDown, endsDown] = [
+        boxOf(base, "skin_head").max.y - boxOf(moved, "skin_head").max.y,
+        boxOf(base, "hair").min.y - boxOf(moved, "hair").min.y,
+      ];
+      assert.ok(
+        headDown > 0.03 && Math.abs(endsDown - headDown) < 0.015,
+        `and its ends go with it (${mm(endsDown)} of ${mm(headDown)} mm)`,
+      );
+      base.dispose();
+      moved.dispose();
+    }
+    // A bust: a female build has one with the breasts slider at 0, a male build's flat chest none, nor a
+    // muscular one's (its chest stands out, but not by the keys that make a bust); the slider gives any build one.
+    for (const [shape, has] of [
+      [{ gender: 1 }, true],
+      [{ gender: 1, old: 1 }, true],
+      [{}, false],
+      [{ gender: -1 }, false],
+      [{ gender: -1, muscular: 1 }, false],
+      [{ gender: -1, fat: 1 }, false],
+      [{ gender: 1, thin: 1 }, false],
+      [{ gender: -1, breasts: 0.5 }, true],
+      [{ gender: 1, breasts: 1 }, true],
+    ]) {
+      const figure = await createAvatar(real({ realHair: "none", realShape: shape }), "Test", "auto");
+      const springs = springsOf(figure, "bust");
+      assert.equal(springs.length, has ? 2 : 0, `realistic ${JSON.stringify(shape)}: ${has ? "a" : "no"} bust`);
+      assert.equal(bonesOf(figure, "bust").length, has ? 4 : 0);
+      assert.equal(springsOf(figure, "butt").length, 2, `realistic ${JSON.stringify(shape)}: buttocks on springs`);
+      for (const spring of springs) {
+        assert.equal(spring.bones[0].parent.name, "spine_02", `${spring.name} is under the middle chest`);
+        assert.ok(
+          spring.joint.hitRadius > 0.02 && spring.joint.hitRadius < 0.09,
+          `${spring.name}'s ball fits the breast`,
+        );
+        const met = new Set(spring.colliders.map((collider) => collider.bone.name));
+        for (const bone of ["upperarm", "lowerarm", "hand"].flatMap((name) => [`${name}_l`, `${name}_r`]))
+          assert.ok(met.has(bone), `realistic: ${spring.name} meets ${bone}'s collider`);
+      }
+      // (Each buttock hangs from its own thigh, where this body's buttocks are weighted.)
+      for (const spring of springsOf(figure, "butt"))
+        assert.match(spring.bones[0].parent.name, /^thigh_[lr]$/u, `${spring.name} hangs from its thigh`);
+      if (has) {
+        // The breasts' points are on their bones, and nothing at the body's middle is: the two never pull one point.
+        const torso = mesh(figure, "skin_torso");
+        const isBust = torso.skeleton.bones.map((bone) => PARTS.bust.bone.test(bone.name));
+        const { position, skinIndex, skinWeight } = torso.geometry.attributes;
+        let [full, atMiddle] = [0, 0];
+        for (let v = 0; v < position.count; v++) {
+          const on = [0, 1, 2, 3].reduce(
+            (sum, c) => sum + (isBust[skinIndex.getComponent(v, c)] ? skinWeight.getComponent(v, c) : 0),
+            0,
+          );
+          if (on > 0.5) full++;
+          if (on > 0 && Math.abs(position.getX(v)) < 0.001) atMiddle++;
+        }
+        assert.ok(
+          full > 300 && atMiddle === 0,
+          `realistic: its breasts are on their bones (${full} points), the middle on neither`,
+        );
+      }
+      figure.dispose();
+    }
+    // A saved VRM of a Realistic figure with long hair carries its springs: the hair's chains with their
+    // colliders, the bust with the arms', the buttocks; three-vrm swings every segment and holds them at rest.
+    const look = real({ realHair: "eve" });
+    const figure = bare(await createAvatar(look, "Test", "auto"));
+    const saved = await exportVrm(figure, { look, name: "Long hair", terms: { author: "Tester" } });
+    const { json } = readGlb(saved.bytes);
+    const block = json.extensions.VRMC_springBone;
+    assert.ok(
+      block && json.extensionsUsed.includes("VRMC_springBone"),
+      "realistic: a VRM with long hair has spring bones",
+    );
+    const hairSprings = block.springs.filter((spring) => spring.name.startsWith("Hair ("));
+    assert.ok(hairSprings.length >= 3 && hairSprings.some((spring) => spring.joints.length >= 5), "its hair's chains");
+    for (const spring of hairSprings) {
+      assert.ok(spring.joints.every((joint) => /^hair_/u.test(json.nodes[joint.node].name)));
+      assert.equal(spring.joints[0].stiffness, HAIR_JOINT.stiffness);
+      const met = spring.colliderGroups.flatMap((group) => block.colliderGroups[group].colliders);
+      const bones = met.map((at) => json.nodes[block.colliders[at].node].name);
+      assert.ok(
+        bones.includes("Head") && bones.includes("spine_03"),
+        `${spring.name} meets the head and upper body in the VRM`,
+      );
+    }
+    for (const name of ["Bust (left)", "Bust (right)", "Buttock (left)", "Buttock (right)"])
+      assert.ok(
+        block.springs.some((spring) => spring.name === name),
+        `realistic: its VRM has ${name}`,
+      );
+    assert.deepEqual(lookInGlb(saved.bytes).look, look, "and its look");
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+    const bytes = saved.bytes;
+    const gltf = await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
+    const vrm = gltf.userData.vrm;
+    const joints = [...(vrm.springBoneManager?.joints ?? [])];
+    assert.equal(
+      joints.length,
+      figure.springs.reduce((total, spring) => total + spring.bones.length - 1, 0),
+      "realistic: every segment of its springs swings in three-vrm",
+    );
+    vrm.scene.updateMatrixWorld(true);
+    const ends = figure.springs.map((spring) => gltf.scene.getObjectByName(spring.bones.at(-1).name));
+    const start = ends.map((end) => end.getWorldPosition(new Vector3()));
+    for (let i = 0; i < 120; i++) vrm.update(1 / 60);
+    figure.springs.forEach((spring, i) => {
+      const off = ends[i].getWorldPosition(new Vector3()).distanceTo(start[i]);
+      assert.ok(
+        off < (spring.name.startsWith("Hair") ? 0.03 : 0.0005),
+        `realistic: three-vrm holds ${spring.name} at rest (${mm(off)} mm)`,
+      );
+    });
+    // With the amount changed the VRM's joints carry it; with every part off it has no spring bones at all.
+    const softLook = real({
+      realHair: "eve",
+      physics: { hair: { amount: 2 }, bust: { on: false }, butt: { on: false } },
+    });
+    const soft = bare(await createAvatar(softLook, "Test", "auto"));
+    const softBlock = readGlb((await exportVrm(soft, { look: softLook, terms: { author: "Tester" } })).bytes).json
+      .extensions.VRMC_springBone;
+    assert.ok(
+      softBlock.springs.every((spring) => spring.name.startsWith("Hair (")),
+      "only the hair's, with the others off",
+    );
+    assert.equal(softBlock.springs[0].joints[0].stiffness, HAIR_JOINT.stiffness / 2, "at the look's amount");
+    const noneLook = real({
+      realHair: "eve",
+      physics: { hair: { on: false }, bust: { on: false }, butt: { on: false } },
+    });
+    const none = bare(await createAvatar(noneLook, "Test", "auto"));
+    const noneFile = readGlb((await exportVrm(none, { look: noneLook, terms: { author: "Tester" } })).bytes).json;
+    assert.equal(
+      noneFile.extensions.VRMC_springBone,
+      undefined,
+      "realistic: with every part off, a VRM has no spring bones",
+    );
+    assert.deepEqual(
+      lookInGlb((await exportGlb(none, { look: noneLook })).bytes).look,
+      noneLook,
+      "and the look keeps its switches",
+    );
+    for (const made of [figure, soft, none]) made.dispose();
+  }
+}
 console.log("3d-avatar-maker.regression: ok");

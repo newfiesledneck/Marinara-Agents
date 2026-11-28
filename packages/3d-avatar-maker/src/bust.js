@@ -42,7 +42,7 @@ export const BUST = {
  * the nearest point of `around` (the skin about the breast, so it stays under that too), the one that leaves
  * least room between it and `breast` (the breast's own skin, in front of the breastbone). Both are points.
  */
-function ballIn(front, breast, around) {
+export function ballIn(front, breast, around) {
   const place = new Vector3();
   let best = { gap: Infinity, middle: front.clone(), radius: 0.01 };
   const tryAt = (x, y, z) => {

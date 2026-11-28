@@ -1,5 +1,6 @@
-// Spring bones: the hair's and clothes' chains (hair.js), the bust (bust.js) and a tail, swinging as the body
-// moves, kept out of the body by colliders. The settings and colliders are VRM 1.0's (`VRMC_springBone`): the
+// Spring bones: the hair's and clothes' chains (hair.js), the bust (bust.js), the buttocks (glutes.js) and a
+// tail, swinging as the body moves, kept out of the body by colliders. (The Realistic body's are made in
+// realistic-physics.js; the look's switch and amount for the hair, bust and buttocks are physics.js's.) The settings and colliders are VRM 1.0's (`VRMC_springBone`): the
 // saved VRM carries them (exporter.js), and the preview swings them here the way three-vrm (the Engine's VRM
 // model) does, so what the maker shows is what a VRM app shows. In two things the preview does more, for
 // its animations, which move the legs as a chat never does: a breast pressed by an arm is squashed, and
@@ -48,6 +49,19 @@ export const BUST_JOINT = {
   gravityPower: 0,
   gravityDir: [0, -1, 0],
   dragForce: 0.45,
+};
+/**
+ * A buttock (glutes.js): much stiffer than the bust and slowed far less, with no weight of its own (it rests
+ * shaped as it is). The hips move a long way in a walk or a dance, and a spring as soft as the bust's trailed
+ * 2 to 3 cm behind them; this one's skin moves 2 to 5 mm in a walk and about 5 mm in the dance, a quick shake
+ * that is gone within a quarter of a second. It meets no colliders.
+ */
+export const GLUTE_JOINT = {
+  hitRadius: 0.02,
+  stiffness: 5,
+  gravityPower: 0,
+  gravityDir: [0, -1, 0],
+  dragForce: 0.15,
 };
 export const TAIL_BONES = ["tail_01", "tail_02", "tail_03", "tail_04", "tail_05"];
 const LEG_RADIUS = 0.07; // metres: the legs' colliders, so a swinging tail stays outside the thighs
