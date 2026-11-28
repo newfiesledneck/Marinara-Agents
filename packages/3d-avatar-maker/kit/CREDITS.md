@@ -25,7 +25,8 @@ Upliner (the original Antonia rigging), AgentA1CR (node help, eyebrow conversion
   browser's size; the normal maps made from its height maps. The torso and legs also come with
   underwear painted on by ThatOneCan (`-female`: cheeky panties and a strapless bra; `-male`: boxer briefs).
 - `avatar/realistic-hair-bob.pack.png`, `-slicked`, `-back`, `-eve`: four of the character's strand hair
-  styles, each strand turned into a narrow ribbon, over a cap of the scalp it grows from.
+  styles, each strand turned into a narrow ribbon; and `avatar/realistic-hair-<style>-scalp.webp`, where the
+  scalp lies under each, which the maker paints in the hair's colour.
 
 ## From MakeHuman (CC0), fitted in Blender by ThatOneCan
 

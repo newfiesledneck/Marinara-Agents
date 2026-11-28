@@ -7,7 +7,8 @@ Writes, for scripts/build-3d-avatar-maker-kit.mjs to pack:
 
 - assets/models/realistic-body.glb: the body on the maker's own bone names, with the face's moves and the
   shape sliders as shape keys, and its brows; realistic-body.json beside it (how each slider moves the joints).
-- assets/models/realistic-hair-<style>.glb: each of its strand hair styles as narrow ribbons over a cap.
+- assets/models/realistic-hair-<style>.glb: each of its strand hair styles as narrow ribbons; and in the
+  textures, realistic-hair-<style>-scalp.webp: where the scalp lies under it, to be painted in the hair's colour.
 - assets/textures/realistic/*.webp: the skin (light and dark), its normal and roughness maps, eyes and mouth.
   The torso and legs come bare, and with underwear painted on (panties and a bra, or boxer briefs).
 
@@ -26,6 +27,7 @@ import sys
 import bpy
 import numpy as np
 from mathutils import Vector
+from mathutils.kdtree import KDTree
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODELS = os.path.join(HERE, "..", "models")
@@ -182,8 +184,9 @@ BROWS = "mind_eyebrows_11_Default"
 HAIR_POINTS = 11
 BROW_POINTS = 5
 BROW_WIDTH = 0.00017
-CAP_REACH = 0.006  # how near a strand's root a scalp vertex is covered by the cap (metres): it fades out over the far half
-CAP_LIFT = 0.0005
+SCALP_SIZE = 512  # the scalp's picture for each style
+SCALP_ROOT = 0.0045  # the scalp this near a strand's root is painted (metres)
+SCALP_GAP = 0.009  # gaps between roots up to twice this wide are painted too
 
 _START = __import__("time").time()
 
@@ -287,18 +290,23 @@ def to_srgb(linear):
 
 
 def save_picture(name, data, quality=88):
-    """`data` (rows bottom up, values as they are to be written) as an 8-bit WebP in assets/textures/realistic
-    (through a PNG and ffmpeg, `FFMPEG` or the one on the path: Blender's own WebP writer takes no quality)."""
+    """`data` (rows bottom up, values as they are to be written; a fourth channel is its alpha) as an 8-bit WebP
+    in assets/textures/realistic (through a PNG and ffmpeg, `FFMPEG` or the one on the path: Blender's own WebP
+    writer takes no quality)."""
     os.makedirs(TEXTURES, exist_ok=True)
     tall, wide = data.shape[:2]
+    alpha = data.shape[2] == 4
     full = np.ones((tall, wide, 4), dtype=np.float32)
     full[:, :, : data.shape[2]] = data
-    image = bpy.data.images.new(name, wide, tall, alpha=False, is_data=True)
+    image = bpy.data.images.new(name, wide, tall, alpha=alpha, is_data=True)
     image.pixels.foreach_set(full.ravel())
     raw = os.path.join(TEXTURES, name + ".png")
-    image.filepath_raw = raw
-    image.file_format = "PNG"
-    image.save()
+    scene = bpy.context.scene
+    scene.render.image_settings.file_format = "PNG"
+    scene.render.image_settings.color_mode = "RGBA" if alpha else "RGB"
+    scene.render.image_settings.color_depth = "8"
+    scene.view_settings.view_transform = "Raw"
+    image.save_render(raw, scene=scene)
     bpy.data.images.remove(image)
     subprocess.run([os.environ.get("FFMPEG", "ffmpeg"), "-v", "error", "-y", "-i", raw, "-quality", str(quality), os.path.join(TEXTURES, name + ".webp")], check=True)
     os.remove(raw)
@@ -327,13 +335,14 @@ def normal_from_height(height, strength):
     return n * 0.5 + 0.5
 
 
-def place_map(C, tile, size):
+def place_map(C, tile, size, more=None):
     """Where on the body each texel of `tile` is: (size, size, 3) points of the base shape (rows bottom up), and
     which texels have one. Past an island's edge the nearest point is repeated a few texels out, so what is
-    painted by place runs under the seam and no skin shows along it."""
-    place = np.zeros((size, size, 3), dtype=np.float64)
+    painted by place runs under the seam and no skin shows along it. `more` (a column or more for every vertex)
+    is carried across the faces the same way, in the channels after the place."""
+    shape = C["shape"] if more is None else np.hstack([C["shape"], np.asarray(more, dtype=np.float64).reshape(len(C["shape"]), -1)])
+    place = np.zeros((size, size, shape.shape[1]), dtype=np.float64)
     known = np.zeros((size, size), dtype=bool)
-    shape = C["shape"]
     for f, face in enumerate(C["faces"]):
         if C["tiles"][f] != tile or SLOTS[C["slots"][f]] not in ("UDIM.Skin", "charmorph_censor"):
             continue
@@ -571,26 +580,25 @@ def ribbons(strands, centre, points, width, seed=7, taper_from=0.7):
     return verts, marks, faces
 
 
-def scalp_cap(C, shape, normals, roots):
-    """The scalp near the strands' `roots`, lifted a hair's breadth, so no skin shows between them: vertices,
-    faces, and for each vertex how solid it is (fading out at the cap's edge, so the hairline is soft)."""
-    near = np.full(len(shape), np.inf)
-    sample = roots[:: max(1, len(roots) // 1500)]
-    for chunk in range(0, len(shape), 4000):
-        near[chunk : chunk + 4000] = np.linalg.norm(shape[chunk : chunk + 4000, None, :] - sample[None, :, :], axis=2).min(axis=1)
-    index, verts, solid, faces = {}, [], [], []
-    for f, face in enumerate(C["faces"]):
-        if C["slots"][f] != SLOTS.index("UDIM.Skin") or not all(near[i] < CAP_REACH for i in face):
-            continue
-        ids = []
-        for i in face:
-            if i not in index:
-                index[i] = len(verts)
-                verts.append(shape[i] + normals[i] * CAP_LIFT)
-                solid.append(float(np.clip((CAP_REACH - near[i]) / (CAP_REACH * 0.5), 0, 1)))
-            ids.append(index[i])
-        faces.append(tuple(ids))
-    return verts, solid, faces
+def scalp_paint(head, strands):
+    """Where a style's hair grows, as a picture over the head's skin picture: the texels of the head (`head`:
+    place_map of its tile) within SCALP_ROOT of a strand's root, with the gaps between roots up to twice
+    SCALP_GAP wide closed, and no further: it stops at the hairline. The maker paints the hair's colour
+    there, so no skin shows between the strands."""
+    tree = KDTree(len(strands))
+    for at, strand in enumerate(strands):
+        tree.insert(strand[0], at)
+    tree.balance()
+    place, known = head
+    rooted = np.zeros(known.shape)
+    for row, column in zip(*np.nonzero(known)):
+        rooted[row, column] = tree.find(place[row, column, :3])[2] < SCALP_ROOT
+    # (Closing the gaps: grown by SCALP_GAP, then shrunk by as much, which gives back the outline it had.)
+    texel = np.linalg.norm(place[1:, :, :3] - place[:-1, :, :3], axis=2)[known[1:] & known[:-1]]
+    reach = max(1, int(round(SCALP_GAP / max(1e-6, float(np.median(texel))))))
+    grown = blurred(rooted[:, :, None], reach)[:, :, 0] > 1e-6
+    closed = (blurred(grown.astype(np.float64)[:, :, None], reach)[:, :, 0] > 1 - 1e-6) | (rooted > 0)
+    return blurred((closed & known).astype(np.float64)[:, :, None], 1)[:, :, 0]
 
 
 # ── Meshes, the rig and the files ───────────────────────────────────────────────────────────────────────
@@ -834,19 +842,19 @@ def main():
         bpy.data.objects.remove(brows)
 
     if wanted("hair"):
+        head = place_map(C, 1001, SCALP_SIZE)
         for name, (style, children, every, width) in HAIR.items():
             strands = strands_of(haired, style, children, every)
             verts, marks, quads = ribbons(strands, head_centre, HAIR_POINTS, width)
             hair = new_mesh(f"realistic-hair-{name}", verts, quads, uvs_per_vertex=marks, materials=[plain_material("hair", (0.13, 0.075, 0.04, 1.0), 0.42)])
             skin_to(hair, rig, "Head")
-            cap_verts, solid, cap_faces = scalp_cap(C, shape, normals, np.array([s[0] for s in strands]))
-            cap = new_mesh(f"realistic-scalp-{name}", cap_verts, cap_faces, uvs_per_vertex=[(a * 0.98 + 0.01, 0.5) for a in solid],
-                           materials=[plain_material("scalp", (0.13, 0.075, 0.04, 1.0), 0.6, 0.99)])
-            skin_to(cap, rig, "Head")
-            log(f"hair {name}: {len(strands)} strands, {len(quads) * 2} triangles, cap {len(cap_faces)} faces")
-            export(os.path.join(MODELS, f"realistic-hair-{name}.glb"), [rig, hair, cap])
+            cover = scalp_paint(head, strands)
+            picture = np.ones((SCALP_SIZE, SCALP_SIZE, 4), dtype=np.float32)
+            picture[:, :, 3] = cover
+            save_picture(f"realistic-hair-{name}-scalp", picture, 80)
+            log(f"hair {name}: {len(strands)} strands, {len(quads) * 2} triangles; {cover.mean() * 100:.0f}% of the head's picture is where it grows")
+            export(os.path.join(MODELS, f"realistic-hair-{name}.glb"), [rig, hair])
             bpy.data.objects.remove(hair)
-            bpy.data.objects.remove(cap)
 
 
 main()
