@@ -1007,6 +1007,37 @@ Asked for: eye colours and eyelashes, as the first of the body's own customizing
   eyes, a brow colour on brows and lashes, and the eye tiles. On the motions page, `view=eyes` and
   `eyes-side` draw the eyes close up.
 
+## Built: makeup, stubble and nails on the Realistic body; Generate by body (0.1.25)
+
+Asked for: painted nails and makeup next, "so all the customization stuff works"; the painted underwear's
+switch to stay as the user left it; and Generate to send only what the selected body has.
+
+- **Where paint goes.** `make_realistic.py -- paints` (`write_paints`) writes a picture for each kind of
+  paint, white with the place in its alpha (`kit/avatar/realistic-paint-<what>.webp`), from the character's
+  own marks: `ColLipMask` (lips), `BeardShadowMask` blue (the beard's ground, speckled, with a soft edge,
+  thinner up the cheeks; `-moustache` and `-goatee` are cuts of it found from the mouth), the blink (the
+  eyeshadow is the skin a blink moves; the eyeliner follows `lid_edges`, the lines the lashes grow from),
+  a soft patch under each eye's outer half (blush), and the nails' own patches of the arms' and legs'
+  pictures (`islands`: a small patch whose points are mostly without pores, by `MicroNormals`). A first try
+  by pores alone also painted the skin round each nail.
+- **Laying it on.** `realistic.js` `paintsOf(part, look, hair)` lists a look's paints for a part of the skin
+  and `skinMap` lays them on its canvas, after the skin's tone. Makeup and nail colour are tints (`TINTS`):
+  the canvas's "color" blend first, which keeps the skin's own light and dark, then a share of the flat
+  colour. Stubble, eyeliner and the scalp are flat.
+- **The same look fields as the other bodies**: `makeup`, `colours.lips`, `colours.nails`, `toenails`,
+  `stubble`. The panel's makeup group is one function for every body (`makeupGroup`).
+- **The painted underwear's switch** is written to browser storage when changed (`main.js` `BARE_KEY`) and
+  read by `startingLook` and when an avatar is changed to the Realistic body, so New and Generate keep it.
+- **Generate by body.** `designMenu(body)` lists one body's options: no `body` field, nothing marked as
+  another body's. `designedLook` keeps the avatar's body and drops `REALISTIC_ONLY` fields from a kit
+  body's design; `lookForModel` leaves them out of what the model is shown; `designMessages` says nothing
+  of clothes for the Realistic body. A new design is made on `fresh(current.body)`. Before, a design could
+  pick male or female itself.
+- Check: the regression test covers `paintsOf` (order, strengths, toenails, stubble shapes), each picture in
+  the kit, a design's makeup read on the Realistic body, each kit body's menu without the other's pieces,
+  and a design that names another body. Makeup, stubble and nails were looked over on the motions page
+  (`view=face`, `eyes`, `hand`); the switch was tried on the test page across New.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -1030,7 +1061,7 @@ Asked for: eye colours and eyelashes, as the first of the body's own customizing
 
 ## Known rough edges
 
-- The Realistic body: the lashes keep their open-eye angle on a shut lid (they move with it but don't turn); long hair passes through a body made much heavier than the one it was
+- The Realistic body: painted nails and lips are as glossy as bare ones (paint goes on the colour picture only); the lashes keep their open-eye angle on a shut lid (they move with it but don't turn); long hair passes through a body made much heavier than the one it was
   styled on; the hairline is a cap with a soft edge, which shows as a band where a style is swept back from
   it; the eye's clear front is drawn 30% solid, so the iris is a little darker than its picture.
 

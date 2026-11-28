@@ -61,6 +61,21 @@ const IRIS_FIT = 0.47;
 const TINT_BRIGHT = 1.5; // (the grey iris is mid grey: a colour is laid on it this much brighter)
 const LASH_SHADE = 0.3; // how bright the lashes are, of the brows' colour
 const SCALP_SHADE = 0.62; // how bright the scalp is painted under the hair, of the hair's own colour
+/**
+ * Makeup and nail colour laid on the skin as a tint: [how strong at full, how much of that is the colour
+ * itself]. The rest keeps the skin's own light and dark under the colour, so lips keep their creases.
+ */
+const TINTS = { lips: [0.92, 0.55], eyeshadow: [0.85, 0.5], blush: [0.6, 0.2], nails: [0.96, 0.8] };
+const LINER_STRENGTH = 0.9;
+/** Stubble (looks.js STUBBLE): [the kit's picture of where, how strong at full density]. */
+const STUBBLE_PAINT = {
+  light: ["stubble", 0.2],
+  heavy: ["stubble", 0.42],
+  moustache: ["moustache", 0.45],
+  goatee: ["goatee", 0.45],
+  short: ["stubble", 0.72],
+};
+const STUBBLE_SHADE = 0.7; // how bright stubble is, of the hair's colour: short hairs and their shadow
 const CORNEA_SOLID = 0.3; // how much of the clear front of the eye's glint is kept (it's drawn see-through)
 const CARRY_CELL = 0.012; // metres: the cells the head's skin is sorted into, to find the skin nearest a brow hair
 const CARRY_NEAREST = 3;
@@ -387,8 +402,9 @@ const tones = new Map(); // a skin picture (its part and its cover) → { recipe
 /**
  * A part of the skin at `tone` (0 the light skin's picture, 1 the dark's, between them a blend of the two),
  * with `cover` painted on it (coverOf), and then `paints` laid over that: [{ mask (a kit picture whose alpha
- * says where), colour ("#rrggbb"), strength (0…1) }], in order. Gives { map, letGo }. Where there's no canvas
- * to draw on, the nearer of the two pictures, unpainted.
+ * says where), colour ("#rrggbb"), strength (0…1), body }], in order. A paint with a `body` is a tint: the
+ * colour over the skin's own light and dark, and then `body` of its strength as the colour itself. Gives
+ * { map, letGo }. Where there's no canvas to draw on, the nearer of the two pictures, unpainted.
  */
 async function skinMap(part, tone, cover, paints = []) {
   const light = `realistic-skin-${part}-light${cover}`;
@@ -429,7 +445,14 @@ async function skinMap(part, tone, cover, paints = []) {
         brush.fillRect(0, 0, layer.width, layer.height);
         brush.globalCompositeOperation = "destination-in";
         brush.drawImage(masks[i], 0, 0, layer.width, layer.height);
-        context.globalAlpha = Math.min(1, paint.strength);
+        const strength = Math.min(1, paint.strength);
+        if (paint.body !== undefined) {
+          context.globalCompositeOperation = "color";
+          context.globalAlpha = strength;
+          context.drawImage(layer, 0, 0);
+          context.globalCompositeOperation = "source-over";
+        }
+        context.globalAlpha = strength * (paint.body ?? 1);
         context.drawImage(layer, 0, 0);
       });
     }
@@ -455,15 +478,58 @@ async function skinMap(part, tone, cover, paints = []) {
 /** A colour as "#rrggbb", `times` as bright. */
 const cssOf = (colour, times = 1) => `#${colour.clone().multiplyScalar(times).getHexString(SRGBColorSpace)}`;
 
+/** A look's colour (a number) as "#rrggbb". */
+const hexOf = (colour) => `#${colour.toString(16).padStart(6, "0")}`;
+
 /**
- * What the look paints over a part of the skin (skinMap's `paints`). On the head: the scalp under the hair, in
- * the hair's colour a little darker, so no skin shows between the strands (each style has a picture of where:
- * assets/scripts/make_realistic.py scalp_paint).
+ * What the look paints over a part of the skin (skinMap's `paints`), each through a picture of where in the
+ * kit (assets/scripts/make_realistic.py scalp_paint, write_paints). `hair` is the hair's colour.
+ *
+ * - The head: the scalp under the hair, in the hair's colour a little darker, so no skin shows between the
+ *   strands; stubble (`stubble`: its shape, density and colour, else the hair's); then makeup (`makeup`: blush,
+ *   eyeshadow and eyeliner, each a colour and an amount) and the lips (`colours.lips`, as strong as
+ *   `makeup.lipstick.amount`, full unless said).
+ * - The arms and legs: the nails in `colours.nails`; the toenails unless `toenails` is false.
  */
-function paintsOf(part, look, hair) {
+export function paintsOf(part, look, hair) {
   const paints = [];
-  if (part === "head" && look.realHair !== "none")
-    paints.push({ mask: `realistic-hair-${look.realHair}-scalp`, colour: cssOf(hair, SCALP_SHADE), strength: 0.96 });
+  const makeup = look.makeup ?? {};
+  const tint = (kind, mask, colour, amount = 1) =>
+    paints.push({
+      mask: `realistic-paint-${mask}`,
+      colour: hexOf(colour),
+      strength: TINTS[kind][0] * amount,
+      body: TINTS[kind][1],
+    });
+  if (part === "head") {
+    if (look.realHair !== "none")
+      paints.push({ mask: `realistic-hair-${look.realHair}-scalp`, colour: cssOf(hair, SCALP_SHADE), strength: 0.96 });
+    const stubble = STUBBLE_PAINT[look.stubble?.shape];
+    if (stubble) {
+      const density = Math.min(1, Math.max(0, look.stubble.density ?? 1));
+      const colour = Number.isInteger(look.stubble.colour)
+        ? new Color().setHex(look.stubble.colour, SRGBColorSpace)
+        : hair;
+      paints.push({
+        mask: `realistic-paint-${stubble[0]}`,
+        colour: cssOf(colour, STUBBLE_SHADE),
+        strength: stubble[1] * (0.4 + 0.6 * density),
+      });
+    }
+    for (const layer of ["blush", "eyeshadow"])
+      if (Number.isInteger(makeup[layer]?.colour)) tint(layer, layer, makeup[layer].colour, makeup[layer].amount ?? 1);
+    if (Number.isInteger(makeup.eyeliner?.colour))
+      paints.push({
+        mask: "realistic-paint-eyeliner",
+        colour: hexOf(makeup.eyeliner.colour),
+        strength: LINER_STRENGTH * (makeup.eyeliner.amount ?? 1),
+      });
+    if (Number.isInteger(look.colours?.lips)) tint("lips", "lips", look.colours.lips, makeup.lipstick?.amount ?? 1);
+  }
+  if (Number.isInteger(look.colours?.nails)) {
+    if (part === "arms") tint("nails", "nails", look.colours.nails);
+    if (part === "legs" && look.toenails !== false) tint("nails", "toenails", look.colours.nails);
+  }
   return paints;
 }
 
@@ -625,6 +691,8 @@ export async function createRealistic(look = {}) {
     realTone: Math.max(0, Math.min(1, Number(look.realTone) || 0)),
     realHair: REALISTIC_HAIR.some(([style]) => style === look.realHair) ? look.realHair : REALISTIC_HAIR[1][0],
     realBare: look.realBare === true,
+    makeup: look.makeup ?? {},
+    colours: look.colours ?? {},
     eyePicture: look.eyePicture ?? TINT,
     realBrows: Number.isInteger(look.realBrows) ? look.realBrows : REALISTIC_BROWS_USUAL,
     height: Number.isFinite(look.height) ? look.height : 1,

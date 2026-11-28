@@ -15,7 +15,7 @@
         },
         "id": "3d-avatar-maker",
         "name": "3D Avatar Maker",
-        "version": "0.1.24",
+        "version": "0.1.25",
         "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
         "engine": {
           "min": "2.4.6",
@@ -125,6 +125,15 @@
               "kit/avatar/realistic-hair-slicked-scalp.webp",
               "kit/avatar/realistic-hair-slicked.pack.png",
               "kit/avatar/realistic-mouth.webp",
+              "kit/avatar/realistic-paint-blush.webp",
+              "kit/avatar/realistic-paint-eyeliner.webp",
+              "kit/avatar/realistic-paint-eyeshadow.webp",
+              "kit/avatar/realistic-paint-goatee.webp",
+              "kit/avatar/realistic-paint-lips.webp",
+              "kit/avatar/realistic-paint-moustache.webp",
+              "kit/avatar/realistic-paint-nails.webp",
+              "kit/avatar/realistic-paint-stubble.webp",
+              "kit/avatar/realistic-paint-toenails.webp",
               "kit/avatar/realistic-skin-arms-dark.webp",
               "kit/avatar/realistic-skin-arms-light.webp",
               "kit/avatar/realistic-skin-arms-normal.webp",
@@ -177,8 +186,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "4c0dceb8d962be3ca7d4c5a373da65ff6cb1a02d135fadf8e24c26192d69c496",
-            "bytes": 1320017
+            "sha256": "0c5ec94cab26bd6f268a8b3e101773149e943e09d6abc0db29d364eb21943cd7",
+            "bytes": 1322945
           },
           {
             "path": "3d-avatar-maker-icon.webp",
@@ -606,6 +615,51 @@
             "bytes": 76406
           },
           {
+            "path": "kit/avatar/realistic-paint-blush.webp",
+            "sha256": "326738d6d9086cf9fdd68db981538c062dfc36745556aad13fbe83da2cef5cd8",
+            "bytes": 20596
+          },
+          {
+            "path": "kit/avatar/realistic-paint-eyeliner.webp",
+            "sha256": "5fb77839bff89554d0ff4d61ff7d87c036c7511f287a305af71451f5575cdca9",
+            "bytes": 4456
+          },
+          {
+            "path": "kit/avatar/realistic-paint-eyeshadow.webp",
+            "sha256": "d8d44d06cbc028415798568b80d581c5b213c58aeae7f04a34a9cc3385ce2bcc",
+            "bytes": 2854
+          },
+          {
+            "path": "kit/avatar/realistic-paint-goatee.webp",
+            "sha256": "669706da0a305af41406548b290f08f95ba728bedbe9bec47590617e6e69399c",
+            "bytes": 82778
+          },
+          {
+            "path": "kit/avatar/realistic-paint-lips.webp",
+            "sha256": "ad1659c17c27dce08a2d4fbe7a5983dadf99328f49fec869468a1cbeccddeafe",
+            "bytes": 3294
+          },
+          {
+            "path": "kit/avatar/realistic-paint-moustache.webp",
+            "sha256": "af6ce26d7de1da48e3445898a73d26ef57fde212443e8b47bcad9d3392fa8faa",
+            "bytes": 25450
+          },
+          {
+            "path": "kit/avatar/realistic-paint-nails.webp",
+            "sha256": "76e872aa8b1813d43eec9f2c6410af6455765569ed306356b3c552b152848960",
+            "bytes": 11634
+          },
+          {
+            "path": "kit/avatar/realistic-paint-stubble.webp",
+            "sha256": "2fa84cfbf1ebf52b41419d64135bfd834339a5d0cd093ebfe281885b61f4e875",
+            "bytes": 169754
+          },
+          {
+            "path": "kit/avatar/realistic-paint-toenails.webp",
+            "sha256": "b19d8e49677c63b8dde536b2225dcf4365eb368c405a5c3c9aa04fdc1524b8ba",
+            "bytes": 10116
+          },
+          {
             "path": "kit/avatar/realistic-skin-arms-dark.webp",
             "sha256": "bafb85c5b809c5f0937e3cf8740cacf9393c4f72d839c86a6f37461bd940745d",
             "bytes": 67732
@@ -819,9 +873,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-0.1.24.zip",
-        "sha256": "a4b747b902b48bb53b85d20492bd4f3f59056f0817cc0aa51ddf1627d2855681",
-        "bytes": 70081824
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-0.1.25.zip",
+        "sha256": "48db440b2ab734f0cc702391c3e91f860786086dcb171effdacb46b6aac7d0d4",
+        "bytes": 70419094
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker/README.md"
     },

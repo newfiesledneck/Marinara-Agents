@@ -1,5 +1,12 @@
 # 3D Avatar Maker release notes
 
+## 0.1.25 — 2026-11-27
+
+- The Realistic body has makeup on its Skin and eyes tab: eyeshadow, eyeliner, blush and lipstick, each a colour and a strength, with the presets the other bodies have.
+- It has nail colour for fingernails and toenails, and stubble on its Hair tab: light or heavy stubble, a moustache or goatee shadow, or a short beard, in the hair's colour or its own.
+- Its **Painted underwear** choice is remembered in this browser. A new or generated avatar starts the way you last left it, where before it was switched back on.
+- **Generate** and **Revise avatar** send the model only the options of the body the avatar has, and keep that body. A design used to choose between the Male and Female bodies itself; now choose the body on the Body tab first.
+
 ## 0.1.24 — 2026-11-27
 
 - The Realistic body has eye colours on its Skin and eyes tab: any colour on its own iris, or one of the 24 eye pictures the other bodies have.

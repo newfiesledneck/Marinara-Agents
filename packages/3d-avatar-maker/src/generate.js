@@ -15,6 +15,7 @@ import {
   REALISTIC_BROWS,
   REALISTIC_COLOURS,
   REALISTIC_FIELDS,
+  REALISTIC_ONLY,
   REALISTIC_HAIR,
   REALISTIC_SHAPES,
   readRealisticDesign,
@@ -128,13 +129,14 @@ export function textConnections(rows) {
 // ── The menu: every field of a look and its options, in words ──
 
 /**
- * The look's fields and their options for the model, from what the kit and the installed wardrobe packs
- * have for each body (avatarChoices), each marked when only one body has it. Its answer is read by
- * looks.js readDesign, which keeps only what these lists have.
+ * The look's fields and their options for the model, for the body the avatar has (`body`; a body that isn't
+ * one of the kit's is read as the female one): only what the kit and the installed wardrobe packs have for
+ * that body (avatarChoices), and no choice of body, so a design never names what the avatar can't wear or
+ * be. Its answer is read by looks.js readDesign, which keeps only what these lists have.
  */
 export async function designMenu(body = "") {
   if (body === REALISTIC) return realisticMenu();
-  const bodies = BODIES.map(([body]) => body);
+  const bodies = [BODIES.some(([each]) => each === body) ? body : "female"];
   const choices = Object.fromEntries(await Promise.all(bodies.map(async (body) => [body, await avatarChoices(body)])));
   /** "female only" when only one body has `has(its choices)`, "" when both do, null when neither. */
   const only = (has) => {
@@ -149,14 +151,11 @@ export async function designMenu(body = "") {
       .join(", ");
   const sliders = (list) =>
     list
-      .map((entry) => [
-        entry,
-        only((made) => hasSlider(entry[0], made.keys, made === choices.male ? "male" : "female")),
-      ])
+      .map((entry) => [entry, only((made) => hasSlider(entry[0], made.keys, bodies[0]))])
       .filter(([, mark]) => mark !== null)
       .map(([entry, mark]) => {
         const [key, label, , , what, ends] = entry;
-        const [least, most] = sliderRange(entry, choices.female.keys);
+        const [least, most] = sliderRange(entry, choices[bodies[0]].keys);
         return `  ${key}: ${least} to ${most}${ends ? ` (${ends[0]} to ${ends[1]})` : ""}: ${label}${what ? `. ${what}` : ""}${mark ? ` (${mark})` : ""}`;
       });
   const labelOf = new Map(CLOTHES.map(([piece, label]) => [piece, label]));
@@ -170,7 +169,6 @@ export async function designMenu(body = "") {
   return [
     'The look\'s fields. Use these names and values exactly, colours as "#rrggbb". A field left out keeps the',
     "body as made (every slider at 0 unless said, limbs at 1).",
-    `body: ${BODIES.map(([body]) => body).join(", ")}`,
     `race: ${RACES.map(([race, label]) => `${race} (${label})`).join(", ")}. A race sets its build slider, height and usual parts; anything given here goes over them.`,
     `height: ${HEIGHTS[0]} to ${HEIGHTS[1]}, a share of a usual adult's height (1 is usual)`,
     `age: ${AGES.map(([age, label]) => `${age} (${label})`).join(", ")}`,
@@ -186,7 +184,7 @@ export async function designMenu(body = "") {
     ...LIMBS.map(([key, label, least, most, what]) => `  ${key}: ${least} to ${most} (1 is usual): ${label}. ${what}`),
     `skin: a skin picture, ${named(
       skins.filter(([value]) => value !== "custom"),
-      (made, value) => skinsFor(made === choices.male ? "male" : "female").some(([skin]) => skin === value),
+      (_made, value) => skinsFor(bodies[0]).some(([skin]) => skin === value),
     )}; or "custom", and then colours.skin is their skin's colour`,
     `colours: { ${AVATAR_COLOURS.map(([field, label]) => `${field} (${label.toLowerCase()})`).join(", ")}, horns }`,
     `makeup (only for someone who wears it): { ${MAKEUP_LAYERS.filter(([layer]) => layer !== "lipstick")
@@ -203,7 +201,7 @@ export async function designMenu(body = "") {
     `stubble: { shape: ${STUBBLE.map(([value]) => value).join(", ")}, density (0 to 1), colour (left out: the hair's) }, or left out for none`,
     "tail: true or false (a tiefling's tail)",
     `underwear: { top: ${named(UNDERWEAR_TOPS, (made, value) => made.tops.includes(value))}, or none; bottom: ${named(UNDERWEAR_BOTTOMS, (made, value) => made.bottoms.includes(value))}, or none }`,
-    "clothes: a list of pieces worn, at most one for each slot, only pieces the chosen body has. By slot:",
+    "clothes: a list of pieces worn, at most one for each slot. By slot:",
     ...[...bySlot.values()]
       .filter(({ pieces }) => pieces.size)
       .map(
@@ -234,7 +232,12 @@ export function realisticMenu() {
     `realHair: ${REALISTIC_HAIR.map(([value, label]) => `${value} (${label})`).join(", ")}; hairTint: their hair's colour`,
     `eyePicture: ${TINT} (then colours.eyes is their eye colour), or a real eye: ${EYE_PICTURES.map(([value]) => value).join(", ")}`,
     `realBrows: 1 to ${REALISTIC_BROWS} (the brows' style, from thin to thick and bushy)`,
-    `colours: { ${REALISTIC_COLOURS.join(", ")} } (brows left out: the hair's colour, a little darker)`,
+    `colours: { ${REALISTIC_COLOURS.join(", ")} } (brows left out: the hair's colour, a little darker; lips is a lipstick's colour and nails a nail polish's, each left out for the skin's own)`,
+    `makeup (only for someone who wears it): { ${MAKEUP_LAYERS.filter(([layer]) => layer !== "lipstick")
+      .map(([layer]) => layer)
+      .join(", ")}: { colour, amount (0 to 1) } each, lipstick: { amount (0 to 1) } (its colour is colours.lips) }`,
+    `stubble: { shape: ${STUBBLE.map(([value]) => value).join(", ")}, density (0 to 1), colour (left out: the hair's) }, or left out for none`,
+    "toenails: false to leave the toenails unpainted when colours.nails is set",
     "This body has no clothes to choose yet: describe none.",
   ].join("\n");
 }
@@ -265,10 +268,14 @@ export function lookForModel(look) {
           REALISTIC_COLOURS.filter((field) => field in out.colours).map((field) => [field, out.colours[field]]),
         ),
       );
+    if (isRecord(out.makeup))
+      out.makeup = Object.fromEntries(Object.entries(out.makeup).map(([layer, entry]) => [layer, withColour(entry)]));
+    if (isRecord(out.stubble)) out.stubble = withColour(out.stubble);
     return out;
   }
   const { fromPacks: _packs, preset: _preset, skinSet: _set, avatar: _avatar, ...rest } = look ?? {};
   const out = { ...rest };
+  for (const field of REALISTIC_ONLY) delete out[field];
   if (isRecord(out.shape)) out.shape = Object.fromEntries(Object.entries(out.shape).filter(([, value]) => value !== 0));
   if (isRecord(out.limbs)) out.limbs = Object.fromEntries(Object.entries(out.limbs).filter(([, value]) => value !== 1));
   for (const field of ["shape", "limbs"])
@@ -300,8 +307,12 @@ export function designMessages({
   current = null,
   views = [],
   note = "",
+  body = "",
 }) {
   const revise = mode === "revise";
+  // (The Realistic body has no clothes yet, and its sliders are under another name: nothing is said of either.)
+  const dressed = body !== REALISTIC;
+  const records = dressed ? "shape, colours, makeup" : "realShape, colours, makeup";
   const shown = [
     picture ? "their portrait" : null,
     ...views.map((_, at) => (at === 0 ? "the avatar now, whole body" : "the avatar now, face")),
@@ -313,7 +324,7 @@ export function designMessages({
           (views.length ? ", and pictures of how it looks now" : "") +
           (picture ? ", and their portrait, the best guide to how they look" : "") +
           ".",
-        "Compare them and answer with one JSON object and nothing else: only the fields to change, each set to one of the options listed for it. A field you leave out stays as it is; a record (shape, colours, makeup) changes only the keys you give; clothes, when given, is the whole list worn after the change.",
+        `Compare them and answer with one JSON object and nothing else: only the fields to change, each set to one of the options listed for it. A field you leave out stays as it is; a record (${records}) changes only the keys you give${dressed ? "; clothes, when given, is the whole list worn after the change" : ""}.`,
         "Where the user says what to change, do that first.",
         "Never describe or comment: the JSON object only.",
       ]
@@ -321,9 +332,10 @@ export function designMessages({
         "You design how a person looks as a 3D avatar in a character maker, choosing only from the options you're given.",
         "Answer with one JSON object and nothing else: the look's fields, each set to one of the options listed for it, numbers within their ranges.",
         picture
-          ? "Their portrait is the best guide to their face, skin, hair, eyes, build and clothes; their description says the rest."
-          : "Follow what their description says of their body, face, skin, hair, eyes and clothes.",
-        "Shape the face and build with the sliders where they differ from usual, choose hair, colours and makeup to match, and dress them as they're shown or described, one piece a slot.",
+          ? `Their portrait is the best guide to their face, skin, hair, eyes${dressed ? ", build and clothes" : " and build"}; their description says the rest.`
+          : `Follow what their description says of their body, face, skin, hair${dressed ? ", eyes and clothes" : " and eyes"}.`,
+        `Shape the face and build with the sliders where they differ from usual, and choose hair, colours and makeup to match${dressed ? ", and dress them as they're shown or described, one piece a slot" : ""}.`,
+        "Only the listed fields exist: name no other.",
         "Where nothing says, choose what suits who they are. Leave out a field you have no reason to set.",
         "Never describe or comment: the JSON object only.",
       ];
@@ -370,13 +382,16 @@ export function designedLook(base, raw) {
         ...design,
         realShape: { ...base.realShape, ...design.realShape },
         colours: { ...base.colours, ...design.colours },
+        makeup: { ...base.makeup, ...design.makeup },
       }),
       design,
     };
   }
+  // (From here a design is for one of the kit's two bodies, the one the avatar has: a design doesn't choose the
+  // body, or set what only the Realistic body has. One started from anything else is a female body's.)
   const design = readDesign(raw);
-  // (From here a design is for one of the kit's two bodies; one started from anything else is a female body's.)
-  const body = design.body ?? (BODIES.some(([each]) => each === base.body) ? base.body : "female");
+  for (const field of ["body", ...REALISTIC_ONLY]) delete design[field];
+  const body = BODIES.some(([each]) => each === base.body) ? base.body : "female";
   const raced = design.race && design.race !== base.race ? mergeLooks(base, racePreset(design.race, body)) : base;
   return { look: checkLook(mergeLooks({ ...raced, body }, design)), design };
 }
@@ -586,7 +601,7 @@ export function createGenerator(actions) {
     thumb.hidden = !(settings.portrait && portrait());
     if (!thumb.hidden) thumb.src = portrait();
     sends.textContent = chosen
-      ? `Each call sends ${chosen.name}${chosen.model ? ` (${chosen.model})` : ""}: the words above, the list of the maker's options (about ${Math.round(menuSize / 1000) || "?"} thousand characters)${picture ? ", the picture" : ""}; and to revise, the avatar's settings now${settings.views ? " and two pictures of it" : ""}, and what you ask to change. Nothing is saved in the Engine.`
+      ? `A design is for the body the avatar has now (the Body tab's choice), and only that body's options are sent. Each call sends ${chosen.name}${chosen.model ? ` (${chosen.model})` : ""}: the words above, the list of the maker's options (about ${Math.round(menuSize / 1000) || "?"} thousand characters)${picture ? ", the picture" : ""}; and to revise, the avatar's settings now${settings.views ? " and two pictures of it" : ""}, and what you ask to change. Nothing is saved in the Engine.`
       : "Choose a connection to see what is sent.";
     const ready = !!chosen && !busy;
     generateButton.disabled = reviseButton.disabled = !ready;
@@ -644,6 +659,7 @@ export function createGenerator(actions) {
             current,
             views: withPictures ? views : [],
             note: cutWords(noteBox.value, MOST_NOTE),
+            body: current.body,
           }),
           busy.signal,
         );
@@ -662,12 +678,7 @@ export function createGenerator(actions) {
       answerBox.hidden = false;
       const raw = readJson(content);
       if (!raw) throw new Error("The model's answer had no look in it. Try again, or another connection.");
-      const base =
-        mode === "revise"
-          ? current
-          : actions.fresh(
-              current.body !== REALISTIC && (raw.body === "male" || raw.body === "female") ? raw.body : current.body,
-            );
+      const base = mode === "revise" ? current : actions.fresh(current.body);
       const { look, design } = designedLook(base, raw);
       if (!Object.keys(design).length)
         throw new Error(

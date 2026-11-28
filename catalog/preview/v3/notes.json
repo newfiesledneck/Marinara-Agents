@@ -4,6 +4,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.25",
+          "date": "2026-11-27",
+          "notes": "- The Realistic body has makeup on its Skin and eyes tab: eyeshadow, eyeliner, blush and lipstick, each a colour and a strength, with the presets the other bodies have.\n- It has nail colour for fingernails and toenails, and stubble on its Hair tab: light or heavy stubble, a moustache or goatee shadow, or a short beard, in the hair's colour or its own.\n- Its **Painted underwear** choice is remembered in this browser. A new or generated avatar starts the way you last left it, where before it was switched back on.\n- **Generate** and **Revise avatar** send the model only the options of the body the avatar has, and keep that body. A design used to choose between the Male and Female bodies itself; now choose the body on the Body tab first.",
+          "highlight": false
+        },
+        {
           "version": "0.1.24",
           "date": "2026-11-27",
           "notes": "- The Realistic body has eye colours on its Skin and eyes tab: any colour on its own iris, or one of the 24 eye pictures the other bodies have.\n- It has eyelashes, which close with the eyes, and fourteen brow styles on its Hair tab. The brows are the hair's colour unless you give them their own; the lashes are the brows' colour, darker.\n- Its hair is darker at the roots than at the tips. It was the other way round.\n- Generate and Revise avatar can choose its eye colour or picture, its brow style and its brow colour.",
@@ -115,12 +121,6 @@
           "version": "0.1.06",
           "date": "2026-11-23",
           "notes": "- Save as VRM: the Save tab now saves a `.vrm` file as well as a `.glb`. Import it in 3D Avatars as a VRM model. It stands in a T-pose and works in other VRM apps too. A tail swings as the avatar moves.\n- The VRM's terms: put your name as the author, and choose who may use the avatar, commercial use, sharing and changes, and credit. Your choices are kept for the next avatar you save. A VRM wearing credited pack clothes always asks for credit to their makers.\n- **Open** reads a saved `.vrm` back for editing, as it does a `.glb`.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.05",
-          "date": "2026-11-23",
-          "notes": "- Took out two skins, Mid-toned and Viking tattoos. Their material files say AGPL-3, which doesn't match the CC0 their catalogue gives. An avatar saved with one of them opens with the default skin instead.",
           "highlight": false
         }
       ]
