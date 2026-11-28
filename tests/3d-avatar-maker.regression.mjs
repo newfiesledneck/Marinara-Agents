@@ -3210,6 +3210,36 @@ for (const figure of Object.values(made)) figure.dispose();
       build.dispose();
     }
     asMade.dispose();
+    // The styles grown for this package (assets/scripts/groom.py) are worn the same way: the long ones swing
+    // and lie on a heavy build's shoulders and chest, the short ones stay as they are.
+    const hairSprings = (of) => of.springs.filter((spring) => /^hair/iu.test(spring.name));
+    assert.ok(REALISTIC_HAIR.length >= 21, `the Realistic body has its hair styles (${REALISTIC_HAIR.length})`);
+    for (const style of ["wavy", "braid", "twin_tails", "ponytail"]) {
+      const build = await createAvatar(
+        start({ realHair: style, realShape: { gender: 1, fat: 1, breasts: 1 } }),
+        "Test",
+        "auto",
+      );
+      const { count, deepest } = under(build);
+      // (A point or two of a waved or curled strand may sit a millimetre under: before draping it was
+      // tens of thousands of points, centimetres deep.)
+      assert.ok(
+        count <= 20 && deepest > -0.003,
+        `realistic, ${style}: no hair under a heavy build's skin (${count} points, ${(-deepest * 1000).toFixed(1)} mm)`,
+      );
+      assert.ok(hairSprings(build).length > 0, `realistic, ${style}: it swings`);
+      build.dispose();
+    }
+    for (const style of ["buzz", "crop"]) {
+      const build = await createAvatar(start({ realHair: style }), "Test", "auto");
+      assert.equal(hairSprings(build).length, 0, `realistic, ${style}: short hair has nothing to swing`);
+      const top = boxOf(build, "hair").max.y - boxOf(build, "skin_head").max.y;
+      assert.ok(
+        top > 0 && top < 0.06,
+        `realistic, ${style}: it stands a little off the head (${(top * 1000).toFixed(0)} mm)`,
+      );
+      build.dispose();
+    }
   }
   // Generate on this body: a menu of its own fields, and a design read as those fields alone, on this body.
   {

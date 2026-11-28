@@ -1,5 +1,11 @@
 # 3D Avatar Maker release notes
 
+## 0.1.29 — 2026-11-27
+
+- Sixteen new hair styles for the Realistic body, made of separate strands like its first four: buzz cut, short crop, pixie, side part, undercut, mohawk, afro, curly to the shoulders, straight to the shoulders, long with a fringe, long and wavy, ponytail, low ponytail, braid, bun and twin tails.
+- The long ones swing and lie over the shoulders and chest as the other strand styles do. The tails and the braid swing as one.
+- The hair is a little less shiny.
+
 ## 0.1.28 — 2026-11-27
 
 - The Realistic body's hair is draped over the body. On a build with wider shoulders, a fuller chest or more weight, long hair used to pass through the skin; it now lies on the shoulders, chest and back and hangs on from there, in the preview and in a saved file.

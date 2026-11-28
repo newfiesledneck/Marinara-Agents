@@ -1064,6 +1064,23 @@ export const REALISTIC_HAIR = [
   ["slicked", "Slicked back"],
   ["back", "Swept back, long"],
   ["eve", "Long, parted"],
+  // (Grown for this package by assets/scripts/groom.py: make_realistic.py GROOMED has each one's recipe.)
+  ["buzz", "Buzz cut"],
+  ["crop", "Short crop"],
+  ["pixie", "Pixie"],
+  ["side_part", "Side part"],
+  ["undercut", "Undercut"],
+  ["mohawk", "Mohawk"],
+  ["afro", "Afro"],
+  ["curly", "Curly, to the shoulders"],
+  ["lob", "Straight, to the shoulders"],
+  ["fringe", "Long, with a fringe"],
+  ["wavy", "Long, wavy"],
+  ["ponytail", "Ponytail"],
+  ["low_ponytail", "Low ponytail"],
+  ["braid", "Braid"],
+  ["bun", "Bun"],
+  ["twin_tails", "Twin tails"],
 ];
 /**
  * The kinds of body: [value, label]. An anthro kind is a body of its own (kit/generic/avatar/

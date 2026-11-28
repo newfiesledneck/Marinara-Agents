@@ -584,7 +584,7 @@ export function createPanel(actions) {
       ),
       group(
         "Movement",
-        "The long styles swing, the bob a little at its ends, and Slicked back is too short to: its hair stays on the head. The roots stay on the scalp.",
+        "Hair that hangs below the head swings: the long styles, the tails and the braid, and a bob a little at its ends. Short styles and the bun stay as they are. The roots stay on the scalp.",
         ...movement(filled, ["hair"]),
       ),
     ],

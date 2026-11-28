@@ -1113,6 +1113,38 @@ drapes down over top".
 - Not yet: the chains are few (one a side), so in a fast turn part of a wide lock can still dip into the
   shoulder before its chain is pushed out.
 
+## Built: sixteen strand hair styles grown for the Realistic body (0.1.29)
+
+Asked for: more hairstyles "in this same type the new body has rather than the old types we had", made new or
+converted from the old ones. The character ships six strand styles, four in use and two whose authors' terms
+are unchecked, so new ones are grown.
+
+- **The groomer** (`assets/scripts/groom.py`, run inside Blender by `make_realistic.py -- hair`). `Head` holds
+  the scalp (the character's `scalp` vertex group, evened out over neighbours because it is painted roughly at
+  its edge, and counted from a lower mark on the sides and nape than on the forehead) and a tree of the skin
+  to keep hair off. `grow` picks roots by area and walks each strand out: it leaves the scalp the way the
+  recipe combs it (`comb_part`, `comb_back`, `comb_crown`, …), turns to hang over `fall` metres, and where a
+  step would go under the skin it is pushed out and slid along it, each strand at its own small distance
+  (`layers`), which gives the hair body. `styled` then draws strands into locks (by where they lie part-way
+  along, not by root: across a parting two near roots lie on opposite sides), waves or curls them and adds
+  frizz. Hair is kept from hanging across the face under the brows (`clear_of_face`) unless a recipe says
+  `over_face`, as a fringe does.
+- **Gathered styles.** `gathered` leads each strand over the head to a tie (bent through a point up and back
+  from between root and tie; the short way round from a temple to the nape crosses the cheek), and from the
+  tie `tail` (a tail about a middle line that leaves the tie and turns to hang; `braid` plaits it in three),
+  or `bun`, goes on as strands of its own.
+- **The recipes** are `GROOMED` in `make_realistic.py`, sixteen so far, 250 to 990 KB each packed (10 MB in
+  all). A style cut short at the hairline has its scalp painted nearly to it (`scalp_paint` `inset`), where
+  long hair's paint stops 9 mm inside.
+- **In the maker** nothing changed: a grown style is a file of ribbons like the others, so it is tied to the
+  scalp, draped over the body and rigged to swing the same way. Hair's roughness went from 0.45 to 0.55 (the
+  crown of a short style shone white).
+- Check: the regression test builds every style, has the long grown ones swing with no hair under a heavy
+  build's skin, and the short ones with nothing to swing. Each was looked over from the front, side and back
+  on the motions page's new `hairs=` sheet, and the braid, ponytail and twin tails in the dance.
+- Rough edges: the side part's fringe curls at the forehead; the pixie's swept fringe ends in a hard line;
+  the mohawk's fan is thin seen from the front.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and

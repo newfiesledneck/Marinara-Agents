@@ -7,6 +7,7 @@
 // `view`: body (the default), back, hand, legs, face, bust, bust-side, bust-back, eyes, eyes-side, head-side,
 // head-back, head-top, mouth, mouth-side or mouth-below. `w` and `h` size a picture (pixels). `faces=1` draws each
 // face of the Face list in place of the animations, and `keys=aa,oh:0.5` the face's own keys, each alone.
+// `hairs=bob,eve` draws the Realistic body's hair styles instead, one a row, from each of `views`.
 // `outfit` names a ready-made outfit (Modern casual unless said); `look` is a look as JSON, over that;
 // `packs=0` leaves the wardrobe packs out.
 //
@@ -102,6 +103,7 @@ async function main() {
     ...(body === "realistic" ? { realShape: { gender: 1 } } : {}),
     ...JSON.parse(asked.get("look") ?? "{}"),
   });
+  if (asked.get("hairs")) return hairSheet(look, body);
   const figure = await createAvatar(look, "Sheet", "auto");
   scene.add(figure.object);
   globalThis.sheetFigure = figure; // (to look at from the browser's console)
@@ -183,6 +185,51 @@ async function main() {
   said.textContent = `Kept ${name} in dev/out/.`;
   document.body.append(sheet);
   window.sheetFigure = figure; // (to look into from the console)
+  window.sheetDone = name;
+}
+
+/**
+ * `hairs=bob,eve`: the Realistic body's hair styles side by side, one a row, from each of `views` (bust,
+ * bust-side and bust-back unless said), standing relaxed with the springs settled.
+ */
+async function hairSheet(look, body) {
+  const styles = asked.get("hairs").split(",");
+  const views = (asked.get("views") ?? "bust,bust-side,bust-back").split(",");
+  const [width, height] = [number("w", 300), number("h", 320)];
+  const sheet = document.createElement("canvas");
+  sheet.width = views.length * width;
+  sheet.height = styles.length * (height + 18);
+  const context = sheet.getContext("2d");
+  context.fillStyle = "#14161a";
+  context.fillRect(0, 0, sheet.width, sheet.height);
+  context.font = "12px system-ui, sans-serif";
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  for (const [row, style] of styles.entries()) {
+    const figure = await createAvatar(checkLook({ ...look, realHair: style }), "Sheet", "auto");
+    scene.add(figure.object);
+    relaxedPose(figure, 0);
+    const springs = createSprings(figure);
+    await texturesReady();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    for (let frame = 0; frame < 60; frame++) springs?.step(1 / 30);
+    animateFace(figure, "still", 0, null, true);
+    for (const [column, view] of views.entries()) {
+      aim(figure, view);
+      renderer.render(scene, camera);
+      context.drawImage(renderer.domElement, column * width, row * (height + 18) + 18);
+    }
+    context.fillStyle = "#e8eaf0";
+    context.fillText(style, 4, row * (height + 18) + 13);
+    scene.remove(figure.object);
+    figure.dispose();
+  }
+  const name = `${asked.get("name") ?? `hairs-${body}`}.png`;
+  const blob = await new Promise((resolve) => sheet.toBlob(resolve, "image/png"));
+  await fetch(`/dev/out/${name}`, { method: "POST", body: blob });
+  said.textContent = `Kept ${name} in dev/out/.`;
+  document.body.append(sheet);
   window.sheetDone = name;
 }
 

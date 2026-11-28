@@ -67,8 +67,11 @@ bodies, which stay as they are with everything made for them. So far it has:
   forehead and brow, eyes, nose, cheeks, mouth, chin and jaw, ears, regional features) and mix freely. A
   Fantasy group has pointed ears, slit pupils, fangs, sharp teeth, a forked tongue and no nose.
 - A skin tone slider on the Skin and eyes tab, from its light skin to its dark one.
-- Four hair styles on the Hair tab, each made of thousands of separate strands, in any hair colour. The scalp
-  under a style is painted in the hair's colour, so no skin shows between the strands.
+- Twenty hair styles on the Hair tab, each made of thousands of separate strands, in any hair colour: four
+  that came with the model, and sixteen grown for this package (buzz cut, short crop, pixie, side part,
+  undercut, mohawk, afro, curly, straight to the shoulders, long with a fringe, long and wavy, ponytail, low
+  ponytail, braid, bun, twin tails). The scalp under a style is painted in the hair's colour, so no skin shows
+  between the strands.
 - Eyes on the Skin and eyes tab: any colour laid on its own iris, or one of the 24 eye pictures the other
   bodies have.
 - Fourteen brow styles on the Hair tab, in the hair's colour or one of their own, and eyelashes in the brows'
@@ -232,8 +235,9 @@ use and share however you like, with no credit required:
 - The Realistic body, its skin, eyes, brow styles and four strand hair styles are from
   [Vitruvian for CharMorph](https://github.com/Upliner/CharMorph-Vitruvian) (CC0) by Sean Buckley, on Antonia
   Polygon by Olaf Delgado-Friedrichs, with SirMaxim, Upliner, AgentA1CR, Benjamin McDonnell and Mindfront;
-  adapted in Blender by ThatOneCan, used as data. Its eyelashes were made by ThatOneCan (CC0), and its eye
-  pictures are the other bodies' (MakeHuman's and the community's, credited above).
+  adapted in Blender by ThatOneCan, used as data. Its eyelashes and sixteen of its hair styles were made by
+  ThatOneCan (CC0), and its eye pictures are the other bodies' (MakeHuman's and the community's, credited
+  above).
 
 - Most of the preview's animations are clips from Quaternius's Universal Animation Library and Universal
   Animation Library 2 (CC0). They play in the preview only; a saved file doesn't carry them.

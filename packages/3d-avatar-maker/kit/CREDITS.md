@@ -33,6 +33,10 @@ Upliner (the original Antonia rigging), AgentA1CR (node help, eyebrow conversion
 - `avatar/realistic-paint-<what>.webp`: where makeup, lipstick, stubble and nail colour go on the skin, made by
   ThatOneCan (`make_realistic.py` `write_paints`; CC0) from the character's own marks: its lips, where its
   beard grows, how its lids move in a blink, and its nails' own patches of the skin's picture.
+- `avatar/realistic-hair-buzz.pack.png`, `-crop`, `-pixie`, `-side_part`, `-undercut`, `-mohawk`, `-afro`,
+  `-curly`, `-lob`, `-fringe`, `-wavy`, `-ponytail`, `-low_ponytail`, `-braid`, `-bun`, `-twin_tails`, and each
+  one's `-scalp.webp`: strand hair styles grown on the character's scalp by ThatOneCan (`assets/scripts/groom.py`,
+  the recipes in `make_realistic.py` `GROOMED`; CC0). None of the character's own hair is in them.
 - `avatar/realistic-hair-bob.pack.png`, `-slicked`, `-back`, `-eve`: four of the character's strand hair
   styles, each strand turned into a narrow ribbon; and `avatar/realistic-hair-<style>-scalp.webp`, where the
   scalp lies under each, which the maker paints in the hair's colour.
