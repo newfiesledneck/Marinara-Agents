@@ -10,7 +10,7 @@
   },
   "id": "3d-avatar-maker",
   "name": "3D Avatar Maker",
-  "version": "0.1.28",
+  "version": "0.1.29",
   "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
   "engine": {
     "min": "2.4.6",
@@ -111,14 +111,46 @@
         "kit/avatar/realistic-brows-14.pack.png",
         "kit/avatar/realistic-eye.webp",
         "kit/avatar/realistic-eyes.webp",
+        "kit/avatar/realistic-hair-afro-scalp.webp",
+        "kit/avatar/realistic-hair-afro.pack.png",
         "kit/avatar/realistic-hair-back-scalp.webp",
         "kit/avatar/realistic-hair-back.pack.png",
         "kit/avatar/realistic-hair-bob-scalp.webp",
         "kit/avatar/realistic-hair-bob.pack.png",
+        "kit/avatar/realistic-hair-braid-scalp.webp",
+        "kit/avatar/realistic-hair-braid.pack.png",
+        "kit/avatar/realistic-hair-bun-scalp.webp",
+        "kit/avatar/realistic-hair-bun.pack.png",
+        "kit/avatar/realistic-hair-buzz-scalp.webp",
+        "kit/avatar/realistic-hair-buzz.pack.png",
+        "kit/avatar/realistic-hair-crop-scalp.webp",
+        "kit/avatar/realistic-hair-crop.pack.png",
+        "kit/avatar/realistic-hair-curly-scalp.webp",
+        "kit/avatar/realistic-hair-curly.pack.png",
         "kit/avatar/realistic-hair-eve-scalp.webp",
         "kit/avatar/realistic-hair-eve.pack.png",
+        "kit/avatar/realistic-hair-fringe-scalp.webp",
+        "kit/avatar/realistic-hair-fringe.pack.png",
+        "kit/avatar/realistic-hair-lob-scalp.webp",
+        "kit/avatar/realistic-hair-lob.pack.png",
+        "kit/avatar/realistic-hair-low_ponytail-scalp.webp",
+        "kit/avatar/realistic-hair-low_ponytail.pack.png",
+        "kit/avatar/realistic-hair-mohawk-scalp.webp",
+        "kit/avatar/realistic-hair-mohawk.pack.png",
+        "kit/avatar/realistic-hair-pixie-scalp.webp",
+        "kit/avatar/realistic-hair-pixie.pack.png",
+        "kit/avatar/realistic-hair-ponytail-scalp.webp",
+        "kit/avatar/realistic-hair-ponytail.pack.png",
+        "kit/avatar/realistic-hair-side_part-scalp.webp",
+        "kit/avatar/realistic-hair-side_part.pack.png",
         "kit/avatar/realistic-hair-slicked-scalp.webp",
         "kit/avatar/realistic-hair-slicked.pack.png",
+        "kit/avatar/realistic-hair-twin_tails-scalp.webp",
+        "kit/avatar/realistic-hair-twin_tails.pack.png",
+        "kit/avatar/realistic-hair-undercut-scalp.webp",
+        "kit/avatar/realistic-hair-undercut.pack.png",
+        "kit/avatar/realistic-hair-wavy-scalp.webp",
+        "kit/avatar/realistic-hair-wavy.pack.png",
         "kit/avatar/realistic-mouth.webp",
         "kit/avatar/realistic-paint-blush.webp",
         "kit/avatar/realistic-paint-eyeliner.webp",
@@ -181,8 +213,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "0b32ec93bf8c3ceef983e84db6a3a0862abce810e49d5e0aead34a5be09670ef",
-      "bytes": 1353848
+      "sha256": "17fbabe279fe20c23747d1a6dee8cc3c8d2448c43d1de83018ee66cba646bde7",
+      "bytes": 1354279
     },
     {
       "path": "3d-avatar-maker-icon.webp",
@@ -565,6 +597,16 @@
       "bytes": 265258
     },
     {
+      "path": "kit/avatar/realistic-hair-afro-scalp.webp",
+      "sha256": "1648a79de1da7fc8131b0762f3993c4576ff7629df077068b2b362251424ef5f",
+      "bytes": 3006
+    },
+    {
+      "path": "kit/avatar/realistic-hair-afro.pack.png",
+      "sha256": "d8d41e973aea1fbc35b0e368dfeba7ee5b0d537c2d9477c8250fa6b3525dcaee",
+      "bytes": 940196
+    },
+    {
       "path": "kit/avatar/realistic-hair-back-scalp.webp",
       "sha256": "676d039e4ca45dc4514c0a461a3eb32113a50565e98903c1d22fb9ea2a2a7f78",
       "bytes": 2098
@@ -585,6 +627,56 @@
       "bytes": 586955
     },
     {
+      "path": "kit/avatar/realistic-hair-braid-scalp.webp",
+      "sha256": "f188cbba09f89c844738aa9a69d7faae8f8c7226c3b780668633f57e691b2ff9",
+      "bytes": 2982
+    },
+    {
+      "path": "kit/avatar/realistic-hair-braid.pack.png",
+      "sha256": "5590fc594b9b1338c72c553f0b6b528ef24b156da30ac04e7e0f65ec35f393bf",
+      "bytes": 949245
+    },
+    {
+      "path": "kit/avatar/realistic-hair-bun-scalp.webp",
+      "sha256": "f188cbba09f89c844738aa9a69d7faae8f8c7226c3b780668633f57e691b2ff9",
+      "bytes": 2982
+    },
+    {
+      "path": "kit/avatar/realistic-hair-bun.pack.png",
+      "sha256": "1629de3027f85766646e4a99225b0fd8a6ecb35d2c8e897578532672662bcc6c",
+      "bytes": 637561
+    },
+    {
+      "path": "kit/avatar/realistic-hair-buzz-scalp.webp",
+      "sha256": "0ff4972ae90c6855a02c01ece2a22da252a5906654c94c435a0f0f21d40e92e1",
+      "bytes": 4300
+    },
+    {
+      "path": "kit/avatar/realistic-hair-buzz.pack.png",
+      "sha256": "5eae90df316734e2bca14d1d3e0eaea38c789d77cb079a33024ebf755e8881c2",
+      "bytes": 253495
+    },
+    {
+      "path": "kit/avatar/realistic-hair-crop-scalp.webp",
+      "sha256": "81c439b25a78c8567f070469ce4b4c9663fc1dc5d5a6cbce0933fb9df42c5c8e",
+      "bytes": 4388
+    },
+    {
+      "path": "kit/avatar/realistic-hair-crop.pack.png",
+      "sha256": "e5ae3a77ec1eef9b01bf0f87c233e36457c5bed78bcee0323e75b6b0fc284f26",
+      "bytes": 370902
+    },
+    {
+      "path": "kit/avatar/realistic-hair-curly-scalp.webp",
+      "sha256": "3df243817a310200a00751d14b6bfb227b1497c6dcff1749f9e929b5b7b779b0",
+      "bytes": 2982
+    },
+    {
+      "path": "kit/avatar/realistic-hair-curly.pack.png",
+      "sha256": "8db639f3459218e26d45fd5ff76d4d2e714db2b65d7774c30a42ac492d4d092b",
+      "bytes": 991674
+    },
+    {
       "path": "kit/avatar/realistic-hair-eve-scalp.webp",
       "sha256": "3c39b815ce9f141475bd65399bed65de0da015b6a96ab41f5350570a104ce90f",
       "bytes": 2232
@@ -595,6 +687,76 @@
       "bytes": 562734
     },
     {
+      "path": "kit/avatar/realistic-hair-fringe-scalp.webp",
+      "sha256": "31bd5e0178f06959f6337b370d0c050d369eaf66af505f55146ebfbdb8e3ad06",
+      "bytes": 3088
+    },
+    {
+      "path": "kit/avatar/realistic-hair-fringe.pack.png",
+      "sha256": "3e1513da90351533b3e9dda9ea1c42ad42da3c649114450f8f542efb7a64e248",
+      "bytes": 634581
+    },
+    {
+      "path": "kit/avatar/realistic-hair-lob-scalp.webp",
+      "sha256": "cf21467064a49b559981fefde1c6ddb628f8104851c2cdf4ea9a601b8ffddb23",
+      "bytes": 3012
+    },
+    {
+      "path": "kit/avatar/realistic-hair-lob.pack.png",
+      "sha256": "8118cd27388cad96a99adaeeac40217416e7d71c00c9e19276f74cf083b8b12e",
+      "bytes": 540115
+    },
+    {
+      "path": "kit/avatar/realistic-hair-low_ponytail-scalp.webp",
+      "sha256": "f188cbba09f89c844738aa9a69d7faae8f8c7226c3b780668633f57e691b2ff9",
+      "bytes": 2982
+    },
+    {
+      "path": "kit/avatar/realistic-hair-low_ponytail.pack.png",
+      "sha256": "980f582db98c24b371f8a13aab9e4d493d78e7af1d35ed1e602029ff4478154f",
+      "bytes": 618685
+    },
+    {
+      "path": "kit/avatar/realistic-hair-mohawk-scalp.webp",
+      "sha256": "77dd71fd16befdc23fcd2b93b013aaeb8e860fd8f7185ca09fb646863f27e7c4",
+      "bytes": 4414
+    },
+    {
+      "path": "kit/avatar/realistic-hair-mohawk.pack.png",
+      "sha256": "42e504fe3f9ca2e3ed9c72a32c23b981e0411c0711c6ff23de6662c4722b2e07",
+      "bytes": 517089
+    },
+    {
+      "path": "kit/avatar/realistic-hair-pixie-scalp.webp",
+      "sha256": "b80aef4ee966d37d8f622d893dc1af831db0b77e791eeabeeef55e5950574ff4",
+      "bytes": 3108
+    },
+    {
+      "path": "kit/avatar/realistic-hair-pixie.pack.png",
+      "sha256": "95f6341285df319559c443ed508a92fa8414c8b83dc9adaeb2736b9064d0c478",
+      "bytes": 469066
+    },
+    {
+      "path": "kit/avatar/realistic-hair-ponytail-scalp.webp",
+      "sha256": "f188cbba09f89c844738aa9a69d7faae8f8c7226c3b780668633f57e691b2ff9",
+      "bytes": 2982
+    },
+    {
+      "path": "kit/avatar/realistic-hair-ponytail.pack.png",
+      "sha256": "16d294d1329ddf3d3eef53e7b27d342594fb9114453e192f2c38e0f3e5ceb79a",
+      "bytes": 634111
+    },
+    {
+      "path": "kit/avatar/realistic-hair-side_part-scalp.webp",
+      "sha256": "d0e6764fadf826fd84421d69c1d0a5d4d08e46d9ac56d764983214199063d84e",
+      "bytes": 4210
+    },
+    {
+      "path": "kit/avatar/realistic-hair-side_part.pack.png",
+      "sha256": "097f241f6819065af892d012300a76d14c7925a38b517ecd3f7ad68dae4fbd4d",
+      "bytes": 455068
+    },
+    {
       "path": "kit/avatar/realistic-hair-slicked-scalp.webp",
       "sha256": "e1915b1790898118a5d67630e24f00044ebc026f043c44312b48fefeb2838586",
       "bytes": 2522
@@ -603,6 +765,36 @@
       "path": "kit/avatar/realistic-hair-slicked.pack.png",
       "sha256": "c80d7bd879a7ff359ba6bde061174b81770468b60d9713ef0c9b26d88d34c83b",
       "bytes": 534136
+    },
+    {
+      "path": "kit/avatar/realistic-hair-twin_tails-scalp.webp",
+      "sha256": "f188cbba09f89c844738aa9a69d7faae8f8c7226c3b780668633f57e691b2ff9",
+      "bytes": 2982
+    },
+    {
+      "path": "kit/avatar/realistic-hair-twin_tails.pack.png",
+      "sha256": "1da7ec0f53d0f5ada4d5b491f50e47c2e84df4a86f4848d5e15e2882b87332d6",
+      "bytes": 707848
+    },
+    {
+      "path": "kit/avatar/realistic-hair-undercut-scalp.webp",
+      "sha256": "81c439b25a78c8567f070469ce4b4c9663fc1dc5d5a6cbce0933fb9df42c5c8e",
+      "bytes": 4388
+    },
+    {
+      "path": "kit/avatar/realistic-hair-undercut.pack.png",
+      "sha256": "a7a5f16a0ed2da89b6df570b1ec20f46ea04363db6d363dce02de94c5dd998ae",
+      "bytes": 521179
+    },
+    {
+      "path": "kit/avatar/realistic-hair-wavy-scalp.webp",
+      "sha256": "1648a79de1da7fc8131b0762f3993c4576ff7629df077068b2b362251424ef5f",
+      "bytes": 3006
+    },
+    {
+      "path": "kit/avatar/realistic-hair-wavy.pack.png",
+      "sha256": "6be8d3a7894fa0b3c4cead17b58bbaa0d993b2148541ba4ff1047bc607f899d4",
+      "bytes": 830493
     },
     {
       "path": "kit/avatar/realistic-mouth.webp",

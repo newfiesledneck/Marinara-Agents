@@ -1411,7 +1411,7 @@ function realistic(dir, out) {
   const pictures = join(ROOT, "packages/3d-avatar-maker/assets/textures/realistic");
   const copied = existsSync(pictures)
     ? readdirSync(pictures).filter(
-        (file) => /^realistic-[a-z0-9-]+\.webp$/u.test(file) && !file.startsWith("realistic-iris"),
+        (file) => /^realistic-[a-z0-9_-]+\.webp$/u.test(file) && !file.startsWith("realistic-iris"),
       )
     : [];
   for (const name of copied) writeFileSync(join(out, name), readFileSync(join(pictures, name)));

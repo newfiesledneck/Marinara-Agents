@@ -54,7 +54,7 @@ const ROUGHNESS = {
   cornea: 0.03,
   brows: 0.6,
   lashes: 0.5,
-  hair: 0.45,
+  hair: 0.55,
 };
 // The irises' picture (realistic-eyes.webp, scripts/build-3d-avatar-maker-kit.mjs): EYES_ACROSS tiles each way,
 // the eye pictures' in looks.js EYE_PICTURES' order and then the model's own in grey, each with the iris's

@@ -8,7 +8,8 @@ Writes, for scripts/build-3d-avatar-maker-kit.mjs to pack:
 - assets/models/realistic-body.glb: the body on the maker's own bone names, with the face's moves and the
   shape sliders as shape keys, and its eyelashes; realistic-body.json beside it (how each slider moves the joints).
 - assets/models/realistic-brows-<nn>.glb: each of its brow styles, as narrow ribbons.
-- assets/models/realistic-hair-<style>.glb: each of its strand hair styles as narrow ribbons; and in the
+- assets/models/realistic-hair-<style>.glb: each of its strand hair styles as narrow ribbons, the character's
+  own (HAIR) and those grown here from recipes (GROOMED, by groom.py beside this file); and in the
   textures, realistic-hair-<style>-scalp.webp: where the scalp lies under it, to be painted in the hair's colour.
 - assets/textures/realistic/*.webp: the skin (light and dark), its normal and roughness maps, eyes and mouth.
   The torso and legs come bare, and with underwear painted on (panties and a bra, or boxer briefs).
@@ -33,6 +34,8 @@ from mathutils import Vector
 from mathutils.kdtree import KDTree
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import groom  # noqa: E402  (the strand hair grown here: groom.py, beside this file)
 MODELS = os.path.join(HERE, "..", "models")
 TEXTURES = os.path.join(HERE, "..", "textures", "realistic")
 _PACK = os.path.join("_planning", "Wanderworld asset packs", "Vitruvian", "CharMorph-Vitruvian-main")
@@ -292,6 +295,114 @@ HAIR = {
     "back": ("Back1", 4, 1, 0.0026),
     "eve": ("Eve", 4, 1, 0.0026),
 }
+# Hair grown here (groom.py): a style's name, and a recipe that gives its strands in groups, each
+# (strands, the ribbons' width, points a ribbon, whether they are rooted on the scalp). Made by ThatOneCan.
+# `HAIR_ONLY` (names with commas between) builds only those styles, to try one.
+def _up(p, head):
+    """How high on the head a point is: 1 at its top, 0 level with the skull's middle, under 0 at the nape."""
+    return (p[2] - head.centre[2]) / (head.top - head.centre[2])
+
+
+def _ease(low, high, x):
+    t = min(1.0, max(0.0, (x - low) / (high - low)))
+    return t * t * (3 - 2 * t)
+
+
+def _plain(recipe, strands=4500, width=0.0026, points=11, seed=1, raw=groom.RAW):
+    """A recipe for hair that is only grown, waved or curled and drawn into locks (groom.grow, groom.styled)."""
+
+    def build(head):
+        roots, normals = head.roots(strands, seed, recipe.get("region"))
+        return [(groom.styled(head, groom.grow(head, roots, normals, recipe, seed, raw), recipe, seed), width, points, True)]
+
+    return build
+
+
+def _short_sides(top, sides, low=0.15, high=0.7):
+    """A length for hair kept short at the back and sides: `sides` low on the head, `top` up on it."""
+    return lambda p, head: sides + (top - sides) * _ease(low, high, _up(p, head))
+
+
+def _gathered(ties, then, strands=3600, width=0.0026, seed=1):
+    """A recipe for hair drawn to one tie or more (`ties(head)`: their places; a root goes to the nearest) and
+    going on from each as `then(head, tie, at, seed)` says: more groups."""
+
+    def build(head):
+        roots, _normals = head.roots(strands, seed)
+        places = ties(head)
+        nearest = np.argmin(np.stack([np.linalg.norm(roots - place, axis=1) for place in places]), axis=0)
+        groups = []
+        for at, place in enumerate(places):
+            groups.append((groom.gathered(head, roots[nearest == at], place, seed + at), width, 9, True))
+            groups += then(head, place, at, seed + 10 * at)
+        return groups
+
+    return build
+
+
+def _behind(back, up, side=0.0):
+    """A tie's place from the middle of the skull: metres behind it, above it and to the character's left."""
+    return lambda head: [head.centre + np.array([side, back, up])]
+
+
+def _tail(length, radius, heading=(0.0, 0.7, 0.25), fall=0.07, count=1700, width=0.003, points=13, **more):
+    def then(head, tie, at, seed):
+        way = np.array(heading) * np.array([1.0 if tie[0] >= 0 else -1.0, 1.0, 1.0])
+        line = groom.middle_line(head, tie, way, length, fall, radius * 0.8)
+        return [(groom.tail(head, line, count, radius, seed, **more), width, points, False)]
+
+    return then
+
+
+def _long_with_fringe(head):
+    """Long straight hair, parted in the middle, and a fringe cut above the brows: the front of the scalp between
+    the temples, combed forward."""
+    is_fringe = lambda p: (groom.fringe(0.042)(p, head) > 0.35) & (abs(p[0]) < 0.058)
+    long = {"length": 0.5, "comb": groom.comb_part(0.0, 0.45, 0.55), "lift": 0.14, "fall": 0.04, "layers": 0.01, "locks": (520, 0.35), "frizz": 0.0004,
+            "region": lambda points: ~np.array([is_fringe(p) for p in points])}
+    # (As long as reaches the brows: down from the root, and forward to the hairline from a root behind it.)
+    front = {"length": lambda p, head: 0.012 + 1.15 * max(0.0, p[2] - head.brows) + 0.8 * max(0.0, p[1] - (head.centre[1] - 0.085)),
+             "comb": groom.comb_forward(1.4), "lift": 0.3, "fall": 0.02, "layers": 0.004,
+             "locks": (90, 0.3), "frizz": 0.0003, "stray": 0.05, "over_face": True, "region": lambda points: np.array([is_fringe(p) for p in points])}
+    return _plain(long, strands=4300, points=12, seed=1)(head) + _plain(front, strands=900, points=7, seed=2, raw=12)(head)
+
+
+GROOMED = {
+    "buzz": _plain({"length": 0.006, "comb": groom.comb_crown(0.1), "lift": 0.85, "fall": 9, "layers": 0.0, "stray": 0.3},
+                   strands=6500, width=0.0024, points=3, raw=6),
+    "crop": _plain({"length": _short_sides(0.038, 0.012), "comb": groom.comb_mix(groom.comb_crown(), groom.comb_forward(0.3), groom.fringe(0.06)),
+                    "lift": 0.4, "fall": 0.25, "layers": 0.004, "locks": (500, 0.45), "frizz": 0.0005, "stray": 0.25}, strands=6000, points=5, raw=10),
+    "pixie": _plain({"length": _short_sides(0.08, 0.03, 0.0, 0.6),
+                     "comb": groom.comb_mix(groom.comb_mix(groom.comb_down(), groom.comb_side(1.0, 0.15, 0.25), lambda p, head: _ease(0.2, 0.6, _up(p, head))),
+                                            groom.comb_side(1.0, -0.5, 0.45), groom.fringe(0.05)),
+                     "lift": 0.25, "fall": 0.045, "layers": 0.006, "locks": (420, 0.5), "frizz": 0.0006}, strands=5500, points=7, raw=14),
+    "side_part": _plain({"length": _short_sides(0.075, 0.02),
+                         "comb": groom.comb_mix(groom.comb_down(), groom.comb_part(0.034, 0.45, 0.2), lambda p, head: _ease(0.25, 0.6, _up(p, head))),
+                         "lift": 0.2, "fall": 0.05, "layers": 0.005, "locks": (450, 0.4), "frizz": 0.0004}, strands=5500, points=7, raw=14),
+    "undercut": _plain({"length": lambda p, head: 0.005 + 0.11 * _ease(0.5, 0.56, _up(p, head)),
+                        "comb": groom.comb_mix(groom.comb_crown(0.1), groom.comb_back(0.2), lambda p, head: _ease(0.44, 0.5, _up(p, head))),
+                        "lift": 0.2, "fall": 0.13, "layers": 0.008, "locks": (350, 0.45), "frizz": 0.0005, "stray": 0.06}, strands=6000, points=7, raw=14),
+    "mohawk": _plain({"length": lambda p, head: 0.005 + 0.11 * (abs(p[0]) < 0.02) * _ease(-0.6, -0.1, _up(p, head)),
+                      "comb": groom.comb_up(), "lift": 0.95, "fall": 9, "layers": 0.0, "locks": (260, 0.35), "frizz": 0.0008, "stray": 0.1},
+                     strands=7000, points=6, raw=10),
+    "afro": _plain({"length": 0.085, "comb": groom.comb_up(), "lift": 0.9, "fall": 9, "layers": 0.0, "curl": (0.0055, 0.03),
+                    "locks": (900, 0.35), "frizz": 0.0016, "stray": 0.35}, strands=4200, width=0.0032, points=16),
+    "curly": _plain({"length": 0.25, "comb": groom.comb_part(0.0, 0.2, 0.5), "lift": 0.3, "fall": 0.05, "layers": 0.014,
+                     "curl": (0.011, 0.062), "locks": (260, 0.75), "frizz": 0.0012}, strands=3800, width=0.003, points=20),
+    "lob": _plain({"length": 0.27, "comb": groom.comb_part(0.0, 0.45, 0.55), "lift": 0.14, "fall": 0.04, "layers": 0.009,
+                   "locks": (520, 0.35), "frizz": 0.0004}, points=11),
+    "fringe": _long_with_fringe,
+    "wavy": _plain({"length": 0.44, "comb": groom.comb_part(0.018, 0.45, 0.6), "lift": 0.18, "fall": 0.045, "layers": 0.013,
+                    "wave": (0.011, 0.11), "locks": (300, 0.6), "frizz": 0.0008}, strands=4200, points=16),
+    "ponytail": _gathered(_behind(0.105, 0.05), _tail(0.4, 0.024, wave=(0.006, 0.13))),
+    "low_ponytail": _gathered(_behind(0.085, -0.065), _tail(0.42, 0.02, heading=(0.0, 0.5, -0.5), fall=0.04, wave=(0.004, 0.15))),
+    "braid": _gathered(_behind(0.085, -0.065),
+                       _tail(0.46, 0.015, heading=(0.0, 0.5, -0.5), fall=0.04, count=1300, width=0.0036, points=40, raw=48, braid=(0.011, 0.085))),
+    "bun": _gathered(_behind(0.1, 0.035), lambda head, tie, at, seed: [(groom.bun(head, tie, 1500, 0.038, seed), 0.003, 12, False)]),
+    "twin_tails": _gathered(lambda head: [head.centre + np.array([side * 0.078, 0.035, 0.03]) for side in (1.0, -1.0)],
+                            _tail(0.36, 0.018, heading=(0.55, 0.2, 0.15), fall=0.04, count=1000, wave=(0.005, 0.12))),
+}
+
 # The brow styles: Mindfront's, as the character has them ("mind_eyebrows_01" … "_14"; the 11th is its usual).
 BROW_STYLES = {n: f"mind_eyebrows_{n:02d}" + ("_Default" if n == 11 else "") for n in range(1, 15)}
 # Eyelashes: grown here along each lid's edge, as the character's own lash system is empty. For the upper lid
@@ -778,11 +889,12 @@ def ribbons(strands, centre, points, width, seed=7, taper_from=0.7, least=0.003)
     return verts, marks, faces
 
 
-def scalp_paint(head, strands):
+def scalp_paint(head, strands, inset=None):
     """Where a style's hair grows, as a picture over the head's skin picture: the texels of the head (`head`:
     place_map of its tile) within SCALP_ROOT of a strand's root, with the gaps between roots up to twice
-    SCALP_GAP wide closed, pulled in from the hairline by SCALP_INSET. The maker paints the hair's colour
-    there, so no skin shows between the strands."""
+    SCALP_GAP wide closed, pulled in from the hairline by `inset` (SCALP_INSET unless said: short hair, which
+    stands at its hairline and isn't combed away from it, is painted nearly to it). The maker paints the
+    hair's colour there, so no skin shows between the strands."""
     tree = KDTree(len(strands))
     for at, strand in enumerate(strands):
         tree.insert(strand[0], at)
@@ -799,7 +911,7 @@ def scalp_paint(head, strands):
     # Pulled in from its edge: along a hairline the hair is combed away from its roots, and the first strip of
     # scalp inside the line has no hair over it to hide the paint. (What lies past the picture's islands counts
     # as inside, so only a hairline is pulled in, not a seam.) Then feathered.
-    inset = max(1, int(round(SCALP_INSET / max(1e-6, float(np.median(texel))))))
+    inset = max(1, int(round((SCALP_INSET if inset is None else inset) / max(1e-6, float(np.median(texel))))))
     inner = blurred((closed | ~known).astype(np.float64)[:, :, None], inset)[:, :, 0] > 1 - 1e-6
     return blurred((inner & closed & known).astype(np.float64)[:, :, None], 3)[:, :, 0]
 
@@ -1286,6 +1398,8 @@ def main():
     if wanted("hair"):
         head = place_map(C, 1001, SCALP_SIZE)
         for name, (style, children, every, width) in HAIR.items():
+            if os.environ.get("HAIR_ONLY"):
+                continue  # (trying a grown style: the character's own are left as they are)
             strands = strands_of(haired, style, children, every)
             verts, marks, quads = ribbons(strands, head_centre, HAIR_POINTS, width)
             hair = new_mesh(f"realistic-hair-{name}", verts, quads, uvs_per_vertex=marks, materials=[plain_material("hair", (0.13, 0.075, 0.04, 1.0), 0.42)])
@@ -1295,6 +1409,40 @@ def main():
             picture[:, :, 3] = cover
             save_picture(f"realistic-hair-{name}-scalp", picture, 80)
             log(f"hair {name}: {len(strands)} strands, {len(quads) * 2} triangles; {cover.mean() * 100:.0f}% of the head's picture is where it grows")
+            export(os.path.join(MODELS, f"realistic-hair-{name}.glb"), [rig, hair])
+            bpy.data.objects.remove(hair)
+
+        # The styles grown here (GROOMED): strands from groom.py's recipes, made ribbons and saved the same way.
+        scalp = np.zeros(count)
+        group = haired.vertex_groups["scalp"].index
+        for vertex in haired.data.vertices:
+            for of in vertex.groups:
+                if of.group == group:
+                    scalp[vertex.index] = of.weight
+        skin_faces = [faces[f] for f in range(len(faces)) if SLOTS[slots[f]] in ("UDIM.Skin", "charmorph_censor")]
+        groomer = groom.Head(shape, skin_faces, scalp, normals, joints["eye_l"][2])
+        only = [name for name in os.environ.get("HAIR_ONLY", "").split(",") if name]
+        for at, (name, recipe) in enumerate(GROOMED.items()):
+            if only and name not in only:
+                continue
+            verts, marks, quads, rooted = [], [], [], []
+            for part, (strands, width, points, grows) in enumerate(recipe(groomer)):
+                more, their_marks, their_quads = ribbons(list(strands), head_centre, points, width, seed=31 + at * 7 + part, least=0.002)
+                quads += [tuple(i + len(verts) for i in quad) for quad in their_quads]
+                marks += their_marks
+                verts += more
+                if grows:
+                    rooted += list(strands)
+            hair = new_mesh(f"realistic-hair-{name}", verts, quads, uvs_per_vertex=marks, materials=[plain_material("hair", (0.13, 0.075, 0.04, 1.0), 0.42)])
+            skin_to(hair, rig, "Head")
+            # (Hair cut short all over stands at its hairline: its scalp is painted nearly to it.)
+            lengths = np.array([np.linalg.norm(np.diff(strand, axis=0), axis=1).sum() for strand in rooted])
+            short = float(np.quantile(lengths, 0.2)) < 0.03
+            cover = scalp_paint(head, rooted, 0.002 if short else None)
+            picture = np.ones((SCALP_SIZE, SCALP_SIZE, 4), dtype=np.float32)
+            picture[:, :, 3] = cover
+            save_picture(f"realistic-hair-{name}-scalp", picture, 80)
+            log(f"hair {name} (grown): {len(verts) // 2} points, {len(quads) * 2} triangles" + ("; short at the hairline" if short else ""))
             export(os.path.join(MODELS, f"realistic-hair-{name}.glb"), [rig, hair])
             bpy.data.objects.remove(hair)
 

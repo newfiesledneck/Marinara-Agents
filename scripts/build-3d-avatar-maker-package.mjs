@@ -21,7 +21,7 @@ const NAME = "3D Avatar Maker";
 const packageRoot = join(repoRoot, "packages", PACKAGE_ID);
 const artifactsDir = join(repoRoot, "artifacts");
 
-const VERSION = "0.1.28";
+const VERSION = "0.1.29";
 // A Home tab with its own icon, serving its own asset files (the kit: bodies, hair, clothing). The
 // Capability API and Engine minimum are Wanderworld's, the package this one began from, which uses the
 // same two surfaces (a Home tab and package assets).
