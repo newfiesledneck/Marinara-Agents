@@ -35,6 +35,7 @@ import {
   HAIR_COLOURS,
   NEUTRAL_LOOK,
   REALISTIC,
+  REALISTIC_BEARDS,
   REALISTIC_BROWS_USUAL,
   REALISTIC_HAIR,
   REALISTIC_SHAPES,
@@ -46,6 +47,7 @@ import { softParts } from "./realistic-physics.js";
 const BODY_FILE = "realistic-body.pack.png";
 const hairFile = (style) => `realistic-hair-${style}.pack.png`;
 const browsFile = (style) => `realistic-brows-${String(style).padStart(2, "0")}.pack.png`;
+const beardFile = (style) => `realistic-beard-${style}.pack.png`;
 /** How smooth each part is (0 a mirror, 1 chalk) where no picture says, and whether both its sides are drawn. */
 const ROUGHNESS = {
   mouth: 0.35,
@@ -55,6 +57,7 @@ const ROUGHNESS = {
   brows: 0.6,
   lashes: 0.5,
   hair: 0.55,
+  beard: 0.6,
 };
 // The irises' picture (realistic-eyes.webp, scripts/build-3d-avatar-maker-kit.mjs): EYES_ACROSS tiles each way,
 // the eye pictures' in looks.js EYE_PICTURES' order and then the model's own in grey, each with the iris's
@@ -540,6 +543,13 @@ export function paintsOf(part, look, hair) {
   if (part === "head") {
     if (look.realHair !== "none")
       paints.push({ mask: `realistic-hair-${look.realHair}-scalp`, colour: cssOf(hair, SCALP_SHADE), strength: 0.96 });
+    // (Under a beard the skin is painted in its colour, darker, so none shows between its strands.)
+    if (look.realBeard && look.realBeard !== "none")
+      paints.push({
+        mask: `realistic-beard-${look.realBeard}-skin`,
+        colour: cssOf(beardColourOf(look, hair), BEARD_GROUND),
+        strength: 0.8,
+      });
     const stubble = STUBBLE_PAINT[look.stubble?.shape];
     if (stubble) {
       const density = Math.min(1, Math.max(0, look.stubble.density ?? 1));
@@ -595,6 +605,14 @@ function strandPicture() {
   }
   return strandMap;
 }
+
+/** A beard's colour: its own, else the hair's a little darker. */
+const beardColourOf = (look, hair) =>
+  Number.isInteger(look.colours?.beard)
+    ? new Color().setHex(look.colours.beard, SRGBColorSpace)
+    : hair.clone().multiplyScalar(BEARD_SHADE);
+const BEARD_SHADE = 0.85;
+const BEARD_GROUND = 0.6; // how bright the skin under a beard is painted, of the beard's colour
 
 /** The hair's colour (a list colour or one's own) as a Color. */
 const hairColourOf = (look) =>
@@ -655,6 +673,15 @@ async function materialFor(mesh, look, hair) {
   }
   if (part === "hair")
     return { material: new MeshStandardMaterial({ ...base, color: hair, map: strandPicture(), side: DoubleSide }) };
+  if (part === "beard")
+    return {
+      material: new MeshStandardMaterial({
+        ...base,
+        color: beardColourOf(look, hair),
+        map: strandPicture(),
+        side: DoubleSide,
+      }),
+    };
   return { material: new MeshStandardMaterial({ ...base, side: FrontSide }) };
 }
 
@@ -670,11 +697,12 @@ function skinned(name, geometry, material, joints, bones, root) {
 
 const strandKits = new Map();
 /**
- * A file of strands from the kit (a hair style, a brow style), read once and shared: its ribbons, each point
- * tied to the head's skin under its strand's root (strandTies). `faces`: also the face's moves for it, as the
- * skin under it moves (the brows rise and fall with the face; hair on the scalp doesn't).
+ * A file of strands from the kit (a hair style, a brow style, a beard), read once and shared: its ribbons,
+ * each point tied to the head's skin under its strand's root (strandTies). `faces`: also the face's moves for
+ * it, as the skin under it moves (the brows and a beard move with the face; hair on the scalp doesn't).
+ * `drape`: metres it is kept off the body it is draped over (drapeHair), or 0 for none (the brows).
  */
-function strandKit(body, file, faces = false) {
+function strandKit(body, file, faces = false, drape = faces ? 0 : DRAPE_CLEAR) {
   if (!strandKits.has(file))
     strandKits.set(
       file,
@@ -690,8 +718,12 @@ function strandKit(body, file, faces = false) {
             position,
             tied,
             faceMoves: faces ? tiedFaceMoves(body, tied, position.length).filter(Boolean) : [],
-            // (Hair's points in order along each strand, to drape it over the body: drape.js.)
-            order: faces ? null : strandOrder(geometry),
+            // (Its points in order along each strand, to drape it over the body: drape.js.)
+            order: drape ? strandOrder(geometry) : null,
+            drape,
+            // (A beard grows on the face, which the sliders swell and narrow: it is draped from its roots, over
+            // the face as well. Hair is draped from under the head, where it starts to hang.)
+            wholly: faces && drape > 0,
           };
         }),
       })),
@@ -700,6 +732,8 @@ function strandKit(body, file, faces = false) {
 }
 
 const DRAPE_CLEAR = 0.004; // metres hair is kept off the skin it is draped over
+const BEARD_CLEAR = 0.0015; // and a beard: it lies close, its strands' own layers made in the groomer
+const DRAPE_FACE = 0.13; // metres over the head's joint to which the face counts, for a beard: up past the cheekbones
 const DRAPE_OVER = 0.03; // metres over the head's joint from which hair is draped (above, it lies on the head as made)
 const DRAPE_DOWN = 0.6; // metres under it to which the skin counts: the neck, shoulders, chest and back
 const DRAPE_ARM = 0.09; // metres out from a shoulder's joint to which an arm's skin counts: its cap, which no pose moves far
@@ -714,14 +748,16 @@ function drapeHair(position, mesh, skins, bones, key) {
   if (had?.key === key) return void position.set(had.position);
   const head = bones.get("Head").getWorldPosition(new Vector3());
   const shoulder = Math.abs(bones.get("upperarm_l").getWorldPosition(new Vector3()).x);
-  const high = (y) => y < head.y + DRAPE_OVER * 2 && y > head.y - DRAPE_DOWN;
+  const high = (y) => y < head.y + (mesh.wholly ? DRAPE_FACE : DRAPE_OVER * 2) && y > head.y - DRAPE_DOWN;
   const cloud = skinCloud(
     skins.map((skin) => ({
       ...skin,
       keep: skin.part === "skin_arms" ? (x, y) => high(y) && Math.abs(x) < shoulder + DRAPE_ARM : (_x, y) => high(y),
     })),
+    mesh.wholly ? 0 : undefined, // (a beard: every point of the skin it lies close on)
   );
-  if (cloud) drape(position, mesh.order, cloud, { top: head.y + DRAPE_OVER, clear: DRAPE_CLEAR });
+  if (cloud)
+    drape(position, mesh.order, cloud, { top: mesh.wholly ? Infinity : head.y + DRAPE_OVER, clear: mesh.drape });
   drapes.set(mesh, { key, position: position.slice() });
 }
 
@@ -732,6 +768,7 @@ export async function realisticChoices() {
     keys: body.file.keys,
     sliders: body.file.sliders,
     hair: REALISTIC_HAIR.map(([style]) => style),
+    beards: REALISTIC_BEARDS.map(([style]) => style),
     races: [],
     tops: [],
     bottoms: [],
@@ -759,6 +796,7 @@ export async function createRealistic(look = {}) {
     colours: look.colours ?? {},
     eyePicture: look.eyePicture ?? TINT,
     realBrows: Number.isInteger(look.realBrows) ? look.realBrows : REALISTIC_BROWS_USUAL,
+    realBeard: REALISTIC_BEARDS.some(([style]) => style === look.realBeard) ? look.realBeard : "none",
     height: Number.isFinite(look.height) ? look.height : 1,
   };
   const weights = sliderWeights(body, filled);
@@ -810,13 +848,15 @@ export async function createRealistic(look = {}) {
       letGo?.();
     });
   }
-  // The hair and the brows: strands from files of their own, carried by the skin the sliders moved.
+  // The hair, the brows and a beard: strands from files of their own, carried by the skin the sliders moved.
   const headMove = new Float32Array(headMoved.length);
   for (let i = 0; i < headMove.length; i++) headMove[i] = headMoved[i] - body.head.position[i];
   const strands = [[browsFile(filled.realBrows), true]];
   if (filled.realHair !== "none") strands.push([hairFile(filled.realHair), false]);
-  for (const [file, faces] of strands) {
-    const kept = await strandKit(body, file, faces);
+  // (A beard moves with the face, as the brows do, and is draped over the chest and neck, as the hair is.)
+  if (filled.realBeard !== "none") strands.push([beardFile(filled.realBeard), true, BEARD_CLEAR]);
+  for (const [file, faces, drape] of strands) {
+    const kept = await strandKit(body, file, faces, drape);
     for (const mesh of kept.meshes) {
       const position = mesh.position.slice();
       carry(position, mesh.tied, headMove, 1);

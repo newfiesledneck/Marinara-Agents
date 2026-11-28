@@ -1145,6 +1145,35 @@ are unchecked, so new ones are grown.
 - Rough edges: the side part's fringe curls at the forehead; the pixie's swept fringe ends in a hard line;
   the mohawk's fan is thin seen from the front.
 
+## Built: strand beards on the Realistic body (0.1.30)
+
+Asked for: beards "in the same strand style" as the new hair.
+
+- **Grown** by the groomer (`assets/scripts/groom.py`), which now grows on any marked patch of skin
+  (`Head.patch`, `roots(..., on=)`), not only the scalp. The beard's patch is the character's
+  `BeardShadowMask` (blue) with the lips and 2.5 mm round them taken out. `comb_beard` lies hair as a beard
+  grows: down and out from the middle on the upper lip (meeting under the nose), forward under the jaw so it
+  runs down the neck, down and a little towards the chin on the cheeks. Waves and curls may start a few
+  millimetres from the root (`still`), as a beard is shorter than the 3 cm hair keeps straight.
+- **The recipes** are `GROOMED_BEARDS` in `make_realistic.py -- beards`, each a part of the patch (`_lip`,
+  `_chin`, `_round_mouth`, …) found from where the mouth is, and a length that grows from the cheekbones to
+  the chin. Each has a picture of where it grows (`realistic-beard-<style>-skin.webp`), painted in its colour
+  under it. 90 to 520 KB packed, 1.8 MB in all.
+- **In the maker** a beard is a strand file like the brows (`strandKit(..., faces)`): each strand tied to the
+  skin under its root, and the face's moves carried to it, so the chin's part opens with the jaw. It is also
+  draped like the hair (`drapeHair`), but from its roots and over the face (`wholly`), against every point of
+  the skin, 1.5 mm off it: a heavy build swells the face over a beard grown on the body as made. A draped
+  point is pushed out again up to four times (`drape.js` `PUSHES`), for the crease under the jaw.
+- **The look**: `realBeard`, `colours.beard` (else the hair's, a little darker); in `REALISTIC_FIELDS`,
+  `REALISTIC_ONLY`, `realisticMenu` and `checkLook`.
+- Check: the regression test builds every beard (strands, on the lower face, the chin's part coming down with
+  `aa` and a moustache staying), a long beard on a heavy build counted inside the body by casting rays at the
+  skin's triangles (judging by the nearest point's plane misleads in the chest's groove: under 0.5%), the paint
+  under it, and Generate reading a beard. Looked over on the motions page (`beards=`, `view=chin`, `chin-side`)
+  shut and open, and on the test page.
+- Not yet: a long beard doesn't swing; stubble and a beard are chosen apart (a full beard over heavy stubble
+  is darker at its edge).
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and

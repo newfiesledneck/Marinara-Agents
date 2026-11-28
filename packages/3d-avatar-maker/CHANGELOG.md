@@ -1,5 +1,12 @@
 # 3D Avatar Maker release notes
 
+## 0.1.30 — 2026-11-28
+
+- Eight beards for the Realistic body, made of separate strands like its hair: short beard, full beard, long beard, goatee, moustache, walrus moustache, chin curtain and mutton chops. Choose one under **Facial hair** on the Hair tab, in the hair's colour or one of its own.
+- A beard moves with the face: the chin's part comes down as the mouth opens, and a moustache stays on the lip. The skin under it is painted in its colour, so none shows between the hairs.
+- It lies over the face, neck and chest as you shape them, as the hair does. Painted stubble still works, alone or under a beard.
+- Generate and Revise avatar can choose a beard and its colour for the Realistic body.
+
 ## 0.1.29 — 2026-11-27
 
 - Sixteen new hair styles for the Realistic body, made of separate strands like its first four: buzz cut, short crop, pixie, side part, undercut, mohawk, afro, curly to the shoulders, straight to the shoulders, long with a fringe, long and wavy, ponytail, low ponytail, braid, bun and twin tails.

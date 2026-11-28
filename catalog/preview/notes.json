@@ -4,6 +4,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.30",
+          "date": "2026-11-28",
+          "notes": "- Eight beards for the Realistic body, made of separate strands like its hair: short beard, full beard, long beard, goatee, moustache, walrus moustache, chin curtain and mutton chops. Choose one under **Facial hair** on the Hair tab, in the hair's colour or one of its own.\n- A beard moves with the face: the chin's part comes down as the mouth opens, and a moustache stays on the lip. The skin under it is painted in its colour, so none shows between the hairs.\n- It lies over the face, neck and chest as you shape them, as the hair does. Painted stubble still works, alone or under a beard.\n- Generate and Revise avatar can choose a beard and its colour for the Realistic body.",
+          "highlight": false
+        },
+        {
           "version": "0.1.29",
           "date": "2026-11-27",
           "notes": "- Sixteen new hair styles for the Realistic body, made of separate strands like its first four: buzz cut, short crop, pixie, side part, undercut, mohawk, afro, curly to the shoulders, straight to the shoulders, long with a fringe, long and wavy, ponytail, low ponytail, braid, bun and twin tails.\n- The long ones swing and lie over the shoulders and chest as the other strand styles do. The tails and the braid swing as one.\n- The hair is a little less shiny.",
@@ -115,12 +121,6 @@
           "version": "0.1.11",
           "date": "2026-11-23",
           "notes": "- Skirts, dresses, robes, coats and cloaks hang from the hips and swing as one piece, and the bust moves a little, clothes with it. A saved VRM swings them too.\n- An **Animation** list plays the avatar walking, dancing, talking, waving, sitting and more, mostly Quaternius's CC0 clips. Preview only; saved files rest as before.\n- Makeup on any skin: eyeshadow, eyeliner, blush and lipstick in your own colours, or one of seven ready-made looks. The made-up duplicate skins are gone; looks that used one keep its makeup.\n- Pack underwear goes in the Underwear lists. **Show underwear under clothes** keeps it on under clothes; it starts off, as clothes aren't fitted around underwear yet.\n- Six new bobs in the Hair tab.\n- Fixed: the eyes rolled up under the lids when looking at the camera from close or above.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.10",
-          "date": "2026-11-23",
-          "notes": "- Room for accessories fixed to the body: things held in either hand, horns or antlers, a necklace, something on the back, at the hip, on the wrists, ankles and belly, and a tail. A piece held or fixed this way keeps its shape as the avatar moves. The packs that fill these places come next.\n- Wardrobe packs can now add hair styles too, which the Hair tab lists beside the maker's own.\n- An avatar that wears something from a pack you've since uninstalled keeps it in its look. The maker says what isn't shown and which pack to install, and it comes back once the pack is installed again. A saved file still holds only what's worn.",
           "highlight": false
         }
       ]

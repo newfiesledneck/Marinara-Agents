@@ -1399,7 +1399,9 @@ function realistic(dir, out) {
     MESH_KINDS,
   );
   const styles = [];
-  for (const name of readdirSync(dir).filter((file) => /^realistic-(?:hair-[a-z0-9_]+|brows-\d\d)\.glb$/u.test(file))) {
+  for (const name of readdirSync(dir).filter((file) =>
+    /^realistic-(?:hair-[a-z0-9_]+|beard-[a-z0-9_]+|brows-\d\d)\.glb$/u.test(file),
+  )) {
     const hair = readGltf(join(dir, name));
     writePacked(
       join(out, name.replace(/.glb$/u, ".pack.png")),
