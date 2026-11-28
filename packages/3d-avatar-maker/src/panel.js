@@ -388,7 +388,7 @@ export function createPanel(actions) {
       ),
       group(
         "Painted underwear",
-        "Dark underwear painted on the skin: panties and a bra on a female build, boxer briefs on a male one. It is part of the skin's picture, so nothing can show through it, and it is saved with the avatar.",
+        "Dark underwear painted on the skin: cheeky panties and a strapless bra on a female build, boxer briefs on a male one. It is part of the skin's picture, so nothing can show through it, and it is saved with the avatar.",
         h(
           "label",
           { class: "check" },

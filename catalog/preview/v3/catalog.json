@@ -15,7 +15,7 @@
         },
         "id": "3d-avatar-maker",
         "name": "3D Avatar Maker",
-        "version": "0.1.20",
+        "version": "0.1.21",
         "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
         "engine": {
           "min": "2.4.6",
@@ -159,8 +159,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "fd5b144825940ec867d221635785acfb36ad87e0aba3c3fc7ee1c91afa506a48",
-            "bytes": 1315521
+            "sha256": "672462f203d24c6e9c3bbe0d155d81ab1eacb82078687309dfa70136f5d4ed22",
+            "bytes": 1315538
           },
           {
             "path": "3d-avatar-maker-icon.webp",
@@ -539,8 +539,8 @@
           },
           {
             "path": "kit/avatar/realistic-skin-legs-dark-female.webp",
-            "sha256": "3edee46144c2d0150a71dcc7a38daf13cba11b294e67f15d0dd23e109a70a081",
-            "bytes": 69364
+            "sha256": "3b627a3b93c8a2e160b13d8d69eba170e3201d8a099ae7d9ff6b0aa10256f28c",
+            "bytes": 67724
           },
           {
             "path": "kit/avatar/realistic-skin-legs-dark-male.webp",
@@ -554,8 +554,8 @@
           },
           {
             "path": "kit/avatar/realistic-skin-legs-light-female.webp",
-            "sha256": "6ea6aa2aa9ba98429eb67e336757327c2a9d7fd16054903ea42339e35cae777a",
-            "bytes": 110284
+            "sha256": "35118040c3b4ecbad5737fffc31c44f31cc17e44a3800ed2782453f7825dc6ef",
+            "bytes": 108180
           },
           {
             "path": "kit/avatar/realistic-skin-legs-light-male.webp",
@@ -569,8 +569,8 @@
           },
           {
             "path": "kit/avatar/realistic-skin-legs-normal-female.webp",
-            "sha256": "8d09d8548333aaa693c9817606d13ef90cbe292377a44cf7359fbd345f337963",
-            "bytes": 5354
+            "sha256": "b9ee7f35211811173c1e2d4f55d13665fed31ff420c728f691c26e4d6c2fc9ef",
+            "bytes": 5414
           },
           {
             "path": "kit/avatar/realistic-skin-legs-normal-male.webp",
@@ -584,8 +584,8 @@
           },
           {
             "path": "kit/avatar/realistic-skin-legs-rough-female.webp",
-            "sha256": "c3f481c47939e6e4254504463829ac97eaeaae8882e95f7ce6d32de0db553036",
-            "bytes": 18310
+            "sha256": "094bcf43699e5fb6f30fcca2393467707fb76b66d3b2b098f070f62b0ad2e009",
+            "bytes": 17096
           },
           {
             "path": "kit/avatar/realistic-skin-legs-rough-male.webp",
@@ -599,8 +599,8 @@
           },
           {
             "path": "kit/avatar/realistic-skin-torso-dark-female.webp",
-            "sha256": "0e8901235526e82eeb98c491dcdfd096b5b37549b256b0566651b1ff68a746e7",
-            "bytes": 61294
+            "sha256": "789055e5421e08e2f10e677e2a3098b45ffb906c9d4a7d1d8411ec59197f2a33",
+            "bytes": 56942
           },
           {
             "path": "kit/avatar/realistic-skin-torso-dark-male.webp",
@@ -614,8 +614,8 @@
           },
           {
             "path": "kit/avatar/realistic-skin-torso-light-female.webp",
-            "sha256": "56bfdac958fec118ecfff0f91c8dfe95bb1736a76a6093e30646f33c881c0cda",
-            "bytes": 137012
+            "sha256": "567bfa03cfb0f226ec6a6ded8705db9c873ea53e20f47f8585b11d203c2b666b",
+            "bytes": 131504
           },
           {
             "path": "kit/avatar/realistic-skin-torso-light-male.webp",
@@ -629,8 +629,8 @@
           },
           {
             "path": "kit/avatar/realistic-skin-torso-normal-female.webp",
-            "sha256": "b32108830aa052ee193ed79f203a788e83cb2bbc52dd0dac20dfb36b637e8a3b",
-            "bytes": 3858
+            "sha256": "fb253c188f7d4e0fb55e6976e0754843b1429374ce3788f912069f82d4741364",
+            "bytes": 3864
           },
           {
             "path": "kit/avatar/realistic-skin-torso-normal-male.webp",
@@ -644,8 +644,8 @@
           },
           {
             "path": "kit/avatar/realistic-skin-torso-rough-female.webp",
-            "sha256": "86dd7c633f88fb703d7d0172dcab8023ef53a971f1240fd1bf0d5f45a881b2c5",
-            "bytes": 29238
+            "sha256": "9a668072c89df280c712fc26469454e06fa211cb6605a3fddd03f0ef41b5bf3b",
+            "bytes": 26332
           },
           {
             "path": "kit/avatar/realistic-skin-torso-rough-male.webp",
@@ -711,9 +711,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-0.1.20.zip",
-        "sha256": "0504471804e584389edaa658bf26b0ff3b9c053e20b98b9882d023819a60acfb",
-        "bytes": 68436396
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-0.1.21.zip",
+        "sha256": "ad10d05ba98341f4a404f6cdefe68b412e5806fd2d9e0ec4f9ea24d3108dc053",
+        "bytes": 68418755
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker/README.md"
     },
