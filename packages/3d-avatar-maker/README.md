@@ -104,6 +104,10 @@ the hair on the Hair tab.
 
 A build has a bust to move once it stands out: a female build, or a raised breast size on any build.
 
+The Realistic body's hair is also draped over the body as you shape it: on wider shoulders or a fuller chest
+it lies on top of the skin and hangs on from there, and when it swings it meets the shoulders, arms and chest
+it rests on.
+
 ## Wardrobe packs
 
 More clothes come as two separate packages you install from the catalog: 3D Avatar Maker: Clothes (194

@@ -25,6 +25,7 @@ import {
   Vector2,
   Vector3,
 } from "three";
+import { drape, skinCloud, strandOrder } from "./drape.js";
 import { FACE_MOVES } from "./face.js";
 import { standFigure } from "./figure.js";
 import { geometryOf, load, rigOf, texture, urlOf, view } from "./kitfiles.js";
@@ -689,11 +690,39 @@ function strandKit(body, file, faces = false) {
             position,
             tied,
             faceMoves: faces ? tiedFaceMoves(body, tied, position.length).filter(Boolean) : [],
+            // (Hair's points in order along each strand, to drape it over the body: drape.js.)
+            order: faces ? null : strandOrder(geometry),
           };
         }),
       })),
     );
   return strandKits.get(file);
+}
+
+const DRAPE_CLEAR = 0.004; // metres hair is kept off the skin it is draped over
+const DRAPE_OVER = 0.03; // metres over the head's joint from which hair is draped (above, it lies on the head as made)
+const DRAPE_DOWN = 0.6; // metres under it to which the skin counts: the neck, shoulders, chest and back
+const DRAPE_ARM = 0.09; // metres out from a shoulder's joint to which an arm's skin counts: its cap, which no pose moves far
+const drapes = new WeakMap(); // a hair style's mesh → { key, position }: its hair as last draped, and the body's shape then
+/**
+ * A hair style's points draped over the body as this look shapes it (drape.js), in place. `skins` are the
+ * body's skin meshes as shaped ([{ part, position, normal }]), `bones` its skeleton, `key` its shape in words:
+ * the same shape gives the same drape, which is kept.
+ */
+function drapeHair(position, mesh, skins, bones, key) {
+  const had = drapes.get(mesh);
+  if (had?.key === key) return void position.set(had.position);
+  const head = bones.get("Head").getWorldPosition(new Vector3());
+  const shoulder = Math.abs(bones.get("upperarm_l").getWorldPosition(new Vector3()).x);
+  const high = (y) => y < head.y + DRAPE_OVER * 2 && y > head.y - DRAPE_DOWN;
+  const cloud = skinCloud(
+    skins.map((skin) => ({
+      ...skin,
+      keep: skin.part === "skin_arms" ? (x, y) => high(y) && Math.abs(x) < shoulder + DRAPE_ARM : (_x, y) => high(y),
+    })),
+  );
+  if (cloud) drape(position, mesh.order, cloud, { top: head.y + DRAPE_OVER, clear: DRAPE_CLEAR });
+  drapes.set(mesh, { key, position: position.slice() });
 }
 
 /** What the kit has for this body: what the maker's controls offer (avatar.js avatarChoices, for the other bodies). */
@@ -740,10 +769,12 @@ export async function createRealistic(look = {}) {
   const soft = softParts(body, weights, bones, filled.physics);
   const lids = lidBlinks(body, weights);
   const owned = [];
+  const skins = []; // the skin the hair is draped over, as shaped
   let headMoved = body.head.position;
   for (const mesh of body.meshes) {
     const { position, normal } = shaped(body, mesh, weights);
     if (mesh === body.head) headMoved = position;
+    if (["skin_head", "skin_torso", "skin_arms"].includes(mesh.part)) skins.push({ part: mesh.part, position, normal });
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new BufferAttribute(position, 3));
     geometry.setAttribute("normal", new BufferAttribute(normal, 3));
@@ -789,6 +820,7 @@ export async function createRealistic(look = {}) {
     for (const mesh of kept.meshes) {
       const position = mesh.position.slice();
       carry(position, mesh.tied, headMove, 1);
+      if (mesh.order) drapeHair(position, mesh, skins, bones, JSON.stringify(weights));
       const geometry = new BufferGeometry();
       geometry.setAttribute("position", new BufferAttribute(position, 3));
       for (const name of ["normal", "uv", "skinIndex", "skinWeight"])

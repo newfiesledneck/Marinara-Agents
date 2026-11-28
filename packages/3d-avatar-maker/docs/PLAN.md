@@ -1086,6 +1086,33 @@ can add?" The character ships 151 shape morphs and 39 were sliders.
   and lids opened wider shutting to the same place in a blink. Looked over on the motions page: pointed ears,
   fangs, slit pupils, a reshaped skull under hair, and the body sliders.
 
+## Built: the Realistic body's hair draped over the body (0.1.28)
+
+Asked for: hair that collides with the shoulders, arms and chest, "so it doesn't clip through and instead just
+drapes down over top".
+
+- **At rest** (`drape.js`, called from `realistic.js` `drapeHair`). A strand style is made on the body as
+  built, and a strand only moves with the skin under its root, so on a heavier or broader build most of a
+  long style lay under the skin (37,000 of 52,000 points on a heavy build, up to 59 mm deep). Each strand is
+  now walked from root to tip: each piece is set down where the piece before ended, pointing as it was made,
+  and where that puts it under the skin it is pushed out along the skin's normal and brought back to its
+  length, which slides it along the surface. The skin is a cloud of points with normals (neck, shoulders,
+  chest, back, the caps of the arms), thinned to one a centimetre and found through a grid; a point is under
+  the skin when it is behind the plane of the nearest. About 17 ms for the longest style, kept until the
+  sliders change.
+- **In motion** (`springs.js` `fitColliders` `resting`, `bodyColliders` `snug`; `realistic-physics.js`).
+  A lock that rested on a collider used to stop meeting it, so draped hair met nothing it lay on. Such a lock
+  now keeps a copy of the collider, as small as lets its own joints rest. The hair's colliders on this body
+  are as thick as the body is there (they sat a couple of centimetres under the skin), each breast's ball is
+  one, and the hair's spring is stiffer and slowed more (`SOFT.hair.joint`). At amount 0 the hair meets
+  nothing.
+- Check: the regression test drapes a strand over a ball (outside it, lengths kept, hanging on below), and
+  has no hair under the skin on a heavy and a broad build, with the hair still meeting the head, chest and a
+  shoulder. Looked over on the motions page (`view=bust`, `bust-side`, `bust-back`, new) at rest, turning and
+  dancing.
+- Not yet: the chains are few (one a side), so in a fast turn part of a wide lock can still dip into the
+  shoulder before its chain is pushed out.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and

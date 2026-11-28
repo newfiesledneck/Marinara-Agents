@@ -4,8 +4,8 @@
 //
 //   /motions?body=female&motions=idle,walk&frames=8&step=0.6&view=body&name=sheet   (body: female, male or realistic)
 //
-// `view`: body (the default), back, hand, legs, face, eyes, eyes-side, head-side, head-back, head-top, mouth,
-// mouth-side or mouth-below. `faces=1` draws each
+// `view`: body (the default), back, hand, legs, face, bust, bust-side, bust-back, eyes, eyes-side, head-side,
+// head-back, head-top, mouth, mouth-side or mouth-below. `w` and `h` size a picture (pixels). `faces=1` draws each
 // face of the Face list in place of the animations, and `keys=aa,oh:0.5` the face's own keys, each alone.
 // `outfit` names a ready-made outfit (Modern casual unless said); `look` is a look as JSON, over that;
 // `packs=0` leaves the wardrobe packs out.
@@ -74,6 +74,12 @@ function aim(figure, view) {
     at.set(0, at.y - 0.065, at.z);
     if (view === "mouth-side") camera.position.set(at.x + 0.26, at.y, at.z + 0.12);
     else camera.position.set(at.x, at.y - (view === "mouth-below" ? 0.07 : 0), at.z + 0.28);
+  } else if (view === "bust" || view === "bust-side" || view === "bust-back") {
+    // (The head, shoulders and chest: where long hair lies on the body. From the front, the avatar's left, or behind.)
+    n.head.getWorldPosition(at).y -= 0.12;
+    if (view === "bust") camera.position.set(at.x + 0.25, at.y + 0.1, at.z + 1.35);
+    else if (view === "bust-side") camera.position.set(at.x + 1.35, at.y + 0.1, at.z + 0.2);
+    else camera.position.set(at.x - 0.25, at.y + 0.15, at.z - 1.35);
   } else if (view === "legs") {
     n.hips.getWorldPosition(at).y *= 0.55;
     camera.position.set(at.x + 0.5, at.y + 0.2, at.z + 2.3);

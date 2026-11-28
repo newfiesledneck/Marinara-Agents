@@ -3109,6 +3109,108 @@ for (const figure of Object.values(made)) figure.dispose();
     assert.ok(lashDrop(wide) > lashDrop(figure) + 0.0005, "and the lashes come down the further with them");
     wide.dispose();
   }
+  // Hair draped over the body (drape.js): a strand walked from its root, each piece set down as it was made
+  // and pushed out along the skin where it would lie under it, keeping its length.
+  {
+    const { drape, skinCloud, strandOrder } = await import("../packages/3d-avatar-maker/src/drape.js");
+    // A ball of skin, and one strand hanging straight down through it, as a ribbon of two points a step.
+    const ball = { position: [], normal: [], keep: () => true };
+    for (let i = 0; i < 4000; i++) {
+      const [up, round] = [Math.acos(1 - (2 * (i + 0.5)) / 4000), Math.PI * (1 + Math.sqrt(5)) * i];
+      const out = [Math.sin(up) * Math.cos(round), Math.cos(up), Math.sin(up) * Math.sin(round)];
+      ball.position.push(...out.map((c) => c * 0.1));
+      ball.normal.push(...out);
+    }
+    const steps = 16;
+    const made = new Float32Array(steps * 6);
+    const uv = new Float32Array(steps * 4);
+    for (let k = 0; k < steps; k++)
+      for (const [side, x] of [-0.001, 0.001].entries()) {
+        made.set([0.03 + x, 0.2 - k * 0.025, 0.01], (k * 2 + side) * 3);
+        uv.set([0.5, 1 - k / (steps - 1)], (k * 2 + side) * 2);
+      }
+    const order = strandOrder({ attributes: { uv: { array: uv } } });
+    assert.deepEqual([order.strands.length - 1, order.points.length - 1], [1, steps], "one strand of sixteen points");
+    const laid = made.slice();
+    const moved = drape(laid, order, skinCloud([ball]), { top: 1, clear: 0.004 });
+    assert.ok(moved > 8, `the strand is moved where it met the ball (${moved} points)`);
+    const middle = (from, k) => [0, 1, 2].map((c) => (from[k * 6 + c] + from[k * 6 + 3 + c]) / 2);
+    for (let k = 0; k < steps; k++) {
+      const at = middle(laid, k);
+      assert.ok(
+        Math.hypot(...at) > 0.1 + 0.002,
+        `point ${k} lies outside the ball (${Math.hypot(...at).toFixed(3)} m out)`,
+      );
+      if (!k) continue;
+      const [length, was] = [laid, made].map((from) =>
+        Math.hypot(...middle(from, k).map((c, i) => c - middle(from, k - 1)[i])),
+      );
+      assert.ok(Math.abs(length - was) < was * 0.35, `piece ${k} keeps its length (${(length * 1000).toFixed(1)} mm)`);
+    }
+    assert.ok(middle(laid, steps - 1)[1] < -0.05, "and it hangs on down past the ball");
+    assert.deepEqual([...laid.slice(0, 12)], [...made.slice(0, 12)], "above the ball it is as made");
+
+    // On the body: no point of long hair lies under the skin of a heavy build or a broad one, where it did
+    // by centimetres before; the built body's hair is all but as made.
+    const under = (of) => {
+      const hair = mesh(of, "hair").geometry.attributes.position.array;
+      const cell = 0.03;
+      const grid = new Map();
+      const skin = [];
+      for (const part of ["skin_torso", "skin_arms", "skin_head"]) {
+        const { position, normal } = mesh(of, part).geometry.attributes;
+        for (let v = 0; v < position.count; v++) {
+          const [x, y, z] = [position.getX(v), position.getY(v), position.getZ(v)];
+          if (y > 1.56 || y < 1 || Math.abs(x) > 0.3) continue;
+          const key = `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
+          grid.set(key, [...(grid.get(key) ?? []), skin.length]);
+          skin.push([x, y, z, normal.getX(v), normal.getY(v), normal.getZ(v)]);
+        }
+      }
+      let [count, deepest] = [0, 0];
+      for (let v = 0; v < hair.length; v += 3) {
+        if (hair[v + 1] > 1.53) continue;
+        const at = [0, 1, 2].map((c) => Math.floor(hair[v + c] / cell));
+        let [best, nearest] = [null, 0.06 ** 2];
+        for (let dx = -1; dx <= 1; dx++)
+          for (let dy = -1; dy <= 1; dy++)
+            for (let dz = -1; dz <= 1; dz++)
+              for (const i of grid.get(`${at[0] + dx},${at[1] + dy},${at[2] + dz}`) ?? []) {
+                const gap = [0, 1, 2].reduce((sum, c) => sum + (skin[i][c] - hair[v + c]) ** 2, 0);
+                if (gap < nearest) [best, nearest] = [skin[i], gap];
+              }
+        if (!best) continue;
+        const over = [0, 1, 2].reduce((sum, c) => sum + (hair[v + c] - best[c]) * best[3 + c], 0);
+        if (over < -0.001) count++;
+        deepest = Math.min(deepest, over);
+      }
+      return { count, deepest };
+    };
+    const asMade = await createAvatar(start({ realHair: "eve" }), "Test", "auto");
+    for (const [name, shape] of [
+      ["heavy", { gender: 1, fat: 1, breasts: 1 }],
+      ["broad", { gender: -1, shoulders: 1, muscular: 1, trapezius: 1 }],
+    ]) {
+      const build = await createAvatar(start({ realHair: "eve", realShape: shape }), "Test", "auto");
+      const { count, deepest } = under(build);
+      assert.equal(
+        count,
+        0,
+        `realistic, ${name}: no hair under the skin (${(-deepest * 1000).toFixed(1)} mm at the deepest)`,
+      );
+      // (And where it rests on the shoulders and chest, it still meets them when it swings.)
+      const met = new Set(
+        build.springs
+          .filter((spring) => /^hair/iu.test(spring.name))
+          .flatMap((spring) => spring.colliders.map((each) => each.bone.name)),
+      );
+      for (const bone of ["Head", "spine_03"])
+        assert.ok(met.has(bone), `realistic, ${name}: its hair meets the ${bone}`);
+      assert.ok(met.has("clavicle_l") || met.has("clavicle_r"), `realistic, ${name}: its hair meets a shoulder`);
+      build.dispose();
+    }
+    asMade.dispose();
+  }
   // Generate on this body: a menu of its own fields, and a design read as those fields alone, on this body.
   {
     const gen = await import("../packages/3d-avatar-maker/src/generate.js");
@@ -3807,11 +3909,13 @@ for (const figure of Object.values(made)) figure.dispose();
       block && json.extensionsUsed.includes("VRMC_springBone"),
       "realistic: a VRM with long hair has spring bones",
     );
+    const realHair = (await import("../packages/3d-avatar-maker/src/realistic-physics.js")).SOFT.hair.joint;
     const hairSprings = block.springs.filter((spring) => spring.name.startsWith("Hair ("));
     assert.ok(hairSprings.length >= 3 && hairSprings.some((spring) => spring.joints.length >= 5), "its hair's chains");
     for (const spring of hairSprings) {
       assert.ok(spring.joints.every((joint) => /^hair_/u.test(json.nodes[joint.node].name)));
-      assert.equal(spring.joints[0].stiffness, HAIR_JOINT.stiffness);
+      // (This body's hair has a spring of its own, stiffer than the others': it lies on the body.)
+      assert.equal(spring.joints[0].stiffness, realHair.stiffness);
       const met = spring.colliderGroups.flatMap((group) => block.colliderGroups[group].colliders);
       const bones = met.map((at) => json.nodes[block.colliders[at].node].name);
       assert.ok(
@@ -3859,7 +3963,7 @@ for (const figure of Object.values(made)) figure.dispose();
       softBlock.springs.every((spring) => spring.name.startsWith("Hair (")),
       "only the hair's, with the others off",
     );
-    assert.equal(softBlock.springs[0].joints[0].stiffness, HAIR_JOINT.stiffness / 2, "at the look's amount");
+    assert.equal(softBlock.springs[0].joints[0].stiffness, realHair.stiffness / 2, "at the look's amount");
     const noneLook = real({
       realHair: "eve",
       physics: { hair: { on: false }, bust: { on: false }, butt: { on: false } },

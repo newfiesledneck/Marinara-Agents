@@ -1,5 +1,11 @@
 # 3D Avatar Maker release notes
 
+## 0.1.28 — 2026-11-27
+
+- The Realistic body's hair is draped over the body. On a build with wider shoulders, a fuller chest or more weight, long hair used to pass through the skin; it now lies on the shoulders, chest and back and hangs on from there, in the preview and in a saved file.
+- In motion the hair meets the shoulders, upper arms, chest and breasts it rests on, where before it swung through whatever it lay against. It is also a little stiffer, so it comes back to how it lies.
+- With the hair's Movement slider at "Held still" the hair meets nothing and stays exactly as it lies.
+
 ## 0.1.27 — 2026-11-27
 
 - The Realistic body has 146 shape sliders, up from 39, in groups on its Body and Face tabs: build, chest and shoulders, waist and hips, arms and hands, legs and feet, neck; head shape, forehead and brow, eyes, nose, cheeks, mouth, chin and jaw, ears.
