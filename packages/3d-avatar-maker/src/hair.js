@@ -236,7 +236,9 @@ function alongMesh(position, index, line, centre, kept = null) {
  * `geometry` is the mesh's (its points where the body was built), `joints` the body bones its weights name,
  * and `hangs` how: HAIR or CLOTH with `line` (the height it leaves the head or body), `centre` (the head's or
  * hips' middle, a point), `name` (its chains' bones are named `<name>_<side>_<joint>`), `title` (its springs
- * are "<title> (<side>)") and, for cloth, `from` (the body bone its chains hang from).
+ * are "<title> (<side>)") and, for cloth, `from` (the body bone its chains hang from). Hair whose points know
+ * their place already gives it as `along`: { far (metres along the hair from where it leaves the head, a point
+ * each), side (the angle round the head it hangs from) }, and is then not followed along its mesh.
  * Each chain: { name, side, from (the body bone it hangs from), bones (how many swing), bands (for each of
  * its joints, root to tip, the points round it) }. The new weights name a chain's bones after `joints`,
  * chain by chain, root to tip (rigChains makes them in that order).
@@ -274,7 +276,10 @@ export function hangPlan(geometry, joints, hangs) {
     }
     return { far, side };
   };
-  const along = hangs.around ? placed() : alongMesh(position, geometry.index.array, line, centre, kept);
+  // (Hair made of separate strands knows each point's place along its own strand: realistic-physics.js gives
+  // `along` ready-made.)
+  const along =
+    hangs.along ?? (hangs.around ? placed() : alongMesh(position, geometry.index.array, line, centre, kept));
   if (!along) return null;
   const { far, side } = along;
   // (The sides round: hair's eight, by name; cloth's sixteen, numbered round from the back by the left.)

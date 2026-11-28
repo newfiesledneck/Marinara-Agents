@@ -81,9 +81,25 @@ bodies, which stay as they are with everything made for them. So far it has:
   underwear** on the Clothes tab is ticked to start with; untick it for bare skin as the model has it. Your
   choice is remembered in the browser, so a new or generated avatar starts the way you last left it.
 
-It has no clothes, fitted underwear or beards of separate hairs yet, and its hair doesn't swing yet.
+- Hair that swings (the long styles; the bob at its ends), and a bust and buttocks that move a little as the
+  body does, each with its own switch and amount under **Movement** (below).
+
+It has no clothes, fitted underwear or beards of separate hairs yet.
 Generate and Revise avatar work on it with a menu of its own: its sliders, skin tone, hair, eyes, brows,
 makeup, stubble and nails.
+
+## Movement: hair, bust and buttocks
+
+Long hair swings, and the bust and the buttocks move a little as the body does, in the preview and in a saved
+VRM, on all three bodies. Each has its own controls under **Movement**: the bust and buttocks on the Body tab,
+the hair on the Hair tab.
+
+- The tick box turns a part's movement off. Its spring bones are then left out of the avatar and its saved
+  file.
+- The slider sets how far it moves, from held still at the left to about twice as far at the right. The middle
+  is how it is made.
+
+A build has a bust to move once it stands out: a female build, or a raised breast size on any build.
 
 ## Wardrobe packs
 

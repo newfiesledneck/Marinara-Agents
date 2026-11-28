@@ -26,7 +26,17 @@ const TERMS_KEY = `${PACKAGE_ID}:vrm-terms`; // (the author's VRM terms, the sam
 // (Whether the Realistic body's painted underwear was last turned off: a new avatar starts as the user left it.)
 const BARE_KEY = `${PACKAGE_ID}:real-bare`;
 /** The look's fields that are records, merged part by part when a control changes one part. */
-const RECORDS = ["shape", "limbs", "colours", "makeup", "underwear", "clothColours", "variants", "realShape"];
+const RECORDS = [
+  "shape",
+  "limbs",
+  "colours",
+  "makeup",
+  "underwear",
+  "clothColours",
+  "variants",
+  "realShape",
+  "physics",
+];
 
 const rows = (list) => (Array.isArray(list) ? list : Array.isArray(list?.items) ? list.items : []);
 /** A character card's name: rows keep the card as JSON in `data` (text or already read). */

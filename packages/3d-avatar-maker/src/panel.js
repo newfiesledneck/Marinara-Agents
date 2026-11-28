@@ -66,6 +66,7 @@ import {
   UNDERWEAR_BOTTOMS,
   UNDERWEAR_TOPS,
 } from "./looks.js";
+import { PHYSICS_AMOUNT, PHYSICS_PARTS, physicsOf } from "./physics.js";
 import { hexNumber, hexText } from "./util.js";
 
 /** The terms a VRM file carries (exporter.js vrmTerms), in the words Marinara Engine's 3D Avatars agent shows. */
@@ -395,6 +396,44 @@ export function createPanel(actions) {
     });
 
   /**
+   * The controls for the parts that move on springs (physics.js), for any body: for each of `parts` (the
+   * look's fields: "hair", "bust", "butt") a tick box that makes it move or leaves it still, and while it
+   * moves a slider for how far, with the amount it's made with in the middle.
+   */
+  const movement = (filled, parts) =>
+    parts.flatMap((part) => {
+      const [, name, says] = PHYSICS_PARTS.find(([field]) => field === part);
+      let now = (filled.physics ?? physicsOf(filled))[part];
+      const set = (value, redraw) => {
+        now = { ...now, ...value };
+        change({ physics: { [part]: now } }, redraw);
+      };
+      return [
+        h(
+          "label",
+          { class: "check" },
+          h("input", {
+            type: "checkbox",
+            checked: now.on,
+            onchange: (event) => set({ on: event.target.checked }, true),
+          }),
+          ` ${name} on springs. ${says} Unticked, nothing of this moves, and the spring bones for it are left out of the avatar and its saved file.`,
+        ),
+        now.on
+          ? slider({
+              name: `${name}: how far`,
+              says: `How far it moves. The spring that holds it is that many times as soft, so at the right end it moves about twice as far and at the left end it is held still. In a saved VRM too.`,
+              ends: ["Held still", "Twice as far"],
+              least: PHYSICS_AMOUNT[0],
+              most: PHYSICS_AMOUNT[1],
+              at: now.amount,
+              onInput: (amount) => set({ amount }, false),
+            })
+          : null,
+      ];
+    });
+
+  /**
    * The Realistic body's tabs, in place of the other bodies' (the Start, Generate and Save tabs are shared):
    * its own sliders, its skin's tone and its hair. It has no clothes yet, and says so.
    */
@@ -422,6 +461,11 @@ export function createPanel(actions) {
         "Build",
         "A slider with two ends has the body's own shape in the middle; the others start at the left.",
         ...REALISTIC_SHAPES.filter((entry) => entry[2] === "body").map((entry) => realSlider(entry, filled)),
+      ),
+      group(
+        "Movement",
+        "The bust and the buttocks move a little as the body does, in the preview and in a saved VRM. A build has a bust to move once it stands out: a female build, or the Breast size slider on any build.",
+        ...movement(filled, ["bust", "butt"]),
       ),
     ],
     face: ({ filled }) => [
@@ -484,7 +528,7 @@ export function createPanel(actions) {
     hair: ({ filled }) => [
       group(
         "Hair",
-        "Each style is made of thousands of separate strands. They don't swing yet.",
+        "Each style is made of thousands of separate strands.",
         row(
           "Style",
           select(REALISTIC_HAIR, filled.realHair, (value) => change({ realHair: value }), "Hair style"),
@@ -528,6 +572,11 @@ export function createPanel(actions) {
         "Facial hair",
         "Stubble is painted on the skin. Beards of separate hairs come later.",
         ...stubbleRows(filled),
+      ),
+      group(
+        "Movement",
+        "The long styles swing, the bob a little at its ends, and Slicked back is too short to: its hair stays on the head. The roots stay on the scalp.",
+        ...movement(filled, ["hair"]),
       ),
     ],
     clothes: ({ filled }) => [
@@ -700,6 +749,11 @@ export function createPanel(actions) {
             onInput: (value) => change({ limbs: { [key]: value } }, false),
           }),
         ),
+      ),
+      group(
+        "Movement",
+        "The bust and the buttocks move a little as the body does, in the preview and in a saved VRM, and the clothes over them move with them. A chest has a bust to move once it stands out: hers always, his only at its fullest.",
+        ...movement(filled, ["bust", "butt"]),
       ),
     ],
 
@@ -877,6 +931,11 @@ export function createPanel(actions) {
         colours("Hair colour", HAIR_COLOURS, filled.hairColour, (hex, redraw) =>
           change({ hairTint: hex, hairColour: undefined }, redraw),
         ),
+      ),
+      group(
+        "Movement",
+        "Styles that hang below the head swing: the long ones, the ponytail, the braid and the bobs. A short cut stays as it is either way.",
+        ...movement(filled, ["hair"]),
       ),
     ],
 

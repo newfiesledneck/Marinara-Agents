@@ -39,6 +39,8 @@ import {
   REALISTIC_SHAPES,
   TINT,
 } from "./looks.js";
+import { physicsOf } from "./physics.js";
+import { softParts } from "./realistic-physics.js";
 
 const BODY_FILE = "realistic-body.pack.png";
 const hairFile = (style) => `realistic-hair-${style}.pack.png`;
@@ -700,6 +702,9 @@ export async function createRealistic(look = {}) {
   const weights = sliderWeights(body, filled);
   const { root, bones } = shapedRig(body, weights);
   const hairColour = hairColourOf(filled);
+  // (The hair, bust and buttocks on springs, each with the look's switch and amount: realistic-physics.js.)
+  filled.physics = physicsOf(look);
+  const soft = softParts(body, weights, bones, filled.physics);
   const owned = [];
   let headMoved = body.head.position;
   for (const mesh of body.meshes) {
@@ -718,6 +723,7 @@ export async function createRealistic(look = {}) {
     }
     const { material, letGo } = await materialFor(mesh, filled, hairColour);
     const made = skinned(mesh.piece ?? mesh.part, geometry, material, body.file.joints, bones, root);
+    soft.wear(made, mesh);
     if (moves.length) {
       made.morphTargetDictionary = Object.fromEntries(moves.map((move, i) => [move.name, i]));
       made.morphTargetInfluences = moves.map(() => 0);
@@ -754,6 +760,7 @@ export async function createRealistic(look = {}) {
         made.morphTargetDictionary = Object.fromEntries(mesh.faceMoves.map((move, i) => [move.name, i]));
         made.morphTargetInfluences = mesh.faceMoves.map(() => 0);
       }
+      soft.wearHair(made, mesh);
       owned.push(() => {
         geometry.dispose();
         material.dispose();
@@ -763,6 +770,7 @@ export async function createRealistic(look = {}) {
   const figure = standFigure(root, bones, filled.height);
   figure.springs = [];
   figure.colliders = [];
+  soft.finish(figure);
   figure.dispose = () => {
     for (const letGo of owned) letGo();
     for (const mesh of figure.meshes) mesh.skeleton?.dispose();
