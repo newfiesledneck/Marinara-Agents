@@ -30,6 +30,9 @@ Upliner (the original Antonia rigging), AgentA1CR (node help, eyebrow conversion
   `avatar/avatar-eyes.webp` (MakeHuman's nine and the community's, credited below); the last is the
   character's own iris with its colour taken out, which the maker lays a colour on. The torso and legs also come with
   underwear painted on by ThatOneCan (`-female`: cheeky panties and a strapless bra; `-male`: boxer briefs).
+- `avatar/realistic-paint-<what>.webp`: where makeup, lipstick, stubble and nail colour go on the skin, made by
+  ThatOneCan (`make_realistic.py` `write_paints`; CC0) from the character's own marks: its lips, where its
+  beard grows, how its lids move in a blink, and its nails' own patches of the skin's picture.
 - `avatar/realistic-hair-bob.pack.png`, `-slicked`, `-back`, `-eve`: four of the character's strand hair
   styles, each strand turned into a narrow ribbon; and `avatar/realistic-hair-<style>-scalp.webp`, where the
   scalp lies under each, which the maker paints in the hair's colour.

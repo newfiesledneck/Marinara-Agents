@@ -1845,6 +1845,19 @@ const designColour = (value) => {
   return match ? Number.parseInt(match[1], 16) : undefined;
 };
 
+/** A design's makeup and stubble with their colours read ("#rrggbb" to numbers): { makeup, stubble }. */
+const designPaints = (raw) => ({
+  makeup: isRecord(raw.makeup)
+    ? Object.fromEntries(
+        Object.entries(raw.makeup).map(([layer, entry]) => [
+          layer,
+          isRecord(entry) ? { ...entry, colour: designColour(entry.colour) } : entry,
+        ]),
+      )
+    : undefined,
+  stubble: isRecord(raw.stubble) ? { ...raw.stubble, colour: designColour(raw.stubble.colour) } : undefined,
+});
+
 /** The fields of a look a design for the Realistic body may set (generate.js realisticMenu lists them). */
 export const REALISTIC_FIELDS = [
   "height",
@@ -1855,9 +1868,14 @@ export const REALISTIC_FIELDS = [
   "realBrows",
   "eyePicture",
   "colours",
+  "makeup",
+  "stubble",
+  "toenails",
 ];
+/** The fields of a look only the Realistic body has: a design for another body never sets or is shown them. */
+export const REALISTIC_ONLY = ["realShape", "realTone", "realHair", "realBrows", "realBare"];
 /** The colours of a look the Realistic body uses (the rest are the other bodies'). */
-export const REALISTIC_COLOURS = ["eyes", "brows"];
+export const REALISTIC_COLOURS = ["eyes", "brows", "lips", "nails"];
 
 /**
  * A look the AI designed for the Realistic body, as checked fields: only REALISTIC_FIELDS, each through
@@ -1868,7 +1886,13 @@ export function readRealisticDesign(raw) {
   const colours = isRecord(raw.colours)
     ? Object.fromEntries(REALISTIC_COLOURS.map((field) => [field, designColour(raw.colours[field])]))
     : undefined;
-  const checked = checkLook({ ...raw, body: REALISTIC, hairTint: designColour(raw.hairTint), colours });
+  const checked = checkLook({
+    ...raw,
+    body: REALISTIC,
+    hairTint: designColour(raw.hairTint),
+    colours,
+    ...designPaints(raw),
+  });
   if (checked.colours && !Object.keys(checked.colours).length) delete checked.colours;
   return Object.fromEntries(
     REALISTIC_FIELDS.filter((field) => checked[field] !== undefined).map((field) => [field, checked[field]]),
@@ -1894,16 +1918,8 @@ export function readDesign(raw) {
   } = checkLook({
     ...raw,
     colours: colours(raw.colours),
-    makeup: isRecord(raw.makeup)
-      ? Object.fromEntries(
-          Object.entries(raw.makeup).map(([layer, entry]) => [
-            layer,
-            isRecord(entry) ? { ...entry, colour: colour(entry.colour) } : entry,
-          ]),
-        )
-      : undefined,
+    ...designPaints(raw),
     hairTint: colour(raw.hairTint),
-    stubble: isRecord(raw.stubble) ? { ...raw.stubble, colour: colour(raw.stubble.colour) } : undefined,
     clothColours: isRecord(raw.clothColours)
       ? Object.fromEntries(Object.entries(raw.clothColours).map(([piece, parts]) => [piece, colours(parts)]))
       : undefined,

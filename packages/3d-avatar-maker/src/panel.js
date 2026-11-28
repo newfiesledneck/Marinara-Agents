@@ -295,6 +295,87 @@ export function createPanel(actions) {
     return rows;
   };
 
+  /** The makeup's controls (looks.js MAKEUP_LAYERS): a preset, then each layer's colour and strength. */
+  const makeupGroup = (look, filled) =>
+    group(
+      "Makeup",
+      "On any skin. Each layer is a colour and a strength; at none, the skin is as it is.",
+      row(
+        "Preset",
+        select(
+          [["", "Choose one…"], ["none", "No makeup"], ...MAKEUP_PRESETS.map(([value, label]) => [value, label])],
+          "",
+          (value) => {
+            if (!value) return;
+            const { makeup, lips } = makeupPreset(value);
+            change({ makeup: { $set: makeup }, colours: { lips } });
+          },
+          "Makeup preset",
+        ),
+        "Ready-made makeup. It sets every layer below, which stay adjustable.",
+      ),
+      ...MAKEUP_LAYERS.flatMap(([layer, label, says, list, usual]) => {
+        // (The lipstick's colour is the lips' colour, colours.lips; its strength is makeup.lipstick.)
+        const lipstick = layer === "lipstick";
+        const colour = lipstick ? look.colours?.lips : filled.makeup[layer]?.colour;
+        const amount =
+          colour === undefined ? 0 : lipstick ? (filled.makeup.lipstick?.amount ?? 1) : filled.makeup[layer].amount;
+        const set = (hex, strength) =>
+          lipstick
+            ? {
+                colours: { lips: strength ? hex : undefined },
+                makeup: { lipstick: strength && strength < 1 ? { amount: strength } : undefined },
+              }
+            : { makeup: { [layer]: strength ? { colour: hex, amount: strength } : undefined } };
+        // (The colour and strength as they are now: a slider being dragged doesn't redraw the panel.)
+        let now = { hex: colour ?? list[0][0], strength: amount };
+        const strength = slider({
+          name: `${label} strength`,
+          says: `How strongly the ${label.toLowerCase()} shows, from none to full.`,
+          ends: ["None", "Full"],
+          least: 0,
+          most: 1,
+          at: amount,
+          onInput: (value) => {
+            now = { ...now, strength: value };
+            change(set(now.hex, value), false);
+          },
+        });
+        return [
+          colours(
+            label,
+            list,
+            colour,
+            (hex, redraw) => {
+              // (Picking a colour while there's none puts it on at its usual strength.)
+              const was = now.strength;
+              now = { hex, strength: was || usual };
+              change(set(hex, now.strength), redraw || !was);
+            },
+            says,
+          ),
+          strength,
+        ];
+      }),
+      h(
+        "button",
+        { type: "button", onclick: () => change({ makeup: undefined, colours: { lips: undefined } }) },
+        "No makeup (the skin's own lips)",
+      ),
+    );
+
+  /** The nails' colour, and back to the skin's own: the rows every body's Nails group ends with. */
+  const nailColourRows = (filled) => [
+    ...AVATAR_COLOURS.filter(([field]) => field === "nails").map(([field, label, list, says]) =>
+      colours(label, list, filled.colours[field], (hex, redraw) => change({ colours: { [field]: hex } }, redraw), says),
+    ),
+    h(
+      "button",
+      { type: "button", onclick: () => change({ colours: { nails: undefined } }) },
+      "Back to the skin's own nails",
+    ),
+  ];
+
   /** The change that picks body `value`: the Realistic body, picked for the first time, starts as the build left. */
   const toBody = (value, look, filled) =>
     value === REALISTIC && !look?.realShape
@@ -350,7 +431,7 @@ export function createPanel(actions) {
         ...REALISTIC_SHAPES.filter((entry) => entry[2] === "face").map((entry) => realSlider(entry, filled)),
       ),
     ],
-    skin: ({ filled }) => [
+    skin: ({ look, filled }) => [
       group(
         "Skin",
         "This body has a light skin and a dark one; the slider blends between them. More skins come later.",
@@ -382,6 +463,22 @@ export function createPanel(actions) {
               change({ colours: { eyes: hex } }, redraw),
             )
           : null,
+      ),
+      makeupGroup(look, filled),
+      group(
+        "Nails",
+        "Nail colour is painted on the nails themselves. Left alone, they are the skin's own.",
+        ...nailColourRows(filled),
+        h(
+          "label",
+          { class: "check" },
+          h("input", {
+            type: "checkbox",
+            checked: filled.toenails !== false,
+            onchange: (event) => change({ toenails: event.target.checked ? undefined : false }),
+          }),
+          " Colour the toenails too",
+        ),
       ),
     ],
     hair: ({ filled }) => [
@@ -427,6 +524,11 @@ export function createPanel(actions) {
             )
           : null,
       ),
+      group(
+        "Facial hair",
+        "Stubble is painted on the skin. Beards of separate hairs come later.",
+        ...stubbleRows(filled),
+      ),
     ],
     clothes: ({ filled }) => [
       group(
@@ -435,7 +537,7 @@ export function createPanel(actions) {
       ),
       group(
         "Painted underwear",
-        "Dark underwear painted on the skin: cheeky panties and a strapless bra on a female build, boxer briefs on a male one. It is part of the skin's picture, so nothing can show through it, and it is saved with the avatar.",
+        "Dark underwear painted on the skin: cheeky panties and a strapless bra on a female build, boxer briefs on a male one. It is part of the skin's picture, so nothing can show through it, and it is saved with the avatar. Your choice here is remembered in this browser for the next new or generated avatar.",
         h(
           "label",
           { class: "check" },
@@ -728,72 +830,7 @@ export function createPanel(actions) {
             )
           : null,
       ),
-      group(
-        "Makeup",
-        "On any skin. Each layer is a colour and a strength; at none, the skin is as it is.",
-        row(
-          "Preset",
-          select(
-            [["", "Choose one…"], ["none", "No makeup"], ...MAKEUP_PRESETS.map(([value, label]) => [value, label])],
-            "",
-            (value) => {
-              if (!value) return;
-              const { makeup, lips } = makeupPreset(value);
-              change({ makeup: { $set: makeup }, colours: { lips } });
-            },
-            "Makeup preset",
-          ),
-          "Ready-made makeup. It sets every layer below, which stay adjustable.",
-        ),
-        ...MAKEUP_LAYERS.flatMap(([layer, label, says, list, usual]) => {
-          // (The lipstick's colour is the lips' colour, colours.lips; its strength is makeup.lipstick.)
-          const lipstick = layer === "lipstick";
-          const colour = lipstick ? look.colours?.lips : filled.makeup[layer]?.colour;
-          const amount =
-            colour === undefined ? 0 : lipstick ? (filled.makeup.lipstick?.amount ?? 1) : filled.makeup[layer].amount;
-          const set = (hex, strength) =>
-            lipstick
-              ? {
-                  colours: { lips: strength ? hex : undefined },
-                  makeup: { lipstick: strength && strength < 1 ? { amount: strength } : undefined },
-                }
-              : { makeup: { [layer]: strength ? { colour: hex, amount: strength } : undefined } };
-          // (The colour and strength as they are now: a slider being dragged doesn't redraw the panel.)
-          let now = { hex: colour ?? list[0][0], strength: amount };
-          const strength = slider({
-            name: `${label} strength`,
-            says: `How strongly the ${label.toLowerCase()} shows, from none to full.`,
-            ends: ["None", "Full"],
-            least: 0,
-            most: 1,
-            at: amount,
-            onInput: (value) => {
-              now = { ...now, strength: value };
-              change(set(now.hex, value), false);
-            },
-          });
-          return [
-            colours(
-              label,
-              list,
-              colour,
-              (hex, redraw) => {
-                // (Picking a colour while there's none puts it on at its usual strength.)
-                const was = now.strength;
-                now = { hex, strength: was || usual };
-                change(set(hex, now.strength), redraw || !was);
-              },
-              says,
-            ),
-            strength,
-          ];
-        }),
-        h(
-          "button",
-          { type: "button", onclick: () => change({ makeup: undefined, colours: { lips: undefined } }) },
-          "No makeup (the skin's own lips)",
-        ),
-      ),
+      makeupGroup(look, filled),
       group(
         "Nails",
         "Left alone, their colour follows the skin.",
@@ -815,20 +852,7 @@ export function createPanel(actions) {
           ),
           "Shoes hide them.",
         ),
-        ...AVATAR_COLOURS.filter(([field]) => field === "nails").map(([field, label, list, says]) =>
-          colours(
-            label,
-            list,
-            filled.colours[field],
-            (hex, redraw) => change({ colours: { [field]: hex } }, redraw),
-            says,
-          ),
-        ),
-        h(
-          "button",
-          { type: "button", onclick: () => change({ colours: { nails: undefined } }) },
-          "Back to the skin's own nails",
-        ),
+        ...nailColourRows(filled),
       ),
     ],
 

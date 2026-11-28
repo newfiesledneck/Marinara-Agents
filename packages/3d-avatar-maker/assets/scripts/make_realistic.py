@@ -12,11 +12,13 @@ Writes, for scripts/build-3d-avatar-maker-kit.mjs to pack:
   textures, realistic-hair-<style>-scalp.webp: where the scalp lies under it, to be painted in the hair's colour.
 - assets/textures/realistic/*.webp: the skin (light and dark), its normal and roughness maps, eyes and mouth.
   The torso and legs come bare, and with underwear painted on (panties and a bra, or boxer briefs).
+- assets/textures/realistic/realistic-paint-*.webp: where makeup, stubble and nail colour go on the skin
+  (write_paints).
 
 The character lives outside the repository: in `VITRUVIAN_DATA`, else in
 `_planning/Wanderworld asset packs/Vitruvian/CharMorph-Vitruvian-main` in this folder or any above it.
 
-    blender --background --factory-startup --disable-autoexec --python make_realistic.py [-- body textures hair brows]
+    blender --background --factory-startup --disable-autoexec --python make_realistic.py [-- body textures hair brows paints]
 """
 
 import json
@@ -274,7 +276,23 @@ def read_character():
     mesh.polygons.foreach_get("loop_start", starts)
     mesh.polygons.foreach_get("loop_total", totals)
     shape = np.load(os.path.join(DATA, "morphs", "L1", "Default.npy"), allow_pickle=False).astype(np.float64)
-    return {"faces": faces, "slots": slots, "uv": uv.reshape(-1, 2).astype(np.float64), "starts": starts, "totals": totals, "shape": shape}
+
+    def painted(name):
+        """One of the character's colour attributes, a row for each of its points or corners."""
+        attribute = mesh.color_attributes[name]
+        values = np.empty(len(attribute.data) * 4, dtype=np.float32)
+        attribute.data.foreach_get("color", values)
+        return values.reshape(-1, 4).astype(np.float64)
+
+    # (The lips are marked by corner: a vertex is lip if any corner at it is.)
+    corner_vertex = np.empty(len(mesh.loops), dtype=np.int32)
+    mesh.loops.foreach_get("vertex_index", corner_vertex)
+    lip = np.zeros(len(mesh.vertices))
+    np.maximum.at(lip, corner_vertex, painted("ColLipMask")[:, 0])
+    return {"faces": faces, "slots": slots, "uv": uv.reshape(-1, 2).astype(np.float64), "starts": starts, "totals": totals, "shape": shape,
+            # The character's own marks, for every vertex: its lips, where a beard grows, and where the skin has
+            # no pores (0 there), which is how its nails are told from the skin round them.
+            "lip": lip, "beard": painted("BeardShadowMask")[:, 2], "pores": painted("MicroNormals")[:, 0]}
 
 
 # ── Pictures ────────────────────────────────────────────────────────────────────────────────────────────
@@ -343,16 +361,19 @@ def normal_from_height(height, strength):
     return n * 0.5 + 0.5
 
 
-def place_map(C, tile, size, more=None):
+def place_map(C, tile, size, more=None, only=None, grow=12):
     """Where on the body each texel of `tile` is: (size, size, 3) points of the base shape (rows bottom up), and
     which texels have one. Past an island's edge the nearest point is repeated a few texels out, so what is
     painted by place runs under the seam and no skin shows along it. `more` (a column or more for every vertex)
-    is carried across the faces the same way, in the channels after the place."""
+    is carried across the faces the same way, in the channels after the place. `only`: of these faces alone;
+    `grow`: how many texels out past an edge."""
     shape = C["shape"] if more is None else np.hstack([C["shape"], np.asarray(more, dtype=np.float64).reshape(len(C["shape"]), -1)])
     place = np.zeros((size, size, shape.shape[1]), dtype=np.float64)
     known = np.zeros((size, size), dtype=bool)
     for f, face in enumerate(C["faces"]):
         if C["tiles"][f] != tile or SLOTS[C["slots"][f]] not in ("UDIM.Skin", "charmorph_censor"):
+            continue
+        if only is not None and f not in only:
             continue
         corners = C["uv01"][C["starts"][f] : C["starts"][f] + C["totals"][f]] * size
         points = shape[list(face)]
@@ -376,7 +397,7 @@ def place_map(C, tile, size, more=None):
             window = (slice(lo[1], hi[1] + 1), slice(lo[0], hi[0] + 1))
             place[window][inside] = found[inside]
             known[window][inside] = True
-    for _ in range(12):
+    for _ in range(grow):
         grown = known.copy()
         for axis, step in ((0, 1), (0, -1), (1, 1), (1, -1)):
             near = np.roll(known, step, axis=axis) & ~grown
@@ -674,15 +695,12 @@ def scalp_paint(head, strands):
     return blurred((inner & closed & known).astype(np.float64)[:, :, None], 3)[:, :, 0]
 
 
-def lashes_of(C, shape, blink, eyes):
-    """Eyelashes for both eyes as strands (polylines), with the eye each is on: [(strands, the eye's middle)].
-    A lid's edge is found from the blink: across the eye in steps, the skin a blink brings down furthest is the
-    upper lid's edge, and where that lands when the eye is shut is the lower lid's. Lashes leave the edge
-    forwards and away from the eye, fanned towards the outer corner, shorter at the corners, the upper ones
-    curling up. Rooted on the skin itself, each follows its lid as the eye shuts."""
+def lid_edges(C, shape, blink, eyes):
+    """Each eye's lid edges as lines of points from the nose's side outwards: { side: (upper, lower) }. An edge
+    is found from the blink: across the eye in steps, the skin a blink brings down furthest is the upper lid's
+    edge, and where that lands when the eye is shut is the lower lid's."""
     skin = np.array(sorted({i for f, face in enumerate(C["faces"]) if SLOTS[C["slots"][f]] == "UDIM.Skin" and C["tiles"][f] == 1001 for i in face}))
-    rng = np.random.default_rng(11)
-    out = []
+    out = {}
     for side, sign in (("l", 1), ("r", -1)):
         centre = eyes[side]
         near = skin[(np.abs(shape[skin, 0] - centre[0]) < 0.026) & (np.abs(shape[skin, 2] - centre[2]) < 0.022) & (shape[skin, 1] < centre[1] + 0.006)]
@@ -704,9 +722,33 @@ def lashes_of(C, shape, blink, eyes):
             upper.append(shape[top])
             shut = shape[top] + blink[top]
             lower.append(shape[still[np.argmin(np.linalg.norm(shape[still] - shut, axis=1))]])
+        log(f"  eye {side}: the upper lid's edge {len(upper)} points, a blink brings it down {-drop.min() * 1000:.1f} mm; "
+            f"its rim up to {max(r[0] for r in rims) * 1000:.1f} mm tall and {max(r[1] for r in rims) * 1000:.1f} mm deep")
+        # (Evened out along the lid: from step to step the rim's front is one vertex or its neighbour.)
+        out[side] = tuple(evened(np.array(line)) for line in (upper, lower))
+    return out
+
+
+def evened(line, passes=3):
+    """A line of points with each inner point pulled towards the middle of its neighbours, `passes` times."""
+    line = line.copy()
+    for _ in range(passes):
+        line[1:-1] = 0.25 * line[:-2] + 0.5 * line[1:-1] + 0.25 * line[2:]
+    return line
+
+
+def lashes_of(edges, eyes):
+    """Eyelashes for both eyes as strands (polylines), with the eye each is on: [(strands, the eye's middle)].
+    Lashes leave a lid's edge (lid_edges) forwards and away from the eye, fanned towards the outer corner,
+    shorter at the corners, the upper ones curling up. Rooted on the skin itself, each follows its lid as the
+    eye shuts."""
+    rng = np.random.default_rng(11)
+    out = []
+    for side in ("l", "r"):
+        centre = eyes[side]
         strands = []
         for which, (count, length, curl) in LASHES.items():
-            edge = np.array(upper if which == "upper" else lower)
+            edge = edges[side][0 if which == "upper" else 1]
             along = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(edge, axis=0), axis=1))])
             for k in range(count):
                 t = 0.1 + 0.88 * (k + rng.uniform(0.15, 0.85)) / count  # (none in the corner by the nose)
@@ -721,10 +763,145 @@ def lashes_of(C, shape, blink, eyes):
                 reach = length * (0.55 + 0.45 * math.sin(math.pi * min(1.0, t * 1.15))) * rng.uniform(0.85, 1.1)
                 strands.append(np.array([root + grow * reach * s + np.array([0.0, 0.0, curl]) * reach * 0.5 * s * s
                                          for s in np.linspace(0, 1, LASH_POINTS + 1)]))
-        log(f"  eye {side}: the upper lid's edge {len(upper)} points, a blink brings it down {-drop.min() * 1000:.1f} mm; "
-            f"its rim up to {max(r[0] for r in rims) * 1000:.1f} mm tall and {max(r[1] for r in rims) * 1000:.1f} mm deep")
         out.append((strands, centre))
     return out
+
+
+# ── Paint: where makeup, stubble and nail colour go ─────────────────────────────────────────────────────
+
+PAINT_SIZE = 1024  # a mask's picture
+LINER_SIZE = 2048  # the eyeliner's and the nails': thin lines and small patches
+LINER = (0.0013, 0.0008)  # how far from a lid's edge the eyeliner reaches, upper lid and lower (metres)
+LINER_WING = 0.003  # how far past the outer corner the upper line runs on, along the lid's own line
+SHADOW = (0.04, 0.4)  # the eyeshadow starts where a blink moves the skin this share of its furthest, full from this
+BLUSH = (0.027, 0.017)  # a cheek's blush, half its width and half its height
+BLUSH_AT = (0.016, 0.046)  # its middle: how far out from the eye's, and how far under
+
+
+def to_line(points, line):
+    """How far each of `points` (… x 3) is from a line of points (n x 3): the nearest of its pieces."""
+    least = np.full(points.shape[:-1], np.inf)
+    for a, b in zip(line[:-1], line[1:]):
+        along = b - a
+        t = np.clip(((points - a) @ along) / (along @ along + 1e-18), 0, 1)
+        least = np.minimum(least, np.linalg.norm(points - (a + t[..., None] * along), axis=-1))
+    return least
+
+
+def save_mask(name, mask, known, soften=1):
+    """A mask (0…1, where paint goes) as a picture whose alpha it is, white throughout."""
+    mask = np.where(known, np.clip(mask, 0, 1), 0)
+    if soften:
+        mask = blurred(mask[:, :, None], soften)[:, :, 0]
+    picture = np.ones(mask.shape + (4,), dtype=np.float32)
+    picture[:, :, 3] = mask
+    save_picture(name, picture, 90)
+    return mask
+
+
+def write_paints(C, blink, eyes, edges):
+    """Where paint goes on the skin, each a picture over its tile's (white, the place in its alpha), which the
+    maker lays a colour through (src/realistic.js paintsOf):
+
+    - realistic-paint-lips: the lips, as the character marks them.
+    - realistic-paint-eyeshadow: the upper lids, from the lashes up: the skin a blink moves.
+    - realistic-paint-eyeliner: a line along each lid's edge, the upper one running on past the outer corner.
+    - realistic-paint-blush: a soft patch on each cheek.
+    - realistic-paint-stubble, -moustache, -goatee: where a beard grows as the character marks it, speckled as
+      short hairs are: all of it, the upper lip alone, the upper lip and chin.
+    - realistic-paint-nails (the arms' tile) and realistic-paint-toenails (the legs'): the nails, which the
+      character leaves without pores, each on a patch of the picture of its own."""
+    shape = C["shape"]
+    drop = np.clip(-blink[:, 2], 0, None)
+    more = np.stack([C["lip"], C["beard"], drop / drop.max()], axis=1)
+    place, known = place_map(C, 1001, PAINT_SIZE, more)
+    at, lip, beard, moved = place[:, :, :3], place[:, :, 3], place[:, :, 4], place[:, :, 5]
+    lips = save_mask("realistic-paint-lips", smoothstep(0.3, 0.7, lip), known)
+
+    # Eyeshadow: only by the eyes, and only over the lower lid's edge.
+    by_eye = np.zeros(known.shape)
+    blush = np.zeros(known.shape)
+    for side, sign in (("l", 1), ("r", -1)):
+        eye = eyes[side]
+        across = np.abs(at[:, :, 0] - eye[0])
+        by_eye = np.maximum(by_eye, (1 - smoothstep(0.024, 0.03, across)) * smoothstep(-0.004, 0.0, at[:, :, 2] - eye[2] + 0.004))
+        # Blush: on the front of the cheek under the eye's outer half, rising outwards.
+        dx = (at[:, :, 0] * sign - (eye[0] * sign + BLUSH_AT[0])) / BLUSH[0]
+        dz = (at[:, :, 2] - (eye[2] - BLUSH_AT[1]) - 0.3 * (at[:, :, 0] * sign - eye[0] * sign - BLUSH_AT[0])) / BLUSH[1]
+        front = 1 - smoothstep(eye[1] + 0.03, eye[1] + 0.045, at[:, :, 1])  # (not the side of the head behind it)
+        blush = np.maximum(blush, np.exp(-(dx * dx + dz * dz) * 1.4) * (at[:, :, 0] * sign > 0) * front)
+    shadow = save_mask("realistic-paint-eyeshadow", smoothstep(SHADOW[0], SHADOW[1], moved) * by_eye, known, 2)
+    save_mask("realistic-paint-blush", blush, known, 3)
+
+    liner_place, liner_known = place_map(C, 1001, LINER_SIZE)
+    liner = np.zeros(liner_known.shape)
+    for side, sign in (("l", 1), ("r", -1)):
+        upper, lower = edges[side]
+        # (The upper line runs on past the outer corner, outwards and a little up: a small wing.)
+        onward = upper[-1] - upper[-3]
+        wing = upper[-1] + onward / np.linalg.norm(onward) * LINER_WING + np.array([0.0, 0.0, LINER_WING * 0.3])
+        box = (np.abs(liner_place[:, :, 0] - eyes[side][0]) < 0.04) & (np.abs(liner_place[:, :, 2] - eyes[side][2]) < 0.03)
+        points = liner_place[box]
+        line = 1 - smoothstep(LINER[0] * 0.6, LINER[0], to_line(points, np.vstack([upper, wing])))
+        # (The lower line: the outer two thirds of the lid, fainter.)
+        outer = lower[len(lower) // 3 :]
+        line = np.maximum(line, 0.7 * (1 - smoothstep(LINER[1] * 0.6, LINER[1], to_line(points, outer))))
+        liner[box] = np.maximum(liner[box], line)
+    save_mask("realistic-paint-eyeliner", liner, liner_known)
+
+    # Stubble: the beard's ground, speckled. The mouth is found from the lips.
+    mouth = shape[C["lip"] > 0.5]
+    wide, top, middle = np.abs(mouth[:, 0]).max(), mouth[:, 2].max(), mouth[:, 2].mean()
+    speckle = 0.25 + 0.75 * smoothstep(0.35, 0.8, np.random.default_rng(5).random(known.shape))
+    # (Its edge fades over a few millimetres, and it thins up the cheeks, as a beard's ground does.)
+    cheek = smoothstep(wide * 0.9, wide + 0.02, np.abs(at[:, :, 0])) * smoothstep(middle - 0.01, middle + 0.045, at[:, :, 2])
+    ground = blurred(np.where(known, smoothstep(0.15, 0.6, beard), 0)[:, :, None], 7)[:, :, 0] * (1 - 0.65 * cheek) * speckle
+    narrow = 1 - smoothstep(wide + 0.004, wide + 0.012, np.abs(at[:, :, 0]))
+    under_nose = 1 - smoothstep(top + 0.018, top + 0.024, at[:, :, 2])
+    for name, mask in (("stubble", ground), ("moustache", ground * narrow * under_nose * smoothstep(middle - 0.003, middle + 0.001, at[:, :, 2])),
+                       ("goatee", ground * narrow * under_nose)):
+        kept = save_mask(f"realistic-paint-{name}", mask, known, 0)
+        log(f"  {name}: {kept.mean() * 100:.1f}% of the head's picture")
+    log(f"paint: lips {lips.mean() * 100:.2f}%, eyeshadow {shadow.mean() * 100:.2f}% of the head's picture; the mouth {wide * 2000:.0f} mm wide at {middle:.3f} m")
+
+    # Nails: each has a patch of the picture to itself, without pores (the skin round it is on the hand's or
+    # foot's patch, and stays skin).
+    for name, tile in (("nails", 1003), ("toenails", 1004)):
+        nails = set()
+        for faces in islands(C, tile):
+            points = np.array(sorted({i for f in faces for i in C["faces"][f]}))
+            # (A nail's patch is small, and its points mostly poreless: 77% to 100% of them, as the character has it.)
+            if len(faces) < 120 and (C["pores"][points] < 0.05).mean() > 0.6:
+                nails.update(faces)
+        _place, on_nail = place_map(C, tile, LINER_SIZE, only=nails, grow=2)
+        kept = save_mask(f"realistic-paint-{name}", on_nail.astype(np.float64), on_nail, 0)
+        log(f"  {name}: {len(nails)} faces, {kept.mean() * 100:.2f}% of the tile's picture")
+
+
+def islands(C, tile):
+    """The patches of a tile's picture the skin is laid out in: lists of faces, joined where they share a
+    corner's place in the picture."""
+    parent = {}
+
+    def root(key):
+        while parent.setdefault(key, key) != key:
+            parent[key] = parent[parent[key]]
+            key = parent[key]
+        return key
+
+    first = {}
+    for f, face in enumerate(C["faces"]):
+        if C["tiles"][f] != tile or SLOTS[C["slots"][f]] not in ("UDIM.Skin", "charmorph_censor"):
+            continue
+        corners = C["uv01"][C["starts"][f] : C["starts"][f] + C["totals"][f]]
+        keys = [(i, round(float(u) * 20000), round(float(v) * 20000)) for i, (u, v) in zip(face, corners)]
+        for key in keys[1:]:
+            parent[root(key)] = root(keys[0])
+        first[f] = keys[0]
+    out = {}
+    for f, key in first.items():
+        out.setdefault(root(key), []).append(f)
+    return list(out.values())
 
 
 # ── Meshes, the rig and the files ───────────────────────────────────────────────────────────────────────
@@ -838,7 +1015,7 @@ def main():
 
     if wanted("textures"):
         write_textures(C)
-    if not (wanted("body") or wanted("hair") or wanted("brows")):
+    if not (wanted("body") or wanted("hair") or wanted("brows") or wanted("paints")):
         return
 
     # The joints, and how each slider moves them.
@@ -884,6 +1061,13 @@ def main():
         if per:
             moves[name] = per
     log(f"{len(FACE_MOVES)} face moves, {len(SLIDERS)} sliders")
+
+    eyes_at = {side: joints[f"eye_{side}"] for side in ("l", "r")}
+    edges = lid_edges(C, shape, keys["blink"], eyes_at) if wanted("body") or wanted("paints") else None
+    if wanted("paints"):
+        write_paints(C, keys["blink"], eyes_at, edges)
+    if not (wanted("body") or wanted("hair") or wanted("brows")):
+        return
 
     # The weights: the character's game rig's, gathered onto the maker's bones; each eyeball whole on its own.
     theirs = their_weights(count)
@@ -961,8 +1145,7 @@ def main():
         skin_to(body, rig, weights)
 
         verts, marks, quads = [], [], []
-        eyes_at = {side: joints[f"eye_{side}"] for side in ("l", "r")}
-        for seed, (strands, centre) in enumerate(lashes_of(C, shape, keys["blink"], eyes_at)):
+        for seed, (strands, centre) in enumerate(lashes_of(edges, eyes_at)):
             # (Each lash twice, as two ribbons across each other: one faces away from the eye, one faces forwards,
             # so a lash has some width from the front and from the side. Each strand's own shade is kept apart
             # for the four sets, so the maker can tell a lash's points from the next's.)

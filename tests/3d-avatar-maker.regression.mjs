@@ -2589,7 +2589,7 @@ for (const figure of Object.values(made)) figure.dispose();
     [{ id: "c1", name: "Main", model: "m", isDefault: true }],
   );
   // The menu names what each body has: the kit's sliders, skins, hair, underwear and clothes by slot.
-  const menu = await gen.designMenu();
+  const menu = await gen.designMenu("female");
   for (const word of [
     "eye_tilt:",
     "jaw_forward:",
@@ -2606,6 +2606,24 @@ for (const figure of Object.values(made)) figure.dispose();
   for (const piece of female.clothes.map(({ piece }) => piece))
     assert.ok(menu.includes(`${piece} (`), `${piece} is offered`);
   assert.ok(menu.length < 60000, `the menu stays a size a model reads (${menu.length} characters)`);
+  // Only the body the avatar has: no choice of body, nothing marked as another body's, none of its pieces.
+  const male = await avatarChoices("male");
+  const mens = await gen.designMenu("male");
+  for (const [name, text] of [
+    ["female", menu],
+    ["male", mens],
+  ]) {
+    assert.ok(!/^body: /mu.test(text), `the ${name} menu offers no choice of body`);
+    assert.ok(!/(?:male|female) only\)/u.test(text), `the ${name} menu marks nothing as one body's`);
+    assert.ok(!/real(?:Shape|Tone|Hair|Brows)/u.test(text), `the ${name} menu has none of the Realistic body's fields`);
+  }
+  const hers = female.clothes
+    .map(({ piece }) => piece)
+    .filter((piece) => !male.clothes.some((each) => each.piece === piece));
+  assert.ok(hers.length > 0, "some pieces are the female body's alone");
+  for (const piece of hers) assert.ok(!mens.includes(`${piece} (`), `${piece} isn't offered to the male body`);
+  for (const piece of male.clothes.map(({ piece }) => piece))
+    assert.ok(mens.includes(`${piece} (`), `${piece} is offered to it`);
   // The messages: a portrait, and to revise, the look now and its pictures after it.
   const made = gen.designMessages({
     name: "Mira",
@@ -2635,6 +2653,21 @@ for (const figure of Object.values(made)) figure.dispose();
   assert.match(revise[1].content, /"lipstick":\{"amount":1\}/u, "an amount stays a number");
   assert.match(revise[1].content, /What the user wants changed: older/u);
   assert.equal(gen.designMessages({ name: "A", words: "", menu: "M" })[1].images, undefined, "no pictures, no images");
+  // What's said to the model is the body's own too: no word of clothes for the Realistic body, which has none.
+  for (const mode of ["generate", "revise"]) {
+    const said = (body) =>
+      gen.designMessages({ mode, name: "A", words: "", menu: "M", current: { body }, body })[0].content;
+    assert.match(said("female"), /clothes|dress them/u, `${mode}: a kit body is dressed`);
+    assert.ok(!/clothes|dress/u.test(said("realistic")), `${mode}: the Realistic body isn't told of clothes`);
+  }
+  const shown = gen.lookForModel(
+    checkLook({ body: "male", realShape: { fat: 1 }, realTone: 0.5, realHair: "bob", hair: "bob" }),
+  );
+  assert.deepEqual(
+    Object.keys(shown).sort(),
+    ["body", "hair"],
+    "a kit body's look is shown without the Realistic body's fields",
+  );
   // The answer: JSON past thinking and prose, read as a look of the maker's options only.
   assert.deepEqual(gen.readJson('<think>{"no":1}</think>Here: {"hair": "bob"} done'), { hair: "bob" });
   assert.equal(gen.readJson("no look"), null);
@@ -2648,6 +2681,15 @@ for (const figure of Object.values(made)) figure.dispose();
     avatar: "vrm",
   });
   assert.equal(design.avatar, undefined, "never the avatar a card shows");
+  const other = gen.designedLook(base, {
+    body: "male",
+    realShape: { fat: 1 },
+    realTone: 0.7,
+    realHair: "eve",
+    hair: "bob",
+  });
+  assert.equal(other.look.body, "female", "a design doesn't change the body the avatar has");
+  assert.deepEqual(Object.keys(other.design), ["hair"], "or set what only the Realistic body has");
   assert.equal(look.race, "dwarf");
   assert.equal(look.shape.race_dwarf, 1, "a new race brings its build, as choosing it does");
   assert.equal(look.shape.nose, 0.4);
@@ -2943,6 +2985,76 @@ for (const figure of Object.values(made)) figure.dispose();
     assert.ok(lashColour.r < browColour.r * 0.5, "and the lashes are that colour, darker");
     red.dispose();
   }
+  // Paint on the skin: makeup, lips, stubble and nail colour, each laid through a picture of where in the kit.
+  {
+    const { paintsOf } = await import("../packages/3d-avatar-maker/src/realistic.js");
+    const { Color } = await import("three");
+    const hair = new Color(0x402010);
+    const masks = (part, look) => paintsOf(part, look, hair).map((paint) => paint.mask.replace("realistic-", ""));
+    const plain = { realHair: "bob" };
+    assert.deepEqual(masks("head", plain), ["hair-bob-scalp"], "a plain look paints only the scalp under its hair");
+    assert.deepEqual(masks("head", { realHair: "none" }), [], "and nothing with no hair");
+    for (const part of ["torso", "arms", "legs"]) assert.deepEqual(masks(part, plain), [], `nothing on the ${part}`);
+    const made = {
+      realHair: "none",
+      stubble: { shape: "goatee", density: 0.5 },
+      makeup: {
+        eyeshadow: { colour: 0x6a4fa0, amount: 0.8 },
+        eyeliner: { colour: 0x111111, amount: 1 },
+        blush: { colour: 0xd9838b, amount: 0.5 },
+        lipstick: { amount: 0.5 },
+      },
+      colours: { lips: 0xaa2233, nails: 0xb91c3c },
+    };
+    assert.deepEqual(
+      masks("head", made),
+      ["paint-goatee", "paint-blush", "paint-eyeshadow", "paint-eyeliner", "paint-lips"],
+      "stubble first, then the makeup, the lips last",
+    );
+    const lips = paintsOf("head", made, hair).at(-1);
+    const full = paintsOf("head", { ...made, makeup: {} }, hair).at(-1);
+    assert.equal(lips.colour, "#aa2233");
+    assert.ok(
+      lips.strength > 0 && Math.abs(lips.strength * 2 - full.strength) < 1e-9,
+      "a lipstick at half is half as strong",
+    );
+    assert.ok(lips.body > 0 && lips.body < 1, "makeup is a tint: the skin's own light and dark stay under it");
+    const stubble = (look) => paintsOf("head", { realHair: "none", stubble: look }, hair)[0];
+    assert.ok(
+      stubble({ shape: "heavy", density: 1 }).strength > stubble({ shape: "light", density: 1 }).strength,
+      "heavy stubble is stronger than light",
+    );
+    assert.ok(
+      stubble({ shape: "heavy", density: 1 }).strength > stubble({ shape: "heavy", density: 0.2 }).strength,
+      "and denser is stronger",
+    );
+    assert.notEqual(
+      stubble({ shape: "heavy", density: 1, colour: 0xaa5522 }).colour,
+      stubble({ shape: "heavy", density: 1 }).colour,
+      "stubble takes a colour of its own, else the hair's",
+    );
+    assert.deepEqual(masks("arms", made), ["paint-nails"], "the nails' colour is on the arms' picture");
+    assert.deepEqual(masks("legs", made), ["paint-toenails"], "and the toenails' on the legs'");
+    assert.deepEqual(masks("legs", { ...made, toenails: false }), [], "unless the toenails are left out");
+    for (const style of looks.STUBBLE.map(([shape]) => shape))
+      assert.equal(
+        masks("head", { realHair: "none", stubble: { shape: style } }).length,
+        1,
+        `${style} stubble is painted`,
+      );
+    for (const name of [
+      ...["lips", "eyeshadow", "eyeliner", "blush", "stubble", "moustache", "goatee", "nails", "toenails"],
+    ])
+      assert.ok(
+        (await readFile(join(kitRoot, "avatar", `realistic-paint-${name}.webp`))).length > 1000,
+        `the kit has the picture of where the ${name} go`,
+      );
+    // (A built avatar keeps these fields, so they are saved with it.)
+    const painted = await createAvatar(start(made), "Test", "auto");
+    assert.deepEqual(painted.avatar.makeup.blush, made.makeup.blush);
+    assert.equal(painted.avatar.colours.nails, 0xb91c3c);
+    painted.dispose();
+  }
   // Generate on this body: a menu of its own fields, and a design read as those fields alone, on this body.
   {
     const gen = await import("../packages/3d-avatar-maker/src/generate.js");
@@ -2954,6 +3066,25 @@ for (const figure of Object.values(made)) figure.dispose();
       "its menu offers no clothes and no other body",
     );
     assert.ok(/clothes: a list/u.test(await gen.designMenu("female")), "the other bodies' menu is as it was");
+    for (const field of ["makeup (only for someone who wears it)", "stubble: { shape: light", "lips, nails"])
+      assert.ok(menu.includes(field), `its menu offers ${field.split(/[ :(]/u)[0]}`);
+    const madeUp = gen.designedLook(start({ makeup: { blush: { colour: 0xd9838b, amount: 0.4 } } }), {
+      makeup: { eyeshadow: { colour: "#6a4fa0", amount: 0.7 }, lipstick: { amount: 0.6 } },
+      colours: { lips: "#aa2233", nails: "#b91c3c", skin: "#ffffff" },
+      stubble: { shape: "light", colour: "#553311" },
+      toenails: false,
+    }).look;
+    assert.deepEqual(madeUp.makeup.eyeshadow, { colour: 0x6a4fa0, amount: 0.7 }, "a design's makeup is read");
+    assert.deepEqual(madeUp.makeup.blush, { colour: 0xd9838b, amount: 0.4 }, "over the makeup there was");
+    assert.equal(madeUp.makeup.lipstick.amount, 0.6);
+    assert.deepEqual(
+      [madeUp.colours.lips, madeUp.colours.nails, madeUp.colours.skin],
+      [0xaa2233, 0xb91c3c, undefined],
+      "its lips and nails are this body's colours; another body's colour isn't kept",
+    );
+    assert.equal(madeUp.stubble.colour, 0x553311);
+    assert.equal(madeUp.toenails, false);
+    assert.equal(gen.lookForModel(madeUp).makeup.eyeshadow.colour, "#6a4fa0", "the model is shown colours as text");
     const base = start({ realHair: "bob", realTone: 0.3 });
     const { look: designed, design } = gen.designedLook(base, {
       body: "male",

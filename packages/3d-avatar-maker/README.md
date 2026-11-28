@@ -70,15 +70,20 @@ bodies, which stay as they are with everything made for them. So far it has:
   bodies have.
 - Fourteen brow styles on the Hair tab, in the hair's colour or one of their own, and eyelashes in the brows'
   colour, darker, which close with the eyes.
+- Makeup on the Skin and eyes tab (eyeshadow, eyeliner, blush and lipstick, each a colour and a strength, with
+  the same presets as the other bodies) and a nail colour for fingernails and toenails.
+- Stubble on the Hair tab, painted on the skin: light or heavy, a moustache or goatee shadow, or a short beard.
 - The same blinks, mouth shapes and feelings, the preview's poses and animations, and saving as a VRM or GLB.
 
 - Underwear painted on the skin: cheeky panties and a strapless bra on a female build, boxer briefs on a male
   one (the first
   slider decides which). It is part of the skin's picture, so nothing can show through it. **Painted
-  underwear** on the Clothes tab is ticked to start with; untick it for bare skin as the model has it.
+  underwear** on the Clothes tab is ticked to start with; untick it for bare skin as the model has it. Your
+  choice is remembered in the browser, so a new or generated avatar starts the way you last left it.
 
-It has no clothes, fitted underwear, makeup or nail colours yet, and its hair doesn't swing yet.
-Generate and Revise avatar work on it with a menu of its own: its sliders, skin tone, hair, eyes and brows.
+It has no clothes, fitted underwear or beards of separate hairs yet, and its hair doesn't swing yet.
+Generate and Revise avatar work on it with a menu of its own: its sliders, skin tone, hair, eyes, brows,
+makeup, stubble and nails.
 
 ## Wardrobe packs
 
@@ -172,15 +177,17 @@ design avatars**, and the rest of the maker works the same without it.
 - **Send their portrait too** adds their card picture, at most 768 pixels across, for a model that can see
   pictures. **Use another picture…** sends one you choose instead. If the model refuses pictures, the maker
   asks again with the words alone and says so.
-- **Generate avatar** asks for a whole new look in place of the one on show.
+- **Generate avatar** asks for a whole new look in place of the one on show. It designs for the body the
+  avatar has now, so choose Male, Female or Realistic on the Body tab first.
 - **Revise avatar** sends the avatar's settings as they are now, two pictures of it (whole body and face,
   unless you untick that) and what you write under **What to change**. It asks only for what to change, so
   you can generate, adjust by hand, and then ask for a closer match to the portrait.
 - **Undo the design** puts back the look from before the last design. **The model's last answer** shows
   what came back.
 
-Each call also sends the list of the maker's options, about 15,000 to 35,000 characters depending on the
-wardrobe packs installed, so the model can only choose things the maker has. Anything else in its answer
+Each call also sends the list of the maker's options for the body the avatar has, and no other body's: up
+to about 35,000 characters depending on the wardrobe packs installed. The model can only choose things that
+body has. Anything else in its answer
 is dropped. Nothing is saved in the Engine: the look goes into the maker like any change you make.
 
 ## Credits and licence of what you make

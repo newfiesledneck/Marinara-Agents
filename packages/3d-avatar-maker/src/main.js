@@ -23,6 +23,8 @@ const TAG = `marinara-capability-${PACKAGE_ID}`;
 const DRAFT_KEY = (owner) => `${PACKAGE_ID}:draft:${owner ? `${owner.type}:${owner.id}` : "none"}`;
 const LAST_KEY = `${PACKAGE_ID}:last`;
 const TERMS_KEY = `${PACKAGE_ID}:vrm-terms`; // (the author's VRM terms, the same for every avatar they save)
+// (Whether the Realistic body's painted underwear was last turned off: a new avatar starts as the user left it.)
+const BARE_KEY = `${PACKAGE_ID}:real-bare`;
 /** The look's fields that are records, merged part by part when a control changes one part. */
 const RECORDS = ["shape", "limbs", "colours", "makeup", "underwear", "clothColours", "variants", "realShape"];
 
@@ -79,12 +81,16 @@ const store = {
 
 /** A new avatar's look: the body's own shape, dressed in everyday modern clothes. */
 function startingLook(over = {}) {
-  // (The Realistic body has no clothes yet: it starts bare, as a female build.)
-  if (over.body === REALISTIC) return checkLook({ ...NEUTRAL_LOOK, realShape: { gender: 1 }, ...over });
+  // (The Realistic body has no clothes yet: it starts as a female build, in its painted underwear unless the
+  // user last turned that off.)
+  if (over.body === REALISTIC) return checkLook({ ...NEUTRAL_LOOK, realShape: { gender: 1 }, ...keptBare(), ...over });
   const body = over.body === "male" ? "male" : "female";
   const casual = OUTFIT_PRESETS.find((preset) => preset.name === "Modern casual");
   return checkLook({ ...NEUTRAL_LOOK, body, ...(casual ? outfitLook(casual, body) : {}), ...over });
 }
+
+/** The painted underwear as the user last left it, as a look's field: off ({ realBare: true }), or nothing. */
+const keptBare = () => (store.read(BARE_KEY) === true ? { realBare: true } : {});
 
 /** `patch` laid on `look`: a record's parts are merged (`undefined` clears one; `{ $set }` replaces it all). */
 function patched(look, patch) {
@@ -252,6 +258,10 @@ function mount(element, props) {
 
   const panel = createPanel({
     onChange: (patch, { redraw }) => {
+      // (The painted underwear's switch is the user's standing choice: kept for the next new avatar, and
+      // for an avatar changed to the Realistic body.)
+      if ("realBare" in patch) store.write(BARE_KEY, patch.realBare === true);
+      else if (patch.body === REALISTIC && state.look.body !== REALISTIC) patch = { ...keptBare(), ...patch };
       state.look = patched(state.look, patch);
       state.redraw ||= redraw;
       saveDraft();
