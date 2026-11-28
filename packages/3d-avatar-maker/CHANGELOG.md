@@ -1,5 +1,9 @@
 # 3D Avatar Maker release notes
 
+## 0.1.21 — 2026-11-27
+
+- The Realistic body's painted underwear for a female build is a strapless bra, sitting close under the breasts, and cheeky panties that end where the legs meet. They no longer run down the inner thighs.
+
 ## 0.1.20 — 2026-11-27
 
 - The Realistic body wears underwear painted on its skin: panties and a bra on a female build, boxer briefs on a male one. It is part of the skin's picture, so nothing shows through it in any pose.

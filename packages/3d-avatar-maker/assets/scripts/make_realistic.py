@@ -374,22 +374,24 @@ def smoothstep(e0, e1, x):
     return t * t * (3 - 2 * t)
 
 
-# The painted underwear: dark cloth drawn on the skin's own pictures, so it can never clip. Panties and a bra
-# for a female build, boxer briefs for a male one. Places are the base shape's (metres; x across, y back,
+# The painted underwear: dark cloth drawn on the skin's own pictures, so it can never clip. Cheeky panties and a
+# strapless bra for a female build, boxer briefs for a male one. Places are the base shape's (metres; x across, y back,
 # z up); painted on the skin, they move with it under every slider.
 CLOTH = (0.075, 0.075, 0.085)  # its colour (sRGB)
 CLOTH_TRIM = (0.21, 0.21, 0.23)  # its elastic, hems and seams: a lighter line
 CLOTH_ROUGH = 0.86
 EDGE = 0.0022  # how wide its edge fades (metres)
 HEM = 0.0045  # how wide a hem's lighter line is
-CROTCH = 0.79  # the height the cloth between the legs starts at
+CROTCH = 0.828  # the height the cloth between the legs starts at: just under where the legs meet (below is thigh)
+GUSSET = 0.02  # how far each side of the middle it stays that low, before the leg's line rises
 PANTIES_TOP = 0.958
+PANTIES_SIDE = 0.93  # how high the leg's line is at the hip, front and back (the side is what's left over it)
 BOXERS_TOP = 0.988
 BOXERS_BAND = 0.03  # the boxer briefs' elastic
 BOXERS_LEG = 0.722  # where their legs end
-CUP = (0.08, 0.074)  # a bra cup's half width and half height
-BRA_BAND = (0.07, 0.042)  # its band, from this far under the bust's furthest point forward to this far under
-STRAP = (0.097, 0.0065)  # where a strap crosses the shoulder (from the middle), and its half width
+CUP = (0.08, 0.056)  # a bra cup's half width and half height
+BRA_UNDER = 0.044  # how far under the bust's furthest point forward the bra's lower edge is
+BRA_BACK = 0.008  # how far over it the band's upper edge is, at the sides and back
 
 
 def line(depth, width=HEM):
@@ -398,11 +400,13 @@ def line(depth, width=HEM):
 
 
 def panties(place):
-    """Panties: how deep inside them each place is (metres; under 0 outside), and their lighter trim (0…1)."""
+    """Cheeky panties: how deep inside them each place is (metres; under 0 outside), and their lighter trim
+    (0…1). The leg's line starts between the legs and rises to the hip: straight up the groin's crease in
+    front, and in a curve across the buttocks behind that leaves the lower part of each bare."""
     x, y, z = np.abs(place[..., 0]), place[..., 1], place[..., 2]
-    out = np.maximum(0, x - 0.045)
-    front = CROTCH + 1.0 * out  # (the leg's line: up along the groin's crease to the hip, cut high)
-    back = 0.815 + 0.62 * out  # (lower behind, over the buttocks)
+    out = np.clip((x - GUSSET) / (0.17 - GUSSET), 0, None)
+    front = CROTCH + (PANTIES_SIDE - CROTCH) * out
+    back = CROTCH + 0.003 + (PANTIES_SIDE - CROTCH - 0.003) * out**0.5
     leg = front + (back - front) * smoothstep(-0.02, 0.05, y)
     depth = np.minimum(PANTIES_TOP - z, z - leg)
     return depth, line(depth)
@@ -419,37 +423,36 @@ def boxer_briefs(place):
     return depth, np.maximum(np.maximum(elastic * 0.75, line(z - BOXERS_LEG)), seams * 0.8)
 
 
-def bra(place, bust, shoulder):
-    """A bra: a cup over each breast (`bust`: how far from the middle, and how high, its furthest point forward
-    is), a band under them all the way round, and a strap from each cup over the shoulder (`shoulder`: its
-    height there) and down the back."""
+def bra(place, bust):
+    """A strapless bra: a cup over each breast (`bust`: how far from the middle, and how high, its furthest
+    point forward is), dipping between them, and a band all the way round, its lower edge one line close under
+    the breasts."""
     x, y, z = np.abs(place[..., 0]), place[..., 1], place[..., 2]
     ax, az = bust
-    front = y < 0.02
-    cup = np.where(front, (1 - np.sqrt(((x - ax) / CUP[0]) ** 2 + ((z - az + 0.004) / CUP[1]) ** 2)) * CUP[1], -1.0)
-    band = np.minimum(z - (az - BRA_BAND[0]), (az - BRA_BAND[1]) - z)
-    # (Between the cups, the band rises to join them.)
-    bridge = np.where(front, np.minimum(np.minimum(z - (az - BRA_BAND[0]), (az - 0.018) - z), ax - x), -1.0)
-    up = np.clip((z - (az + CUP[1] * 0.6)) / max(1e-6, shoulder - (az + CUP[1] * 0.6)), 0, 1)
-    across = np.where(front, ax + (STRAP[0] - ax) * up, STRAP[0])
-    strap = np.minimum(STRAP[1] - np.abs(x - across), z - (az - BRA_BAND[1] - 0.004))
-    depth = np.maximum(np.maximum(cup, band), np.maximum(bridge, strap))
+    cup = np.where(y < 0.02, (1 - np.sqrt(((x - ax) / CUP[0]) ** 2 + ((z - az) / CUP[1]) ** 2)) * CUP[1], -1.0)
+    band = (az + BRA_BACK) - z
+    depth = np.minimum(np.maximum(cup, band), z - (az - BRA_UNDER))
     return depth, line(depth, HEM * 0.8)
 
 
 def write_textures(C):
     """The skin's pictures for each tile (light, dark, normal, roughness), the eyes' and the mouth's. The torso's
     and legs' come three ways: bare as the character has them (no suffix), and with underwear painted on for a
-    female build (`-female`: panties and a bra) and for a male one (`-male`: boxer briefs)."""
+    female build (`-female`: panties and a strapless bra) and for a male one (`-male`: boxer briefs)."""
     centres = np.array([C["shape"][list(face)].mean(axis=0) for face in C["faces"]])
     shape = C["shape"]
     # (The bra is hung on the bust's furthest point forward, among the skin the character itself covers there.)
     chest = sorted({i for f, face in enumerate(C["faces"]) if C["slots"][f] == SLOTS.index("charmorph_censor") and centres[f, 2] > 1.1 for i in face})
     furthest = shape[chest][np.argmin(shape[chest, 1])]
     bust = (abs(furthest[0]), furthest[2])
-    over = np.abs(np.abs(shape[:, 0]) - STRAP[0]) < 0.01
-    shoulder = shape[over & (shape[:, 2] < bust[1] + 0.3), 2].max()
-    log(f"the bust {bust[0]:.3f} m from the middle at {bust[1]:.3f} m up; the shoulder under a strap at {shoulder:.3f} m")
+    log(f"the bust {bust[0]:.3f} m from the middle at {bust[1]:.3f} m up")
+    # (What the character itself covers must be under the cloth: counted, to see a garment's cut hasn't bared any.)
+    own = np.array([f for f in range(len(C["faces"])) if C["slots"][f] == SLOTS.index("charmorph_censor")])
+    low = centres[own][centres[own, 2] < 1.1]
+    high = centres[own][centres[own, 2] > 1.1]
+    for name, depth in (("panties", panties(low)[0]), ("boxer briefs", boxer_briefs(low)[0]), ("bra", bra(high, bust)[0])):
+        bare = depth < 0
+        log(f"  the character's own cover outside the {name}: {int(bare.sum())} of {len(depth)} faces" + (f", the lowest at {(low if name != 'bra' else high)[bare][:, 2].min():.3f} m" if bare.any() else ""))
     for tile, part in SKIN_TILES.items():
         size = 2048
         small = 2048 if part == "head" else 1024
@@ -459,7 +462,7 @@ def write_textures(C):
             hers, hers_trim = panties(place)
             his, his_trim = boxer_briefs(place)
             if part == "torso":
-                top, top_trim = bra(place, bust, shoulder)
+                top, top_trim = bra(place, bust)
                 hers_trim = np.where(top > hers, top_trim, hers_trim)
                 hers = np.maximum(hers, top)
             covers = {"": None, "-female": (np.where(known, hers, -1.0), hers_trim), "-male": (np.where(known, his, -1.0), his_trim)}

@@ -67,7 +67,8 @@ bodies, which stay as they are with everything made for them. So far it has:
 - Four hair styles on the Hair tab, each made of thousands of separate strands, in any hair colour.
 - The same blinks, mouth shapes and feelings, the preview's poses and animations, and saving as a VRM or GLB.
 
-- Underwear painted on the skin: panties and a bra on a female build, boxer briefs on a male one (the first
+- Underwear painted on the skin: cheeky panties and a strapless bra on a female build, boxer briefs on a male
+  one (the first
   slider decides which). It is part of the skin's picture, so nothing can show through it. **Painted
   underwear** on the Clothes tab is ticked to start with; untick it for bare skin as the model has it.
 

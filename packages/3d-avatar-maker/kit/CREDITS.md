@@ -23,7 +23,7 @@ Upliner (the original Antonia rigging), AgentA1CR (node help, eyebrow conversion
 - `avatar/realistic-skin-<part>-light.webp`, `-dark.webp`, `-normal.webp`, `-rough.webp`,
   `avatar/realistic-iris.webp`, `realistic-eye.webp`, `realistic-mouth.webp`: the character's textures at a
   browser's size; the normal maps made from its height maps. The torso and legs also come with
-  underwear painted on by ThatOneCan (`-female`: panties and a bra; `-male`: boxer briefs).
+  underwear painted on by ThatOneCan (`-female`: cheeky panties and a strapless bra; `-male`: boxer briefs).
 - `avatar/realistic-hair-bob.pack.png`, `-slicked`, `-back`, `-eve`: four of the character's strand hair
   styles, each strand turned into a narrow ribbon, over a cap of the scalp it grows from.
 

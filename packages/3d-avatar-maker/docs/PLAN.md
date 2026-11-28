@@ -917,7 +917,7 @@ Female bodies and everything fitted to them are untouched: that is the backup, a
 Still to do on it, in the order asked: eyelashes; eye colours; more skins and makeup; clothes and underwear
 refitted to it; hair that swings; the two hair styles left out; the rest of the morphs as sliders.
 
-## Built: painted underwear on the Realistic body, and a switch for it (0.1.20)
+## Built: painted underwear on the Realistic body, and a switch for it (0.1.20, recut in 0.1.21)
 
 Asked for: a switch for the blurred skin, the same for the nipples on a female build; covered to start with,
 as simple underwear thin enough never to clip, perhaps just painted black; the switch takes it off. Then:
@@ -927,10 +927,13 @@ make it look like actual underwear, panties for a female build and boxer briefs 
   legs tiles the script works out where on the body it is (`place_map`: the base shape's points across each
   UV triangle, run a few texels past each island's edge so no skin shows along a seam). Each garment is a
   region of the body in metres, given as how deep inside it a place is, with its lighter trim:
-  `panties` (under a waist line, above a leg line that rises from between the legs along the groin's crease,
-  cut high in front and lower behind, hemmed); `bra` (a cup over each breast hung on the bust's furthest
-  point forward, a band all the way round, a bridge between the cups, and a strap from each cup over the
-  shoulder and down the back); `boxer_briefs` (a wide elastic, legs a hand's width down the thigh, and the
+  `panties` (cheeky: under a waist line, above a leg line that starts just under where the legs meet, at
+  0.828 m on the base shape, and rises to the hip, straight up the groin's crease in front and in a curve
+  across the buttocks behind that leaves their lower part bare; below that line is thigh, which 0.1.20
+  painted); `bra` (strapless: a cup over each breast hung on the bust's furthest point forward, dipping
+  between them, a band all the way round, and one lower edge 4.4 cm under that point, close under the
+  breasts; 0.1.20's had straps and sat 7 cm under); `boxer_briefs` (a wide elastic, legs a hand's width
+  down the thigh, and the
   two seams that shape the front). Inside one, the colour becomes dark cloth, the relief is smoothed and
   the roughness raised. Being the skin's own picture, it moves with every slider and pose and cannot clip.
 - **Three ways** for the torso and the legs (bare, `-female`, `-male`), each a light and dark colour, a
