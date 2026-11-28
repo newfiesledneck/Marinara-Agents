@@ -4,6 +4,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.27",
+          "date": "2026-11-27",
+          "notes": "- The Realistic body has 146 shape sliders, up from 39, in groups on its Body and Face tabs: build, chest and shoulders, waist and hips, arms and hands, legs and feet, neck; head shape, forehead and brow, eyes, nose, cheeks, mouth, chin and jaw, ears.\n- New among them: eyelid shapes (monolid, hooded, crease, how far each lid opens), eye bags, brow ridge, nose bridge, tip and width, lip shapes, chin cleft, jaw corners, ear shapes, skull shape, hand and foot size, fingernail and toenail length, and six more regional feature sets.\n- A **Fantasy** group: pointed ears, slit pupils, fangs, sharp teeth, a forked tongue and no nose.\n- Two sliders are renamed to say what they do: Nose length (how long the nose is) and Nose projection (how far it stands out).",
+          "highlight": false
+        },
+        {
           "version": "0.1.26",
           "date": "2026-11-27",
           "notes": "- The Realistic body's hair swings, and its bust and buttocks move a little as the body does, in the preview and in a saved VRM. The long styles swing, the bob moves at its ends, and Slicked back stays on the head.\n- The buttocks move on the Male and Female bodies too, and tight clothes over them move with them.\n- Each moving part has its own **Movement** controls, on the Body tab (bust, buttocks) and the Hair tab (hair): a tick box that turns it off, and a slider from held still to twice as far. A part turned off leaves its spring bones out of the saved file.",
@@ -115,12 +121,6 @@
           "version": "0.1.08",
           "date": "2026-11-23",
           "notes": "- Hair moves: the long, ponytail, braid, bob and angled bob styles swing as the avatar moves, and settle back into place when it stands still. In a VRM, the 3D Avatars agent and other VRM apps swing them. The head, neck, shoulders, arms and back keep the hair out.\n- A **Moving** pose in the maker's pose list turns the head now and then, so you can see the hair swing. A tail swings in the maker too.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.07",
-          "date": "2026-11-23",
-          "notes": "- The face moves: avatars blink, shape their mouth as they talk, and look happy, angry, sad, relaxed or surprised. In a chat, the 3D Avatars agent plays these on both VRM and GLB files.\n- Teeth and a tongue inside the mouth, seen when it opens.\n- The eyes turn to look. In a VRM, the 3D Avatars agent and other VRM apps move them.\n- A **Face** list under the picture plays it all in the maker: blinking and looking at you, talking, or one expression held.",
           "highlight": false
         }
       ]

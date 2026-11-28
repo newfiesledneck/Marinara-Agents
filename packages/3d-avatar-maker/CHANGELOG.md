@@ -1,5 +1,12 @@
 # 3D Avatar Maker release notes
 
+## 0.1.27 — 2026-11-27
+
+- The Realistic body has 146 shape sliders, up from 39, in groups on its Body and Face tabs: build, chest and shoulders, waist and hips, arms and hands, legs and feet, neck; head shape, forehead and brow, eyes, nose, cheeks, mouth, chin and jaw, ears.
+- New among them: eyelid shapes (monolid, hooded, crease, how far each lid opens), eye bags, brow ridge, nose bridge, tip and width, lip shapes, chin cleft, jaw corners, ear shapes, skull shape, hand and foot size, fingernail and toenail length, and six more regional feature sets.
+- A **Fantasy** group: pointed ears, slit pupils, fangs, sharp teeth, a forked tongue and no nose.
+- Two sliders are renamed to say what they do: Nose length (how long the nose is) and Nose projection (how far it stands out).
+
 ## 0.1.26 — 2026-11-27
 
 - The Realistic body's hair swings, and its bust and buttocks move a little as the body does, in the preview and in a saved VRM. The long styles swing, the bob moves at its ends, and Slicked back stays on the head.

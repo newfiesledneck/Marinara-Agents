@@ -62,7 +62,10 @@ wore one opens on its plain skin with that makeup.
 The Body tab offers a third body, **Realistic body**. It is a different base model from the Male and Female
 bodies, which stay as they are with everything made for them. So far it has:
 
-- 39 shape sliders of its own on the Body and Face tabs, the first a male-to-female slider.
+- 146 shape sliders of its own on the Body and Face tabs, the first a male-to-female slider. They come in
+  groups (build, chest and shoulders, waist and hips, arms and hands, legs and feet, neck; head shape,
+  forehead and brow, eyes, nose, cheeks, mouth, chin and jaw, ears, regional features) and mix freely. A
+  Fantasy group has pointed ears, slit pupils, fangs, sharp teeth, a forked tongue and no nose.
 - A skin tone slider on the Skin and eyes tab, from its light skin to its dark one.
 - Four hair styles on the Hair tab, each made of thousands of separate strands, in any hair colour. The scalp
   under a style is painted in the hair's colour, so no skin shows between the strands.

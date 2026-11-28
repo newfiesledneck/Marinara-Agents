@@ -1063,6 +1063,29 @@ merged here.
 - Not yet: hanging skirts and dresses don't follow the buttocks; the kit bodies' lower cheek, on the thigh's
   bone, moves less than the upper.
 
+## Built: every shape morph the Realistic body's model has, as sliders in groups (0.1.27)
+
+Asked: "there doesn't seem to be much customization for facial and body features; are there more morphs we
+can add?" The character ships 151 shape morphs and 39 were sliders.
+
+- **146 sliders** (`make_realistic.py` `SLIDERS`, `looks.js` `REALISTIC_SHAPES`, the same keys). Left out:
+  `Gender_Male` (the first slider backwards), `Age_Baby` (adults only), `Mouth_NoTeeth`, and the two of the
+  eye's inner corner, which move it under a millimetre. A slider goes both ways where the character's own
+  `morphs.json` says -1 to 1.
+- **Ends from measurement.** Each morph was measured at +1 (how far its points move outwards, sideways,
+  forwards and up) before its ends were worded, which showed `Nose_NoseHeight` lengthens the nose downwards:
+  it is now "Nose length", and `Nose_Potrusion` "Nose projection".
+- **Groups.** A seventh field of `REALISTIC_SHAPES` names each slider's group; `panel.js` `realGroups` draws a
+  tab's groups in the list's order.
+- **Blinks with the lids opened wider** (`realistic.js` `lidBlinks`): the Upper lids and Lower lids sliders
+  move one lid only, so a blink stopped short of shut. A look that uses them gets blinks of its own, which
+  take back what those sliders moved; the lashes take theirs from the skin as ever.
+- **Size.** The body's model went from 17.6 to 34.6 MB and its packed file from 2.3 to 3.2 MB; a slider's key
+  holds only the vertices it moves.
+- Check: the regression test has every slider in a group of one tab, a sample of new ones moving the body,
+  and lids opened wider shutting to the same place in a blink. Looked over on the motions page: pointed ears,
+  fangs, slit pupils, a reshaped skull under hair, and the body sliders.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
