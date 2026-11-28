@@ -979,6 +979,34 @@ chose from the other bodies' lists); it now has a menu of its own.
 - Check: the menu lists every slider and style and no clothes; a design naming another body and clothes
   leaves the Realistic body with only its own fields set.
 
+## Built: eyes, brows and lashes on the Realistic body (0.1.24)
+
+Asked for: eye colours and eyelashes, as the first of the body's own customizing.
+
+- **Eyes.** `make_realistic.py` writes the character's iris with its colour taken out (`grey_iris`,
+  `realistic-iris-grey.webp`, in `assets/` only); the packer lays it beside the middles of the 24 eye pictures
+  of `EYE_PICTURES` in one picture, `kit/avatar/realistic-eyes.webp` (5 by 5 tiles of 256 pixels; ffmpeg
+  xstack). The iris's texture coordinates are fitted to a disc once (`discOf`, `IRIS_FIT`) and moved into the
+  look's tile (`irisUvs`): `eyePicture` names a picture, else the grey tile takes `colours.eyes` as the
+  material's colour (`TINT_BRIGHT` times over, as the grey is dark). The pupil's faces take the iris
+  picture's coordinates too.
+- **Brows.** Each of the character's 14 styles is a file of its own (`realistic-brows-<nn>`, `-- brows` in
+  the script); `realBrows` picks one, the 11th unless told. `colours.brows` colours them, else the hair's
+  colour a little darker.
+- **Lashes.** The character's lash system is empty, so `lashes_of` grows them: a lid's edge is found from
+  the blink (across the eye in steps, of the skin a blink brings down nearly furthest, the lowest and furthest
+  forward is the upper rim's front; where that lands when shut is the lower lid's edge). 110 upper and 46
+  lower an eye, each two crossed ribbons, a piece of the body's file.
+- **Ties.** `strandTies` ties every point of a strand to the head's skin under the strand's root, so hair,
+  brows and lashes move whole with what they grow from, under the sliders and the face's moves. In the kit a
+  ribbon's `v` is 1 at the root (glTF turns Blender's over): until this release the ties and the root-to-tip
+  shading read it the other way, so a lash followed the skin under its tip and didn't shut with the lid.
+- New fields are in `REALISTIC_FIELDS` (`realBrows`, `eyePicture`, `colours` as `REALISTIC_COLOURS`),
+  `realisticMenu` and `checkLook`.
+- Check: the regression test has the lashes come down as far as the lid in a blink, every brow style over the
+  eyes, a brow colour on brows and lashes, and the eye tiles. On the motions page, `view=eyes` and
+  `eyes-side` draw the eyes close up.
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and
@@ -1002,7 +1030,7 @@ chose from the other bodies' lists); it now has a menu of its own.
 
 ## Known rough edges
 
-- The Realistic body: no eyelashes; long hair passes through a body made much heavier than the one it was
+- The Realistic body: the lashes keep their open-eye angle on a shut lid (they move with it but don't turn); long hair passes through a body made much heavier than the one it was
   styled on; the hairline is a cap with a soft edge, which shows as a band where a style is swept back from
   it; the eye's clear front is drawn 30% solid, so the iris is a little darker than its picture.
 

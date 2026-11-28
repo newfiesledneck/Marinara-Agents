@@ -15,7 +15,7 @@
         },
         "id": "3d-avatar-maker",
         "name": "3D Avatar Maker",
-        "version": "0.1.23",
+        "version": "0.1.24",
         "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
         "engine": {
           "min": "2.4.6",
@@ -100,7 +100,22 @@
               "kit/avatar/avatar-male.pack.png",
               "kit/avatar/avatar-male.webp",
               "kit/avatar/realistic-body.pack.png",
+              "kit/avatar/realistic-brows-01.pack.png",
+              "kit/avatar/realistic-brows-02.pack.png",
+              "kit/avatar/realistic-brows-03.pack.png",
+              "kit/avatar/realistic-brows-04.pack.png",
+              "kit/avatar/realistic-brows-05.pack.png",
+              "kit/avatar/realistic-brows-06.pack.png",
+              "kit/avatar/realistic-brows-07.pack.png",
+              "kit/avatar/realistic-brows-08.pack.png",
+              "kit/avatar/realistic-brows-09.pack.png",
+              "kit/avatar/realistic-brows-10.pack.png",
+              "kit/avatar/realistic-brows-11.pack.png",
+              "kit/avatar/realistic-brows-12.pack.png",
+              "kit/avatar/realistic-brows-13.pack.png",
+              "kit/avatar/realistic-brows-14.pack.png",
               "kit/avatar/realistic-eye.webp",
+              "kit/avatar/realistic-eyes.webp",
               "kit/avatar/realistic-hair-back-scalp.webp",
               "kit/avatar/realistic-hair-back.pack.png",
               "kit/avatar/realistic-hair-bob-scalp.webp",
@@ -109,7 +124,6 @@
               "kit/avatar/realistic-hair-eve.pack.png",
               "kit/avatar/realistic-hair-slicked-scalp.webp",
               "kit/avatar/realistic-hair-slicked.pack.png",
-              "kit/avatar/realistic-iris.webp",
               "kit/avatar/realistic-mouth.webp",
               "kit/avatar/realistic-skin-arms-dark.webp",
               "kit/avatar/realistic-skin-arms-light.webp",
@@ -163,8 +177,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "50e73f94c9456bf75ca63951ba8fa2432441492cc34958c9b2eb6a2800d8eafb",
-            "bytes": 1317077
+            "sha256": "4c0dceb8d962be3ca7d4c5a373da65ff6cb1a02d135fadf8e24c26192d69c496",
+            "bytes": 1320017
           },
           {
             "path": "3d-avatar-maker-icon.webp",
@@ -463,13 +477,88 @@
           },
           {
             "path": "kit/avatar/realistic-body.pack.png",
-            "sha256": "1659e4d4e8326371a76427f0b33dd8b48f6a2e0c5267b65bd1e97fe66f9143b0",
-            "bytes": 2404923
+            "sha256": "b5b39a0879b19af3e381c487430b0237bf9cd3856eec7d3af17a5a435cd80682",
+            "bytes": 2297504
+          },
+          {
+            "path": "kit/avatar/realistic-brows-01.pack.png",
+            "sha256": "3b4adc240525d17146de99eaf3aa2c74253956587e1a5b6dcf44a69dcba1fd0b",
+            "bytes": 58977
+          },
+          {
+            "path": "kit/avatar/realistic-brows-02.pack.png",
+            "sha256": "21d560b1910148e666c3d36ff16cd50461b759c5689dc4612f71ce31dc51f1c4",
+            "bytes": 79187
+          },
+          {
+            "path": "kit/avatar/realistic-brows-03.pack.png",
+            "sha256": "d9a6eb49fdaf6814f0fc03df33f831d1e6a9b4e69e8f8541d1d3408655f744af",
+            "bytes": 85719
+          },
+          {
+            "path": "kit/avatar/realistic-brows-04.pack.png",
+            "sha256": "23b4bc33074cf16c321e343909b8ea51fcca137ecea34de6143d275328c2630c",
+            "bytes": 120415
+          },
+          {
+            "path": "kit/avatar/realistic-brows-05.pack.png",
+            "sha256": "203af633618bc8c0a9930435edeec4022c0aabc8fb46b0206c7931e323b40305",
+            "bytes": 88154
+          },
+          {
+            "path": "kit/avatar/realistic-brows-06.pack.png",
+            "sha256": "55d8e69c7f82e97eb6db96d59ead42c4edf5bae39da194e5fd01d1f013ba2def",
+            "bytes": 119427
+          },
+          {
+            "path": "kit/avatar/realistic-brows-07.pack.png",
+            "sha256": "bcabd4d12c7154beac4929ff567ab9b015c65f22fd9855a752a7c731f88f440b",
+            "bytes": 145054
+          },
+          {
+            "path": "kit/avatar/realistic-brows-08.pack.png",
+            "sha256": "0b0c1c1c4b174655a7c27e080f6217a8110e34c10a312c49b7479b56b6911b67",
+            "bytes": 78979
+          },
+          {
+            "path": "kit/avatar/realistic-brows-09.pack.png",
+            "sha256": "b12e669fd1ac3747e500aeddb912525cc2ccba7eb51e4cee05bc6de2e934e0fa",
+            "bytes": 120334
+          },
+          {
+            "path": "kit/avatar/realistic-brows-10.pack.png",
+            "sha256": "6ef2f93a9ddd85b59b19f6f8b497249f944c69738a0b884d9045e4b29e9e3152",
+            "bytes": 143253
+          },
+          {
+            "path": "kit/avatar/realistic-brows-11.pack.png",
+            "sha256": "88ac669c08988a19e81c374d39a85ab587e80815ea8827c4e46cdaac0f683084",
+            "bytes": 140317
+          },
+          {
+            "path": "kit/avatar/realistic-brows-12.pack.png",
+            "sha256": "16e24c1be1d99e657cef27646cd2046b59c161fb833a57a7c64aa5d90e215924",
+            "bytes": 131669
+          },
+          {
+            "path": "kit/avatar/realistic-brows-13.pack.png",
+            "sha256": "51342e93a53285da104c938393c4bcf5ad3b2d3155d6a569d00423bdab7c21fd",
+            "bytes": 94100
+          },
+          {
+            "path": "kit/avatar/realistic-brows-14.pack.png",
+            "sha256": "398eee03a3c158cc3499a3d9ec679231fc0b91720bf1a7d56281f71ac6563e48",
+            "bytes": 154350
           },
           {
             "path": "kit/avatar/realistic-eye.webp",
             "sha256": "96f394f470b86584b487b63770511b3bb1fb1d89c72ac09dff67ad9f5c39d648",
             "bytes": 32524
+          },
+          {
+            "path": "kit/avatar/realistic-eyes.webp",
+            "sha256": "e5da27a9fc2b045b007b98c7058b34f490bad652cb40c97914d2d82e741679ce",
+            "bytes": 265258
           },
           {
             "path": "kit/avatar/realistic-hair-back-scalp.webp",
@@ -510,11 +599,6 @@
             "path": "kit/avatar/realistic-hair-slicked.pack.png",
             "sha256": "c80d7bd879a7ff359ba6bde061174b81770468b60d9713ef0c9b26d88d34c83b",
             "bytes": 534136
-          },
-          {
-            "path": "kit/avatar/realistic-iris.webp",
-            "sha256": "4dae8adfe9e2a12e8eb13d39db70ac6e16fe71a0857ae437373ff8f62317c6c8",
-            "bytes": 41244
           },
           {
             "path": "kit/avatar/realistic-mouth.webp",
@@ -735,9 +819,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-0.1.23.zip",
-        "sha256": "2e4eca4843abde3ecfb2f1a0504e2335de432a7bacbbfb4e0ef7a0ee56fa751a",
-        "bytes": 68397081
+        "url": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artifacts/3d-avatar-maker-0.1.24.zip",
+        "sha256": "a4b747b902b48bb53b85d20492bd4f3f59056f0817cc0aa51ddf1627d2855681",
+        "bytes": 70081824
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker/README.md"
     },

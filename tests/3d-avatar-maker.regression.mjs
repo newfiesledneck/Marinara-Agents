@@ -2717,7 +2717,7 @@ for (const figure of Object.values(made)) figure.dispose();
   const names = figure.meshes.map((mesh) => mesh.name);
   for (const part of [
     ...["skin_head", "skin_torso", "skin_arms", "skin_legs"],
-    ...["mouth", "iris", "pupil", "eye_white", "cornea", "brows", "hair"],
+    ...["mouth", "iris", "eye_white", "cornea", "brows", "lashes", "hair"],
   ])
     assert.ok(names.includes(part), `realistic: has its ${part}`);
   assert.ok(
@@ -2857,6 +2857,91 @@ for (const figure of Object.values(made)) figure.dispose();
           assert.ok((await readFile(join(kitRoot, "avatar", `${name}.webp`))).length > 500, `the kit has ${name}`);
       made.dispose();
     }
+  }
+  // Eyes: an eye picture, or the model's own iris in a colour. Each is a tile of one picture, and the iris's
+  // texture coordinates are moved into the look's tile, the iris's middle in the tile's middle.
+  {
+    const { EYE_PICTURES, TINT } = looks;
+    const tileOf = (of) => {
+      const uv = mesh(of, "iris").geometry.attributes.uv;
+      const box = new Box3();
+      for (let i = 0; i < uv.count; i++) box.expandByPoint(new Vector3(uv.getX(i), uv.getY(i), 0));
+      const middle = box.getCenter(new Vector3());
+      assert.ok(box.max.x - box.min.x < 0.2 && box.max.y - box.min.y < 0.2, "the iris stays inside one tile");
+      return [
+        Math.floor(middle.x * 5),
+        Math.floor(middle.y * 5),
+        +((middle.x * 5) % 1).toFixed(2),
+        +((middle.y * 5) % 1).toFixed(2),
+      ];
+    };
+    const tinted = await createAvatar(start({ colours: { eyes: 0x3f6f8a } }), "Test", "auto");
+    assert.equal(tinted.avatar.eyePicture, TINT, "the eyes start as a colour of one's own");
+    assert.deepEqual(tileOf(tinted), [4, 4, 0.5, 0.5], "a colour is laid on the grey iris, the last tile");
+    const blue = mesh(tinted, "iris").material.color;
+    assert.ok(blue.b > blue.r, "and the iris's material carries the colour");
+    const at = EYE_PICTURES.findIndex(([picture]) => picture === "cat-green");
+    const cat = await createAvatar(start({ eyePicture: "cat-green" }), "Test", "auto");
+    assert.deepEqual(tileOf(cat), [at % 5, Math.floor(at / 5), 0.5, 0.5], "an eye picture is its own tile");
+    assert.equal(mesh(cat, "iris").material.color.getHex(), 0xffffff, "shown as it is");
+    assert.equal(mesh(cat, "iris").material.map.name, "realistic-eyes");
+    assert.ok(
+      (await readFile(join(kitRoot, "avatar", "realistic-eyes.webp"))).length > 50000,
+      "the kit has the irises' picture",
+    );
+    assert.equal(EYE_PICTURES.length, 24, "24 eye pictures and the grey iris fill the picture's 25 tiles");
+    for (const made of [tinted, cat]) made.dispose();
+  }
+  // Brows and lashes: strands tied to the skin under their roots. The lashes shut with the lid, the brows come
+  // in fourteen styles of their own files, in the hair's colour unless given their own.
+  {
+    const { REALISTIC_BROWS, REALISTIC_BROWS_USUAL } = looks;
+    const furthest = (of, name, key) => {
+      const made = mesh(of, name);
+      const moves = made.geometry.morphAttributes.position[made.morphTargetDictionary[key]];
+      let most = 0;
+      for (let i = 0; i < moves.count; i++) most = Math.max(most, -moves.getY(i));
+      return most;
+    };
+    const lid = furthest(figure, "skin_head", "blink");
+    const lash = furthest(figure, "lashes", "blink");
+    assert.ok(lid > 0.006, `realistic: a blink brings the lid down (${(lid * 1000).toFixed(1)} mm)`);
+    assert.ok(
+      lash > lid * 0.85 && lash <= lid + 1e-6,
+      `realistic: the upper lashes come down with it (${(lash * 1000).toFixed(1)} mm)`,
+    );
+    const lashes = mesh(figure, "lashes").geometry;
+    assert.ok(lashes.index.count / 3 > 2000, "realistic: both eyes have their lashes");
+    const lashBox = boxOf(figure, "lashes");
+    const eyeBox = boxOf(figure, "eye_white");
+    assert.ok(
+      lashBox.min.y > eyeBox.min.y - 0.006 && lashBox.max.y < eyeBox.max.y + 0.006 && lashBox.max.z > eyeBox.max.z,
+      "realistic: the lashes are on the lids, in front of the eyes",
+    );
+    assert.equal(figure.avatar.realBrows, REALISTIC_BROWS_USUAL, "the brows start as the model's usual style");
+    assert.equal(checkLook({ body: REALISTIC, realBrows: REALISTIC_BROWS + 1 }).realBrows, undefined);
+    assert.equal(checkLook({ body: REALISTIC, realBrows: 2.5 }).realBrows, undefined, "a brow style is a whole number");
+    assert.equal(checkLook({ body: REALISTIC, realBrows: 3 }).realBrows, 3);
+    const sizes = new Set();
+    for (let style = 1; style <= REALISTIC_BROWS; style++) {
+      const made = await createAvatar(start({ realBrows: style }), "Test", "auto");
+      const brows = mesh(made, "brows");
+      assert.ok(brows.geometry.index.count / 3 > 1000, `realistic: brow style ${style} has its hairs`);
+      const gap = boxOf(made, "brows").getCenter(new Vector3()).y - boxOf(made, "eye_white").getCenter(new Vector3()).y;
+      assert.ok(
+        gap > 0.008 && gap < 0.035,
+        `realistic: brow style ${style} is over the eyes (${(gap * 1000).toFixed(1)} mm up)`,
+      );
+      sizes.add(brows.geometry.attributes.position.count);
+      made.dispose();
+    }
+    assert.ok(sizes.size > REALISTIC_BROWS / 2, "the brow styles are different brows");
+    const red = await createAvatar(start({ colours: { brows: 0xaa2211 } }), "Test", "auto");
+    const browColour = mesh(red, "brows").material.color;
+    const lashColour = mesh(red, "lashes").material.color;
+    assert.ok(browColour.r > browColour.b * 2, "the brows take a colour of their own");
+    assert.ok(lashColour.r < browColour.r * 0.5, "and the lashes are that colour, darker");
+    red.dispose();
   }
   // Generate on this body: a menu of its own fields, and a design read as those fields alone, on this body.
   {

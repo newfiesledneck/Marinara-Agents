@@ -28,20 +28,38 @@ import {
 import { FACE_MOVES } from "./face.js";
 import { standFigure } from "./figure.js";
 import { geometryOf, load, rigOf, texture, urlOf, view } from "./kitfiles.js";
-import { HAIR_COLOURS, NEUTRAL_LOOK, REALISTIC, REALISTIC_HAIR, REALISTIC_SHAPES } from "./looks.js";
+import {
+  EYE_COLOURS,
+  EYE_PICTURES,
+  HAIR_COLOURS,
+  NEUTRAL_LOOK,
+  REALISTIC,
+  REALISTIC_BROWS_USUAL,
+  REALISTIC_HAIR,
+  REALISTIC_SHAPES,
+  TINT,
+} from "./looks.js";
 
 const BODY_FILE = "realistic-body.pack.png";
 const hairFile = (style) => `realistic-hair-${style}.pack.png`;
+const browsFile = (style) => `realistic-brows-${String(style).padStart(2, "0")}.pack.png`;
 /** How smooth each part is (0 a mirror, 1 chalk) where no picture says, and whether both its sides are drawn. */
 const ROUGHNESS = {
   mouth: 0.35,
-  iris: 0.35,
-  pupil: 0.6,
+  iris: 0.7, // (matt: its middle is the pupil, which a shine would turn grey; the glint is the clear front's)
   eye_white: 0.25,
   cornea: 0.03,
   brows: 0.6,
+  lashes: 0.5,
   hair: 0.45,
 };
+// The irises' picture (realistic-eyes.webp, scripts/build-3d-avatar-maker-kit.mjs): EYES_ACROSS tiles each way,
+// the eye pictures' in looks.js EYE_PICTURES' order and then the model's own in grey, each with the iris's
+// middle in its tile's middle and its edge IRIS_FIT of the tile's width out (make_realistic.py IRIS_FIT).
+const EYES_ACROSS = 5;
+const IRIS_FIT = 0.47;
+const TINT_BRIGHT = 1.5; // (the grey iris is mid grey: a colour is laid on it this much brighter)
+const LASH_SHADE = 0.3; // how bright the lashes are, of the brows' colour
 const SCALP_SHADE = 0.62; // how bright the scalp is painted under the hair, of the hair's own colour
 const CORNEA_SOLID = 0.3; // how much of the clear front of the eye's glint is kept (it's drawn see-through)
 const CARRY_CELL = 0.012; // metres: the cells the head's skin is sorted into, to find the skin nearest a brow hair
@@ -119,6 +137,91 @@ function nearestOf(points, skin) {
   return { ids, shares };
 }
 
+/**
+ * The irises' texture coordinates as places in a tile of the irises' picture: the iris's middle at the tile's
+ * middle, its edge IRIS_FIT out (x, y each, 0…1).
+ */
+function discOf(uv) {
+  let [left, right, top, bottom] = [Infinity, -Infinity, Infinity, -Infinity];
+  for (let at = 0; at < uv.length; at += 2) {
+    left = Math.min(left, uv[at]);
+    right = Math.max(right, uv[at]);
+    top = Math.min(top, uv[at + 1]);
+    bottom = Math.max(bottom, uv[at + 1]);
+  }
+  const radius = Math.max(right - left, bottom - top) / 2 || 1;
+  return Float32Array.from(
+    uv,
+    (value, at) => 0.5 + ((value - (at % 2 ? (top + bottom) / 2 : (left + right) / 2)) / radius) * IRIS_FIT,
+  );
+}
+
+/** The irises' texture coordinates for tile `tile` of the irises' picture (made once a tile and kept). */
+function irisUvs(mesh, tile) {
+  if (!mesh.tiles.has(tile)) {
+    const [column, row] = [tile % EYES_ACROSS, Math.floor(tile / EYES_ACROSS)];
+    mesh.tiles.set(
+      tile,
+      new BufferAttribute(
+        Float32Array.from(mesh.disc, (value, at) => ((at % 2 ? row : column) + value) / EYES_ACROSS),
+        2,
+      ),
+    );
+  }
+  return mesh.tiles.get(tile);
+}
+
+/** Which tile of the irises' picture the look's eyes are: an eye picture's, or the grey one a colour is laid on. */
+const eyeTile = (look) => {
+  const at = EYE_PICTURES.findIndex(([picture]) => picture === look.eyePicture);
+  return at >= 0 ? at : EYE_PICTURES.length;
+};
+
+/**
+ * Ties for a mesh of strands (hair, brows, lashes: ribbons whose `u` is their strand's own shade and whose `v`
+ * runs from 1 at the root to 0 at the tip, as the kit's files have it): every point tied to the `skin` under
+ * its strand's root, so a strand moves whole with the skin it grows from and keeps its shape. A strand's points
+ * come one after another: where `u` changes a new strand starts, and its root is the point with the most `v`.
+ */
+function strandTies(geometry, skin) {
+  const position = geometry.attributes.position.array;
+  const uv = geometry.attributes.uv.array;
+  const count = position.length / 3;
+  const strandOf = new Uint32Array(count);
+  const roots = [];
+  for (let start = 0; start < count;) {
+    let end = start;
+    let rootAt = start;
+    while (end < count && Math.abs(uv[end * 2] - uv[start * 2]) < 1e-4) {
+      if (uv[end * 2 + 1] > uv[rootAt * 2 + 1]) rootAt = end;
+      strandOf[end] = roots.length / 3;
+      end++;
+    }
+    roots.push(position[rootAt * 3], position[rootAt * 3 + 1], position[rootAt * 3 + 2]);
+    start = end;
+  }
+  const each = nearestOf(Float32Array.from(roots), skin);
+  const tied = { ids: new Uint32Array(count * CARRY_NEAREST), shares: new Float32Array(count * CARRY_NEAREST) };
+  for (let v = 0; v < count; v++)
+    for (let k = 0; k < CARRY_NEAREST; k++) {
+      tied.ids[v * CARRY_NEAREST + k] = each.ids[strandOf[v] * CARRY_NEAREST + k];
+      tied.shares[v * CARRY_NEAREST + k] = each.shares[strandOf[v] * CARRY_NEAREST + k];
+    }
+  return tied;
+}
+
+/** The face's moves (face.js FACE_MOVES) for a mesh tied to the head's skin: each as the skin under it moves. */
+function tiedFaceMoves(body, tied, length) {
+  return FACE_MOVES.map((key) => {
+    if (!body.head.morphs[key]) return null;
+    const moves = new Float32Array(length);
+    carry(moves, tied, wholeMove(body.head, key), 1);
+    const attribute = new BufferAttribute(moves, 3);
+    attribute.name = key;
+    return attribute;
+  });
+}
+
 let kit = null;
 /**
  * The body from the kit, read once and shared: each of its meshes with its points as floats, its shape keys,
@@ -136,12 +239,14 @@ async function bodyKit() {
         position: geometry.attributes.position.array,
         normal: geometry.attributes.normal.array,
         morphs: morphsOf(mesh),
+        disc: mesh.part === "iris" ? discOf(geometry.attributes.uv.array) : null,
+        tiles: new Map(),
       };
     });
     const head = meshes.find((mesh) => mesh.part === "skin_head");
     for (const mesh of meshes) {
-      // (A piece on the face has no keys of its own: it moves as the skin under it does.)
-      mesh.tied = mesh.piece && head ? nearestOf(mesh.position, head.position) : null;
+      // (A piece on the face, the lashes, has no keys of its own: each lash moves as the skin under its root does.)
+      mesh.tied = mesh.piece && head ? strandTies(mesh.geometry, head.position) : null;
       mesh.faceMoves = FACE_MOVES.map((key) => {
         const moves = new Float32Array(mesh.position.length);
         const own = mesh.morphs[key];
@@ -363,14 +468,17 @@ function paintsOf(part, look, hair) {
 }
 
 let strandMap = null;
-/** The hair ribbons' picture: across it each strand's own shade, along it the strand from root (darker) to tip. */
+/**
+ * The hair ribbons' picture: across it each strand's own shade, along it the strand from tip to root (darker;
+ * the kit's ribbons have `v` 1 at the root).
+ */
 function strandPicture() {
   if (!strandMap) {
     const size = 64;
     const data = new Uint8Array(size * size * 4);
     for (let y = 0; y < size; y++)
       for (let x = 0; x < size; x++) {
-        const along = y / (size - 1);
+        const along = 1 - y / (size - 1);
         const shade = 0.74 + 0.26 * Math.abs((Math.sin(x * 12.9898) * 43758.5453) % 1);
         const value = shade * (0.6 + 0.4 * Math.min(1, along * 3.5));
         data.set([value * 255, value * 255, value * 255, 255], (y * size + x) * 4);
@@ -411,9 +519,15 @@ async function materialFor(mesh, look, hair) {
   }
   const base = { name: part, roughness: ROUGHNESS[part] ?? 0.6, metalness: 0 };
   if (part === "mouth") return { material: new MeshStandardMaterial({ ...base, map: texture("realistic-mouth") }) };
-  if (part === "iris") return { material: new MeshStandardMaterial({ ...base, map: texture("realistic-iris") }) };
+  if (part === "iris") {
+    // (An eye picture as it is; the grey iris in the look's eye colour.)
+    const tinted = eyeTile(look) === EYE_PICTURES.length;
+    const colour = tinted
+      ? new Color().setHex(look.colours?.eyes ?? EYE_COLOURS[1][0], SRGBColorSpace).multiplyScalar(TINT_BRIGHT)
+      : new Color(0xffffff);
+    return { material: new MeshStandardMaterial({ ...base, map: texture("realistic-eyes"), color: colour }) };
+  }
   if (part === "eye_white") return { material: new MeshStandardMaterial({ ...base, map: texture("realistic-eye") }) };
-  if (part === "pupil") return { material: new MeshStandardMaterial({ ...base, color: 0x050505 }) };
   if (part === "cornea")
     return {
       material: new MeshStandardMaterial({
@@ -424,10 +538,19 @@ async function materialFor(mesh, look, hair) {
         depthWrite: false,
       }),
     };
-  if (part === "brows")
+  if (part === "brows" || part === "lashes") {
+    // (The brows in their own colour, else the hair's a little darker; the lashes darker than the brows.)
+    const brows = Number.isInteger(look.colours?.brows)
+      ? new Color().setHex(look.colours.brows, SRGBColorSpace)
+      : hair.clone().multiplyScalar(0.8);
     return {
-      material: new MeshStandardMaterial({ ...base, color: hair.clone().multiplyScalar(0.8), side: DoubleSide }),
+      material: new MeshStandardMaterial({
+        ...base,
+        color: part === "lashes" ? brows.multiplyScalar(LASH_SHADE) : brows,
+        side: DoubleSide,
+      }),
     };
+  }
   if (part === "hair")
     return { material: new MeshStandardMaterial({ ...base, color: hair, map: strandPicture(), side: DoubleSide }) };
   return { material: new MeshStandardMaterial({ ...base, side: FrontSide }) };
@@ -443,52 +566,33 @@ function skinned(name, geometry, material, joints, bones, root) {
   return mesh;
 }
 
-const hairKits = new Map();
+const strandKits = new Map();
 /**
- * A hair style from the kit, read once and shared: its ribbons, each point tied to the head's skin under
- * its strand's root, so a strand moves whole with the scalp it grows from and keeps its shape.
+ * A file of strands from the kit (a hair style, a brow style), read once and shared: its ribbons, each point
+ * tied to the head's skin under its strand's root (strandTies). `faces`: also the face's moves for it, as the
+ * skin under it moves (the brows rise and fall with the face; hair on the scalp doesn't).
  */
-function hairKit(body, style) {
-  if (!hairKits.has(style))
-    hairKits.set(
-      style,
-      load(hairFile(style)).then((file) => ({
-        file,
-        meshes: file.meshes.map((packed) => {
-          const geometry = geometryOf(packed);
+function strandKit(body, file, faces = false) {
+  if (!strandKits.has(file))
+    strandKits.set(
+      file,
+      load(file).then((packed) => ({
+        file: packed,
+        meshes: packed.meshes.map((each) => {
+          const geometry = geometryOf(each);
           const position = geometry.attributes.position.array;
-          if (packed.part !== "hair")
-            return { part: packed.part, geometry, position, tied: nearestOf(position, body.head.position) };
-          // (A strand's points come one after another and share its shade, which the picture's `u` is: where
-          // `u` changes a new strand starts. Its root is the point furthest back along it, the least `v`. One
-          // tie a strand, for its root, then given to each of its points.)
-          const uv = geometry.attributes.uv.array;
-          const count = position.length / 3;
-          const strandOf = new Uint32Array(count);
-          const roots = [];
-          for (let start = 0; start < count;) {
-            let end = start;
-            let rootAt = start;
-            while (end < count && Math.abs(uv[end * 2] - uv[start * 2]) < 1e-4) {
-              if (uv[end * 2 + 1] < uv[rootAt * 2 + 1]) rootAt = end;
-              strandOf[end] = roots.length / 3;
-              end++;
-            }
-            roots.push(position[rootAt * 3], position[rootAt * 3 + 1], position[rootAt * 3 + 2]);
-            start = end;
-          }
-          const each = nearestOf(Float32Array.from(roots), body.head.position);
-          const tied = { ids: new Uint32Array(count * CARRY_NEAREST), shares: new Float32Array(count * CARRY_NEAREST) };
-          for (let v = 0; v < count; v++)
-            for (let k = 0; k < CARRY_NEAREST; k++) {
-              tied.ids[v * CARRY_NEAREST + k] = each.ids[strandOf[v] * CARRY_NEAREST + k];
-              tied.shares[v * CARRY_NEAREST + k] = each.shares[strandOf[v] * CARRY_NEAREST + k];
-            }
-          return { part: packed.part, geometry, position, tied };
+          const tied = strandTies(geometry, body.head.position);
+          return {
+            part: each.part,
+            geometry,
+            position,
+            tied,
+            faceMoves: faces ? tiedFaceMoves(body, tied, position.length).filter(Boolean) : [],
+          };
         }),
       })),
     );
-  return hairKits.get(style);
+  return strandKits.get(file);
 }
 
 /** What the kit has for this body: what the maker's controls offer (avatar.js avatarChoices, for the other bodies). */
@@ -521,6 +625,8 @@ export async function createRealistic(look = {}) {
     realTone: Math.max(0, Math.min(1, Number(look.realTone) || 0)),
     realHair: REALISTIC_HAIR.some(([style]) => style === look.realHair) ? look.realHair : REALISTIC_HAIR[1][0],
     realBare: look.realBare === true,
+    eyePicture: look.eyePicture ?? TINT,
+    realBrows: Number.isInteger(look.realBrows) ? look.realBrows : REALISTIC_BROWS_USUAL,
     height: Number.isFinite(look.height) ? look.height : 1,
   };
   const weights = sliderWeights(body, filled);
@@ -535,6 +641,7 @@ export async function createRealistic(look = {}) {
     geometry.setAttribute("position", new BufferAttribute(position, 3));
     geometry.setAttribute("normal", new BufferAttribute(normal, 3));
     for (const name of ["uv", "skinIndex", "skinWeight"]) geometry.setAttribute(name, mesh.geometry.attributes[name]);
+    if (mesh.disc) geometry.setAttribute("uv", irisUvs(mesh, eyeTile(filled)));
     geometry.setIndex(mesh.geometry.index);
     const moves = mesh.faceMoves.filter(Boolean);
     if (moves.length) {
@@ -554,12 +661,14 @@ export async function createRealistic(look = {}) {
       letGo?.();
     });
   }
-  if (filled.realHair !== "none") {
-    const hair = await hairKit(body, filled.realHair);
-    // (How far the sliders moved each point of the head's skin: what the hair on it is carried by.)
-    const headMove = new Float32Array(headMoved.length);
-    for (let i = 0; i < headMove.length; i++) headMove[i] = headMoved[i] - body.head.position[i];
-    for (const mesh of hair.meshes) {
+  // The hair and the brows: strands from files of their own, carried by the skin the sliders moved.
+  const headMove = new Float32Array(headMoved.length);
+  for (let i = 0; i < headMove.length; i++) headMove[i] = headMoved[i] - body.head.position[i];
+  const strands = [[browsFile(filled.realBrows), true]];
+  if (filled.realHair !== "none") strands.push([hairFile(filled.realHair), false]);
+  for (const [file, faces] of strands) {
+    const kept = await strandKit(body, file, faces);
+    for (const mesh of kept.meshes) {
       const position = mesh.position.slice();
       carry(position, mesh.tied, headMove, 1);
       const geometry = new BufferGeometry();
@@ -567,8 +676,16 @@ export async function createRealistic(look = {}) {
       for (const name of ["normal", "uv", "skinIndex", "skinWeight"])
         geometry.setAttribute(name, mesh.geometry.attributes[name]);
       geometry.setIndex(mesh.geometry.index);
+      if (mesh.faceMoves.length) {
+        geometry.morphAttributes.position = mesh.faceMoves;
+        geometry.morphTargetsRelative = true;
+      }
       const { material } = await materialFor(mesh, filled, hairColour);
-      const made = skinned(mesh.part, geometry, material, hair.file.joints, bones, root);
+      const made = skinned(mesh.part, geometry, material, kept.file.joints, bones, root);
+      if (mesh.faceMoves.length) {
+        made.morphTargetDictionary = Object.fromEntries(mesh.faceMoves.map((move, i) => [move.name, i]));
+        made.morphTargetInfluences = mesh.faceMoves.map(() => 0);
+      }
       owned.push(() => {
         geometry.dispose();
         material.dispose();

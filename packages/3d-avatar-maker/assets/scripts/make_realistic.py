@@ -6,7 +6,8 @@ not run or copied.
 Writes, for scripts/build-3d-avatar-maker-kit.mjs to pack:
 
 - assets/models/realistic-body.glb: the body on the maker's own bone names, with the face's moves and the
-  shape sliders as shape keys, and its brows; realistic-body.json beside it (how each slider moves the joints).
+  shape sliders as shape keys, and its eyelashes; realistic-body.json beside it (how each slider moves the joints).
+- assets/models/realistic-brows-<nn>.glb: each of its brow styles, as narrow ribbons.
 - assets/models/realistic-hair-<style>.glb: each of its strand hair styles as narrow ribbons; and in the
   textures, realistic-hair-<style>-scalp.webp: where the scalp lies under it, to be painted in the hair's colour.
 - assets/textures/realistic/*.webp: the skin (light and dark), its normal and roughness maps, eyes and mouth.
@@ -15,7 +16,7 @@ Writes, for scripts/build-3d-avatar-maker-kit.mjs to pack:
 The character lives outside the repository: in `VITRUVIAN_DATA`, else in
 `_planning/Wanderworld asset packs/Vitruvian/CharMorph-Vitruvian-main` in this folder or any above it.
 
-    blender --background --factory-startup --disable-autoexec --python make_realistic.py [-- body textures hair]
+    blender --background --factory-startup --disable-autoexec --python make_realistic.py [-- body textures hair brows]
 """
 
 import json
@@ -180,7 +181,13 @@ HAIR = {
     "back": ("Back1", 4, 1, 0.0026),
     "eve": ("Eve", 4, 1, 0.0026),
 }
-BROWS = "mind_eyebrows_11_Default"
+# The brow styles: Mindfront's, as the character has them ("mind_eyebrows_01" … "_14"; the 11th is its usual).
+BROW_STYLES = {n: f"mind_eyebrows_{n:02d}" + ("_Default" if n == 11 else "") for n in range(1, 15)}
+# Eyelashes: grown here along each lid's edge, as the character's own lash system is empty. For the upper lid
+# and the lower: how many, how long (metres), and which way they curl (up, or a little down).
+LASHES = {"upper": (110, 0.0068, 0.6), "lower": (46, 0.0034, -0.4)}
+LASH_WIDTH = 0.00028
+LASH_POINTS = 4
 HAIR_POINTS = 11
 BROW_POINTS = 5
 BROW_WIDTH = 0.00017
@@ -445,6 +452,65 @@ def bra(place, bust):
     return depth, line(depth, HEM * 0.8)
 
 
+IRIS_FIT = 0.47  # the iris's edge in an eye picture, from its middle (of the picture's width): the maker's too
+IRIS_SIZE = 256
+
+
+def iris_disc(C):
+    """The iris in its own picture: (its middle, its radius), in the picture's 0..1 (the model's UVs, v up)."""
+    corners = np.concatenate([C["uv01"][C["starts"][f] : C["starts"][f] + C["totals"][f]]
+                              for f in range(len(C["faces"])) if SLOTS[C["slots"][f]] == "Iris"])
+    low, high = corners.min(axis=0), corners.max(axis=0)
+    return (low + high) / 2, float((high - low).max() / 2)
+
+
+def pupil_uvs(C):
+    """The pupils' corners given UVs that carry on the iris's picture across them (corner index -> uv): each
+    eye's iris is flat-on to its picture, so one fit of place to UV for an eye serves its pupil too. An eye
+    picture then shows its own pupil, round or slit, where the model had a black disc of its own."""
+    shape = C["shape"]
+    fits = {}
+    for sign in (1, -1):
+        places, uvs = [], []
+        for f, face in enumerate(C["faces"]):
+            if SLOTS[C["slots"][f]] != "Iris" or shape[face[0], 0] * sign < 0:
+                continue
+            for k, vertex in enumerate(face):
+                places.append([shape[vertex, 0], shape[vertex, 2], 1.0])
+                uvs.append(C["uv01"][C["starts"][f] + k])
+        fits[sign] = np.linalg.lstsq(np.array(places), np.array(uvs), rcond=None)[0]
+    out = {}
+    for f, face in enumerate(C["faces"]):
+        if SLOTS[C["slots"][f]] != "Pupil":
+            continue
+        fit = fits[1 if shape[face[0], 0] > 0 else -1]
+        for k, vertex in enumerate(face):
+            out[C["starts"][f] + k] = np.array([shape[vertex, 0], shape[vertex, 2], 1.0]) @ fit
+    return out
+
+
+def grey_iris(C):
+    """The model's own iris as a grey picture the maker tints, laid out as the eye pictures are: the iris's
+    middle in the picture's middle, its edge IRIS_FIT out, a black pupil the size of the model's own."""
+    centre, radius = iris_disc(C)
+    source = to_srgb(exr("Iris_Color.1007", 1024)[:, :, :3])
+    grey = source @ np.array([0.299, 0.587, 0.114])
+    at = (np.arange(IRIS_SIZE) + 0.5) / IRIS_SIZE
+    nu, nv = np.meshgrid(at, at)
+    u = centre[0] + (nu - 0.5) / IRIS_FIT * radius
+    v = centre[1] + (nv - 0.5) / IRIS_FIT * radius
+    rows = np.clip((v * 1024).astype(int), 0, 1023)
+    columns = np.clip((u * 1024).astype(int), 0, 1023)
+    picture = grey[rows, columns]
+    out = np.hypot(nu - 0.5, nv - 0.5) / IRIS_FIT  # (0 the middle, 1 the iris's edge)
+    pupil = np.array([np.linalg.norm(uv - centre) for uv in pupil_uvs(C).values()]).max() / radius
+    ring = (out > pupil * 1.25) & (out < 0.85)
+    picture = np.clip(picture / max(1e-6, picture[ring].mean()) * 0.62, 0, 1)
+    picture *= 1 - 0.55 * smoothstep(0.86, 1.0, out)  # (the darker ring round an iris)
+    picture *= smoothstep(pupil * 0.96, pupil * 1.12, out)  # (the pupil)
+    return np.repeat(picture[:, :, None], 3, axis=2)
+
+
 def write_textures(C):
     """The skin's pictures for each tile (light, dark, normal, roughness), the eyes' and the mouth's. The torso's
     and legs' come three ways: bare as the character has them (no suffix), and with underwear painted on for a
@@ -500,7 +566,7 @@ def write_textures(C):
             orm[:, :, 2] = 0
             save_picture(f"realistic-skin-{part}-rough{suffix}", orm, 80)
         log(f"skin pictures: {part} ({len(covers)} of each)")
-    save_picture("realistic-iris", to_srgb(exr("Iris_Color.1007", 1024)[:, :, :3]))
+    save_picture("realistic-iris-grey", grey_iris(C), 92)
     save_picture("realistic-eye", to_srgb(exr("Sclera_Color.1005", 1024)[:, :, :3]))
     save_picture("realistic-mouth", to_srgb(exr("Mouth_Color.1008", 1024)[:, :, :3]))
     log("eye and mouth pictures")
@@ -547,15 +613,16 @@ def strands_of(haired, style, children, every):
     return [co[a : b + 1] for a, b in zip(starts, ends) if b - a >= 2][::every]
 
 
-def ribbons(strands, centre, points, width, seed=7, taper_from=0.7):
+def ribbons(strands, centre, points, width, seed=7, taper_from=0.7, least=0.003):
     """Each strand as a flat ribbon lying along the head (its face turned away from `centre`): vertices,
-    quads, and for each vertex (a shade of its strand's own, how far along the strand it is)."""
+    quads, and for each vertex (a shade of its strand's own, how far along the strand it is). A strand shorter than
+    `least` is left out."""
     rng = np.random.default_rng(seed)
     verts, marks, faces = [], [], []
     for strand in strands:
         steps = np.linalg.norm(np.diff(strand, axis=0), axis=1)
         length = np.concatenate([[0], np.cumsum(steps)])
-        if length[-1] < 0.003:
+        if length[-1] < least:
             continue
         at = np.linspace(0, length[-1], points)
         line = np.stack([np.interp(at, length, strand[:, k]) for k in range(3)], axis=1)
@@ -605,6 +672,59 @@ def scalp_paint(head, strands):
     inset = max(1, int(round(SCALP_INSET / max(1e-6, float(np.median(texel))))))
     inner = blurred((closed | ~known).astype(np.float64)[:, :, None], inset)[:, :, 0] > 1 - 1e-6
     return blurred((inner & closed & known).astype(np.float64)[:, :, None], 3)[:, :, 0]
+
+
+def lashes_of(C, shape, blink, eyes):
+    """Eyelashes for both eyes as strands (polylines), with the eye each is on: [(strands, the eye's middle)].
+    A lid's edge is found from the blink: across the eye in steps, the skin a blink brings down furthest is the
+    upper lid's edge, and where that lands when the eye is shut is the lower lid's. Lashes leave the edge
+    forwards and away from the eye, fanned towards the outer corner, shorter at the corners, the upper ones
+    curling up. Rooted on the skin itself, each follows its lid as the eye shuts."""
+    skin = np.array(sorted({i for f, face in enumerate(C["faces"]) if SLOTS[C["slots"][f]] == "UDIM.Skin" and C["tiles"][f] == 1001 for i in face}))
+    rng = np.random.default_rng(11)
+    out = []
+    for side, sign in (("l", 1), ("r", -1)):
+        centre = eyes[side]
+        near = skin[(np.abs(shape[skin, 0] - centre[0]) < 0.026) & (np.abs(shape[skin, 2] - centre[2]) < 0.022) & (shape[skin, 1] < centre[1] + 0.006)]
+        drop = blink[near, 2]
+        across = (shape[near, 0] - centre[0]) * sign  # (from the nose's side of the eye outwards)
+        moving = drop < drop.min() * 0.5
+        steps = np.linspace(across[moving].min(), across[moving].max(), 20)
+        upper, lower, rims = [], [], []
+        still = near[drop > drop.min() * 0.08]
+        for a, b in zip(steps[:-1], steps[1:]):
+            inside = np.flatnonzero((across >= a) & (across <= b) & (drop < drop.min() * 0.25))
+            if not len(inside):
+                continue
+            # (The lid's rim comes down together, front and back of it and a little of the lid above: of what
+            # comes down nearly as far as the furthest, the lowest and furthest forward is the rim's front.)
+            rim = near[inside[drop[inside] <= drop[inside].min() * 0.85]]
+            top = rim[np.argmin(shape[rim, 2] + shape[rim, 1])]
+            rims.append((np.ptp(shape[rim, 2]), np.ptp(shape[rim, 1])))
+            upper.append(shape[top])
+            shut = shape[top] + blink[top]
+            lower.append(shape[still[np.argmin(np.linalg.norm(shape[still] - shut, axis=1))]])
+        strands = []
+        for which, (count, length, curl) in LASHES.items():
+            edge = np.array(upper if which == "upper" else lower)
+            along = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(edge, axis=0), axis=1))])
+            for k in range(count):
+                t = 0.1 + 0.88 * (k + rng.uniform(0.15, 0.85)) / count  # (none in the corner by the nose)
+                root = np.array([np.interp(t * along[-1], along, edge[:, c]) for c in range(3)])
+                ahead = np.array([np.interp(min(along[-1], t * along[-1] + 0.001), along, edge[:, c]) for c in range(3)])
+                tangent = ahead - root
+                tangent /= np.linalg.norm(tangent) + 1e-12
+                away = root - centre
+                away /= np.linalg.norm(away) + 1e-12
+                grow = 0.4 * away + np.array([0.0, -0.85, 0.0]) + np.array([0.0, 0.0, 0.22 * curl]) + tangent * (t - 0.4) * 0.6
+                grow /= np.linalg.norm(grow)
+                reach = length * (0.55 + 0.45 * math.sin(math.pi * min(1.0, t * 1.15))) * rng.uniform(0.85, 1.1)
+                strands.append(np.array([root + grow * reach * s + np.array([0.0, 0.0, curl]) * reach * 0.5 * s * s
+                                         for s in np.linspace(0, 1, LASH_POINTS + 1)]))
+        log(f"  eye {side}: the upper lid's edge {len(upper)} points, a blink brings it down {-drop.min() * 1000:.1f} mm; "
+            f"its rim up to {max(r[0] for r in rims) * 1000:.1f} mm tall and {max(r[1] for r in rims) * 1000:.1f} mm deep")
+        out.append((strands, centre))
+    return out
 
 
 # ── Meshes, the rig and the files ───────────────────────────────────────────────────────────────────────
@@ -718,7 +838,7 @@ def main():
 
     if wanted("textures"):
         write_textures(C)
-    if not (wanted("body") or wanted("hair")):
+    if not (wanted("body") or wanted("hair") or wanted("brows")):
         return
 
     # The joints, and how each slider moves them.
@@ -803,7 +923,7 @@ def main():
     rig = make_rig(joints, tails)
 
     if wanted("body"):
-        # The parts: the skin by its texture tile, the mouth, each eye's white, clear front, iris and pupil.
+        # The parts: the skin by its texture tile, the mouth, each eye's white, clear front and iris (with its pupil).
         sclera_alpha = exr("Sclera_Color.1005", 1024)[:, :, 3]
         part_names, part_of, keep = [], [], []
         for f, face in enumerate(faces):
@@ -814,19 +934,24 @@ def main():
                 u, v = centre_uv[f] - np.floor(centre_uv[f])
                 clear = sclera_alpha[min(1023, int(v * 1024)), min(1023, int(u * 1024))] < 0.5
                 part = "cornea" if clear else "eye_white"
-            elif slot in ("Iris", "Pupil", "Mouth"):
-                part = slot.lower()
+            elif slot in ("Iris", "Pupil"):
+                part = "iris"  # (the pupil is the middle of the iris's picture: pupil_uvs)
+            elif slot == "Mouth":
+                part = "mouth"
             else:
                 continue  # (the tear line: a wet glint plain shading can't give)
             if part not in part_names:
                 part_names.append(part)
             part_of.append(part_names.index(part))
             keep.append(f)
-        LOOKS = {"cornea": ((0.0, 0.0, 0.0, 1.0), 0.03, 0.3), "pupil": ((0.004, 0.004, 0.004, 1.0), 0.6, 1.0),
+        LOOKS = {"cornea": ((0.0, 0.0, 0.0, 1.0), 0.03, 0.3),
                  "eye_white": ((0.8, 0.8, 0.8, 1.0), 0.25, 1.0), "iris": ((0.8, 0.8, 0.8, 1.0), 0.35, 1.0),
                  "mouth": ((0.8, 0.8, 0.8, 1.0), 0.35, 1.0)}
         materials = [plain_material(name, *LOOKS.get(name, ((0.8, 0.8, 0.8, 1.0), 0.6, 1.0))) for name in part_names]
-        loop_uvs = np.concatenate([C["uv01"][C["starts"][f] : C["starts"][f] + C["totals"][f]] for f in keep])
+        corners = C["uv01"].copy()
+        for corner, uv in pupil_uvs(C).items():
+            corners[corner] = uv
+        loop_uvs = np.concatenate([corners[C["starts"][f] : C["starts"][f] + C["totals"][f]] for f in keep])
         body = new_mesh("realistic-body", shape, [faces[f] for f in keep], loop_uvs=loop_uvs, materials=materials, material_index=part_of)
         log(f"body: {len(keep)} faces in parts {', '.join(part_names)}")
         body.shape_key_add(name="Basis")
@@ -835,17 +960,36 @@ def main():
             key.data.foreach_set("co", (shape + delta).astype(np.float32).ravel())
         skin_to(body, rig, weights)
 
-        strands = strands_of(haired, BROWS, 0, 1)
-        verts, marks, quads = ribbons(strands, head_centre, BROW_POINTS, BROW_WIDTH, taper_from=0.5)
-        brows = new_mesh("realistic-brows", verts, quads, uvs_per_vertex=marks, materials=[plain_material("brows", (0.07, 0.045, 0.03, 1.0), 0.55)])
-        skin_to(brows, rig, "Head")
-        log(f"brows: {len(strands)} strands, {len(quads) * 2} triangles")
-        export(os.path.join(MODELS, "realistic-body.glb"), [rig, body, brows])
+        verts, marks, quads = [], [], []
+        eyes_at = {side: joints[f"eye_{side}"] for side in ("l", "r")}
+        for seed, (strands, centre) in enumerate(lashes_of(C, shape, keys["blink"], eyes_at)):
+            # (Each lash twice, as two ribbons across each other: one faces away from the eye, one faces forwards,
+            # so a lash has some width from the front and from the side. Each strand's own shade is kept apart
+            # for the four sets, so the maker can tell a lash's points from the next's.)
+            for turn, towards in enumerate((centre, centre + np.array([0.0, 0.6, 0.0]))):
+                more, their_marks, their_quads = ribbons(strands, towards, LASH_POINTS, LASH_WIDTH, seed=20 + seed, taper_from=0.2, least=0.0008)
+                quads += [tuple(i + len(verts) for i in quad) for quad in their_quads]
+                marks += [(0.01 + 0.24 * (seed * 2 + turn + mark[0]), mark[1]) for mark in their_marks]
+                verts += more
+        lashes = new_mesh("realistic-lashes", verts, quads, uvs_per_vertex=marks, materials=[plain_material("lashes", (0.02, 0.015, 0.012, 1.0), 0.5)])
+        skin_to(lashes, rig, "Head")
+        log(f"lashes: {len(quads) // (LASH_POINTS - 1) // 2} of them, {len(quads) * 2} triangles")
+        export(os.path.join(MODELS, "realistic-body.glb"), [rig, body, lashes])
         with open(os.path.join(MODELS, "realistic-body.json"), "w", encoding="utf8") as f:
             json.dump({"source": "make_realistic.py", "jointMoves": moves,
                        "sliders": [[name, -1 if both else 0, 1] for name, _source, both in SLIDERS]}, f, separators=(",", ":"))
         bpy.data.objects.remove(body)
-        bpy.data.objects.remove(brows)
+        bpy.data.objects.remove(lashes)
+
+    if wanted("brows"):
+        for n, style in BROW_STYLES.items():
+            strands = strands_of(haired, style, 0, 1)
+            verts, marks, quads = ribbons(strands, head_centre, BROW_POINTS, BROW_WIDTH, taper_from=0.5)
+            brows = new_mesh(f"realistic-brows-{n:02d}", verts, quads, uvs_per_vertex=marks, materials=[plain_material("brows", (0.07, 0.045, 0.03, 1.0), 0.55)])
+            skin_to(brows, rig, "Head")
+            log(f"brows {n}: {len(strands)} strands, {len(quads) * 2} triangles")
+            export(os.path.join(MODELS, f"realistic-brows-{n:02d}.glb"), [rig, brows])
+            bpy.data.objects.remove(brows)
 
     if wanted("hair"):
         head = place_map(C, 1001, SCALP_SIZE)

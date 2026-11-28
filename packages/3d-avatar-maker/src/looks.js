@@ -254,6 +254,8 @@ export function checkLook(raw) {
   }
   if (Number.isFinite(raw.realTone)) look.realTone = Math.max(0, Math.min(1, Number(raw.realTone)));
   if (REALISTIC_HAIR.some(([style]) => style === raw.realHair)) look.realHair = raw.realHair;
+  if (Number.isInteger(raw.realBrows) && raw.realBrows >= 1 && raw.realBrows <= REALISTIC_BROWS)
+    look.realBrows = raw.realBrows;
   // (Its painted underwear is on unless this is set.)
   if (raw.realBare === true) look.realBare = true;
   // Which kind of body (missing: a human, unless lore or their race says otherwise), and a dragon's wings.
@@ -479,6 +481,9 @@ export const REALISTIC_SHAPES = [
   ],
   ["features_white", "White features", "face", "Mixes in a face and skull shape.", ["None", "Full"], false],
 ];
+/** The Realistic body's brow styles (kit/avatar/realistic-brows-<nn>): how many, and the one it has unless told. */
+export const REALISTIC_BROWS = 14;
+export const REALISTIC_BROWS_USUAL = 11;
 /** The Realistic body's hair: strand styles turned into ribbons (kit/avatar/realistic-hair-<style>). */
 export const REALISTIC_HAIR = [
   ["none", "None"],
@@ -1841,7 +1846,18 @@ const designColour = (value) => {
 };
 
 /** The fields of a look a design for the Realistic body may set (generate.js realisticMenu lists them). */
-export const REALISTIC_FIELDS = ["height", "realShape", "realTone", "realHair", "hairTint"];
+export const REALISTIC_FIELDS = [
+  "height",
+  "realShape",
+  "realTone",
+  "realHair",
+  "hairTint",
+  "realBrows",
+  "eyePicture",
+  "colours",
+];
+/** The colours of a look the Realistic body uses (the rest are the other bodies'). */
+export const REALISTIC_COLOURS = ["eyes", "brows"];
 
 /**
  * A look the AI designed for the Realistic body, as checked fields: only REALISTIC_FIELDS, each through
@@ -1849,7 +1865,11 @@ export const REALISTIC_FIELDS = ["height", "realShape", "realTone", "realHair", 
  */
 export function readRealisticDesign(raw) {
   if (!isRecord(raw)) return {};
-  const checked = checkLook({ ...raw, body: REALISTIC, hairTint: designColour(raw.hairTint) });
+  const colours = isRecord(raw.colours)
+    ? Object.fromEntries(REALISTIC_COLOURS.map((field) => [field, designColour(raw.colours[field])]))
+    : undefined;
+  const checked = checkLook({ ...raw, body: REALISTIC, hairTint: designColour(raw.hairTint), colours });
+  if (checked.colours && !Object.keys(checked.colours).length) delete checked.colours;
   return Object.fromEntries(
     REALISTIC_FIELDS.filter((field) => checked[field] !== undefined).map((field) => [field, checked[field]]),
   );

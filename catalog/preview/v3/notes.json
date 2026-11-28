@@ -4,6 +4,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.24",
+          "date": "2026-11-27",
+          "notes": "- The Realistic body has eye colours on its Skin and eyes tab: any colour on its own iris, or one of the 24 eye pictures the other bodies have.\n- It has eyelashes, which close with the eyes, and fourteen brow styles on its Hair tab. The brows are the hair's colour unless you give them their own; the lashes are the brows' colour, darker.\n- Its hair is darker at the roots than at the tips. It was the other way round.\n- Generate and Revise avatar can choose its eye colour or picture, its brow style and its brow colour.",
+          "highlight": false
+        },
+        {
           "version": "0.1.23",
           "date": "2026-11-27",
           "notes": "- **Generate** and **Revise avatar** work on the Realistic body: the model is given that body's own sliders, skin tone and hair styles, and the avatar stays the Realistic body. Before, generating swapped it for the Male or Female body.\n- The paint under the Realistic body's hair starts a little inside the hairline, so no painted band shows on the forehead or at the temples.",
@@ -115,12 +121,6 @@
           "version": "0.1.05",
           "date": "2026-11-23",
           "notes": "- Took out two skins, Mid-toned and Viking tattoos. Their material files say AGPL-3, which doesn't match the CC0 their catalogue gives. An avatar saved with one of them opens with the default skin instead.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.04",
-          "date": "2026-11-23",
-          "notes": "- New places to wear things: glasses, a face mask, earrings, rings and socks. The new Accessories pack fills them, and adds gloves and two hats.\n- Gloves hide rings, and socks hide the toenails, the way gloves and shoes already hide the nails.",
           "highlight": false
         }
       ]
