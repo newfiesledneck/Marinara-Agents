@@ -10,7 +10,7 @@
   },
   "id": "3d-avatar-maker",
   "name": "3D Avatar Maker",
-  "version": "0.1.21",
+  "version": "0.1.22",
   "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
   "engine": {
     "min": "2.4.6",
@@ -96,9 +96,13 @@
         "kit/avatar/avatar-male.webp",
         "kit/avatar/realistic-body.pack.png",
         "kit/avatar/realistic-eye.webp",
+        "kit/avatar/realistic-hair-back-scalp.webp",
         "kit/avatar/realistic-hair-back.pack.png",
+        "kit/avatar/realistic-hair-bob-scalp.webp",
         "kit/avatar/realistic-hair-bob.pack.png",
+        "kit/avatar/realistic-hair-eve-scalp.webp",
         "kit/avatar/realistic-hair-eve.pack.png",
+        "kit/avatar/realistic-hair-slicked-scalp.webp",
         "kit/avatar/realistic-hair-slicked.pack.png",
         "kit/avatar/realistic-iris.webp",
         "kit/avatar/realistic-mouth.webp",
@@ -154,8 +158,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "672462f203d24c6e9c3bbe0d155d81ab1eacb82078687309dfa70136f5d4ed22",
-      "bytes": 1315538
+      "sha256": "8262106bf04fdc475f3f32d99b3d0b1e01137b1a426209ea49aa580adaf6f3e3",
+      "bytes": 1315835
     },
     {
       "path": "3d-avatar-maker-icon.webp",
@@ -463,24 +467,44 @@
       "bytes": 32524
     },
     {
+      "path": "kit/avatar/realistic-hair-back-scalp.webp",
+      "sha256": "c569f235a54eeafd948acec18eb22e796f028b325a34e5625d67662ae714677d",
+      "bytes": 1990
+    },
+    {
       "path": "kit/avatar/realistic-hair-back.pack.png",
-      "sha256": "f05ee39a9761e7ff618358463ecfb4c95ba1b509043cb362ec2755027d4c7b43",
-      "bytes": 534666
+      "sha256": "1d82877ad8b09c70e0751e9721d0e4d6d0c5c4b1bf9611d01e334406e398ce8c",
+      "bytes": 524726
+    },
+    {
+      "path": "kit/avatar/realistic-hair-bob-scalp.webp",
+      "sha256": "709604a2860419cf3bcd0825d7d9f2355b04e5793b7d15741a801da4a99c0e9f",
+      "bytes": 1938
     },
     {
       "path": "kit/avatar/realistic-hair-bob.pack.png",
-      "sha256": "98e4c46cbb34e28fa4ff960a23d87545698007044338b7adb83f90a0de93252d",
-      "bytes": 594063
+      "sha256": "b5f7855674d0b4583db1d46a1997b703f1417dcfb3cf95fdf1b07225bc783b51",
+      "bytes": 586955
+    },
+    {
+      "path": "kit/avatar/realistic-hair-eve-scalp.webp",
+      "sha256": "9318d99f29619aed2fbc410d130e34a8cd0ee916b239e6a6161d7851fb5c16e4",
+      "bytes": 1978
     },
     {
       "path": "kit/avatar/realistic-hair-eve.pack.png",
-      "sha256": "db3d052f325efc260e1905f6b728fa5618c7c7071984ff00944d2bf45c3293d5",
-      "bytes": 572458
+      "sha256": "660fee6d9623c30f1fa6bdfe9d04e362654a08bc70e43d632a9fbeedee8e2890",
+      "bytes": 562734
+    },
+    {
+      "path": "kit/avatar/realistic-hair-slicked-scalp.webp",
+      "sha256": "8107e200914bd3569545dbb19a7daff1d6c9c49a891e9b2d8a749a5527bfcd52",
+      "bytes": 2466
     },
     {
       "path": "kit/avatar/realistic-hair-slicked.pack.png",
-      "sha256": "e56fe46f6dbc6c4e2acbfb05bdece51fc3680df81b66db9d3db7601d72946c5c",
-      "bytes": 540775
+      "sha256": "c80d7bd879a7ff359ba6bde061174b81770468b60d9713ef0c9b26d88d34c83b",
+      "bytes": 534136
     },
     {
       "path": "kit/avatar/realistic-iris.webp",

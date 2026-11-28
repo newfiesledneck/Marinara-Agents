@@ -2717,7 +2717,7 @@ for (const figure of Object.values(made)) figure.dispose();
   const names = figure.meshes.map((mesh) => mesh.name);
   for (const part of [
     ...["skin_head", "skin_torso", "skin_arms", "skin_legs"],
-    ...["mouth", "iris", "pupil", "eye_white", "cornea", "brows", "hair", "scalp"],
+    ...["mouth", "iris", "pupil", "eye_white", "cornea", "brows", "hair"],
   ])
     assert.ok(names.includes(part), `realistic: has its ${part}`);
   assert.ok(
@@ -2784,19 +2784,19 @@ for (const figure of Object.values(made)) figure.dispose();
       gap > -0.002 && gap < 0.02,
       `realistic, ${name}: the hair sits on the head (${(gap * 1000).toFixed(1)} mm over it)`,
     );
-    const cap = boxOf(made, "scalp").max.y - boxOf(made, "skin_head").max.y;
-    assert.ok(
-      cap > -0.003 && cap < 0.004,
-      `realistic, ${name}: the scalp cap lies on the scalp (${(cap * 1000).toFixed(1)} mm)`,
-    );
     made.dispose();
   }
   // Every hair style loads; none is none.
   for (const [style] of REALISTIC_HAIR) {
     const made = await createAvatar(start({ realHair: style }), "Test", "auto");
     const hair = mesh(made, "hair");
-    if (style === "none") assert.ok(!hair && !mesh(made, "scalp"), "realistic: no hair is no hair");
-    else assert.ok(hair.geometry.index.count / 3 > 20000, `realistic: the ${style} style has its strands`);
+    if (style === "none") assert.ok(!hair, "realistic: no hair is no hair");
+    else {
+      assert.ok(hair.geometry.index.count / 3 > 20000, `realistic: the ${style} style has its strands`);
+      // (The scalp under it is painted in the hair's colour, from a picture of where it lies.)
+      const scalp = await readFile(join(kitRoot, "avatar", `realistic-hair-${style}-scalp.webp`));
+      assert.ok(scalp.length > 1000, `realistic: the kit has the ${style} style's scalp picture`);
+    }
     made.dispose();
   }
 

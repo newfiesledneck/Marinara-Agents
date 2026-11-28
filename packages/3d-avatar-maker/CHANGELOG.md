@@ -1,5 +1,10 @@
 # 3D Avatar Maker release notes
 
+## 0.1.22 — 2026-11-27
+
+- The Realistic body's scalp is painted in the hair's colour where a style's hair grows, up to its hairline, so skin no longer shows between the strands from the side, above or behind.
+- The patchy, blocky edge that showed at the temples and hairline is gone.
+
 ## 0.1.21 — 2026-11-27
 
 - The Realistic body's painted underwear for a female build is a strapless bra, sitting close under the breasts, and cheeky panties that end where the legs meet. They no longer run down the inner thighs.

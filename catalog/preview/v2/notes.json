@@ -4,6 +4,12 @@
     "3d-avatar-maker": {
       "versions": [
         {
+          "version": "0.1.22",
+          "date": "2026-11-27",
+          "notes": "- The Realistic body's scalp is painted in the hair's colour where a style's hair grows, up to its hairline, so skin no longer shows between the strands from the side, above or behind.\n- The patchy, blocky edge that showed at the temples and hairline is gone.",
+          "highlight": false
+        },
+        {
           "version": "0.1.21",
           "date": "2026-11-27",
           "notes": "- The Realistic body's painted underwear for a female build is a strapless bra, sitting close under the breasts, and cheeky panties that end where the legs meet. They no longer run down the inner thighs.",
@@ -115,12 +121,6 @@
           "version": "0.1.03",
           "date": "2026-11-23",
           "notes": "- Wardrobe packs: install a 3D Avatar Maker wardrobe pack and its clothes appear in the Clothes tab, each with a line saying which pack it's from and who made it. The first two are Everyday Women's Clothes and Everyday Men's Clothes and Suits.\n- A saved avatar names the makers of any credited pack clothes it wears.",
-          "highlight": false
-        },
-        {
-          "version": "0.1.02",
-          "date": "2026-11-23",
-          "notes": "- Real nails on every finger and toe: short, medium, long or none, and toenails on or off, in any colour. Gloves and shoes hide them.\n- 23 more skins, among them freckled, ginger, bronzed, Eurasian, tattooed and made-up ones.\n- 15 more eye pictures: amber, hazel, sapphire and other natural colours, cat's eyes, reptile and dragon eyes, and a trial anime eye.\n- Four brow styles and two lash styles with fine, natural hairs.\n- 29 more sliders for the cheeks, ears, nose, arms and hands, such as jowls, a bulbous nose and knobbly knuckles. A new avatar starts with truer ears, nose and hands.",
           "highlight": false
         }
       ]

@@ -41,8 +41,8 @@ const ROUGHNESS = {
   cornea: 0.03,
   brows: 0.6,
   hair: 0.45,
-  scalp: 0.7,
 };
+const SCALP_SHADE = 0.62; // how bright the scalp is painted under the hair, of the hair's own colour
 const CORNEA_SOLID = 0.3; // how much of the clear front of the eye's glint is kept (it's drawn see-through)
 const CARRY_CELL = 0.012; // metres: the cells the head's skin is sorted into, to find the skin nearest a brow hair
 const CARRY_NEAREST = 3;
@@ -278,34 +278,62 @@ export function coverOf(part, look) {
   return (Number(look.realShape?.gender) || 0) >= 0 ? "-female" : "-male";
 }
 
-const tones = new Map(); // a skin picture (its part and what's painted on it) → { tone, map, users }: the last blend made of it, kept while in use
+const tones = new Map(); // a skin picture (its part and its cover) → { recipe, map, users }: the last one made of it, kept while in use
 /**
  * A part of the skin at `tone` (0 the light skin's picture, 1 the dark's, between them a blend of the two),
- * with `cover` painted on it (coverOf): { map, letGo }. Where there's no canvas to blend on, the nearer of
- * the two pictures.
+ * with `cover` painted on it (coverOf), and then `paints` laid over that: [{ mask (a kit picture whose alpha
+ * says where), colour ("#rrggbb"), strength (0…1) }], in order. Gives { map, letGo }. Where there's no canvas
+ * to draw on, the nearer of the two pictures, unpainted.
  */
-async function skinMap(part, tone, cover) {
+async function skinMap(part, tone, cover, paints = []) {
   const light = `realistic-skin-${part}-light${cover}`;
   const dark = `realistic-skin-${part}-dark${cover}`;
   const canDraw = typeof document !== "undefined" && typeof createImageBitmap === "function";
-  if (tone <= 0.001 || (!canDraw && tone < 0.5)) return { map: texture(light), letGo: () => {} };
-  if (tone >= 0.999 || !canDraw) return { map: texture(dark), letGo: () => {} };
+  const laid = canDraw ? paints.filter((paint) => paint.strength > 0) : [];
+  if (!laid.length) {
+    if (tone <= 0.001 || (!canDraw && tone < 0.5)) return { map: texture(light), letGo: () => {} };
+    if (tone >= 0.999 || !canDraw) return { map: texture(dark), letGo: () => {} };
+  }
   const which = `${part}${cover}`;
+  const recipe = JSON.stringify([tone, laid]);
   let made = tones.get(which);
-  if (!made || made.tone !== tone) {
-    const [a, b] = await Promise.all([pictureOf(light), pictureOf(dark)]);
+  if (!made || made.recipe !== recipe) {
+    const [a, b, ...masks] = await Promise.all([
+      pictureOf(light),
+      tone > 0.001 ? pictureOf(dark) : null,
+      ...laid.map((paint) => pictureOf(paint.mask)),
+    ]);
     const canvas = document.createElement("canvas");
     canvas.width = a.width;
     canvas.height = a.height;
     const context = canvas.getContext("2d");
     context.drawImage(a, 0, 0);
-    context.globalAlpha = tone;
-    context.drawImage(b, 0, 0, a.width, a.height);
+    if (b) {
+      context.globalAlpha = Math.min(1, tone);
+      context.drawImage(b, 0, 0, a.width, a.height);
+    }
+    if (laid.length) {
+      // (Each paint: its colour, kept only where its mask is, laid over the skin as strongly as it says.)
+      const layer = document.createElement("canvas");
+      layer.width = a.width;
+      layer.height = a.height;
+      const brush = layer.getContext("2d");
+      laid.forEach((paint, i) => {
+        brush.globalCompositeOperation = "source-over";
+        brush.fillStyle = paint.colour;
+        brush.fillRect(0, 0, layer.width, layer.height);
+        brush.globalCompositeOperation = "destination-in";
+        brush.drawImage(masks[i], 0, 0, layer.width, layer.height);
+        context.globalAlpha = Math.min(1, paint.strength);
+        context.drawImage(layer, 0, 0);
+      });
+    }
+    context.globalAlpha = 1;
     const map = new CanvasTexture(canvas);
     map.flipY = false; // glTF texture coordinates
     map.colorSpace = SRGBColorSpace;
     map.name = `realistic-skin-${which}`;
-    made = { tone, map, users: 0 };
+    made = { recipe, map, users: 0 };
     tones.set(which, made);
   }
   const mine = made;
@@ -317,6 +345,21 @@ async function skinMap(part, tone, cover) {
       if (!mine.users && tones.get(which) !== mine) mine.map.dispose();
     },
   };
+}
+
+/** A colour as "#rrggbb", `times` as bright. */
+const cssOf = (colour, times = 1) => `#${colour.clone().multiplyScalar(times).getHexString(SRGBColorSpace)}`;
+
+/**
+ * What the look paints over a part of the skin (skinMap's `paints`). On the head: the scalp under the hair, in
+ * the hair's colour a little darker, so no skin shows between the strands (each style has a picture of where:
+ * assets/scripts/make_realistic.py scalp_paint).
+ */
+function paintsOf(part, look, hair) {
+  const paints = [];
+  if (part === "head" && look.realHair !== "none")
+    paints.push({ mask: `realistic-hair-${look.realHair}-scalp`, colour: cssOf(hair, SCALP_SHADE), strength: 0.96 });
+  return paints;
 }
 
 let strandMap = null;
@@ -343,25 +386,6 @@ function strandPicture() {
   return strandMap;
 }
 
-let capMap = null;
-/** The scalp cap's picture: solid across most of it, clear at one edge, so the hairline fades into the skin. */
-function capPicture() {
-  if (!capMap) {
-    const size = 64;
-    const data = new Uint8Array(size * 4 * 4);
-    for (let y = 0; y < 4; y++)
-      for (let x = 0; x < size; x++) data.set([255, 255, 255, Math.round((x / (size - 1)) * 255)], (y * size + x) * 4);
-    capMap = new DataTexture(data, size, 4, RGBAFormat);
-    capMap.colorSpace = SRGBColorSpace;
-    capMap.magFilter = LinearFilter;
-    capMap.minFilter = LinearFilter;
-    capMap.needsUpdate = true;
-    capMap.userData.shared = true;
-    capMap.name = "realistic-scalp";
-  }
-  return capMap;
-}
-
 /** The hair's colour (a list colour or one's own) as a Color. */
 const hairColourOf = (look) =>
   new Color().setHex(look.hairTint ?? HAIR_COLOURS[look.hairColour ?? 0]?.[0] ?? HAIR_COLOURS[0][0], SRGBColorSpace);
@@ -372,7 +396,7 @@ async function materialFor(mesh, look, hair) {
   if (part.startsWith("skin_")) {
     const name = part.slice("skin_".length);
     const cover = coverOf(name, look);
-    const skin = await skinMap(name, look.realTone ?? 0, cover);
+    const skin = await skinMap(name, look.realTone ?? 0, cover, paintsOf(name, look, hair));
     const material = new MeshStandardMaterial({
       name: part,
       map: skin.map,
@@ -404,16 +428,6 @@ async function materialFor(mesh, look, hair) {
     return {
       material: new MeshStandardMaterial({ ...base, color: hair.clone().multiplyScalar(0.8), side: DoubleSide }),
     };
-  if (part === "scalp")
-    return {
-      material: new MeshStandardMaterial({
-        ...base,
-        color: hair.clone().multiplyScalar(0.7),
-        map: capPicture(),
-        transparent: true,
-        depthWrite: false,
-      }),
-    };
   if (part === "hair")
     return { material: new MeshStandardMaterial({ ...base, color: hair, map: strandPicture(), side: DoubleSide }) };
   return { material: new MeshStandardMaterial({ ...base, side: FrontSide }) };
@@ -431,9 +445,8 @@ function skinned(name, geometry, material, joints, bones, root) {
 
 const hairKits = new Map();
 /**
- * A hair style from the kit, read once and shared: its ribbons and scalp cap, each point tied to the head's
- * skin. A cap's point is tied to the skin it lies on; a ribbon's, to the skin under its strand's root, so a
- * strand moves whole with the scalp it grows from and keeps its shape.
+ * A hair style from the kit, read once and shared: its ribbons, each point tied to the head's skin under
+ * its strand's root, so a strand moves whole with the scalp it grows from and keeps its shape.
  */
 function hairKit(body, style) {
   if (!hairKits.has(style))
@@ -556,7 +569,6 @@ export async function createRealistic(look = {}) {
       geometry.setIndex(mesh.geometry.index);
       const { material } = await materialFor(mesh, filled, hairColour);
       const made = skinned(mesh.part, geometry, material, hair.file.joints, bones, root);
-      if (mesh.part === "scalp") made.renderOrder = 1;
       owned.push(() => {
         geometry.dispose();
         material.dispose();

@@ -944,6 +944,24 @@ make it look like actual underwear, panties for a female build and boxer briefs 
 - Check: each build takes the pictures its cover names, nothing is painted on the head or arms, and the kit
   has every one of them.
 
+## Built: a painted scalp under the Realistic body's hair (0.1.22)
+
+Reported, with a picture: from some angles skin shows between the strands, and a blocky patch at the temple.
+The patch was the scalp cap of 0.1.19: a lifted copy of the scalp's faces near the roots, see-through at its
+edge, which is as coarse as the mesh and covered only the skin near a root.
+
+- **A picture of where each style grows** (`make_realistic.py` `scalp_paint`). For every texel of the head's
+  skin picture (its place on the head from `place_map`), whether it lies within 4.5 mm of a strand's root;
+  then gaps between roots up to 18 mm wide are closed (grown by 9 mm and shrunk by as much, which keeps the
+  outline). A first version painted all the scalp a strand passed over, to 2 cm: that ran past the hairline
+  onto the forehead and sideburns, and was reported. 512 pixels, the cover in its alpha, about 8 KB each.
+- **Painted by the maker** (`realistic.js` `skinMap`, `paintsOf`). The head's skin picture is drawn on a
+  canvas: the tone's blend, then the hair's colour at 62% brightness kept only where the style's picture
+  says. `skinMap` now takes a list of such paints (a mask, a colour, a strength), which makeup and the like
+  can use next. The cap's mesh, material and picture are gone; a hair file is one mesh.
+- Check: each style's scalp picture is in the kit. On the test page the head is drawn from the side, above
+  and behind (`view=head-side`, `head-top`, `head-back` on the motions page).
+
 ## Next, in order
 
 1. **Check it in a real Engine:** a VRM and a GLB imported under 3D Avatars, talking, feeling, looking, and

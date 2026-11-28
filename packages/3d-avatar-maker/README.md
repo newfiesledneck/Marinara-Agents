@@ -64,7 +64,8 @@ bodies, which stay as they are with everything made for them. So far it has:
 
 - 39 shape sliders of its own on the Body and Face tabs, the first a male-to-female slider.
 - A skin tone slider on the Skin and eyes tab, from its light skin to its dark one.
-- Four hair styles on the Hair tab, each made of thousands of separate strands, in any hair colour.
+- Four hair styles on the Hair tab, each made of thousands of separate strands, in any hair colour. The scalp
+  under a style is painted in the hair's colour, so no skin shows between the strands.
 - The same blinks, mouth shapes and feelings, the preview's poses and animations, and saving as a VRM or GLB.
 
 - Underwear painted on the skin: cheeky panties and a strapless bra on a female build, boxer briefs on a male
