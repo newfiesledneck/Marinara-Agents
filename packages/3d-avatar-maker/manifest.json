@@ -10,7 +10,7 @@
   },
   "id": "3d-avatar-maker",
   "name": "3D Avatar Maker",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
   "engine": {
     "min": "2.4.6",
@@ -158,8 +158,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "8262106bf04fdc475f3f32d99b3d0b1e01137b1a426209ea49aa580adaf6f3e3",
-      "bytes": 1315835
+      "sha256": "50e73f94c9456bf75ca63951ba8fa2432441492cc34958c9b2eb6a2800d8eafb",
+      "bytes": 1317077
     },
     {
       "path": "3d-avatar-maker-icon.webp",
@@ -468,8 +468,8 @@
     },
     {
       "path": "kit/avatar/realistic-hair-back-scalp.webp",
-      "sha256": "c569f235a54eeafd948acec18eb22e796f028b325a34e5625d67662ae714677d",
-      "bytes": 1990
+      "sha256": "676d039e4ca45dc4514c0a461a3eb32113a50565e98903c1d22fb9ea2a2a7f78",
+      "bytes": 2098
     },
     {
       "path": "kit/avatar/realistic-hair-back.pack.png",
@@ -478,8 +478,8 @@
     },
     {
       "path": "kit/avatar/realistic-hair-bob-scalp.webp",
-      "sha256": "709604a2860419cf3bcd0825d7d9f2355b04e5793b7d15741a801da4a99c0e9f",
-      "bytes": 1938
+      "sha256": "32963a2e76b119e90cc6e7b634c33b4a5267eddfa12f023824d0b595dd4a184f",
+      "bytes": 1794
     },
     {
       "path": "kit/avatar/realistic-hair-bob.pack.png",
@@ -488,8 +488,8 @@
     },
     {
       "path": "kit/avatar/realistic-hair-eve-scalp.webp",
-      "sha256": "9318d99f29619aed2fbc410d130e34a8cd0ee916b239e6a6161d7851fb5c16e4",
-      "bytes": 1978
+      "sha256": "3c39b815ce9f141475bd65399bed65de0da015b6a96ab41f5350570a104ce90f",
+      "bytes": 2232
     },
     {
       "path": "kit/avatar/realistic-hair-eve.pack.png",
@@ -498,8 +498,8 @@
     },
     {
       "path": "kit/avatar/realistic-hair-slicked-scalp.webp",
-      "sha256": "8107e200914bd3569545dbb19a7daff1d6c9c49a891e9b2d8a749a5527bfcd52",
-      "bytes": 2466
+      "sha256": "e1915b1790898118a5d67630e24f00044ebc026f043c44312b48fefeb2838586",
+      "bytes": 2522
     },
     {
       "path": "kit/avatar/realistic-hair-slicked.pack.png",

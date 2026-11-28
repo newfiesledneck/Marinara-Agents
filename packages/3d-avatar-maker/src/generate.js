@@ -11,6 +11,11 @@ import {
   AGES,
   AVATAR_COLOURS,
   BODIES,
+  REALISTIC,
+  REALISTIC_FIELDS,
+  REALISTIC_HAIR,
+  REALISTIC_SHAPES,
+  readRealisticDesign,
   BODY_DETAIL,
   BROWS,
   CLOTH_PARTS,
@@ -125,7 +130,8 @@ export function textConnections(rows) {
  * have for each body (avatarChoices), each marked when only one body has it. Its answer is read by
  * looks.js readDesign, which keeps only what these lists have.
  */
-export async function designMenu() {
+export async function designMenu(body = "") {
+  if (body === REALISTIC) return realisticMenu();
   const bodies = BODIES.map(([body]) => body);
   const choices = Object.fromEntries(await Promise.all(bodies.map(async (body) => [body, await avatarChoices(body)])));
   /** "female only" when only one body has `has(its choices)`, "" when both do, null when neither. */
@@ -211,6 +217,23 @@ export async function designMenu() {
   ].join("\n");
 }
 
+/** The same for the Realistic body, which has fields of its own (looks.js REALISTIC_FIELDS) and no clothes yet. */
+export function realisticMenu() {
+  return [
+    'The look\'s fields. Use these names and values exactly, colours as "#rrggbb". A field left out keeps the',
+    "body as made (every slider at 0 unless said).",
+    `height: ${HEIGHTS[0]} to ${HEIGHTS[1]}, a share of a usual adult's height (1 is usual)`,
+    "realShape: { field: number }. The build, then the face:",
+    ...REALISTIC_SHAPES.map(
+      ([key, label, , what, ends, both]) =>
+        `  ${key}: ${both ? -1 : 0} to 1 (${ends[0]} to ${ends[1]}): ${label}. ${what}`,
+    ),
+    "realTone: 0 to 1, their skin from light (0) to dark (1)",
+    `realHair: ${REALISTIC_HAIR.map(([value, label]) => `${value} (${label})`).join(", ")}; hairTint: their hair's colour`,
+    "This body has no clothes to choose yet: describe none.",
+  ].join("\n");
+}
+
 // ── What the model is told ──
 
 const hexes = (record) =>
@@ -223,6 +246,16 @@ const withColour = (entry) => (Number.isInteger(entry?.colour) ? { ...entry, col
  * maker's (pack records, the preset's name) or what's as made (a slider at 0, a limb at 1).
  */
 export function lookForModel(look) {
+  if (look?.body === REALISTIC) {
+    // (The Realistic body's own fields alone: the rest of a look is the other bodies'.)
+    const out = Object.fromEntries(
+      REALISTIC_FIELDS.filter((field) => look[field] !== undefined).map((field) => [field, look[field]]),
+    );
+    if (isRecord(out.realShape))
+      out.realShape = Object.fromEntries(Object.entries(out.realShape).filter(([, value]) => value !== 0));
+    if (Number.isInteger(out.hairTint)) out.hairTint = hexText(out.hairTint);
+    return out;
+  }
   const { fromPacks: _packs, preset: _preset, skinSet: _set, avatar: _avatar, ...rest } = look ?? {};
   const out = { ...rest };
   if (isRecord(out.shape)) out.shape = Object.fromEntries(Object.entries(out.shape).filter(([, value]) => value !== 0));
@@ -317,8 +350,13 @@ export function readJson(content) {
  * choosing the race does), part by part for the sliders and colours. Clothes given replace what's worn.
  */
 export function designedLook(base, raw) {
+  if (base?.body === REALISTIC) {
+    // (The Realistic body stays the Realistic body: its own fields are read, its sliders part by part.)
+    const design = readRealisticDesign(raw);
+    return { look: checkLook({ ...base, ...design, realShape: { ...base.realShape, ...design.realShape } }), design };
+  }
   const design = readDesign(raw);
-  // (A design is for one of the kit's two bodies: the Realistic body has none of what a design chooses from.)
+  // (From here a design is for one of the kit's two bodies; one started from anything else is a female body's.)
   const body = design.body ?? (BODIES.some(([each]) => each === base.body) ? base.body : "female");
   const raced = design.race && design.race !== base.race ? mergeLooks(base, racePreset(design.race, body)) : base;
   return { look: checkLook(mergeLooks({ ...raced, body }, design)), design };
@@ -566,9 +604,9 @@ export function createGenerator(actions) {
     describe();
     say(mode === "revise" ? "Asking the model what to change…" : "Asking the model to design the avatar…");
     try {
-      const menu = await designMenu();
-      menuSize = menu.length;
       const current = actions.look();
+      const menu = await designMenu(current.body);
+      menuSize = menu.length;
       let picture = null;
       if (settings.portrait && portrait()) {
         picture = await (chosenPicture ? chosenPicture.data : pictureData(portrait())).catch(() => null);
@@ -608,7 +646,9 @@ export function createGenerator(actions) {
       const base =
         mode === "revise"
           ? current
-          : actions.fresh(raw.body === "male" || raw.body === "female" ? raw.body : current.body);
+          : actions.fresh(
+              current.body !== REALISTIC && (raw.body === "male" || raw.body === "female") ? raw.body : current.body,
+            );
       const { look, design } = designedLook(base, raw);
       if (!Object.keys(design).length)
         throw new Error(

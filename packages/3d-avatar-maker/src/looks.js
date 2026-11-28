@@ -1833,6 +1833,28 @@ export const CLOTH_HEX = {
   "ranger-grey": 0x6f6f6f,
 };
 
+/** A colour as a design gives it ("#rrggbb", or a number already), or undefined. */
+const designColour = (value) => {
+  if (isColour(value)) return value;
+  const match = /^#?([0-9a-f]{6})$/iu.exec(typeof value === "string" ? value.trim() : "");
+  return match ? Number.parseInt(match[1], 16) : undefined;
+};
+
+/** The fields of a look a design for the Realistic body may set (generate.js realisticMenu lists them). */
+export const REALISTIC_FIELDS = ["height", "realShape", "realTone", "realHair", "hairTint"];
+
+/**
+ * A look the AI designed for the Realistic body, as checked fields: only REALISTIC_FIELDS, each through
+ * checkLook, so only what that body has is kept. Whatever else the answer names (a body, clothes) is dropped.
+ */
+export function readRealisticDesign(raw) {
+  if (!isRecord(raw)) return {};
+  const checked = checkLook({ ...raw, body: REALISTIC, hairTint: designColour(raw.hairTint) });
+  return Object.fromEntries(
+    REALISTIC_FIELDS.filter((field) => checked[field] !== undefined).map((field) => [field, checked[field]]),
+  );
+}
+
 /**
  * A look the AI designed (generate.js), as a checked look: colours written "#rrggbb" (as the
  * model is asked to) read as numbers, then every field through checkLook, so only what the lists have is
@@ -1840,11 +1862,7 @@ export const CLOTH_HEX = {
  */
 export function readDesign(raw) {
   if (!isRecord(raw)) return {};
-  const colour = (value) => {
-    if (isColour(value)) return value;
-    const match = /^#?([0-9a-f]{6})$/iu.exec(typeof value === "string" ? value.trim() : "");
-    return match ? Number.parseInt(match[1], 16) : undefined;
-  };
+  const colour = designColour;
   const colours = (record) =>
     isRecord(record)
       ? Object.fromEntries(Object.entries(record).map(([key, value]) => [key, colour(value)]))
