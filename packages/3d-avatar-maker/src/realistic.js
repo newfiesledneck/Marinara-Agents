@@ -311,6 +311,39 @@ function carry(out, tied, moves, weight) {
     }
 }
 
+/** The sliders that open the lids wider (looks.js REALISTIC_SHAPES), and the face's moves that shut them. */
+const LID_SLIDERS = ["upper_lids", "lower_lids"];
+const BLINKS = ["blink", "blinkLeft", "blinkRight"];
+/**
+ * The head's blinks for a look whose lids a slider has opened wider: { blink…: every vertex's move }, or null
+ * when no such slider is used. A blink brings the upper lid down to where the lower lid is on the body as
+ * made, so with a lid opened wider the eye would stop short of shut. Each blink here also takes back what
+ * those sliders moved, on the side of the face it shuts.
+ */
+function lidBlinks(body, weights) {
+  const used = LID_SLIDERS.filter((key) => weights[key] && body.head.morphs[key]);
+  if (!used.length) return null;
+  const out = {};
+  for (const key of BLINKS) {
+    if (!body.head.morphs[key]) continue;
+    const blink = wholeMove(body.head, key);
+    const moves = blink.slice();
+    // (Which side a one-eyed blink shuts: the side its own moves are on.)
+    let side = 0;
+    if (key !== "blink")
+      for (let at = 0; at < blink.length; at += 3) if (blink[at + 1]) side += Math.sign(body.head.position[at]);
+    for (const slider of used) {
+      const opened = wholeMove(body.head, slider);
+      for (let at = 0; at < moves.length; at += 3) {
+        if (side && Math.sign(body.head.position[at]) !== Math.sign(side)) continue;
+        for (let c = 0; c < 3; c++) moves[at + c] -= opened[at + c] * weights[slider];
+      }
+    }
+    out[key] = moves;
+  }
+  return out;
+}
+
 /** The look's sliders as { key: weight }, each held within what the body's file says it goes to. */
 function sliderWeights(body, look) {
   const weights = {};
@@ -705,6 +738,7 @@ export async function createRealistic(look = {}) {
   // (The hair, bust and buttocks on springs, each with the look's switch and amount: realistic-physics.js.)
   filled.physics = physicsOf(look);
   const soft = softParts(body, weights, bones, filled.physics);
+  const lids = lidBlinks(body, weights);
   const owned = [];
   let headMoved = body.head.position;
   for (const mesh of body.meshes) {
@@ -716,7 +750,17 @@ export async function createRealistic(look = {}) {
     for (const name of ["uv", "skinIndex", "skinWeight"]) geometry.setAttribute(name, mesh.geometry.attributes[name]);
     if (mesh.disc) geometry.setAttribute("uv", irisUvs(mesh, eyeTile(filled)));
     geometry.setIndex(mesh.geometry.index);
-    const moves = mesh.faceMoves.filter(Boolean);
+    const moves = mesh.faceMoves.filter(Boolean).map((move) => {
+      // (With the lids opened wider by a slider, the blinks are this look's own: lidBlinks. The lashes take
+      // theirs from the skin under them, as ever.)
+      const lid = lids?.[move.name];
+      if (!lid || !(mesh === body.head || mesh.tied)) return move;
+      const own = mesh === body.head ? lid : new Float32Array(mesh.position.length);
+      if (mesh !== body.head) carry(own, mesh.tied, lid, 1);
+      const attribute = new BufferAttribute(own, 3);
+      attribute.name = move.name;
+      return attribute;
+    });
     if (moves.length) {
       geometry.morphAttributes.position = moves;
       geometry.morphTargetsRelative = true;

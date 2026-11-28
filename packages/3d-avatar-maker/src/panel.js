@@ -377,6 +377,25 @@ export function createPanel(actions) {
     ),
   ];
 
+  /**
+   * A tab's sliders of the Realistic body, a group for each group its list names (looks.js REALISTIC_SHAPES),
+   * in the list's order. The first says how the sliders read.
+   */
+  const realGroups = (tab, filled) => {
+    const groups = new Map();
+    for (const entry of REALISTIC_SHAPES.filter((each) => each[2] === tab))
+      groups.set(entry[6], [...(groups.get(entry[6]) ?? []), entry]);
+    return [...groups].map(([title, entries], at) =>
+      group(
+        title,
+        at
+          ? ""
+          : "A slider with two ends has the model's own shape in the middle; the others start at the left. Sliders can be mixed freely.",
+        ...entries.map((entry) => realSlider(entry, filled)),
+      ),
+    );
+  };
+
   /** The change that picks body `value`: the Realistic body, picked for the first time, starts as the build left. */
   const toBody = (value, look, filled) =>
     value === REALISTIC && !look?.realShape
@@ -457,24 +476,14 @@ export function createPanel(actions) {
           onInput: (value) => change({ height: value }, false),
         }),
       ),
-      group(
-        "Build",
-        "A slider with two ends has the body's own shape in the middle; the others start at the left.",
-        ...REALISTIC_SHAPES.filter((entry) => entry[2] === "body").map((entry) => realSlider(entry, filled)),
-      ),
+      ...realGroups("body", filled),
       group(
         "Movement",
         "The bust and the buttocks move a little as the body does, in the preview and in a saved VRM. A build has a bust to move once it stands out: a female build, or the Breast size slider on any build.",
         ...movement(filled, ["bust", "butt"]),
       ),
     ],
-    face: ({ filled }) => [
-      group(
-        "Face",
-        "A slider with two ends has the face's own shape in the middle; the others start at the left.",
-        ...REALISTIC_SHAPES.filter((entry) => entry[2] === "face").map((entry) => realSlider(entry, filled)),
-      ),
-    ],
+    face: ({ filled }) => [...realGroups("face", filled)],
     skin: ({ look, filled }) => [
       group(
         "Skin",

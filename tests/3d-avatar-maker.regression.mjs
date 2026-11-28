@@ -3060,6 +3060,55 @@ for (const figure of Object.values(made)) figure.dispose();
     assert.equal(painted.avatar.colours.nails, 0xb91c3c);
     painted.dispose();
   }
+  // Sliders: every one is in a group of its tab, and moves the body. With the lids opened wider by a slider,
+  // a blink still brings the upper lid's edge down to the lower lid's, as it does on the body as made.
+  {
+    assert.ok(REALISTIC_SHAPES.length > 140, `the Realistic body has its sliders (${REALISTIC_SHAPES.length})`);
+    const groups = new Map();
+    for (const [key, , tab, , , , group] of REALISTIC_SHAPES) {
+      assert.ok(typeof group === "string" && group, `${key} is in a group`);
+      assert.equal(groups.get(group) ?? tab, tab, `the ${group} group is on one tab`);
+      groups.set(group, tab);
+    }
+    assert.ok(groups.size >= 14 && groups.size <= 20, `the sliders are in a handful of groups (${groups.size})`);
+    const points = (of) =>
+      ["skin_head", "skin_torso", "skin_arms", "skin_legs", "mouth", "iris"].flatMap((part) => [
+        ...mesh(of, part).geometry.attributes.position.array,
+      ]);
+    const plain = points(figure);
+    for (const key of ["asymmetry", "head_width", "pointed_ears", "cat_eyes", "fangs", "nail_length", "feet_size"]) {
+      const made = await createAvatar(start({ realShape: { gender: 1, [key]: 1 } }), "Test", "auto");
+      const moved = points(made);
+      let most = 0;
+      for (let i = 0; i < plain.length; i++) most = Math.max(most, Math.abs(moved[i] - plain[i]));
+      assert.ok(most > 0.0005, `the ${key} slider moves the body (${(most * 1000).toFixed(1)} mm)`);
+      made.dispose();
+    }
+    const shut = (of) => {
+      // (The height of the lid's edge, the skin a blink moves furthest, with the eye shut.)
+      const head = mesh(of, "skin_head");
+      const blink = head.geometry.morphAttributes.position[head.morphTargetDictionary.blink];
+      const at = head.geometry.attributes.position;
+      let [most, height] = [0, 0];
+      for (let i = 0; i < at.count; i++)
+        if (at.getX(i) > 0 && -blink.getY(i) > most) [most, height] = [-blink.getY(i), at.getY(i) + blink.getY(i)];
+      return height;
+    };
+    const wide = await createAvatar(start({ realShape: { gender: 1, upper_lids: 1, lower_lids: 1 } }), "Test", "auto");
+    assert.ok(
+      Math.abs(shut(wide) - shut(figure)) < 0.0003,
+      `lids opened wider still shut in a blink (${((shut(wide) - shut(figure)) * 1000).toFixed(2)} mm off)`,
+    );
+    const lashDrop = (of) => {
+      const made = mesh(of, "lashes");
+      const blink = made.geometry.morphAttributes.position[made.morphTargetDictionary.blink];
+      let most = 0;
+      for (let i = 0; i < blink.count; i++) most = Math.max(most, -blink.getY(i));
+      return most;
+    };
+    assert.ok(lashDrop(wide) > lashDrop(figure) + 0.0005, "and the lashes come down the further with them");
+    wide.dispose();
+  }
   // Generate on this body: a menu of its own fields, and a design read as those fields alone, on this body.
   {
     const gen = await import("../packages/3d-avatar-maker/src/generate.js");
