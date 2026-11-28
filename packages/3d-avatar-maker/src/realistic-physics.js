@@ -58,6 +58,9 @@ export const SOFT = {
     joint: { ...GLUTE_JOINT, stiffness: 8, dragForce: 0.2 },
   },
   cleft: 0.02,
+  // The hair's spring: stiffer and slowed more than the other bodies' (springs.js HAIR_JOINT), so it comes back
+  // to how it lies on the body, and thinner where it meets the body, which it lies close on.
+  hair: { joint: { ...HAIR_JOINT, stiffness: 0.9, dragForce: 0.4, hitRadius: 0.012 } },
 };
 /** The shape keys that give a build a bust: the female side of the first slider, and the breasts' own. */
 const BUST_KEYS = ["gender", "breasts"];
@@ -422,7 +425,8 @@ export function softParts(body, weights, bones, physics) {
         });
     }
   };
-  if (physics.bust.on) {
+  let bust = null; // (found for the hair too, which lies on it)
+  if (physics.bust.on || physics.hair.on) {
     const mask = maskOf(body, "bust");
     // (The body as the gender and breasts keys alone shape it: what tells a bust from a chest, findBust.)
     // (Found again only when the sliders have changed: a change of colour, hair or amount rebuilds the same body.)
@@ -431,8 +435,8 @@ export function softParts(body, weights, bones, physics) {
       const only = Object.fromEntries(BUST_KEYS.filter((key) => weights[key]).map((key) => [key, weights[key]]));
       busts.set(body, { shape, bust: findBust(mask, at, (mesh) => positionsOf(mesh, only)) });
     }
-    const { bust } = busts.get(body);
-    if (bust) {
+    bust = busts.get(body).bust;
+    if (bust && physics.bust.on) {
       const rig = rigBust(bust, bones);
       give(mask, rig, [{ weigh: (index, weight, first, share) => bustWeights(index, weight, joints, first, share) }]);
       // (Each breast's ball is its own size, and meets the arms.)
@@ -491,8 +495,10 @@ export function softParts(body, weights, bones, physics) {
       made.geometry.setAttribute("skinWeight", plan.skinWeight);
       const rig = rigChains(plan, part, made.geometry.attributes.position.array, bones);
       addBones(made, rig.bones, rig.inverses);
+      // (Held still, at amount 0, it meets nothing either: it stays as it lies on the head, whatever the body does.)
+      const meets = physics.hair.amount > 0 ? "body" : "none";
       for (const spring of rig.springs)
-        springs.push({ ...spring, joint: jointAt(HAIR_JOINT, physics.hair.amount), meets: "body", ring: rig });
+        springs.push({ ...spring, joint: jointAt(SOFT.hair.joint, physics.hair.amount), meets, ring: rig });
     },
     finish(figure) {
       figure.springs = springs;
@@ -515,14 +521,20 @@ export function softParts(body, weights, bones, physics) {
         root.position.set(0, 0, 0);
         root.scale.setScalar(1);
         root.updateMatrixWorld(true);
-        colliders = bodyColliders(kit, position, figure.bones);
+        colliders = bodyColliders(kit, position, figure.bones, [], { snug: true });
+        // (The hair meets the breasts too: each one's ball, on the chest's bone.)
+        const chest = figure.bones.get("spine_02");
+        for (const { middle, radius } of (chest && bust?.sides) || [])
+          colliders.body?.push({ bone: chest, radius, offset: chest.worldToLocal(middle.clone()) });
         root.position.copy(place);
         root.scale.copy(size);
         root.updateMatrixWorld(true);
       }
       for (const spring of springs) spring.colliders = [...(colliders[spring.meets] ?? [])];
       figure.colliders = [...new Set(springs.flatMap((spring) => spring.colliders))];
-      fitColliders(figure);
+      // (This body's hair is draped over it, so it rests on what it meets: fitColliders `resting`.)
+      fitColliders(figure, { resting: true });
+      figure.colliders = [...new Set(springs.flatMap((spring) => spring.colliders))];
     },
   };
 }

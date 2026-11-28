@@ -91,9 +91,12 @@ const TURN_MOST = 0.35; // radians the arms may turn a breast in the preview; pr
  * - for the bust, each upper arm, forearm and hand a capsule along it, as thick as half its skin is from its
  *   bone (so an arm pressing on a breast pushes it about where the skins meet), and fitted in the relaxed
  *   pose too (`relaxed`), where the arms hang closest to it.
- * Each sits inside the body, so what rests on it isn't pushed.
+ * Each sits inside the body, so what rests on it isn't pushed. `snug`: the hair's are made as thick as the body
+ * is where they lie (the middle of its skin's distances, not the nearest fifth), for hair that is draped over
+ * the body and so never rests inside it (the Realistic body's: drape.js; fitColliders `resting` then gives
+ * each lock its own copy of what it lies on).
  */
-export function bodyColliders(kit, position, bones, worn = []) {
+export function bodyColliders(kit, position, bones, worn = [], { snug = false } = {}) {
   const { joints } = kit.file;
   const index = kit.shared.skinIndex.array;
   const weight = kit.shared.skinWeight.array;
@@ -142,10 +145,11 @@ export function bodyColliders(kit, position, bones, worn = []) {
     const middle = new Vector3(0, eyes, (low.z + high.z) / 2);
     body.push({ bone: head, radius: Math.min(high.x - low.x, high.z - low.z) * 0.46, offset: local(head, middle) });
   }
-  along(body, "neck_01", "Head");
+  const [thick, share] = snug ? [1, 0.5] : [undefined, undefined];
+  along(body, "neck_01", "Head", thick, share);
   for (const side of ["l", "r"]) {
-    along(body, `clavicle_${side}`, `upperarm_${side}`, 0.8);
-    along(body, `upperarm_${side}`, `lowerarm_${side}`);
+    along(body, `clavicle_${side}`, `upperarm_${side}`, snug ? 1 : 0.8, share);
+    along(body, `upperarm_${side}`, `lowerarm_${side}`, thick, share);
   }
   // The hips, waist, chest and back: across the body, as deep as it is there, its ends rounded at the sides.
   for (const name of ["pelvis", "spine_01", "spine_02", "spine_03"]) {
@@ -159,7 +163,7 @@ export function bodyColliders(kit, position, bones, worn = []) {
       low.min(p);
       high.max(p);
     }
-    const radius = ((high.z - low.z) / 2) * 0.9;
+    const radius = ((high.z - low.z) / 2) * (snug ? 1 : 0.9);
     const half = Math.max(0, (high.x - low.x) / 2 - radius);
     const middle = new Vector3((low.x + high.x) / 2, y, (low.z + high.z) / 2);
     body.push({
@@ -266,14 +270,20 @@ function nearestOn(collider, point, out) {
   return out.copy(start).addScaledVector(line, t);
 }
 
+const RESTING_LEAST = 0.4; // of a collider's size: the least a spring's own copy of it may be (fitColliders `resting`)
 /**
  * The colliders fitted so that none pushes the hair, clothes, tail or bust while nothing moves, in the poses
  * the figure rests in (as built, and the T-pose a VRM rests in, and for the arms' the relaxed pose the maker
  * shows): each made a little smaller where a joint rests close to it (by a quarter at most, or its own `least`
  * share), and where a joint rests on one even so (a lock lying on the shoulder), that spring meets it no more.
  * Each spring's `colliders` are what it meets.
+ *
+ * `resting`: for hair made to lie on the body (the Realistic body's, draped over it: drape.js), which would
+ * meet nothing it rests on and so swing through the shoulders and chest it lies on. With it, such a spring
+ * meets a copy of the collider instead, as small as lets its own joints rest, so long as that is still
+ * RESTING_LEAST of the collider's size.
  */
-export function fitColliders(figure) {
+export function fitColliders(figure, { resting = false } = {}) {
   const poses = [restPose, tPose, relaxedPose];
   /** How far each spring's joints are from a collider's surface, at their nearest, in every pose. */
   const gaps = new Map(); // collider → spring → gap
@@ -296,8 +306,11 @@ export function fitColliders(figure) {
   for (const [collider, bySpring] of gaps) {
     const least = Math.min(...bySpring.values());
     collider.radius = Math.max(collider.radius * (collider.least ?? 0.75), Math.min(collider.radius, least));
-    for (const [spring, gap] of bySpring)
-      if (gap < collider.radius) spring.colliders = spring.colliders.filter((other) => other !== collider);
+    for (const [spring, gap] of bySpring) {
+      if (gap >= collider.radius) continue;
+      const own = resting && gap >= collider.radius * RESTING_LEAST ? [{ ...collider, radius: gap }] : [];
+      spring.colliders = spring.colliders.flatMap((other) => (other === collider ? own : [other]));
+    }
   }
 }
 

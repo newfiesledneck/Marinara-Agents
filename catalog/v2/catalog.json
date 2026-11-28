@@ -64,7 +64,7 @@
         },
         "id": "3d-avatar-maker",
         "name": "3D Avatar Maker",
-        "version": "0.1.27",
+        "version": "0.1.28",
         "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
         "engine": {
           "min": "2.4.6",
@@ -235,8 +235,8 @@
           },
           {
             "path": "client.js",
-            "sha256": "9aa65f10d114f2dcfde5fdb9f281ceee557d02be0c4fbaf7656c09a4d066c08a",
-            "bytes": 1349555
+            "sha256": "0b32ec93bf8c3ceef983e84db6a3a0862abce810e49d5e0aead34a5be09670ef",
+            "bytes": 1353848
           },
           {
             "path": "3d-avatar-maker-icon.webp",
@@ -922,9 +922,9 @@
       "category": "misc",
       "iconUrl": "https://raw.githubusercontent.com/Pasta-Devs/Marinara-Agents/main/artwork/agent-covers/3d-avatar-maker.png",
       "artifact": {
-        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-0.1.27.zip",
-        "sha256": "8f45bd049ae59f9c35136515205e5211954d307052c504d1e812c1e14c58d80d",
-        "bytes": 71374779
+        "url": "https://raw.githubusercontent.com/newfiesledneck/Marinara-Agents/quartermaster-dev-catalog/artifacts/3d-avatar-maker-0.1.28.zip",
+        "sha256": "00ccdc739830135ece0ccfc2947b987b418a8439d852b6b258450b13090e4a5e",
+        "bytes": 71379072
       },
       "documentationUrl": "https://github.com/Pasta-Devs/Marinara-Agents/blob/main/packages/3d-avatar-maker/README.md"
     },
