@@ -27,6 +27,7 @@ import {
   presetFields,
   HAIR_COLOURS,
   REALISTIC,
+  REALISTIC_BEARDS,
   REALISTIC_BROWS,
   REALISTIC_HAIR,
   REALISTIC_SHAPES,
@@ -579,7 +580,33 @@ export function createPanel(actions) {
       ),
       group(
         "Facial hair",
-        "Stubble is painted on the skin. Beards of separate hairs come later.",
+        "A beard is separate hairs, as the hair is, and moves with the face. Stubble is painted on the skin, under a beard or alone.",
+        row(
+          "Beard",
+          select(
+            REALISTIC_BEARDS.map(([value, label]) => [value, label]),
+            filled.realBeard ?? "none",
+            (value) => change({ realBeard: value === "none" ? undefined : value }),
+            "Beard",
+          ),
+          REALISTIC_BEARDS.find(([value]) => value === (filled.realBeard ?? "none"))?.[2] ?? "",
+        ),
+        filled.realBeard && filled.realBeard !== "none"
+          ? colours(
+              "Beard colour",
+              HAIR_COLOURS,
+              filled.colours?.beard,
+              (hex, redraw) => change({ colours: { beard: hex } }, redraw),
+              "Left alone, the beard is the hair's colour, a little darker.",
+            )
+          : null,
+        Number.isInteger(filled.colours?.beard)
+          ? h(
+              "button",
+              { type: "button", onclick: () => change({ colours: { beard: undefined } }) },
+              "Beard in the hair's colour",
+            )
+          : null,
         ...stubbleRows(filled),
       ),
       group(

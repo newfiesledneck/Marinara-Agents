@@ -257,6 +257,7 @@ export function checkLook(raw) {
   if (REALISTIC_HAIR.some(([style]) => style === raw.realHair)) look.realHair = raw.realHair;
   if (Number.isInteger(raw.realBrows) && raw.realBrows >= 1 && raw.realBrows <= REALISTIC_BROWS)
     look.realBrows = raw.realBrows;
+  if (REALISTIC_BEARDS.some(([style]) => style === raw.realBeard)) look.realBeard = raw.realBeard;
   // (Its painted underwear is on unless this is set.)
   if (raw.realBare === true) look.realBare = true;
   // Which kind of body (missing: a human, unless lore or their race says otherwise), and a dragon's wings.
@@ -289,6 +290,8 @@ export function checkLook(raw) {
   const colours = {};
   for (const [part] of [...AVATAR_COLOURS, ...RACE_COLOURS, ...Object.values(ANTHRO_COLOURS).flat()])
     if (isRecord(raw.colours) && isColour(raw.colours[part])) colours[part] = raw.colours[part];
+  // (The Realistic body's strand beard: its own colour, else the hair's.)
+  if (isRecord(raw.colours) && isColour(raw.colours.beard)) colours.beard = raw.colours.beard;
   // Makeup: each layer's colour and amount (0 to 1; none at 0), the lipstick's amount alone (its colour is
   // colours.lips). A made-up skin there was brings its preset's, unless the look has makeup of its own.
   const makeup = {};
@@ -1057,6 +1060,25 @@ export const REALISTIC_SHAPES = [
 /** The Realistic body's brow styles (kit/avatar/realistic-brows-<nn>): how many, and the one it has unless told. */
 export const REALISTIC_BROWS = 14;
 export const REALISTIC_BROWS_USUAL = 11;
+/**
+ * The Realistic body's beards: strands grown on its beard's ground (assets/scripts/make_realistic.py
+ * GROOMED_BEARDS; kit/avatar/realistic-beard-<style>), [value, label, what it is]. "none" is none.
+ */
+export const REALISTIC_BEARDS = [
+  ["none", "None", "No beard. Stubble can still be painted on."],
+  ["short", "Short beard", "A close-cropped full beard, a few days past stubble."],
+  ["full", "Full beard", "A full beard a few centimetres long, with a moustache."],
+  ["long", "Long beard", "A full beard grown long, hanging onto the chest."],
+  ["goatee", "Goatee", "A moustache and a beard on the chin, joined round the mouth."],
+  ["moustache", "Moustache", "A moustache alone."],
+  ["walrus", "Walrus moustache", "A thick moustache that hangs over the upper lip."],
+  [
+    "chin_curtain",
+    "Chin curtain",
+    "A short beard along the jaw and under the chin, the cheeks above it and the lip bare.",
+  ],
+  ["mutton_chops", "Mutton chops", "Whiskers down the cheeks to the jaw, the chin and lip bare."],
+];
 /** The Realistic body's hair: strand styles turned into ribbons (kit/avatar/realistic-hair-<style>). */
 export const REALISTIC_HAIR = [
   ["none", "None"],
@@ -2456,6 +2478,7 @@ export const REALISTIC_FIELDS = [
   "realHair",
   "hairTint",
   "realBrows",
+  "realBeard",
   "eyePicture",
   "colours",
   "makeup",
@@ -2463,9 +2486,9 @@ export const REALISTIC_FIELDS = [
   "toenails",
 ];
 /** The fields of a look only the Realistic body has: a design for another body never sets or is shown them. */
-export const REALISTIC_ONLY = ["realShape", "realTone", "realHair", "realBrows", "realBare"];
+export const REALISTIC_ONLY = ["realShape", "realTone", "realHair", "realBrows", "realBeard", "realBare"];
 /** The colours of a look the Realistic body uses (the rest are the other bodies'). */
-export const REALISTIC_COLOURS = ["eyes", "brows", "lips", "nails"];
+export const REALISTIC_COLOURS = ["eyes", "brows", "beard", "lips", "nails"];
 
 /**
  * A look the AI designed for the Realistic body, as checked fields: only REALISTIC_FIELDS, each through

@@ -37,6 +37,9 @@ Upliner (the original Antonia rigging), AgentA1CR (node help, eyebrow conversion
   `-curly`, `-lob`, `-fringe`, `-wavy`, `-ponytail`, `-low_ponytail`, `-braid`, `-bun`, `-twin_tails`, and each
   one's `-scalp.webp`: strand hair styles grown on the character's scalp by ThatOneCan (`assets/scripts/groom.py`,
   the recipes in `make_realistic.py` `GROOMED`; CC0). None of the character's own hair is in them.
+- `avatar/realistic-beard-short.pack.png`, `-full`, `-long`, `-goatee`, `-moustache`, `-walrus`, `-chin_curtain`,
+  `-mutton_chops`, and each one's `-skin.webp`: strand beards grown on the character's beard mask by ThatOneCan
+  (`assets/scripts/groom.py`, the recipes in `make_realistic.py` `GROOMED_BEARDS`; CC0).
 - `avatar/realistic-hair-bob.pack.png`, `-slicked`, `-back`, `-eve`: four of the character's strand hair
   styles, each strand turned into a narrow ribbon; and `avatar/realistic-hair-<style>-scalp.webp`, where the
   scalp lies under each, which the maker paints in the hair's colour.

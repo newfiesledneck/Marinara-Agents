@@ -33,39 +33,46 @@ class Head:
 
     def __init__(self, shape, faces, scalp, normals, eyes):
         self.brows = eyes + 0.024
-        # (The character's scalp is painted roughly at its edge, a point here and there in or out: evened out
-        # over each point's neighbours, so the hairline it gives is a line.)
-        scalp = scalp.copy()
-        beside = {}
-        for face in faces:
-            if max(scalp[i] for i in face) > 0:
-                for a, b in zip(face, face[1:] + face[:1]):
-                    beside.setdefault(a, set()).add(b)
-                    beside.setdefault(b, set()).add(a)
-        for _ in range(4):
-            evened = scalp.copy()
-            for point, others in beside.items():
-                evened[point] = 0.4 * scalp[point] + 0.6 * sum(scalp[other] for other in others) / len(others)
-            scalp = evened
         self.shape = shape
+        self.faces = faces
+        self.normals = normals
+        self.patches = {}  # a patch's name → (its marks, evened; its triangles; their areas)
         self.tree = BVHTree.FromPolygons([Vector(p) for p in shape], [list(face) for face in faces])
+        self.patch("scalp", scalp)
+        scalp = self.patches["scalp"][0]
         own = shape[scalp > 0.5]
         # (The middle of the skull: between the scalp's sides and ends, a hand under its top.)
         self.centre = np.array([0.0, (own[:, 1].min() + own[:, 1].max()) / 2, own[:, 2].max() - 0.1])
         self.top = own[:, 2].max()
         self.crown = np.array([0.0, self.centre[1] + 0.045, self.top - 0.012])
-        # Triangles of the scalp, to pick roots on by area and by how much each is scalp.
+        self.scalp = scalp
+
+    def patch(self, name, marks):
+        """A patch of skin hair may grow on, by `name`: `marks` says for every vertex how much it is of it, 0…1.
+        (The character's masks are painted roughly at their edges, a point here and there in or out: evened out
+        over each point's neighbours, so the edge they give is a line.) Kept with its triangles, to pick roots
+        on by area and by how much each is of the patch."""
+        marks = np.asarray(marks, dtype=np.float64).copy()
+        beside = {}
+        for face in self.faces:
+            if max(marks[i] for i in face) > 0:
+                for a, b in zip(face, face[1:] + face[:1]):
+                    beside.setdefault(a, set()).add(b)
+                    beside.setdefault(b, set()).add(a)
+        for _ in range(4):
+            evened = marks.copy()
+            for point, others in beside.items():
+                evened[point] = 0.4 * marks[point] + 0.6 * sum(marks[other] for other in others) / len(others)
+            marks = evened
         corners = []
-        for face in faces:
-            if max(scalp[i] for i in face) <= 0.02:
+        for face in self.faces:
+            if max(marks[i] for i in face) <= 0.02:
                 continue
             for k in range(1, len(face) - 1):
                 corners.append((face[0], face[k], face[k + 1]))
-        self.corners = np.array(corners)
-        a, b, c = (shape[self.corners[:, k]] for k in range(3))
-        self.areas = np.linalg.norm(np.cross(b - a, c - a), axis=1) / 2
-        self.scalp = scalp
-        self.normals = normals
+        corners = np.array(corners)
+        a, b, c = (self.shape[corners[:, k]] for k in range(3))
+        self.patches[name] = (marks, corners, np.linalg.norm(np.cross(b - a, c - a), axis=1) / 2)
 
     def clear_of_face(self, point):
         """`point` moved aside, to the side it is on, if it lies in front of the face under the brows."""
@@ -73,25 +80,31 @@ class Head:
             return point
         return np.array([FACE_HALF if point[0] >= 0 else -FACE_HALF, point[1], point[2]])
 
-    def roots(self, count, seed, keep=None, edge=(0.3, 0.1)):
-        """`count` roots on the scalp: (points, normals). A root is kept where its place is scalp, and where
-        `keep(points)` says. `edge`: the least it must be scalp, over the forehead and elsewhere (the character
-        marks the sides and nape of its scalp faintly, and its forehead's edge firmly), with a narrow band
-        over that where the hair thins to the hairline."""
+    def roots(self, count, seed, keep=None, edge=(0.3, 0.1), on="scalp"):
+        """`count` roots on a patch (`on`, the scalp unless said): (points, normals). A root is kept where its
+        place is of the patch, and where `keep(points)` says. `edge`: the least it must be of it, over the
+        forehead and elsewhere (the character marks the sides and nape of its scalp faintly, and its forehead's
+        edge firmly), or one number for both, with a narrow band over that where the hair thins to its edge."""
         rng = np.random.default_rng(seed)
+        marks, corners, areas = self.patches[on]
         points = np.zeros((0, 3))
         normals = np.zeros((0, 3))
-        while len(points) < count:
-            pick = rng.choice(len(self.corners), size=count * 2, p=self.areas / self.areas.sum())
+        for _ in range(200):
+            if len(points) >= count:
+                break
+            pick = rng.choice(len(corners), size=count * 2, p=areas / areas.sum())
             u, v = rng.random(len(pick)), rng.random(len(pick))
             over = u + v > 1
             u[over], v[over] = 1 - u[over], 1 - v[over]
             w = np.stack([1 - u - v, u, v], axis=1)
-            tri = self.corners[pick]
+            tri = corners[pick]
             at = sum(self.shape[tri[:, k]] * w[:, k : k + 1] for k in range(3))
             n = unit(sum(self.normals[tri[:, k]] * w[:, k : k + 1] for k in range(3)))
-            much = sum(self.scalp[tri[:, k]] * w[:, k] for k in range(3))
-            least = np.where(at[:, 1] < self.centre[1] - 0.045, edge[0], edge[1])
+            much = sum(marks[tri[:, k]] * w[:, k] for k in range(3))
+            if np.isscalar(edge):
+                least = np.full(len(pick), float(edge))
+            else:
+                least = np.where(at[:, 1] < self.centre[1] - 0.045, edge[0], edge[1])
             ok = (much > least) & (rng.random(len(pick)) < np.clip((much - least) / 0.03, 0.4, 1))
             if keep is not None:
                 ok &= keep(at)
@@ -145,6 +158,23 @@ def comb_part(x=0.0, back=0.25, drop=0.55):
 def comb_side(to=1.0, back=0.1, drop=0.3):
     """All of it to one side (`to`: 1 the character's left, -1 its right)."""
     return lambda p, head: unit(np.array([to, back, -drop]))
+
+
+def comb_beard(mouth):
+    """How beard hair lies (`mouth`: its half width, `top` and `bottom` heights, and the `chin`'s, metres): on
+    the upper lip down and out from the middle; under the jaw forward, so it runs down the neck; on the cheeks
+    and jaw down and a little forward, towards the chin."""
+
+    def comb(p, head):
+        side = 1.0 if p[0] >= 0 else -1.0
+        if p[2] > mouth["top"] - 0.003 and abs(p[0]) < mouth["wide"] + 0.014:
+            # (Out from the middle by how far from it a hair grows: the two halves meet under the nose.)
+            return unit(np.array([side * 0.6 * min(1.0, abs(p[0]) / 0.02), -0.3, -1.0]))
+        if p[2] < mouth["chin"] and p[1] > mouth["front"] + 0.03:
+            return unit(np.array([0.0, -0.8, -0.6]))
+        return unit(np.array([-side * 0.12, -0.3, -1.0]))
+
+    return comb
 
 
 def comb_up():
@@ -243,7 +273,8 @@ def styled(head, strands, recipe, seed):
     aside = unit(np.cross(heading, unit(strands - head.centre)))
     outward = np.cross(aside, heading)
     phase = rng.uniform(0, 2 * math.pi, size=count)[lock_of] + rng.normal(0, 0.35, size=count)
-    grown = np.clip(along / 0.03, 0, 1)[:, :, None]  # (nothing in the first centimetres: the root stays put)
+    # (Nothing in the first centimetres, or `still` metres: the root stays put.)
+    grown = np.clip(along / recipe.get("still", 0.03), 0, 1)[:, :, None]
     if recipe.get("wave"):
         swing, span = recipe["wave"]
         turn = 2 * math.pi * along / span + phase[:, None]

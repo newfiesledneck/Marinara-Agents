@@ -19,6 +19,7 @@ const CELL = 0.02;
 const THIN = 0.008;
 const STEP = 0.02; // metres: a strand's piece longer than this is walked in steps, so it can't step through the skin
 const SAME = 1e-4;
+const PUSHES = 4; // times at most a point is pushed out again after sliding
 
 /**
  * A strand mesh's points in order (hair, as the kit has it: ribbons whose `u` is a strand's own shade and
@@ -51,9 +52,10 @@ export function strandOrder(geometry) {
 /**
  * The skin hair is draped over, as a cloud: `parts` are [{ position, normal, keep(x, y, z) }] (a mesh's
  * points and normals, and which of them count). Gives what `drape` reads: the points kept, and a grid of
- * cells to find them by.
+ * cells to find them by. `thin`: one point is kept for each cube this wide (THIN unless said; a beard, which
+ * lies a millimetre or two off the face, wants every point of it).
  */
-export function skinCloud(parts) {
+export function skinCloud(parts, thin = THIN) {
   let total = 0;
   for (const { position } of parts) total += position.length / 3;
   const at = new Float32Array(total * 3);
@@ -61,15 +63,17 @@ export function skinCloud(parts) {
   const low = [Infinity, Infinity, Infinity];
   const high = [-Infinity, -Infinity, -Infinity];
   let count = 0;
-  const taken = new Set(); // the THIN-wide cubes that have their point
+  const taken = new Set(); // the `thin`-wide cubes that have their point
   for (const part of parts)
     for (let v = 0; v < part.position.length; v += 3) {
       if (!part.keep(part.position[v], part.position[v + 1], part.position[v + 2])) continue;
-      const cube =
-        Math.floor(part.position[v] / THIN) +
-        1024 * (Math.floor(part.position[v + 1] / THIN) + 1024 * Math.floor(part.position[v + 2] / THIN));
-      if (taken.has(cube)) continue;
-      taken.add(cube);
+      if (thin > 0) {
+        const cube =
+          Math.floor(part.position[v] / thin) +
+          1024 * (Math.floor(part.position[v + 1] / thin) + 1024 * Math.floor(part.position[v + 2] / thin));
+        if (taken.has(cube)) continue;
+        taken.add(cube);
+      }
       const length = Math.hypot(part.normal[v], part.normal[v + 1], part.normal[v + 2]) || 1;
       for (let c = 0; c < 3; c++) {
         at[count * 3 + c] = part.position[v + c];
@@ -212,7 +216,9 @@ export function drape(position, { order, points, strands }, cloud, { top, clear 
             py = fromY + ((py - fromY) / reach) * stride;
             pz = fromZ + ((pz - fromZ) / reach) * stride;
           }
-          pushOut();
+          // (Again until it holds, a few times at most: where the skin bends inwards, as under the jaw, a point
+          // pushed out from one patch of skin can land under the next.)
+          for (let again = 0; again < PUSHES && pushOut(); again++);
           draped = true;
         }
         nowX = px;

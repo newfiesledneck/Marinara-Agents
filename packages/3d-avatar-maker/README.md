@@ -78,7 +78,9 @@ bodies, which stay as they are with everything made for them. So far it has:
   colour, darker, which close with the eyes.
 - Makeup on the Skin and eyes tab (eyeshadow, eyeliner, blush and lipstick, each a colour and a strength, with
   the same presets as the other bodies) and a nail colour for fingernails and toenails.
-- Stubble on the Hair tab, painted on the skin: light or heavy, a moustache or goatee shadow, or a short beard.
+- Eight beards on the Hair tab, made of separate strands and moving with the face (short, full and long beards,
+  a goatee, a moustache, a walrus moustache, a chin curtain and mutton chops), in the hair's colour or their
+  own; and stubble painted on the skin, alone or under a beard.
 - The same blinks, mouth shapes and feelings, the preview's poses and animations, and saving as a VRM or GLB.
 
 - Underwear painted on the skin: cheeky panties and a strapless bra on a female build, boxer briefs on a male
@@ -90,9 +92,9 @@ bodies, which stay as they are with everything made for them. So far it has:
 - Hair that swings (the long styles; the bob at its ends), and a bust and buttocks that move a little as the
   body does, each with its own switch and amount under **Movement** (below).
 
-It has no clothes, fitted underwear or beards of separate hairs yet.
+It has no clothes or fitted underwear yet.
 Generate and Revise avatar work on it with a menu of its own: its sliders, skin tone, hair, eyes, brows,
-makeup, stubble and nails.
+makeup, stubble, beard and nails.
 
 ## Movement: hair, bust and buttocks
 
@@ -235,8 +237,8 @@ use and share however you like, with no credit required:
 - The Realistic body, its skin, eyes, brow styles and four strand hair styles are from
   [Vitruvian for CharMorph](https://github.com/Upliner/CharMorph-Vitruvian) (CC0) by Sean Buckley, on Antonia
   Polygon by Olaf Delgado-Friedrichs, with SirMaxim, Upliner, AgentA1CR, Benjamin McDonnell and Mindfront;
-  adapted in Blender by ThatOneCan, used as data. Its eyelashes and sixteen of its hair styles were made by
-  ThatOneCan (CC0), and its eye pictures are the other bodies' (MakeHuman's and the community's, credited
+  adapted in Blender by ThatOneCan, used as data. Its eyelashes, its beards and sixteen of its hair styles were
+  made by ThatOneCan (CC0), and its eye pictures are the other bodies' (MakeHuman's and the community's, credited
   above).
 
 - Most of the preview's animations are clips from Quaternius's Universal Animation Library and Universal

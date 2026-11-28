@@ -13,13 +13,15 @@ Writes, for scripts/build-3d-avatar-maker-kit.mjs to pack:
   textures, realistic-hair-<style>-scalp.webp: where the scalp lies under it, to be painted in the hair's colour.
 - assets/textures/realistic/*.webp: the skin (light and dark), its normal and roughness maps, eyes and mouth.
   The torso and legs come bare, and with underwear painted on (panties and a bra, or boxer briefs).
+- assets/models/realistic-beard-<style>.glb: beards grown here (GROOMED_BEARDS), as narrow ribbons; and in the
+  textures, realistic-beard-<style>-skin.webp: where each grows, to be painted in its colour.
 - assets/textures/realistic/realistic-paint-*.webp: where makeup, stubble and nail colour go on the skin
   (write_paints).
 
 The character lives outside the repository: in `VITRUVIAN_DATA`, else in
 `_planning/Wanderworld asset packs/Vitruvian/CharMorph-Vitruvian-main` in this folder or any above it.
 
-    blender --background --factory-startup --disable-autoexec --python make_realistic.py [-- body textures hair brows paints]
+    blender --background --factory-startup --disable-autoexec --python make_realistic.py [-- body textures hair brows paints beards]
 """
 
 import json
@@ -401,6 +403,74 @@ GROOMED = {
     "bun": _gathered(_behind(0.1, 0.035), lambda head, tie, at, seed: [(groom.bun(head, tie, 1500, 0.038, seed), 0.003, 12, False)]),
     "twin_tails": _gathered(lambda head: [head.centre + np.array([side * 0.078, 0.035, 0.03]) for side in (1.0, -1.0)],
                             _tail(0.36, 0.018, heading=(0.55, 0.2, 0.15), fall=0.04, count=1000, wave=(0.005, 0.12))),
+}
+
+# Beards grown here (groom.py), on the character's beard mask with its lips left out. `face` gives where
+# the mouth is (make_beards): its half width `wide`, the heights of its `top` and `bottom`, its `front` and the
+# `chin`'s lowest point. A recipe gives the beard's strands in groups, as GROOMED's do. Made by ThatOneCan.
+def _beard(recipe, strands, width=0.0021, points=7, seed=1, raw=12):
+    """A beard grown on `where(face)`'s part of the beard's patch, as the `recipe(face)` says."""
+
+    def build(head, face):
+        made = {"comb": groom.comb_beard(face), "lift": 0.25, "layers": 0.003, "stray": 0.2, "over_face": True,
+                "still": 0.004, **recipe(face)}
+        roots, normals = head.roots(strands, seed, made.pop("where"), 0.3, "beard")
+        return [(groom.styled(head, groom.grow(head, roots, normals, made, seed, raw), made, seed), width, points, True)]
+
+    return build
+
+
+def _lip(face, wider=0.014):
+    """The upper lip, under the nose: (points) → which of them are."""
+    return lambda p: (p[:, 2] > face["top"] - 0.003) & (np.abs(p[:, 0]) < face["wide"] + wider)
+
+
+def _chin(face):
+    """The chin and under it, as wide as the mouth and a little more."""
+    return lambda p: (p[:, 2] < face["bottom"] - 0.005) & (np.abs(p[:, 0]) < face["wide"] + 0.016)
+
+
+def _round_mouth(face):
+    """The upper lip, the chin, and between them beside the mouth: a goatee's ground."""
+    return lambda p: np.abs(p[:, 0]) < face["wide"] + 0.015
+
+
+def _upper(face):
+    """Is a point of the upper lip (one number each way: x, height)?"""
+    return lambda p: p[2] > face["top"] - 0.003 and abs(p[0]) < face["wide"] + 0.014
+
+
+def _longer_down(upper, lower, face, lip):
+    """A length from `upper` at the cheekbones to `lower` at the chin's lowest point; `lip` on the upper lip."""
+    on_lip = _upper(face)
+
+    def length(p, head):
+        if on_lip(p):
+            return lip
+        t = min(1.0, max(0.0, (face["cheeks"] - p[2]) / (face["cheeks"] - face["chin"])))
+        return upper + (lower - upper) * t
+
+    return length
+
+
+GROOMED_BEARDS = {
+    "short": _beard(lambda face: {"where": None, "length": _longer_down(0.004, 0.007, face, 0.004), "lift": 0.12, "fall": 9,
+                                  "layers": 0.0003, "stray": 0.15, "frizz": 0.0002}, strands=5200, width=0.0017, points=4, raw=6),
+    "full": _beard(lambda face: {"where": None, "length": _longer_down(0.02, 0.045, face, 0.016), "fall": 0.035,
+                                 "layers": 0.005, "locks": (240, 0.35), "curl": (0.0022, 0.018), "frizz": 0.0007}, strands=3400, points=8, raw=14),
+    "long": _beard(lambda face: {"where": None, "length": _longer_down(0.04, 0.15, face, 0.028), "fall": 0.03, "layers": 0.007,
+                                 "locks": (200, 0.5), "wave": (0.003, 0.05), "frizz": 0.0008}, strands=3200, points=12, raw=22),
+    "goatee": _beard(lambda face: {"where": _round_mouth(face), "length": _longer_down(0.012, 0.028, face, 0.012), "fall": 0.04,
+                                   "layers": 0.003, "locks": (120, 0.35), "curl": (0.0016, 0.014), "frizz": 0.0006}, strands=1800, points=7, raw=12),
+    "moustache": _beard(lambda face: {"where": _lip(face), "length": 0.013, "fall": 0.05, "layers": 0.002, "lift": 0.2,
+                                      "locks": (60, 0.3), "frizz": 0.0004}, strands=1100, points=5, raw=9),
+    "walrus": _beard(lambda face: {"where": _lip(face, 0.02), "length": 0.028, "fall": 0.02, "layers": 0.004, "lift": 0.3,
+                                   "locks": (80, 0.4), "frizz": 0.0005}, strands=1500, points=7, raw=12),
+    "chin_curtain": _beard(lambda face: {"where": lambda p: p[:, 2] < face["bottom"] - 0.004, "length": 0.007, "lift": 0.4, "fall": 9,
+                                       "layers": 0.0006, "stray": 0.3, "frizz": 0.0003}, strands=1800, points=4, raw=6),
+    "mutton_chops": _beard(lambda face: {"where": lambda p: (np.abs(p[:, 0]) > face["wide"] + 0.018) & (p[:, 2] > face["bottom"] - 0.012),
+                                         "length": 0.016, "fall": 0.05, "layers": 0.003, "locks": (110, 0.35), "curl": (0.0016, 0.014),
+                                         "frizz": 0.0006}, strands=1900, points=6, raw=10),
 }
 
 # The brow styles: Mindfront's, as the character has them ("mind_eyebrows_01" … "_14"; the 11th is its usual).
@@ -1236,7 +1306,7 @@ def main():
 
     if wanted("textures"):
         write_textures(C)
-    if not (wanted("body") or wanted("hair") or wanted("brows") or wanted("paints")):
+    if not (wanted("body") or wanted("hair") or wanted("brows") or wanted("paints") or wanted("beards")):
         return
 
     # The joints, and how each slider moves them.
@@ -1287,7 +1357,7 @@ def main():
     edges = lid_edges(C, shape, keys["blink"], eyes_at) if wanted("body") or wanted("paints") else None
     if wanted("paints"):
         write_paints(C, keys["blink"], eyes_at, edges)
-    if not (wanted("body") or wanted("hair") or wanted("brows")):
+    if not (wanted("body") or wanted("hair") or wanted("brows") or wanted("beards")):
         return
 
     # The weights: the character's game rig's, gathered onto the maker's bones; each eyeball whole on its own.
@@ -1395,6 +1465,26 @@ def main():
             export(os.path.join(MODELS, f"realistic-brows-{n:02d}.glb"), [rig, brows])
             bpy.data.objects.remove(brows)
 
+    def groomer_of():
+        """The groomer's head (groom.py): the character's scalp to grow hair on, and its beard mask with the
+        lips left out (a margin round them too) to grow a beard on."""
+        scalp = np.zeros(count)
+        group = haired.vertex_groups["scalp"].index
+        for vertex in haired.data.vertices:
+            for of in vertex.groups:
+                if of.group == group:
+                    scalp[vertex.index] = of.weight
+        skin_faces = [faces[f] for f in range(len(faces)) if SLOTS[slots[f]] in ("UDIM.Skin", "charmorph_censor")]
+        made = groom.Head(shape, skin_faces, scalp, normals, joints["eye_l"][2])
+        lips = shape[C["lip"] > 0.2]
+        tree = KDTree(len(lips))
+        for at, point in enumerate(lips):
+            tree.insert(point, at)
+        tree.balance()
+        clear = np.array([tree.find(point)[2] for point in shape]) > 0.0025
+        made.patch("beard", np.clip(C["beard"], 0, 1) * (1 - np.clip(C["lip"] * 3, 0, 1)) * clear)
+        return made
+
     if wanted("hair"):
         head = place_map(C, 1001, SCALP_SIZE)
         for name, (style, children, every, width) in HAIR.items():
@@ -1413,14 +1503,7 @@ def main():
             bpy.data.objects.remove(hair)
 
         # The styles grown here (GROOMED): strands from groom.py's recipes, made ribbons and saved the same way.
-        scalp = np.zeros(count)
-        group = haired.vertex_groups["scalp"].index
-        for vertex in haired.data.vertices:
-            for of in vertex.groups:
-                if of.group == group:
-                    scalp[vertex.index] = of.weight
-        skin_faces = [faces[f] for f in range(len(faces)) if SLOTS[slots[f]] in ("UDIM.Skin", "charmorph_censor")]
-        groomer = groom.Head(shape, skin_faces, scalp, normals, joints["eye_l"][2])
+        groomer = groomer_of()
         only = [name for name in os.environ.get("HAIR_ONLY", "").split(",") if name]
         for at, (name, recipe) in enumerate(GROOMED.items()):
             if only and name not in only:
@@ -1445,6 +1528,40 @@ def main():
             log(f"hair {name} (grown): {len(verts) // 2} points, {len(quads) * 2} triangles" + ("; short at the hairline" if short else ""))
             export(os.path.join(MODELS, f"realistic-hair-{name}.glb"), [rig, hair])
             bpy.data.objects.remove(hair)
+
+    if wanted("beards"):
+        # Beards (GROOMED_BEARDS): grown the same way, on the beard's patch; each with a picture of where it grows,
+        # which the maker paints in its colour under it, as it does a scalp.
+        head = place_map(C, 1001, SCALP_SIZE)
+        groomer = groomer_of()
+        lips = shape[C["lip"] > 0.5]
+        middle = shape[(np.abs(shape[:, 0]) < 0.006) & (shape[:, 2] > 1.45) & (shape[:, 2] < lips[:, 2].min())]
+        front = lips[:, 1].min()
+        chin = middle[middle[:, 1] < front + 0.02][:, 2].min()  # (the lowest point still at the front of the face)
+        face = {"wide": float(np.abs(lips[:, 0]).max()), "top": float(lips[:, 2].max()), "bottom": float(lips[:, 2].min()),
+                "front": float(front), "chin": float(chin), "cheeks": float(joints["eye_l"][2] - 0.035)}
+        log("the mouth for beards: " + ", ".join(f"{key} {value:.3f}" for key, value in face.items()))
+        only = [name for name in os.environ.get("BEARD_ONLY", "").split(",") if name]
+        for at, (name, recipe) in enumerate(GROOMED_BEARDS.items()):
+            if only and name not in only:
+                continue
+            verts, marks, quads, rooted = [], [], [], []
+            for part, (strands, width, points, grows) in enumerate(recipe(groomer, face)):
+                more, their_marks, their_quads = ribbons(list(strands), head_centre, points, width, seed=71 + at * 7 + part, least=0.001)
+                quads += [tuple(i + len(verts) for i in quad) for quad in their_quads]
+                marks += their_marks
+                verts += more
+                if grows:
+                    rooted += list(strands)
+            beard = new_mesh(f"realistic-beard-{name}", verts, quads, uvs_per_vertex=marks, materials=[plain_material("beard", (0.13, 0.075, 0.04, 1.0), 0.5)])
+            skin_to(beard, rig, "Head")
+            cover = scalp_paint(head, rooted, 0.0015)
+            picture = np.ones((SCALP_SIZE, SCALP_SIZE, 4), dtype=np.float32)
+            picture[:, :, 3] = cover
+            save_picture(f"realistic-beard-{name}-skin", picture, 80)
+            log(f"beard {name}: {len(rooted)} strands, {len(quads) * 2} triangles")
+            export(os.path.join(MODELS, f"realistic-beard-{name}.glb"), [rig, beard])
+            bpy.data.objects.remove(beard)
 
 
 main()

@@ -74,7 +74,9 @@ them into `kit/avatar/realistic-*` and leaves the rest of the kit as it is. Its 
 character's own four (`HAIR`) and those grown here (`GROOMED`: a recipe each, read by `assets/scripts/groom.py`);
 `HAIR_ONLY=pixie,braid` with `-- hair` builds only the grown styles named, to try one. A new style is also
 listed in `REALISTIC_HAIR` in `src/looks.js`. Look a style over on the motions page:
-`/motions?body=realistic&hairs=pixie,braid` draws each from the front, side and back. `src/realistic.js` builds that
+`/motions?body=realistic&hairs=pixie,braid` draws each from the front, side and back. Beards are the same:
+`-- beards` builds `GROOMED_BEARDS` (`BEARD_ONLY=goatee` builds the ones named), `REALISTIC_BEARDS` lists them,
+and `/motions?body=realistic&beards=full,goatee&keys=aa:1` draws them, with the mouth open if asked. `src/realistic.js` builds that
 body in the maker; nothing in it reads the other bodies' files, and `BODIES` in `src/looks.js` stays the
 kit's two, which the clothes, hair and presets are made for. Its sliders are named in three places that must
 agree: `SLIDERS` in the script, `REALISTIC_SHAPES` in `src/looks.js`, and the keys in its packed file.

@@ -2686,6 +2686,7 @@ for (const figure of Object.values(made)) figure.dispose();
     realShape: { fat: 1 },
     realTone: 0.7,
     realHair: "eve",
+    realBeard: "full",
     hair: "bob",
     physics: { hair: { on: false } },
   });
@@ -3152,8 +3153,8 @@ for (const figure of Object.values(made)) figure.dispose();
 
     // On the body: no point of long hair lies under the skin of a heavy build or a broad one, where it did
     // by centimetres before; the built body's hair is all but as made.
-    const under = (of) => {
-      const hair = mesh(of, "hair").geometry.attributes.position.array;
+    const under = (of, part = "hair") => {
+      const hair = mesh(of, part).geometry.attributes.position.array;
       const cell = 0.03;
       const grid = new Map();
       const skin = [];
@@ -3240,6 +3241,99 @@ for (const figure of Object.values(made)) figure.dispose();
       );
       build.dispose();
     }
+
+    // Beards (make_realistic.py GROOMED_BEARDS): strands on the beard's ground, which move with the face as the
+    // brows do, lie over a heavy build's chest as the hair does, and have the skin under them painted.
+    const { REALISTIC_BEARDS } = looks;
+    const { paintsOf } = await import("../packages/3d-avatar-maker/src/realistic.js");
+    const { Color } = await import("three");
+    const man = (over = {}) => start({ realHair: "crop", realShape: { gender: -1 }, ...over });
+    const plain = await createAvatar(man(), "Test", "auto");
+    assert.equal(plain.avatar.realBeard, "none", "realistic: no beard unless one is chosen");
+    assert.ok(!mesh(plain, "beard"), "realistic: and none is drawn");
+    plain.dispose();
+    assert.equal(
+      checkLook({ body: REALISTIC, realBeard: "made_up" }).realBeard,
+      undefined,
+      "a beard it doesn't have isn't kept",
+    );
+    assert.deepEqual(
+      checkLook({ body: REALISTIC, realBeard: "goatee", colours: { beard: 0x884422 } }),
+      { body: REALISTIC, realBeard: "goatee", colours: { beard: 0x884422 } },
+      "a beard and its own colour are kept",
+    );
+    for (const [style, label] of REALISTIC_BEARDS.slice(1)) {
+      const build = await createAvatar(man({ realBeard: style }), "Test", "auto");
+      const beard = mesh(build, "beard");
+      assert.ok(beard?.geometry.index.count / 3 > 4000, `realistic: the ${label} has its strands`);
+      // (Its bottom stays on the face and neck, near the chin: no beard starts on the cheekbones or the chest.)
+      const [box, head] = [boxOf(build, "beard"), boxOf(build, "skin_head")];
+      assert.ok(box.max.y < head.max.y - 0.1, `realistic: the ${label} is on the lower face`);
+      const moves = beard.geometry.morphAttributes.position[beard.morphTargetDictionary.aa];
+      let drop = 0;
+      for (let i = 0; i < moves.count; i++) drop = Math.max(drop, -moves.getY(i));
+      const opens = !/moustache|walrus|mutton/u.test(style);
+      assert.ok(
+        opens ? drop > 0.005 : drop < 0.02,
+        `realistic: the ${label} ${opens ? "comes down with the jaw" : "stays with the lip and cheeks"} as the mouth opens (${(drop * 1000).toFixed(1)} mm)`,
+      );
+      assert.ok(
+        (await readFile(join(kitRoot, "avatar", `realistic-beard-${style}-skin.webp`))).length > 500,
+        `the kit has the picture of where the ${label} grows`,
+      );
+      build.dispose();
+    }
+    const heavy = await createAvatar(
+      man({ realBeard: "long", realShape: { gender: -1, fat: 1, muscular: 1 } }),
+      "Test",
+      "auto",
+    );
+    // (Counted by casting rays at the skin's own triangles, an odd number of crossings being inside: a beard
+    // lies close in the grooves of a heavy chest and under the jaw, where judging by the nearest skin point's
+    // plane misleads. A strand's root, which grows from the skin, isn't counted.)
+    {
+      const { BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, Raycaster } = await import("three");
+      const shell = heavy.meshes
+        .filter((each) => /^skin_|^mouth$|^eye_white$|^cornea$|^iris$/u.test(each.name))
+        .map((each) => {
+          const geometry = new BufferGeometry();
+          geometry.setAttribute("position", each.geometry.attributes.position);
+          geometry.setIndex(each.geometry.index);
+          return new Mesh(geometry, new MeshBasicMaterial({ side: DoubleSide }));
+        });
+      const ways = [new Vector3(1, 0.13, 0.21), new Vector3(-0.3, 0.05, 1), new Vector3(0.1, -0.2, -1)].map((way) =>
+        way.normalize(),
+      );
+      const { position, uv } = mesh(heavy, "beard").geometry.attributes;
+      const caster = new Raycaster();
+      const at = new Vector3();
+      let [inside, counted] = [0, 0];
+      for (let v = 0; v < position.count; v += 5) {
+        if (uv.getY(v) > 0.9) continue;
+        at.fromBufferAttribute(position, v);
+        counted++;
+        let votes = 0;
+        for (const way of ways) {
+          caster.set(at, way);
+          if (caster.intersectObjects(shell, false).length % 2) votes++;
+        }
+        if (votes >= 2) inside++;
+      }
+      assert.ok(
+        inside < counted * 0.005,
+        `realistic: a long beard lies over a heavy build's chest (${inside} of ${counted} points inside)`,
+      );
+    }
+    heavy.dispose();
+    const hair = new Color(0x402010);
+    const ground = (look) => paintsOf("head", { realHair: "none", ...look }, hair).map((paint) => paint.mask);
+    assert.deepEqual(ground({ realBeard: "full" }), ["realistic-beard-full-skin"], "the skin under a beard is painted");
+    assert.deepEqual(ground({ realBeard: "none" }), [], "and nothing with none");
+    const [own, left] = [
+      paintsOf("head", { realHair: "none", realBeard: "full", colours: { beard: 0xaa4411 } }, hair)[0].colour,
+      paintsOf("head", { realHair: "none", realBeard: "full" }, hair)[0].colour,
+    ];
+    assert.notEqual(own, left, "in the beard's own colour, else the hair's");
   }
   // Generate on this body: a menu of its own fields, and a design read as those fields alone, on this body.
   {
@@ -3247,6 +3341,14 @@ for (const figure of Object.values(made)) figure.dispose();
     const menu = await gen.designMenu(REALISTIC);
     for (const [key] of REALISTIC_SHAPES) assert.ok(menu.includes(`  ${key}: `), `its menu lists the ${key} slider`);
     for (const [style] of REALISTIC_HAIR) assert.ok(menu.includes(`${style} (`), `its menu lists the ${style} hair`);
+    for (const [style] of looks.REALISTIC_BEARDS)
+      assert.ok(menu.includes(`${style} (`), `its menu lists the ${style} beard`);
+    const bearded = gen.designedLook(start(), { realBeard: "goatee", colours: { beard: "#884422" } }).look;
+    assert.deepEqual(
+      [bearded.realBeard, bearded.colours.beard],
+      ["goatee", 0x884422],
+      "a design's beard and its colour are read",
+    );
     assert.ok(
       !menu.includes("clothes: a list") && !/^body: /mu.test(menu),
       "its menu offers no clothes and no other body",

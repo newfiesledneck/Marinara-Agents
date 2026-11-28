@@ -75,6 +75,12 @@ function aim(figure, view) {
     at.set(0, at.y - 0.065, at.z);
     if (view === "mouth-side") camera.position.set(at.x + 0.26, at.y, at.z + 0.12);
     else camera.position.set(at.x, at.y - (view === "mouth-below" ? 0.07 : 0), at.z + 0.28);
+  } else if (view === "chin" || view === "chin-side") {
+    // (The mouth, jaw and chin, close: where a beard is. From the front a little to the left, or the left side.)
+    (figure.bones.get("eye_l") ?? n.head).getWorldPosition(at);
+    at.set(0, at.y - 0.075, at.z);
+    if (view === "chin") camera.position.set(at.x + 0.12, at.y + 0.02, at.z + 0.5);
+    else camera.position.set(at.x + 0.5, at.y + 0.02, at.z + 0.08);
   } else if (view === "bust" || view === "bust-side" || view === "bust-back") {
     // (The head, shoulders and chest: where long hair lies on the body. From the front, the avatar's left, or behind.)
     n.head.getWorldPosition(at).y -= 0.12;
@@ -103,7 +109,7 @@ async function main() {
     ...(body === "realistic" ? { realShape: { gender: 1 } } : {}),
     ...JSON.parse(asked.get("look") ?? "{}"),
   });
-  if (asked.get("hairs")) return hairSheet(look, body);
+  if (asked.get("hairs") || asked.get("beards")) return hairSheet(look, body);
   const figure = await createAvatar(look, "Sheet", "auto");
   scene.add(figure.object);
   globalThis.sheetFigure = figure; // (to look at from the browser's console)
@@ -190,11 +196,15 @@ async function main() {
 
 /**
  * `hairs=bob,eve`: the Realistic body's hair styles side by side, one a row, from each of `views` (bust,
- * bust-side and bust-back unless said), standing relaxed with the springs settled.
+ * bust-side and bust-back unless said), standing relaxed with the springs settled. `beards=full,goatee`: its
+ * beards the same way (chin, chin-side and face unless said), and `keys=aa` with them: that face as well.
  */
 async function hairSheet(look, body) {
-  const styles = asked.get("hairs").split(",");
-  const views = (asked.get("views") ?? "bust,bust-side,bust-back").split(",");
+  const beards = !!asked.get("beards");
+  const field = beards ? "realBeard" : "realHair";
+  const styles = asked.get(beards ? "beards" : "hairs").split(",");
+  const views = (asked.get("views") ?? (beards ? "chin,chin-side,face" : "bust,bust-side,bust-back")).split(",");
+  const face = asked.get("keys")?.split(":");
   const [width, height] = [number("w", 300), number("h", 320)];
   const sheet = document.createElement("canvas");
   sheet.width = views.length * width;
@@ -207,7 +217,7 @@ async function hairSheet(look, body) {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   for (const [row, style] of styles.entries()) {
-    const figure = await createAvatar(checkLook({ ...look, realHair: style }), "Sheet", "auto");
+    const figure = await createAvatar(checkLook({ ...look, [field]: style }), "Sheet", "auto");
     scene.add(figure.object);
     relaxedPose(figure, 0);
     const springs = createSprings(figure);
@@ -215,6 +225,7 @@ async function hairSheet(look, body) {
     await new Promise((resolve) => setTimeout(resolve, 300));
     for (let frame = 0; frame < 60; frame++) springs?.step(1 / 30);
     animateFace(figure, "still", 0, null, true);
+    if (face) setFace(figure, { [face[0]]: Number(face[1] ?? 1) });
     for (const [column, view] of views.entries()) {
       aim(figure, view);
       renderer.render(scene, camera);

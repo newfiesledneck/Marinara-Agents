@@ -10,7 +10,7 @@
   },
   "id": "3d-avatar-maker",
   "name": "3D Avatar Maker",
-  "version": "0.1.29",
+  "version": "0.1.30",
   "description": "Build a 3D avatar for a character or persona on its own Home tab: choose a body, shape it, pick skin, eyes, hair and clothes, then save it as a VRM or GLB file and import it under the 3D Avatars agent. No other software is needed. Alpha: the avatar blinks, talks, shows feelings and swings its hair; more is coming. Install it, then open Home → 3D Avatar Maker.",
   "engine": {
     "min": "2.4.6",
@@ -94,6 +94,22 @@
         "kit/avatar/avatar-male-skin-young-caucasian.webp",
         "kit/avatar/avatar-male.pack.png",
         "kit/avatar/avatar-male.webp",
+        "kit/avatar/realistic-beard-chin_curtain-skin.webp",
+        "kit/avatar/realistic-beard-chin_curtain.pack.png",
+        "kit/avatar/realistic-beard-full-skin.webp",
+        "kit/avatar/realistic-beard-full.pack.png",
+        "kit/avatar/realistic-beard-goatee-skin.webp",
+        "kit/avatar/realistic-beard-goatee.pack.png",
+        "kit/avatar/realistic-beard-long-skin.webp",
+        "kit/avatar/realistic-beard-long.pack.png",
+        "kit/avatar/realistic-beard-moustache-skin.webp",
+        "kit/avatar/realistic-beard-moustache.pack.png",
+        "kit/avatar/realistic-beard-mutton_chops-skin.webp",
+        "kit/avatar/realistic-beard-mutton_chops.pack.png",
+        "kit/avatar/realistic-beard-short-skin.webp",
+        "kit/avatar/realistic-beard-short.pack.png",
+        "kit/avatar/realistic-beard-walrus-skin.webp",
+        "kit/avatar/realistic-beard-walrus.pack.png",
         "kit/avatar/realistic-body.pack.png",
         "kit/avatar/realistic-brows-01.pack.png",
         "kit/avatar/realistic-brows-02.pack.png",
@@ -213,8 +229,8 @@
     },
     {
       "path": "client.js",
-      "sha256": "17fbabe279fe20c23747d1a6dee8cc3c8d2448c43d1de83018ee66cba646bde7",
-      "bytes": 1354279
+      "sha256": "348627e30df6f44aabf4394f193f44bdff7e6351a9990c7fa1286d7ff2277211",
+      "bytes": 1356375
     },
     {
       "path": "3d-avatar-maker-icon.webp",
@@ -510,6 +526,86 @@
       "path": "kit/avatar/avatar-male.webp",
       "sha256": "387b1a297f5f2658c5c9b9319a8b2e2c3da52d0316a85e20842bf81f9caf03be",
       "bytes": 66580
+    },
+    {
+      "path": "kit/avatar/realistic-beard-chin_curtain-skin.webp",
+      "sha256": "04f1e40889127ccd9032ab5d9399977ded73ede8e8b0da073ccb64922edcf614",
+      "bytes": 2344
+    },
+    {
+      "path": "kit/avatar/realistic-beard-chin_curtain.pack.png",
+      "sha256": "d83a0d833f99c0f10c2633af77ef723242031e76ae98bb220b777b25ed40c0d7",
+      "bytes": 102757
+    },
+    {
+      "path": "kit/avatar/realistic-beard-full-skin.webp",
+      "sha256": "fca84ee74f89a24e24af2a072001b0f2619449d1c869c2230fe23b8332b94945",
+      "bytes": 3580
+    },
+    {
+      "path": "kit/avatar/realistic-beard-full.pack.png",
+      "sha256": "b9ac271a5d47aa9be497e18f7667e85944a3a04c31453379a0f502d3ce514217",
+      "bytes": 391415
+    },
+    {
+      "path": "kit/avatar/realistic-beard-goatee-skin.webp",
+      "sha256": "0be45e895662ce885448de0ede578a89eb792670cbf9d81edc2f7556efd88d4a",
+      "bytes": 2030
+    },
+    {
+      "path": "kit/avatar/realistic-beard-goatee.pack.png",
+      "sha256": "e7d087e1eaf18e86c9bcc2fee8d1ad2baa8b01b30b828ba858071baa22705b4c",
+      "bytes": 192179
+    },
+    {
+      "path": "kit/avatar/realistic-beard-long-skin.webp",
+      "sha256": "0a0f33c6f3e946bfd6c0dcdde572879e716dd60958942879347b6f83c4e434c6",
+      "bytes": 3664
+    },
+    {
+      "path": "kit/avatar/realistic-beard-long.pack.png",
+      "sha256": "cba6e30f44d673d8e14812c0ac655b021edc75da2f2fd9b21aeef2927135236a",
+      "bytes": 515416
+    },
+    {
+      "path": "kit/avatar/realistic-beard-moustache-skin.webp",
+      "sha256": "130df8905736df6e4995f85d8f000c353204538e8518b886285d60cf603c2a08",
+      "bytes": 1014
+    },
+    {
+      "path": "kit/avatar/realistic-beard-moustache.pack.png",
+      "sha256": "ac7f4fda2ea171290490094e4b679094fb86c7f287a1725f7fb33a53b9710b42",
+      "bytes": 90816
+    },
+    {
+      "path": "kit/avatar/realistic-beard-mutton_chops-skin.webp",
+      "sha256": "1224295a0a40f268114e68375de574f1053e4d6df9c36f612ae81800a3f153b2",
+      "bytes": 2934
+    },
+    {
+      "path": "kit/avatar/realistic-beard-mutton_chops.pack.png",
+      "sha256": "a103322cd29524cdb44632a85e908ba9256a1f280eb563afd404a74bf7017354",
+      "bytes": 167364
+    },
+    {
+      "path": "kit/avatar/realistic-beard-short-skin.webp",
+      "sha256": "7c4b6d9804dde4c78ed860191c4390970e2b68c3dc5215a60a0cd238bac1dc34",
+      "bytes": 3704
+    },
+    {
+      "path": "kit/avatar/realistic-beard-short.pack.png",
+      "sha256": "b5c66cccb3b81fb2f101c09b1609f0bea8dcb79fdacdfb153c95cf6ac28da2ec",
+      "bytes": 264918
+    },
+    {
+      "path": "kit/avatar/realistic-beard-walrus-skin.webp",
+      "sha256": "88b38a6ea0204ecf7ec9efd9376b6b844aa218602b265eaf1eaeef7bef2ed22a",
+      "bytes": 1076
+    },
+    {
+      "path": "kit/avatar/realistic-beard-walrus.pack.png",
+      "sha256": "dfcf15da278e0f3ced784a6807fb6ce08fcf480b392dd93eedbd0b2be69db423",
+      "bytes": 157486
     },
     {
       "path": "kit/avatar/realistic-body.pack.png",

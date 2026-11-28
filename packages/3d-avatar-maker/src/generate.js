@@ -12,6 +12,7 @@ import {
   AVATAR_COLOURS,
   BODIES,
   REALISTIC,
+  REALISTIC_BEARDS,
   REALISTIC_BROWS,
   REALISTIC_COLOURS,
   REALISTIC_FIELDS,
@@ -232,7 +233,8 @@ export function realisticMenu() {
     `realHair: ${REALISTIC_HAIR.map(([value, label]) => `${value} (${label})`).join(", ")}; hairTint: their hair's colour`,
     `eyePicture: ${TINT} (then colours.eyes is their eye colour), or a real eye: ${EYE_PICTURES.map(([value]) => value).join(", ")}`,
     `realBrows: 1 to ${REALISTIC_BROWS} (the brows' style, from thin to thick and bushy)`,
-    `colours: { ${REALISTIC_COLOURS.join(", ")} } (brows left out: the hair's colour, a little darker; lips is a lipstick's colour and nails a nail polish's, each left out for the skin's own)`,
+    `realBeard: ${REALISTIC_BEARDS.map(([value, label]) => `${value} (${label})`).join(", ")}`,
+    `colours: { ${REALISTIC_COLOURS.join(", ")} } (brows and beard left out: the hair's colour, a little darker; lips is a lipstick's colour and nails a nail polish's, each left out for the skin's own)`,
     `makeup (only for someone who wears it): { ${MAKEUP_LAYERS.filter(([layer]) => layer !== "lipstick")
       .map(([layer]) => layer)
       .join(", ")}: { colour, amount (0 to 1) } each, lipstick: { amount (0 to 1) } (its colour is colours.lips) }`,
