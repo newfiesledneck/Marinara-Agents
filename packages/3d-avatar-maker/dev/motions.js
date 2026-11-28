@@ -4,8 +4,8 @@
 //
 //   /motions?body=female&motions=idle,walk&frames=8&step=0.6&view=body&name=sheet   (body: female, male or realistic)
 //
-// `view`: body (the default), back, hand, legs, face, head-side, head-back, head-top, mouth, mouth-side or
-// mouth-below. `faces=1` draws each
+// `view`: body (the default), back, hand, legs, face, eyes, eyes-side, head-side, head-back, head-top, mouth,
+// mouth-side or mouth-below. `faces=1` draws each
 // face of the Face list in place of the animations, and `keys=aa,oh:0.5` the face's own keys, each alone.
 // `outfit` names a ready-made outfit (Modern casual unless said); `look` is a look as JSON, over that;
 // `packs=0` leaves the wardrobe packs out.
@@ -56,6 +56,12 @@ function aim(figure, view) {
   } else if (view === "face") {
     n.head.getWorldPosition(at).y += 0.05;
     camera.position.set(at.x, at.y + 0.01, at.z + 0.7);
+  } else if (view === "eyes" || view === "eyes-side") {
+    // (The eyes close up, from the front or from the avatar's left: lashes, brows, irises, eye makeup.)
+    (figure.bones.get("eye_l") ?? n.head).getWorldPosition(at);
+    at.set(view === "eyes" ? 0 : at.x, at.y + 0.008, at.z);
+    if (view === "eyes") camera.position.set(at.x, at.y, at.z + 0.3);
+    else camera.position.set(at.x + 0.2, at.y + 0.01, at.z + 0.14);
   } else if (view === "head-side" || view === "head-back" || view === "head-top") {
     // (The head from its left front, from behind, or from above: where hair shows what's under it.)
     n.head.getWorldPosition(at).y += 0.07;

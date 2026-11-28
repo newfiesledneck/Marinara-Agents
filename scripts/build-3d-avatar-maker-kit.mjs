@@ -45,6 +45,7 @@ import { MESH_KINDS, RIGGED_KINDS, writePacked } from "./3d-avatar-maker-packed.
 import {
   CLOTH_PARTS,
   CLOTH_SLOTS,
+  EYE_PICTURES,
   HAIRSTYLES,
   NAIL_SLOTS,
   PIECE_BONES,
@@ -1366,7 +1367,8 @@ export function packHairStyles({ dir, files, reach, shares, bundler, bundleOf, p
  *   `jointMoves` (how each slider moves every joint, from realistic-body.json: the character's own joints
  *   follow its shape).
  * - kit/avatar/realistic-hair-<style>.pack.png: a strand hair style each, as ribbons and a scalp cap.
- * - kit/avatar/realistic-*.webp: its pictures, as the script wrote them.
+ * - kit/avatar/realistic-*.webp: its pictures, as the script wrote them; and realistic-eyes.webp, the eye
+ *   pictures' irises and the model's own in grey, put together here.
  */
 function realistic(dir, out) {
   if (!existsSync(join(dir, "realistic-body.glb"))) return;
@@ -1377,7 +1379,7 @@ function realistic(dir, out) {
   primitives.forEach(keyNormals);
   const body = part(primitives, () => null, { skeleton: skeletonOf(gltf) });
   body.meshes.forEach((mesh, i) => {
-    if (/brows/u.test(primitives[i].nodeName ?? "")) mesh.piece = "brows";
+    if (/lashes/u.test(primitives[i].nodeName ?? "")) mesh.piece = "lashes";
   });
   let top = 0;
   for (const primitive of primitives)
@@ -1397,21 +1399,46 @@ function realistic(dir, out) {
     MESH_KINDS,
   );
   const styles = [];
-  for (const name of readdirSync(dir).filter((file) => /^realistic-hair-[a-z0-9_]+.glb$/u.test(file))) {
+  for (const name of readdirSync(dir).filter((file) => /^realistic-(?:hair-[a-z0-9_]+|brows-\d\d)\.glb$/u.test(file))) {
     const hair = readGltf(join(dir, name));
     writePacked(
       join(out, name.replace(/.glb$/u, ".pack.png")),
       { source, ...part(skinnedPrimitives(hair), () => null) },
       MESH_KINDS,
     );
-    styles.push(name.slice("realistic-hair-".length, -4));
+    styles.push(name.slice("realistic-".length, -4));
   }
   const pictures = join(ROOT, "packages/3d-avatar-maker/assets/textures/realistic");
   const copied = existsSync(pictures)
-    ? readdirSync(pictures).filter((file) => /^realistic-[a-z0-9-]+.webp$/u.test(file))
+    ? readdirSync(pictures).filter(
+        (file) => /^realistic-[a-z0-9-]+\.webp$/u.test(file) && !file.startsWith("realistic-iris"),
+      )
     : [];
   for (const name of copied) writeFileSync(join(out, name), readFileSync(join(pictures, name)));
-  console.log(`wrote the Realistic body: ${keys.length} keys, hair ${styles.join(", ")}, ${copied.length} pictures`);
+  // The irises: realistic-eyes.webp, 5 × 5 tiles of 256 pixels. The 24 eye pictures' irises in the order of
+  // looks.js EYE_PICTURES (each MakeHuman eye picture has its iris close up in its top left quarter, the
+  // iris's edge just inside the quarter's), then the model's own iris in grey, for a colour of one's own.
+  const eyeFiles = [
+    ...EYE_PICTURES.map(([eye]) =>
+      join(ROOT, "packages/3d-avatar-maker/assets/textures/avatar", `avatar-eyes-${eye}.webp`),
+    ),
+    join(pictures, "realistic-iris-grey.webp"),
+  ];
+  const across = 5;
+  if (eyeFiles.length === across * across && eyeFiles.every((file) => existsSync(file))) {
+    const last = eyeFiles.length - 1;
+    const tiles = eyeFiles.map((_, i) => `[${i}]${i === last ? "" : "crop=iw/2:ih/2:0:0,"}scale=256:256[t${i}]`);
+    const layout = eyeFiles.map((_, i) => `${(i % across) * 256}_${Math.floor(i / across) * 256}`);
+    execFileSync(FFMPEG, [
+      ...["-v", "error", "-y"],
+      ...eyeFiles.flatMap((file) => ["-i", file]),
+      "-filter_complex",
+      `${tiles.join(";")};${eyeFiles.map((_, i) => `[t${i}]`).join("")}xstack=inputs=${eyeFiles.length}:layout=${layout.join("|")}`,
+      ...["-frames:v", "1", "-quality", "90", join(out, "realistic-eyes.webp")],
+    ]);
+    copied.push("realistic-eyes.webp");
+  }
+  console.log(`wrote the Realistic body: ${keys.length} keys; ${styles.join(", ")}; ${copied.length} pictures`);
 }
 
 function avatar(only = "", to = "") {

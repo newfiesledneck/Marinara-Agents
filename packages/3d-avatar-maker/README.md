@@ -66,6 +66,10 @@ bodies, which stay as they are with everything made for them. So far it has:
 - A skin tone slider on the Skin and eyes tab, from its light skin to its dark one.
 - Four hair styles on the Hair tab, each made of thousands of separate strands, in any hair colour. The scalp
   under a style is painted in the hair's colour, so no skin shows between the strands.
+- Eyes on the Skin and eyes tab: any colour laid on its own iris, or one of the 24 eye pictures the other
+  bodies have.
+- Fourteen brow styles on the Hair tab, in the hair's colour or one of their own, and eyelashes in the brows'
+  colour, darker, which close with the eyes.
 - The same blinks, mouth shapes and feelings, the preview's poses and animations, and saving as a VRM or GLB.
 
 - Underwear painted on the skin: cheeky panties and a strapless bra on a female build, boxer briefs on a male
@@ -73,8 +77,8 @@ bodies, which stay as they are with everything made for them. So far it has:
   slider decides which). It is part of the skin's picture, so nothing can show through it. **Painted
   underwear** on the Clothes tab is ticked to start with; untick it for bare skin as the model has it.
 
-It has no clothes, fitted underwear, eyelashes, eye colours or makeup yet, and its hair doesn't swing yet.
-Generate and Revise avatar work on it with a menu of its own: its sliders, skin tone and hair.
+It has no clothes, fitted underwear, makeup or nail colours yet, and its hair doesn't swing yet.
+Generate and Revise avatar work on it with a menu of its own: its sliders, skin tone, hair, eyes and brows.
 
 ## Wardrobe packs
 
@@ -195,10 +199,11 @@ use and share however you like, with no credit required:
   by ThatOneCan, who also fitted the nails and the six community bobs and baked the new brows and lashes; all
   released as CC0 1.0 too.
 
-- The Realistic body, its skin, eyes, brows and four strand hair styles are from
+- The Realistic body, its skin, eyes, brow styles and four strand hair styles are from
   [Vitruvian for CharMorph](https://github.com/Upliner/CharMorph-Vitruvian) (CC0) by Sean Buckley, on Antonia
   Polygon by Olaf Delgado-Friedrichs, with SirMaxim, Upliner, AgentA1CR, Benjamin McDonnell and Mindfront;
-  adapted in Blender by ThatOneCan, used as data.
+  adapted in Blender by ThatOneCan, used as data. Its eyelashes were made by ThatOneCan (CC0), and its eye
+  pictures are the other bodies' (MakeHuman's and the community's, credited above).
 
 - Most of the preview's animations are clips from Quaternius's Universal Animation Library and Universal
   Animation Library 2 (CC0). They play in the preview only; a saved file doesn't carry them.

@@ -27,6 +27,7 @@ import {
   presetFields,
   HAIR_COLOURS,
   REALISTIC,
+  REALISTIC_BROWS,
   REALISTIC_HAIR,
   REALISTIC_SHAPES,
   HAIRSTYLES,
@@ -352,7 +353,7 @@ export function createPanel(actions) {
     skin: ({ filled }) => [
       group(
         "Skin",
-        "This body has a light skin and a dark one; the slider blends between them. Eye colours and more skins come later.",
+        "This body has a light skin and a dark one; the slider blends between them. More skins come later.",
         slider({
           name: "Skin tone",
           says: "From the light skin to the dark one.",
@@ -363,6 +364,25 @@ export function createPanel(actions) {
           onInput: (at) => change({ realTone: at }, false),
         }),
       ),
+      group(
+        "Eyes",
+        "",
+        row(
+          "Eyes",
+          select(
+            [[TINT, "A colour of your own"], ...EYE_PICTURES],
+            filled.eyePicture,
+            (value) => change({ eyePicture: value }),
+            "Eyes",
+          ),
+          "An eye picture, or the model's own iris in any colour.",
+        ),
+        filled.eyePicture === TINT
+          ? colours("Eye colour", EYE_COLOURS, filled.colours?.eyes ?? EYE_COLOURS[1][0], (hex, redraw) =>
+              change({ colours: { eyes: hex } }, redraw),
+            )
+          : null,
+      ),
     ],
     hair: ({ filled }) => [
       group(
@@ -371,7 +391,7 @@ export function createPanel(actions) {
         row(
           "Style",
           select(REALISTIC_HAIR, filled.realHair, (value) => change({ realHair: value }), "Hair style"),
-          "The brows take the hair's colour, a little darker.",
+          "",
         ),
         colours(
           "Hair colour",
@@ -379,6 +399,33 @@ export function createPanel(actions) {
           filled.hairTint ?? HAIR_COLOURS[filled.hairColour ?? 0]?.[0],
           (hex, redraw) => change({ hairTint: hex, hairColour: undefined }, redraw),
         ),
+      ),
+      group(
+        "Brows and lashes",
+        "The brows are separate hairs too, in fourteen styles. The lashes take the brows' colour, darker.",
+        row(
+          "Brows",
+          select(
+            Array.from({ length: REALISTIC_BROWS }, (_, i) => [String(i + 1), `Style ${i + 1}`]),
+            String(filled.realBrows),
+            (value) => change({ realBrows: Number(value) }),
+            "Brow style",
+          ),
+        ),
+        colours(
+          "Brow colour",
+          HAIR_COLOURS,
+          filled.colours?.brows,
+          (hex, redraw) => change({ colours: { brows: hex } }, redraw),
+          "Left alone, the brows are the hair's colour, a little darker.",
+        ),
+        Number.isInteger(filled.colours?.brows)
+          ? h(
+              "button",
+              { type: "button", onclick: () => change({ colours: { brows: undefined } }) },
+              "Brows in the hair's colour",
+            )
+          : null,
       ),
     ],
     clothes: ({ filled }) => [

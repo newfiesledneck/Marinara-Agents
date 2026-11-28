@@ -1,5 +1,12 @@
 # 3D Avatar Maker release notes
 
+## 0.1.24 — 2026-11-27
+
+- The Realistic body has eye colours on its Skin and eyes tab: any colour on its own iris, or one of the 24 eye pictures the other bodies have.
+- It has eyelashes, which close with the eyes, and fourteen brow styles on its Hair tab. The brows are the hair's colour unless you give them their own; the lashes are the brows' colour, darker.
+- Its hair is darker at the roots than at the tips. It was the other way round.
+- Generate and Revise avatar can choose its eye colour or picture, its brow style and its brow colour.
+
 ## 0.1.23 — 2026-11-27
 
 - **Generate** and **Revise avatar** work on the Realistic body: the model is given that body's own sliders, skin tone and hair styles, and the avatar stays the Realistic body. Before, generating swapped it for the Male or Female body.

@@ -12,6 +12,8 @@ import {
   AVATAR_COLOURS,
   BODIES,
   REALISTIC,
+  REALISTIC_BROWS,
+  REALISTIC_COLOURS,
   REALISTIC_FIELDS,
   REALISTIC_HAIR,
   REALISTIC_SHAPES,
@@ -230,6 +232,9 @@ export function realisticMenu() {
     ),
     "realTone: 0 to 1, their skin from light (0) to dark (1)",
     `realHair: ${REALISTIC_HAIR.map(([value, label]) => `${value} (${label})`).join(", ")}; hairTint: their hair's colour`,
+    `eyePicture: ${TINT} (then colours.eyes is their eye colour), or a real eye: ${EYE_PICTURES.map(([value]) => value).join(", ")}`,
+    `realBrows: 1 to ${REALISTIC_BROWS} (the brows' style, from thin to thick and bushy)`,
+    `colours: { ${REALISTIC_COLOURS.join(", ")} } (brows left out: the hair's colour, a little darker)`,
     "This body has no clothes to choose yet: describe none.",
   ].join("\n");
 }
@@ -254,6 +259,12 @@ export function lookForModel(look) {
     if (isRecord(out.realShape))
       out.realShape = Object.fromEntries(Object.entries(out.realShape).filter(([, value]) => value !== 0));
     if (Number.isInteger(out.hairTint)) out.hairTint = hexText(out.hairTint);
+    if (isRecord(out.colours))
+      out.colours = hexes(
+        Object.fromEntries(
+          REALISTIC_COLOURS.filter((field) => field in out.colours).map((field) => [field, out.colours[field]]),
+        ),
+      );
     return out;
   }
   const { fromPacks: _packs, preset: _preset, skinSet: _set, avatar: _avatar, ...rest } = look ?? {};
@@ -353,7 +364,15 @@ export function designedLook(base, raw) {
   if (base?.body === REALISTIC) {
     // (The Realistic body stays the Realistic body: its own fields are read, its sliders part by part.)
     const design = readRealisticDesign(raw);
-    return { look: checkLook({ ...base, ...design, realShape: { ...base.realShape, ...design.realShape } }), design };
+    return {
+      look: checkLook({
+        ...base,
+        ...design,
+        realShape: { ...base.realShape, ...design.realShape },
+        colours: { ...base.colours, ...design.colours },
+      }),
+      design,
+    };
   }
   const design = readDesign(raw);
   // (From here a design is for one of the kit's two bodies; one started from anything else is a female body's.)

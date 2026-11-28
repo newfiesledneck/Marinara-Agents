@@ -19,10 +19,16 @@ Upliner (the original Antonia rigging), AgentA1CR (node help, eyebrow conversion
 
 - `avatar/realistic-body.pack.png`: the body on the maker's bones (the character's own game-rig weights,
   gathered onto them), its face's moves (mixes of the character's face shapes chosen by ThatOneCan), its shape
-  sliders (the character's morphs) and its brows (Mindfront's, as ribbons).
+  sliders (the character's morphs), and eyelashes grown along its lids' edges by ThatOneCan
+  (`make_realistic.py` `lashes_of`; CC0).
+- `avatar/realistic-brows-01.pack.png` to `-14`: the character's fourteen brow styles (Mindfront's), each hair
+  turned into a narrow ribbon.
 - `avatar/realistic-skin-<part>-light.webp`, `-dark.webp`, `-normal.webp`, `-rough.webp`,
-  `avatar/realistic-iris.webp`, `realistic-eye.webp`, `realistic-mouth.webp`: the character's textures at a
-  browser's size; the normal maps made from its height maps. The torso and legs also come with
+  `realistic-eye.webp`, `realistic-mouth.webp`: the character's textures at a
+  browser's size; the normal maps made from its height maps.
+- `avatar/realistic-eyes.webp`: 25 irises in one picture. The first 24 are the middles of the eye pictures in
+  `avatar/avatar-eyes.webp` (MakeHuman's nine and the community's, credited below); the last is the
+  character's own iris with its colour taken out, which the maker lays a colour on. The torso and legs also come with
   underwear painted on by ThatOneCan (`-female`: cheeky panties and a strapless bra; `-male`: boxer briefs).
 - `avatar/realistic-hair-bob.pack.png`, `-slicked`, `-back`, `-eve`: four of the character's strand hair
   styles, each strand turned into a narrow ribbon; and `avatar/realistic-hair-<style>-scalp.webp`, where the

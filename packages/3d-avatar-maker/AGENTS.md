@@ -69,7 +69,7 @@ node scripts/build-3d-avatar-maker-kit.mjs realistic
 ```
 
 The first writes `assets/models/realistic-*.glb`, `realistic-body.json` and `assets/textures/realistic/`
-(`-- body`, `-- textures` or `-- hair` builds one of them; ffmpeg on `PATH`, or `FFMPEG`); the second packs
+(`-- body`, `-- textures`, `-- hair` or `-- brows` builds one of them; ffmpeg on `PATH`, or `FFMPEG`); the second packs
 them into `kit/avatar/realistic-*` and leaves the rest of the kit as it is. `src/realistic.js` builds that
 body in the maker; nothing in it reads the other bodies' files, and `BODIES` in `src/looks.js` stays the
 kit's two, which the clothes, hair and presets are made for. Its sliders are named in three places that must
